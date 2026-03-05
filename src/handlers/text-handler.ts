@@ -1,15 +1,24 @@
 import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import { pluginManager } from '../plugins/index.js';
 
 /**
  * Handle text messages.
- * Implements basic keyword-based routing as a starting point.
- * Replace or extend this handler with your own business logic.
+ * Checks registered plugins first, then falls back to built-in keyword routing.
  */
 export async function handleTextMessage(
   message: IncomingMessage,
-  _env: Env,
+  env: Env,
 ): Promise<ReplyMessage> {
-  const content = (message.content ?? '').trim().toLowerCase();
+  const trimmed = (message.content ?? '').trim();
+
+  // Check plugins first — the first matching plugin wins
+  const plugin = pluginManager.findPlugin(trimmed, message);
+  if (plugin) {
+    const result = await plugin.handle(message, env);
+    if (result) return result;
+  }
+
+  const content = trimmed.toLowerCase();
 
   if (content === 'help' || content === '帮助') {
     return {
