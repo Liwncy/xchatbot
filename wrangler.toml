@@ -1,0 +1,19 @@
+name = "xchatbot"
+main = "src/index.ts"
+compatibility_date = "2025-02-24"
+
+[vars]
+# WeChat Official Account configuration (set via wrangler secret or .dev.vars for local)
+# WECHAT_TOKEN = "your_wechat_token"
+# WECHAT_APP_ID = "your_wechat_app_id"
+# WECHAT_APP_SECRET = "your_wechat_app_secret"
+
+# Feishu App configuration
+# FEISHU_APP_ID = "your_feishu_app_id"
+# FEISHU_APP_SECRET = "your_feishu_app_secret"
+# FEISHU_VERIFICATION_TOKEN = "your_feishu_verification_token"
+# FEISHU_ENCRYPT_KEY = "your_feishu_encrypt_key"
+
+# DingTalk configuration
+# DINGTALK_APP_KEY = "your_dingtalk_app_key"
+# DINGTALK_APP_SECRET = "your_dingtalk_app_secret"
