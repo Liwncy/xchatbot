@@ -11,6 +11,9 @@ export type MessageType =
   | 'link'
   | 'event';
 
+/** Message source for personal WeChat messages */
+export type MessageSource = 'private' | 'group' | 'official';
+
 /** Event subtypes for event messages */
 export type EventType =
   | 'subscribe'
@@ -28,8 +31,12 @@ export interface IncomingMessage {
   platform: Platform;
   /** Message type */
   type: MessageType;
+  /** Message source: private chat, group chat, or official account push (WeChat personal) */
+  source?: MessageSource;
   /** Sender ID (open_id / user_id depending on platform) */
   from: string;
+  /** Sender display name */
+  senderName?: string;
   /** Receiver ID (bot/app ID) */
   to: string;
   /** Unix timestamp (seconds) */
@@ -40,6 +47,11 @@ export interface IncomingMessage {
   content?: string;
   /** Media URL or media_id (for image/voice/video messages) */
   mediaId?: string;
+  /** Group/room info (for group messages) */
+  room?: {
+    id: string;
+    topic?: string;
+  };
   /** Location info (for location messages) */
   location?: {
     latitude: number;
@@ -136,10 +148,9 @@ export type MessageHandler = (
 
 /** Cloudflare Workers environment bindings */
 export interface Env {
-  // WeChat
+  // WeChat Personal Account (via bridge/gateway)
   WECHAT_TOKEN?: string;
-  WECHAT_APP_ID?: string;
-  WECHAT_APP_SECRET?: string;
+  WECHAT_CALLBACK_URL?: string;
   // Feishu
   FEISHU_APP_ID?: string;
   FEISHU_APP_SECRET?: string;

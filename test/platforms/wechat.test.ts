@@ -1,101 +1,107 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   verifyWechatSignature,
   parseWechatMessage,
   buildWechatReply,
 } from '../../src/platforms/wechat/index.js';
 import type { ReplyMessage } from '../../src/types/message.js';
+import type { WechatPersonalMessage } from '../../src/platforms/wechat/types.js';
+import { createHmac } from 'crypto';
+
+function makePayload(overrides: Partial<WechatPersonalMessage> = {}): WechatPersonalMessage {
+  return {
+    source: 'private',
+    messageId: 'msg_001',
+    timestamp: 1700000000,
+    from: { id: 'wxid_sender', name: 'Sender' },
+    self: 'wxid_bot',
+    type: 'text',
+    content: 'Hello Bot',
+    ...overrides,
+  };
+}
 
 describe('verifyWechatSignature', () => {
-  it('returns true for valid signature', async () => {
-    // token=testtoken, timestamp=1700000000, nonce=nonce123
-    // sorted: [testtoken, 1700000000, nonce123] -> [1700000000, nonce123, testtoken]
-    // We pre-compute the expected SHA1 via Node crypto for comparison
-    const { createHash } = await import('crypto');
-    const token = 'testtoken';
+  it('returns true for valid HMAC-SHA256 signature', async () => {
+    const token = 'test_secret';
     const timestamp = '1700000000';
-    const nonce = 'nonce123';
-    const sorted = [token, timestamp, nonce].sort().join('');
-    const signature = createHash('sha1').update(sorted).digest('hex');
+    const body = '{"type":"text","content":"hello"}';
+    const signature = createHmac('sha256', token).update(timestamp + body).digest('hex');
 
-    const result = await verifyWechatSignature(token, signature, timestamp, nonce);
+    const result = await verifyWechatSignature(token, signature, timestamp, body);
     expect(result).toBe(true);
   });
 
   it('returns false for invalid signature', async () => {
-    const result = await verifyWechatSignature('token', 'badsignature', '12345', 'abc');
+    const result = await verifyWechatSignature('token', 'badsignature', '12345', '{}');
     expect(result).toBe(false);
   });
 });
 
 describe('parseWechatMessage', () => {
-  it('parses text message', () => {
-    const xml =
-      '<xml>' +
-      '<ToUserName><![CDATA[gh_123]]></ToUserName>' +
-      '<FromUserName><![CDATA[user_456]]></FromUserName>' +
-      '<CreateTime>1700000000</CreateTime>' +
-      '<MsgType><![CDATA[text]]></MsgType>' +
-      '<Content><![CDATA[Hello Bot]]></Content>' +
-      '<MsgId>1234567890</MsgId>' +
-      '</xml>';
-
-    const msg = parseWechatMessage(xml);
+  it('parses private text message', () => {
+    const msg = parseWechatMessage(makePayload());
     expect(msg.platform).toBe('wechat');
     expect(msg.type).toBe('text');
+    expect(msg.source).toBe('private');
     expect(msg.content).toBe('Hello Bot');
-    expect(msg.from).toBe('user_456');
-    expect(msg.to).toBe('gh_123');
-    expect(msg.messageId).toBe('1234567890');
+    expect(msg.from).toBe('wxid_sender');
+    expect(msg.senderName).toBe('Sender');
+    expect(msg.to).toBe('wxid_bot');
+    expect(msg.messageId).toBe('msg_001');
+  });
+
+  it('parses group text message with room info', () => {
+    const msg = parseWechatMessage(makePayload({
+      source: 'group',
+      room: { id: 'room_123@chatroom', topic: 'Test Group' },
+    }));
+    expect(msg.source).toBe('group');
+    expect(msg.room?.id).toBe('room_123@chatroom');
+    expect(msg.room?.topic).toBe('Test Group');
+  });
+
+  it('parses official account push', () => {
+    const msg = parseWechatMessage(makePayload({
+      source: 'official',
+      content: 'Official news',
+    }));
+    expect(msg.source).toBe('official');
+    expect(msg.content).toBe('Official news');
   });
 
   it('parses image message', () => {
-    const xml =
-      '<xml>' +
-      '<ToUserName><![CDATA[gh_123]]></ToUserName>' +
-      '<FromUserName><![CDATA[user_456]]></FromUserName>' +
-      '<CreateTime>1700000000</CreateTime>' +
-      '<MsgType><![CDATA[image]]></MsgType>' +
-      '<PicUrl><![CDATA[https://example.com/img.jpg]]></PicUrl>' +
-      '<MediaId><![CDATA[media_001]]></MediaId>' +
-      '<MsgId>1234567891</MsgId>' +
-      '</xml>';
-
-    const msg = parseWechatMessage(xml);
+    const msg = parseWechatMessage(makePayload({
+      type: 'image',
+      mediaUrl: 'https://example.com/img.jpg',
+    }));
     expect(msg.type).toBe('image');
-    expect(msg.mediaId).toBe('media_001');
+    expect(msg.mediaId).toBe('https://example.com/img.jpg');
   });
 
-  it('parses subscribe event', () => {
-    const xml =
-      '<xml>' +
-      '<ToUserName><![CDATA[gh_123]]></ToUserName>' +
-      '<FromUserName><![CDATA[user_456]]></FromUserName>' +
-      '<CreateTime>1700000000</CreateTime>' +
-      '<MsgType><![CDATA[event]]></MsgType>' +
-      '<Event><![CDATA[subscribe]]></Event>' +
-      '</xml>';
+  it('parses voice message', () => {
+    const msg = parseWechatMessage(makePayload({
+      type: 'voice',
+      mediaUrl: 'https://example.com/voice.amr',
+    }));
+    expect(msg.type).toBe('voice');
+    expect(msg.mediaId).toBe('https://example.com/voice.amr');
+  });
 
-    const msg = parseWechatMessage(xml);
-    expect(msg.type).toBe('event');
-    expect(msg.event?.type).toBe('subscribe');
+  it('parses video message', () => {
+    const msg = parseWechatMessage(makePayload({
+      type: 'video',
+      mediaUrl: 'https://example.com/video.mp4',
+    }));
+    expect(msg.type).toBe('video');
+    expect(msg.mediaId).toBe('https://example.com/video.mp4');
   });
 
   it('parses location message', () => {
-    const xml =
-      '<xml>' +
-      '<ToUserName><![CDATA[gh_123]]></ToUserName>' +
-      '<FromUserName><![CDATA[user_456]]></FromUserName>' +
-      '<CreateTime>1700000000</CreateTime>' +
-      '<MsgType><![CDATA[location]]></MsgType>' +
-      '<Location_X>39.9</Location_X>' +
-      '<Location_Y>116.4</Location_Y>' +
-      '<Scale>16</Scale>' +
-      '<Label><![CDATA[Beijing]]></Label>' +
-      '<MsgId>1234567892</MsgId>' +
-      '</xml>';
-
-    const msg = parseWechatMessage(xml);
+    const msg = parseWechatMessage(makePayload({
+      type: 'location',
+      location: { latitude: 39.9, longitude: 116.4, label: 'Beijing' },
+    }));
     expect(msg.type).toBe('location');
     expect(msg.location?.latitude).toBe(39.9);
     expect(msg.location?.longitude).toBe(116.4);
@@ -103,43 +109,57 @@ describe('parseWechatMessage', () => {
   });
 
   it('parses link message', () => {
-    const xml =
-      '<xml>' +
-      '<ToUserName><![CDATA[gh_123]]></ToUserName>' +
-      '<FromUserName><![CDATA[user_456]]></FromUserName>' +
-      '<CreateTime>1700000000</CreateTime>' +
-      '<MsgType><![CDATA[link]]></MsgType>' +
-      '<Title><![CDATA[Test Page]]></Title>' +
-      '<Description><![CDATA[Desc]]></Description>' +
-      '<Url><![CDATA[https://example.com]]></Url>' +
-      '<MsgId>1234567893</MsgId>' +
-      '</xml>';
-
-    const msg = parseWechatMessage(xml);
+    const msg = parseWechatMessage(makePayload({
+      type: 'link',
+      link: { title: 'Test Page', description: 'Desc', url: 'https://example.com' },
+    }));
     expect(msg.type).toBe('link');
     expect(msg.link?.title).toBe('Test Page');
     expect(msg.link?.url).toBe('https://example.com');
   });
+
+  it('falls back to text for unknown type', () => {
+    const msg = parseWechatMessage(makePayload({
+      type: 'unknown_type',
+      content: 'some content',
+    }));
+    expect(msg.type).toBe('text');
+    expect(msg.content).toBe('some content');
+  });
 });
 
 describe('buildWechatReply', () => {
-  it('builds text reply XML', () => {
+  it('builds text reply JSON for private chat', () => {
     const reply: ReplyMessage = { type: 'text', content: 'Hello User' };
-    const xml = buildWechatReply(reply, 'user_456', 'gh_123');
-    expect(xml).toContain('<MsgType><![CDATA[text]]></MsgType>');
-    expect(xml).toContain('<Content><![CDATA[Hello User]]></Content>');
-    expect(xml).toContain('<ToUserName><![CDATA[user_456]]></ToUserName>');
-    expect(xml).toContain('<FromUserName><![CDATA[gh_123]]></FromUserName>');
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'wxid_sender',
+      type: 'text',
+      content: 'Hello User',
+    });
   });
 
-  it('builds image reply XML', () => {
+  it('builds text reply JSON for group chat', () => {
+    const reply: ReplyMessage = { type: 'text', content: 'Hello Group' };
+    const result = buildWechatReply(reply, 'wxid_sender', 'room_123@chatroom');
+    expect(result).toEqual({
+      to: 'room_123@chatroom',
+      type: 'text',
+      content: 'Hello Group',
+    });
+  });
+
+  it('builds image reply JSON', () => {
     const reply: ReplyMessage = { type: 'image', mediaId: 'media_001' };
-    const xml = buildWechatReply(reply, 'user_456', 'gh_123');
-    expect(xml).toContain('<MsgType><![CDATA[image]]></MsgType>');
-    expect(xml).toContain('<MediaId><![CDATA[media_001]]></MediaId>');
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'wxid_sender',
+      type: 'image',
+      mediaUrl: 'media_001',
+    });
   });
 
-  it('builds news reply XML', () => {
+  it('builds news reply JSON', () => {
     const reply: ReplyMessage = {
       type: 'news',
       articles: [
@@ -147,16 +167,14 @@ describe('buildWechatReply', () => {
         { title: 'Article 2', description: 'Desc 2', url: 'https://example.com/2', picUrl: '' },
       ],
     };
-    const xml = buildWechatReply(reply, 'user_456', 'gh_123');
-    expect(xml).toContain('<MsgType><![CDATA[news]]></MsgType>');
-    expect(xml).toContain('<ArticleCount>2</ArticleCount>');
-    expect(xml).toContain('Article 1');
-    expect(xml).toContain('Article 2');
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result.type).toBe('news');
+    expect(result.articles).toHaveLength(2);
   });
 
-  it('returns empty string for unsupported reply type', () => {
+  it('returns empty object for unsupported reply type', () => {
     const reply = { type: 'card', cardContent: {} } as ReplyMessage;
-    const xml = buildWechatReply(reply, 'user', 'bot');
-    expect(xml).toBe('');
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({});
   });
 });

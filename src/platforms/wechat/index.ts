@@ -1,61 +1,73 @@
-import { sha1Hex } from '../../utils/crypto.js';
-import { parseXml, buildXml } from '../../utils/xml.js';
+import { hmacSha256Hex } from '../../utils/crypto.js';
 import type {
   IncomingMessage,
   ReplyMessage,
-  EventType,
   MessageType,
+  MessageSource,
   Env,
 } from '../../types/message.js';
-import type { WechatXmlMessage } from './types.js';
+import type { WechatPersonalMessage } from './types.js';
 
 /**
- * Verify the WeChat server signature.
- * WeChat sends: signature, timestamp, nonce as query parameters.
- * We must sort [token, timestamp, nonce] alphabetically, join them, SHA-1 hash, and compare.
+ * Verify the webhook signature from the WeChat bridge/gateway.
+ * Uses HMAC-SHA256(timestamp + body, token) for authentication.
  */
 export async function verifyWechatSignature(
   token: string,
   signature: string,
   timestamp: string,
-  nonce: string,
+  body: string,
 ): Promise<boolean> {
-  const sorted = [token, timestamp, nonce].sort().join('');
-  const expected = await sha1Hex(sorted);
+  const expected = await hmacSha256Hex(token, timestamp + body);
   return expected === signature;
 }
 
 /**
- * Parse the WeChat XML body into a normalized IncomingMessage.
+ * Parse the JSON body from the WeChat personal account bridge
+ * into a normalized IncomingMessage.
  */
-export function parseWechatMessage(xml: string): IncomingMessage {
-  const fields = parseXml(xml) as WechatXmlMessage;
-  const msgType = (fields.MsgType ?? '').toLowerCase() as MessageType;
-  const timestamp = parseInt(fields.CreateTime ?? '0', 10);
+export function parseWechatMessage(payload: WechatPersonalMessage): IncomingMessage {
+  const msgType = (payload.type ?? '').toLowerCase() as MessageType;
+  const sourceMap: Record<string, MessageSource> = {
+    private: 'private',
+    group: 'group',
+    official: 'official',
+  };
+  const source: MessageSource = sourceMap[payload.source] ?? 'private';
 
-  const base = {
+  const base: Omit<IncomingMessage, 'type'> = {
     platform: 'wechat' as const,
-    from: fields.FromUserName ?? '',
-    to: fields.ToUserName ?? '',
-    timestamp,
-    messageId: fields.MsgId ?? `${timestamp}`,
-    raw: fields,
+    source,
+    from: payload.from?.id ?? '',
+    senderName: payload.from?.name,
+    to: payload.self ?? '',
+    timestamp: payload.timestamp ?? Math.floor(Date.now() / 1000),
+    messageId: payload.messageId ?? `${payload.timestamp}`,
+    raw: payload,
   };
 
+  // Attach room info for group messages
+  if (payload.room) {
+    base.room = {
+      id: payload.room.id,
+      topic: payload.room.topic,
+    };
+  }
+
   if (msgType === 'text') {
-    return { ...base, type: 'text', content: fields.Content ?? '' };
+    return { ...base, type: 'text', content: payload.content ?? '' };
   }
 
   if (msgType === 'image') {
-    return { ...base, type: 'image', mediaId: fields.MediaId, content: fields.PicUrl };
+    return { ...base, type: 'image', mediaId: payload.mediaUrl };
   }
 
   if (msgType === 'voice') {
-    return { ...base, type: 'voice', mediaId: fields.MediaId };
+    return { ...base, type: 'voice', mediaId: payload.mediaUrl };
   }
 
-  if (msgType === 'video' || msgType === 'shortvideo') {
-    return { ...base, type: 'video', mediaId: fields.MediaId };
+  if (msgType === 'video') {
+    return { ...base, type: 'video', mediaId: payload.mediaUrl };
   }
 
   if (msgType === 'location') {
@@ -63,10 +75,9 @@ export function parseWechatMessage(xml: string): IncomingMessage {
       ...base,
       type: 'location',
       location: {
-        latitude: parseFloat(fields.Location_X ?? '0'),
-        longitude: parseFloat(fields.Location_Y ?? '0'),
-        precision: parseFloat(fields.Precision ?? '0'),
-        label: fields.Label,
+        latitude: payload.location?.latitude ?? 0,
+        longitude: payload.location?.longitude ?? 0,
+        label: payload.location?.label,
       },
     };
   }
@@ -76,162 +87,129 @@ export function parseWechatMessage(xml: string): IncomingMessage {
       ...base,
       type: 'link',
       link: {
-        title: fields.Title ?? '',
-        description: fields.Description ?? '',
-        url: fields.Url ?? '',
-      },
-    };
-  }
-
-  if (msgType === 'event') {
-    const eventStr = (fields.Event ?? '').toLowerCase();
-    const eventTypeMap: Record<string, EventType> = {
-      subscribe: 'subscribe',
-      unsubscribe: 'unsubscribe',
-      scan: 'scan',
-      location: 'location',
-      click: 'click',
-      view: 'view',
-    };
-    return {
-      ...base,
-      type: 'event',
-      event: {
-        type: eventTypeMap[eventStr] ?? 'unknown',
-        key: fields.EventKey,
-        ticket: fields.Ticket,
+        title: payload.link?.title ?? '',
+        description: payload.link?.description ?? '',
+        url: payload.link?.url ?? '',
       },
     };
   }
 
   // Fallback: treat as text
-  return { ...base, type: 'text', content: '' };
+  return { ...base, type: 'text', content: payload.content ?? '' };
 }
 
 /**
- * Convert a ReplyMessage to the WeChat XML reply format.
- * Returns an empty string if the reply type is not supported.
+ * Build the JSON reply payload to send back to the WeChat bridge.
  */
 export function buildWechatReply(
   reply: ReplyMessage,
   toUser: string,
-  fromUser: string,
-): string {
-  const timestamp = Math.floor(Date.now() / 1000);
+  roomId?: string,
+): Record<string, unknown> {
+  const target: Record<string, unknown> = roomId ? { to: roomId } : { to: toUser };
 
   if (reply.type === 'text') {
-    return buildXml('xml', {
-      ToUserName: toUser,
-      FromUserName: fromUser,
-      CreateTime: timestamp,
-      MsgType: 'text',
-      Content: reply.content,
-    });
+    return { ...target, type: 'text', content: reply.content };
   }
 
   if (reply.type === 'image') {
-    return buildXml('xml', {
-      ToUserName: toUser,
-      FromUserName: fromUser,
-      CreateTime: timestamp,
-      MsgType: 'image',
-      MediaId: reply.mediaId,
-    });
+    return { ...target, type: 'image', mediaUrl: reply.mediaId };
   }
 
   if (reply.type === 'voice') {
-    return buildXml('xml', {
-      ToUserName: toUser,
-      FromUserName: fromUser,
-      CreateTime: timestamp,
-      MsgType: 'voice',
-      MediaId: reply.mediaId,
-    });
+    return { ...target, type: 'voice', mediaUrl: reply.mediaId };
   }
 
   if (reply.type === 'video') {
-    return buildXml('xml', {
-      ToUserName: toUser,
-      FromUserName: fromUser,
-      CreateTime: timestamp,
-      MsgType: 'video',
-      MediaId: reply.mediaId,
-      Title: reply.title ?? '',
-      Description: reply.description ?? '',
-    });
+    return {
+      ...target,
+      type: 'video',
+      mediaUrl: reply.mediaId,
+      title: reply.title ?? '',
+      description: reply.description ?? '',
+    };
   }
 
   if (reply.type === 'news') {
-    const articleCount = reply.articles.length;
-    const articleXml = reply.articles
-      .map(
-        (a) =>
-          `<item>` +
-          `<Title><![CDATA[${a.title}]]></Title>` +
-          `<Description><![CDATA[${a.description ?? ''}]]></Description>` +
-          `<PicUrl><![CDATA[${a.picUrl ?? ''}]]></PicUrl>` +
-          `<Url><![CDATA[${a.url ?? ''}]]></Url>` +
-          `</item>`,
-      )
-      .join('');
-    return (
-      `<xml>` +
-      `<ToUserName><![CDATA[${toUser}]]></ToUserName>` +
-      `<FromUserName><![CDATA[${fromUser}]]></FromUserName>` +
-      `<CreateTime>${timestamp}</CreateTime>` +
-      `<MsgType><![CDATA[news]]></MsgType>` +
-      `<ArticleCount>${articleCount}</ArticleCount>` +
-      `<Articles>${articleXml}</Articles>` +
-      `</xml>`
-    );
+    return {
+      ...target,
+      type: 'news',
+      articles: reply.articles,
+    };
   }
 
-  return '';
+  if (reply.type === 'markdown') {
+    return { ...target, type: 'text', content: reply.content };
+  }
+
+  return {};
 }
 
 /**
- * Main WeChat request handler.
- * - GET: server verification (echo echostr)
- * - POST: process incoming message and return XML reply
+ * Main WeChat personal account request handler.
+ * Receives JSON from a bridge/gateway and processes the message.
+ * Replies are sent back to the bridge via its callback URL.
  */
 export async function handleWechat(request: Request, env: Env): Promise<Response> {
   const token = env.WECHAT_TOKEN ?? '';
-  const url = new URL(request.url);
-  const signature = url.searchParams.get('signature') ?? '';
-  const timestamp = url.searchParams.get('timestamp') ?? '';
-  const nonce = url.searchParams.get('nonce') ?? '';
+  const callbackUrl = env.WECHAT_CALLBACK_URL ?? '';
 
-  // Verify signature for all WeChat requests
-  const valid = await verifyWechatSignature(token, signature, timestamp, nonce);
-  if (!valid) {
-    return new Response('Invalid signature', { status: 403 });
+  // Only accept POST requests
+  if (request.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
   }
 
-  // GET request: server URL verification
-  if (request.method === 'GET') {
-    const echostr = url.searchParams.get('echostr') ?? '';
-    return new Response(echostr, { status: 200 });
-  }
+  const body = await request.text();
 
-  // POST request: process message
-  if (request.method === 'POST') {
-    const body = await request.text();
-    const message = parseWechatMessage(body);
+  // Verify HMAC-SHA256 signature if token is configured
+  if (token) {
+    const signature = request.headers.get('x-signature') ?? '';
+    const timestamp = request.headers.get('x-timestamp') ?? '';
 
-    // Dispatch to router
-    const { routeMessage } = await import('../../router/index.js');
-    const reply = await routeMessage(message, env);
-
-    if (!reply) {
-      return new Response('', { status: 200 });
+    const valid = await verifyWechatSignature(token, signature, timestamp, body);
+    if (!valid) {
+      return new Response('Invalid signature', { status: 403 });
     }
+  }
 
-    const xmlReply = buildWechatReply(reply, message.from, message.to);
-    return new Response(xmlReply, {
+  let payload: WechatPersonalMessage;
+  try {
+    payload = JSON.parse(body) as WechatPersonalMessage;
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
+  }
+
+  const message = parseWechatMessage(payload);
+
+  // Dispatch to router
+  const { routeMessage } = await import('../../router/index.js');
+  const reply = await routeMessage(message, env);
+
+  if (!reply) {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { 'Content-Type': 'application/xml' },
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  return new Response('Method Not Allowed', { status: 405 });
+  const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
+
+  // Send reply to bridge callback URL if configured
+  if (callbackUrl) {
+    try {
+      await fetch(callbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(replyPayload),
+      });
+    } catch {
+      // Callback delivery failed; still return the reply in the response body
+    }
+  }
+
+  // Also return the reply in the response
+  return new Response(JSON.stringify(replyPayload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
