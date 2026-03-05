@@ -14,4 +14,4 @@ pluginManager.register(catImagePlugin);
 
 // Re-export for convenience
 export { pluginManager } from './manager.js';
-export type { TextPlugin } from './types.js';
+export type { MessagePlugin } from './types.js';

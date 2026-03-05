@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginManager } from '../../src/plugins/manager.js';
-import type { TextPlugin } from '../../src/plugins/types.js';
+import type { MessagePlugin } from '../../src/plugins/types.js';
 import type { IncomingMessage, Env } from '../../src/types/message.js';
 
 const env: Env = {};
@@ -18,7 +18,7 @@ function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage 
   };
 }
 
-function createPlugin(overrides: Partial<TextPlugin> = {}): TextPlugin {
+function createPlugin(overrides: Partial<MessagePlugin> = {}): MessagePlugin {
   return {
     name: 'test-plugin',
     description: 'A test plugin',
@@ -105,7 +105,7 @@ describe('PluginManager', () => {
       manager.register(createPlugin());
       const plugins = manager.getPlugins();
       // Mutating the returned array should not affect the manager
-      (plugins as TextPlugin[]).length = 0;
+      (plugins as MessagePlugin[]).length = 0;
       expect(manager.getPlugins()).toHaveLength(1);
     });
   });

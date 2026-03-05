@@ -1,12 +1,12 @@
 import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 
 /**
- * A text message plugin that can be registered with the PluginManager.
+ * A message plugin that can be registered with the PluginManager.
  *
- * Plugins are checked in registration order when a text message arrives.
+ * Plugins are checked in registration order when a message arrives.
  * The first plugin whose {@link match} returns `true` will handle the message.
  */
-export interface TextPlugin {
+export interface MessagePlugin {
   /** Unique plugin name used for registration and management. */
   name: string;
   /** Human-readable description of what the plugin does. */
