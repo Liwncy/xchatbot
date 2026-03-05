@@ -196,11 +196,15 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
 
   // Send reply to bridge callback URL if configured
   if (callbackUrl) {
-    await fetch(callbackUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(replyPayload),
-    });
+    try {
+      await fetch(callbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(replyPayload),
+      });
+    } catch {
+      // Callback delivery failed; still return the reply in the response body
+    }
   }
 
   // Also return the reply in the response
