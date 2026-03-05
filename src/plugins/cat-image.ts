@@ -8,11 +8,12 @@ interface CatApiItem {
 /** Convert an ArrayBuffer to a Base64-encoded string. */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const chunkSize = 8192;
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
   }
-  return btoa(binary);
+  return btoa(parts.join(''));
 }
 
 /**
@@ -27,7 +28,7 @@ export const catImagePlugin: TextPlugin = {
 
   match: (content) => content.includes('看看猫咪'),
 
-  handle: async () => {
+  handle: async (_message, _env) => {
     try {
       const apiRes = await fetch('https://api.thecatapi.com/v1/images/search');
       if (!apiRes.ok) {
