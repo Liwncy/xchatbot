@@ -166,9 +166,11 @@ export async function sendWechatReply(
       await api.sendImage({ receiver, data: reply.mediaId });
       break;
     case 'voice':
+      // duration / format are not part of VoiceReply; use safe defaults (AMR, unknown length)
       await api.sendVoice({ receiver, data: reply.mediaId, duration: 0, format: 0 });
       break;
     case 'video':
+      // thumb_data / duration are not part of VideoReply; use safe defaults
       await api.sendVideo({
         receiver,
         video_data: reply.mediaId,
