@@ -1,0 +1,156 @@
+import type { IncomingMessage, ReplyMessage, MessageType, Env } from '../../types/message.js';
+import type { DingTalkMessage } from './types.js';
+
+/**
+ * Verify DingTalk webhook signature.
+ * DingTalk signs using: Base64(HMAC-SHA256(timestamp + '\n' + secret, secret))
+ * Passed via query params: timestamp, sign
+ */
+export async function verifyDingTalkSignature(
+  secret: string,
+  timestamp: string,
+  sign: string,
+): Promise<boolean> {
+  // DingTalk message format: timestamp + newline + secret, keyed with secret
+  const message = `${timestamp}\n${secret}`;
+  const encoder = new TextEncoder();
+  const keyBytes = encoder.encode(secret);
+  const msgBytes = encoder.encode(message);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgBytes);
+  const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+  // `sign` from query param is URL-encoded Base64
+  const decodedSign = decodeURIComponent(sign);
+  return base64Signature === decodedSign;
+}
+
+/**
+ * Parse a DingTalk webhook message into a normalized IncomingMessage.
+ */
+export function parseDingTalkMessage(msg: DingTalkMessage): IncomingMessage {
+  const rawType = (msg.msgtype ?? 'text').toLowerCase();
+
+  let parsedType: MessageType = 'text';
+  let content: string | undefined;
+  let mediaId: string | undefined;
+
+  if (rawType === 'text' || rawType === 'richText') {
+    parsedType = 'text';
+    content = msg.text?.content ?? extractRichText(msg) ?? '';
+  } else if (rawType === 'picture') {
+    parsedType = 'image';
+    mediaId = msg.picture?.downloadCode;
+  } else if (rawType === 'audio') {
+    parsedType = 'voice';
+    mediaId = msg.audio?.downloadCode;
+  } else {
+    parsedType = 'text';
+    content = '';
+  }
+
+  return {
+    platform: 'dingtalk',
+    type: parsedType,
+    from: msg.senderId ?? '',
+    to: msg.robotCode ?? '',
+    timestamp: Math.floor((msg.createAt ?? Date.now()) / 1000),
+    messageId: msg.msgId ?? `${msg.createAt ?? Date.now()}`,
+    content,
+    mediaId,
+    raw: msg,
+  };
+}
+
+function extractRichText(msg: DingTalkMessage): string {
+  const richText = msg.content?.richText ?? msg.richText ?? [];
+  return richText
+    .filter((item) => item.type === 'text')
+    .map((item) => item.text ?? '')
+    .join('');
+}
+
+/**
+ * Send a reply to DingTalk via the session webhook URL.
+ */
+export async function sendDingTalkReply(
+  reply: ReplyMessage,
+  sessionWebhook: string,
+): Promise<void> {
+  let payload: unknown;
+
+  if (reply.type === 'text') {
+    payload = { msgtype: 'text', text: { content: reply.content } };
+  } else if (reply.type === 'markdown') {
+    payload = {
+      msgtype: 'markdown',
+      markdown: { title: reply.title ?? 'Message', text: reply.content },
+    };
+  } else if (reply.type === 'news') {
+    const first = reply.articles[0];
+    payload = {
+      msgtype: 'actionCard',
+      actionCard: {
+        title: first?.title ?? 'News',
+        text: reply.articles
+          .map((a) => `**${a.title}**\n${a.description ?? ''}\n[查看详情](${a.url ?? ''})`)
+          .join('\n\n'),
+      },
+    };
+  } else {
+    payload = { msgtype: 'text', text: { content: 'Unsupported reply type' } };
+  }
+
+  await fetch(sessionWebhook, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Main DingTalk request handler.
+ */
+export async function handleDingTalk(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
+  }
+
+  // Verify signature if secret is configured
+  const appSecret = env.DINGTALK_APP_SECRET ?? '';
+  if (appSecret) {
+    const url = new URL(request.url);
+    const timestamp = url.searchParams.get('timestamp') ?? '';
+    const sign = url.searchParams.get('sign') ?? '';
+    const valid = await verifyDingTalkSignature(appSecret, timestamp, sign);
+    if (!valid) {
+      return new Response('Invalid signature', { status: 403 });
+    }
+  }
+
+  let body: DingTalkMessage;
+  try {
+    body = (await request.json()) as DingTalkMessage;
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
+  }
+
+  const message = parseDingTalkMessage(body);
+
+  const { routeMessage } = await import('../../router/index.js');
+  const reply = await routeMessage(message, env);
+
+  if (reply && body.sessionWebhook) {
+    await sendDingTalkReply(reply, body.sessionWebhook);
+  }
+
+  return new Response(JSON.stringify({ errcode: 0, errmsg: 'ok' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}

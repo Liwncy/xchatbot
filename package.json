@@ -1,0 +1,18 @@
+{
+  "name": "xchatbot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Workers 消息处理机器人",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250224.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.7",
+    "wrangler": "^4.70.0"
+  }
+}

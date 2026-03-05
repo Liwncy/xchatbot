@@ -1,0 +1,99 @@
+import { describe, it, expect } from 'vitest';
+import { routeMessage, registerHandler } from '../src/router/index.js';
+import type { IncomingMessage, Env } from '../src/types/message.js';
+
+const env: Env = {};
+
+function makeMessage(overrides: Partial<IncomingMessage>): IncomingMessage {
+  return {
+    platform: 'wechat',
+    type: 'text',
+    from: 'user_001',
+    to: 'bot_001',
+    timestamp: 1700000000,
+    messageId: 'msg_001',
+    raw: {},
+    ...overrides,
+  };
+}
+
+describe('routeMessage', () => {
+  it('routes text messages to the text handler', async () => {
+    const msg = makeMessage({ type: 'text', content: '帮助' });
+    const reply = await routeMessage(msg, env);
+    expect(reply).not.toBeNull();
+    expect(reply?.type).toBe('text');
+    expect((reply as { content: string }).content).toContain('帮助');
+  });
+
+  it('routes image messages to the image handler', async () => {
+    const msg = makeMessage({ type: 'image', mediaId: 'media_001' });
+    const reply = await routeMessage(msg, env);
+    expect(reply?.type).toBe('text');
+  });
+
+  it('routes voice messages to the voice handler', async () => {
+    const msg = makeMessage({ type: 'voice', mediaId: 'media_002' });
+    const reply = await routeMessage(msg, env);
+    expect(reply?.type).toBe('text');
+  });
+
+  it('routes video messages to the video handler', async () => {
+    const msg = makeMessage({ type: 'video', mediaId: 'media_003' });
+    const reply = await routeMessage(msg, env);
+    expect(reply?.type).toBe('text');
+  });
+
+  it('routes location messages to the location handler', async () => {
+    const msg = makeMessage({
+      type: 'location',
+      location: { latitude: 39.9, longitude: 116.4, label: 'Beijing' },
+    });
+    const reply = await routeMessage(msg, env);
+    expect(reply?.type).toBe('text');
+    expect((reply as { content: string }).content).toContain('39.9');
+  });
+
+  it('routes link messages to the link handler', async () => {
+    const msg = makeMessage({
+      type: 'link',
+      link: { title: 'Test', description: 'Desc', url: 'https://example.com' },
+    });
+    const reply = await routeMessage(msg, env);
+    expect(reply?.type).toBe('text');
+    expect((reply as { content: string }).content).toContain('https://example.com');
+  });
+
+  it('routes subscribe events to the event handler', async () => {
+    const msg = makeMessage({
+      type: 'event',
+      event: { type: 'subscribe' },
+    });
+    const reply = await routeMessage(msg, env);
+    expect(reply?.type).toBe('text');
+    expect((reply as { content: string }).content).toContain('感谢');
+  });
+
+  it('returns null for unsubscribe events', async () => {
+    const msg = makeMessage({
+      type: 'event',
+      event: { type: 'unsubscribe' },
+    });
+    const reply = await routeMessage(msg, env);
+    expect(reply).toBeNull();
+  });
+
+  it('allows registering a custom handler', async () => {
+    registerHandler('text', async (_msg, _env) => ({
+      type: 'text',
+      content: 'custom reply',
+    }));
+    const msg = makeMessage({ type: 'text', content: 'anything' });
+    const reply = await routeMessage(msg, env);
+    expect((reply as { content: string }).content).toBe('custom reply');
+
+    // Restore default handler for other tests
+    const { handleTextMessage } = await import('../src/handlers/text-handler.js');
+    registerHandler('text', handleTextMessage);
+  });
+});
