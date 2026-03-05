@@ -7,6 +7,7 @@ import type {
   Env,
 } from '../../types/message.js';
 import type { WechatPersonalMessage } from './types.js';
+import { WechatApi } from './api.js';
 
 /**
  * Verify the webhook signature from the WeChat bridge/gateway.
@@ -146,13 +147,66 @@ export function buildWechatReply(
 }
 
 /**
+ * Send a reply through the WeChat bridge API.
+ *
+ * Uses the typed {@link WechatApi} client to call the appropriate
+ * message endpoint based on the reply type.
+ */
+export async function sendWechatReply(
+  api: WechatApi,
+  reply: ReplyMessage,
+  receiver: string,
+): Promise<void> {
+  switch (reply.type) {
+    case 'text':
+    case 'markdown':
+      await api.sendText({ receiver, content: reply.content });
+      break;
+    case 'image':
+      await api.sendImage({ receiver, data: reply.mediaId });
+      break;
+    case 'voice':
+      // duration / format are not part of VoiceReply; use safe defaults (AMR, unknown length)
+      await api.sendVoice({ receiver, data: reply.mediaId, duration: 0, format: 0 });
+      break;
+    case 'video':
+      // thumb_data / duration are not part of VideoReply; use safe defaults
+      await api.sendVideo({
+        receiver,
+        video_data: reply.mediaId,
+        thumb_data: '',
+        duration: 0,
+      });
+      break;
+    case 'news': {
+      const first = reply.articles[0];
+      if (first?.url) {
+        await api.sendLink({
+          receiver,
+          url: first.url,
+          title: first.title,
+          desc: first.description ?? '',
+          thumb_url: first.picUrl ?? '',
+        });
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
  * Main WeChat personal account request handler.
  * Receives JSON from a bridge/gateway and processes the message.
- * Replies are sent back to the bridge via its callback URL.
+ *
+ * When {@link Env.WECHAT_API_BASE_URL} is set the reply is delivered
+ * through the typed API client; otherwise the legacy callback URL is used.
  */
 export async function handleWechat(request: Request, env: Env): Promise<Response> {
   const token = env.WECHAT_TOKEN ?? '';
   const callbackUrl = env.WECHAT_CALLBACK_URL ?? '';
+  const apiBaseUrl = env.WECHAT_API_BASE_URL ?? '';
 
   // Only accept POST requests
   if (request.method !== 'POST') {
@@ -192,10 +246,19 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     });
   }
 
-  const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
+  const receiver = message.room?.id ?? message.from;
 
-  // Send reply to bridge callback URL if configured
-  if (callbackUrl) {
+  // Prefer the typed API client when a base URL is configured
+  if (apiBaseUrl) {
+    const api = new WechatApi(apiBaseUrl);
+    try {
+      await sendWechatReply(api, reply, receiver);
+    } catch {
+      // API delivery failed; fall through to legacy path
+    }
+  } else if (callbackUrl) {
+    // Legacy: send the built payload to the callback URL
+    const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
     try {
       await fetch(callbackUrl, {
         method: 'POST',
@@ -208,6 +271,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
   }
 
   // Also return the reply in the response
+  const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
   return new Response(JSON.stringify(replyPayload), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
