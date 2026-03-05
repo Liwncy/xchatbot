@@ -151,6 +151,8 @@ export interface Env {
   // WeChat Personal Account (via bridge/gateway)
   WECHAT_TOKEN?: string;
   WECHAT_CALLBACK_URL?: string;
+  /** Base URL of the WeChat bridge/gateway API (e.g. http://gateway:8080). */
+  WECHAT_API_BASE_URL?: string;
   // Feishu
   FEISHU_APP_ID?: string;
   FEISHU_APP_SECRET?: string;
