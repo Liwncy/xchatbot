@@ -1,4 +1,4 @@
-import type { MessagePlugin } from './types.js';
+import type { TextMessage } from './types.js';
 
 /** Expected shape of TheCatAPI response items. */
 interface CatApiItem {
@@ -22,7 +22,8 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * When the incoming text contains "看看猫咪", fetches a random cat photo
  * from TheCatAPI and replies with an image message.
  */
-export const catImagePlugin: MessagePlugin = {
+export const catImagePlugin: TextMessage = {
+  type: 'text',
   name: 'cat-image',
   description: '发送"看看猫咪"获取随机猫咪图片',
 

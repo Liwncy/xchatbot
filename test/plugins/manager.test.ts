@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginManager } from '../../src/plugins/manager.js';
-import type { MessagePlugin } from '../../src/plugins/types.js';
+import type { MessageEvent, TextMessage } from '../../src/plugins/types.js';
 import type { IncomingMessage, Env } from '../../src/types/message.js';
 
 const env: Env = {};
@@ -18,8 +18,9 @@ function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage 
   };
 }
 
-function createPlugin(overrides: Partial<MessagePlugin> = {}): MessagePlugin {
+function createPlugin(overrides: Partial<TextMessage> = {}): TextMessage {
   return {
+    type: 'text',
     name: 'test-plugin',
     description: 'A test plugin',
     match: (content) => content.includes('test'),
@@ -78,21 +79,27 @@ describe('PluginManager', () => {
     it('returns the first matching plugin', () => {
       manager.register(createPlugin({ name: 'alpha', match: (c) => c.includes('hello') }));
       manager.register(createPlugin({ name: 'beta', match: (c) => c.includes('hello') }));
-      const found = manager.findPlugin('hello', makeMessage());
+      const found = manager.findPlugin(makeMessage({ content: 'hello' }));
       expect(found?.name).toBe('alpha');
     });
 
     it('returns undefined when no plugin matches', () => {
       manager.register(createPlugin({ match: (c) => c.includes('xyz') }));
-      const found = manager.findPlugin('no match here', makeMessage());
+      const found = manager.findPlugin(makeMessage({ content: 'no match here' }));
       expect(found).toBeUndefined();
     });
 
     it('skips non-matching plugins and finds a later one', () => {
       manager.register(createPlugin({ name: 'no-match', match: () => false }));
       manager.register(createPlugin({ name: 'yes-match', match: () => true }));
-      const found = manager.findPlugin('anything', makeMessage());
+      const found = manager.findPlugin(makeMessage({ content: 'anything' }));
       expect(found?.name).toBe('yes-match');
+    });
+
+    it('skips plugins with non-matching message type', () => {
+      manager.register(createPlugin({ name: 'text-only', match: () => true }));
+      const found = manager.findPlugin(makeMessage({ type: 'image' }));
+      expect(found).toBeUndefined();
     });
   });
 
@@ -105,7 +112,7 @@ describe('PluginManager', () => {
       manager.register(createPlugin());
       const plugins = manager.getPlugins();
       // Mutating the returned array should not affect the manager
-      (plugins as MessagePlugin[]).length = 0;
+      (plugins as MessageEvent[]).length = 0;
       expect(manager.getPlugins()).toHaveLength(1);
     });
   });

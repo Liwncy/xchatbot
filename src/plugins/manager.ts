@@ -1,17 +1,17 @@
-import type { MessagePlugin } from './types.js';
+import type { MessageEvent } from './types.js';
 import type { IncomingMessage } from '../types/message.js';
 
 /**
- * Central registry for message plugins.
+ * Central registry for message event handlers.
  *
- * Plugins are matched in the order they were registered.
+ * Handlers are matched in the order they were registered.
  * Use the exported singleton {@link pluginManager} for normal operation.
  */
 export class PluginManager {
-  private plugins: MessagePlugin[] = [];
+  private plugins: MessageEvent[] = [];
 
-  /** Register a plugin. If a plugin with the same name exists it will be replaced. */
-  register(plugin: MessagePlugin): void {
+  /** Register a handler. If a handler with the same name exists it will be replaced. */
+  register(plugin: MessageEvent): void {
     const idx = this.plugins.findIndex((p) => p.name === plugin.name);
     if (idx >= 0) {
       this.plugins[idx] = plugin;
@@ -20,21 +20,30 @@ export class PluginManager {
     }
   }
 
-  /** Remove a plugin by name. */
+  /** Remove a handler by name. */
   unregister(name: string): void {
     this.plugins = this.plugins.filter((p) => p.name !== name);
   }
 
   /**
-   * Find the first plugin whose {@link MessagePlugin.match} returns `true`
-   * for the given content and message.
+   * Find the first handler whose {@link MessageEvent | match} returns `true`
+   * for the given message.
    */
-  findPlugin(content: string, message: IncomingMessage): MessagePlugin | undefined {
-    return this.plugins.find((p) => p.match(content, message));
+  findPlugin(message: IncomingMessage): MessageEvent | undefined {
+    return this.plugins.find((p) => {
+      if (p.type !== message.type) return false;
+      if (p.type === 'text') {
+        return p.match((message.content ?? '').trim(), message);
+      }
+      if (p.type === 'image') {
+        return p.match(message);
+      }
+      return false;
+    });
   }
 
-  /** Return a snapshot of all registered plugins. */
-  getPlugins(): ReadonlyArray<MessagePlugin> {
+  /** Return a snapshot of all registered handlers. */
+  getPlugins(): ReadonlyArray<MessageEvent> {
     return [...this.plugins];
   }
 }

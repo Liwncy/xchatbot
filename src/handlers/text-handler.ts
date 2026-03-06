@@ -12,7 +12,7 @@ export async function handleTextMessage(
   const trimmed = (message.content ?? '').trim();
 
   // Check plugins first — the first matching plugin wins
-  const plugin = pluginManager.findPlugin(trimmed, message);
+  const plugin = pluginManager.findPlugin(message);
   if (plugin) {
     const result = await plugin.handle(message, env);
     if (result) return result;
