@@ -6,7 +6,7 @@ import type {
   MessageSource,
   Env,
 } from '../../types/message.js';
-import type { WechatPersonalMessage } from './types.js';
+import type { WechatPushItem, WechatPushMessage } from './types.js';
 import { WechatApi } from './api.js';
 
 /**
@@ -23,52 +23,106 @@ export async function verifyWechatSignature(
   return expected === signature;
 }
 
+/** Map WeChat numeric message type to normalized type. */
+function mapWechatType(type: number): MessageType {
+  switch (type) {
+    case 1:
+      return 'text';
+    case 47:
+      return 'image';
+    case 34:
+      return 'voice';
+    case 43:
+      return 'video';
+    case 48:
+      return 'location';
+    case 49:
+      return 'link';
+    default:
+      return 'text';
+  }
+}
+
+/** Infer message source from gateway fields. */
+function inferWechatSource(payload: WechatPushItem): MessageSource {
+  const source = payload.msg_source?.toLowerCase() ?? '';
+  const sender = payload.sender?.value ?? '';
+  const receiver = payload.receiver?.value ?? '';
+
+  if (source.includes('official')) return 'official';
+  if (
+    source.includes('chatroom') ||
+    sender.endsWith('@chatroom') ||
+    receiver.endsWith('@chatroom')
+  ) {
+    return 'group';
+  }
+
+  return 'private';
+}
+
+/** Convert millisecond timestamps to seconds for normalized message model. */
+function toUnixSeconds(timestamp: number): number {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return Math.floor(Date.now() / 1000);
+  return timestamp > 1_000_000_000_000 ? Math.floor(timestamp / 1000) : Math.floor(timestamp);
+}
+
 /**
- * Parse the JSON body from the WeChat personal account bridge
- * into a normalized IncomingMessage.
+ * Parse the WeChat push payload into a normalized IncomingMessage.
+ * Throws if there is no message in `new_messages`.
  */
-export function parseWechatMessage(payload: WechatPersonalMessage): IncomingMessage {
-  const msgType = (payload.type ?? '').toLowerCase() as MessageType;
-  const sourceMap: Record<string, MessageSource> = {
-    private: 'private',
-    group: 'group',
-    official: 'official',
-  };
-  const source: MessageSource = sourceMap[payload.source] ?? 'private';
+export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
+  const item = payload.new_messages?.[0];
+  if (!item) {
+    throw new Error('No new_messages in WeChat push payload');
+  }
+
+  const msgType = mapWechatType(item.type);
+  const source = inferWechatSource(item);
 
   const base: Omit<IncomingMessage, 'type'> = {
     platform: 'wechat' as const,
     source,
-    from: payload.from?.id ?? '',
-    senderName: payload.from?.name,
-    to: payload.self ?? '',
-    timestamp: payload.timestamp ?? Math.floor(Date.now() / 1000),
-    messageId: payload.messageId ?? `${payload.timestamp}`,
+    from: item.sender?.value ?? '',
+    to: item.receiver?.value ?? '',
+    timestamp: toUnixSeconds(item.create_time),
+    // Prefer msg_id to avoid precision loss on large new_msg_id values.
+    messageId: String(item.msg_id ?? item.create_time),
     raw: payload,
   };
 
-  // Attach room info for group messages
-  if (payload.room) {
+  if (source === 'group') {
     base.room = {
-      id: payload.room.id,
-      topic: payload.room.topic,
+      id: item.receiver?.value?.endsWith('@chatroom')
+        ? item.receiver.value
+        : item.sender?.value?.endsWith('@chatroom')
+          ? item.sender.value
+          : item.receiver?.value ?? '',
     };
   }
 
   if (msgType === 'text') {
-    return { ...base, type: 'text', content: payload.content ?? '' };
+    return {
+      ...base,
+      type: 'text',
+      content: item.content?.value ?? item.push_content ?? '',
+    };
   }
 
   if (msgType === 'image') {
-    return { ...base, type: 'image', mediaId: payload.mediaUrl };
+    return {
+      ...base,
+      type: 'image',
+      mediaId: item.image_buffer?.buffer?.length ? item.image_buffer.buffer.join(',') : undefined,
+    };
   }
 
   if (msgType === 'voice') {
-    return { ...base, type: 'voice', mediaId: payload.mediaUrl };
+    return { ...base, type: 'voice' };
   }
 
   if (msgType === 'video') {
-    return { ...base, type: 'video', mediaId: payload.mediaUrl };
+    return { ...base, type: 'video' };
   }
 
   if (msgType === 'location') {
@@ -76,9 +130,8 @@ export function parseWechatMessage(payload: WechatPersonalMessage): IncomingMess
       ...base,
       type: 'location',
       location: {
-        latitude: payload.location?.latitude ?? 0,
-        longitude: payload.location?.longitude ?? 0,
-        label: payload.location?.label,
+        latitude: 0,
+        longitude: 0,
       },
     };
   }
@@ -88,15 +141,14 @@ export function parseWechatMessage(payload: WechatPersonalMessage): IncomingMess
       ...base,
       type: 'link',
       link: {
-        title: payload.link?.title ?? '',
-        description: payload.link?.description ?? '',
-        url: payload.link?.url ?? '',
+        title: item.content?.value ?? '',
+        description: '',
+        url: '',
       },
     };
   }
 
-  // Fallback: treat as text
-  return { ...base, type: 'text', content: payload.content ?? '' };
+  return { ...base, type: 'text', content: item.content?.value ?? item.push_content ?? '' };
 }
 
 /**
@@ -215,6 +267,8 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
 
   const body = await request.text();
 
+  console.log('Received WeChat message:', body);
+
   // Verify HMAC-SHA256 signature if token is configured
   if (token) {
     const signature = request.headers.get('x-signature') ?? '';
@@ -226,18 +280,31 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     }
   }
 
-  let payload: WechatPersonalMessage;
+  let payload: WechatPushMessage;
   try {
-    payload = JSON.parse(body) as WechatPersonalMessage;
+    payload = JSON.parse(body) as WechatPushMessage;
   } catch {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const message = parseWechatMessage(payload);
+  let message: IncomingMessage;
+  try {
+    message = parseWechatMessage(payload);
+  } catch {
+    // Ignore non-message push updates (contacts/profile changes etc.)
+    return new Response(JSON.stringify({ success: true, skipped: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // console.log('Received WeChat message:', message);
 
   // Dispatch to router
   const { routeMessage } = await import('../../router/index.js');
   const reply = await routeMessage(message, env);
+
+  // console.log('Generated reply for WeChat message:', reply);
 
   if (!reply) {
     return new Response(JSON.stringify({ success: true }), {

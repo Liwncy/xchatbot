@@ -40,7 +40,7 @@ export async function handleTextMessage(
 
   // Default echo reply — replace with your own logic
   return {
-    type: 'text',
+    type: 'unknown',
     content: `收到您的消息：${message.content ?? ''}`,
   };
 }

@@ -1,45 +1,46 @@
 /** Message source type from WeChat personal account bridge */
 export type WechatSource = 'private' | 'group' | 'official';
 
+/** String wrapper used by several gateway fields. */
+export interface WechatValueField {
+  value: string;
+}
+
+/** Raw image buffer payload from the gateway. */
+export interface WechatImageBuffer {
+  buffer?: number[];
+  len: number;
+}
+
+/** One message entry in WeChat push payload `new_messages`. */
+export interface WechatPushItem {
+  content?: WechatValueField;
+  create_time: number;
+  image_buffer?: WechatImageBuffer;
+  image_status?: number;
+  msg_id: number;
+  msg_seq?: number;
+  msg_source?: string;
+  new_msg_id?: number;
+  push_content?: string;
+  receiver: WechatValueField;
+  sender: WechatValueField;
+  status?: number;
+  type: number;
+}
+
 /**
- * WeChat personal account message received from a bridge/gateway service.
- * The bridge (e.g. Wechaty) forwards messages as JSON to this webhook.
+ * WeChat push payload envelope.
+ * Message events are carried in `new_messages`.
  */
-export interface WechatPersonalMessage {
-  /** Message source: private chat, group chat, or official account push */
-  source: WechatSource;
-  /** Unique message identifier */
-  messageId: string;
-  /** Unix timestamp in seconds */
-  timestamp: number;
-  /** Sender information */
-  from: {
-    id: string;
-    name?: string;
-  };
-  /** Room/group information (present for group messages) */
-  room?: {
-    id: string;
-    topic?: string;
-  };
-  /** Bot's own WeChat ID */
-  self: string;
-  /** Message type: text, image, voice, video, link, location */
-  type: string;
-  /** Text content (for text messages) */
-  content?: string;
-  /** Media URL (for image/voice/video messages) */
-  mediaUrl?: string;
-  /** Location details (for location messages) */
-  location?: {
-    latitude: number;
-    longitude: number;
-    label?: string;
-  };
-  /** Link details (for link messages) */
-  link?: {
-    title: string;
-    description?: string;
-    url: string;
-  };
+export interface WechatPushMessage {
+  modify_contacts?: unknown;
+  delete_contacts?: unknown;
+  new_messages?: WechatPushItem[] | null;
+  modify_user_infos?: unknown;
+  modify_user_images?: unknown;
+  user_info_extends?: unknown;
+  function_switches?: unknown;
+  unknowns?: unknown;
+  continue?: boolean;
 }

@@ -76,7 +76,7 @@ export interface IncomingMessage {
 }
 
 /** Reply message types that can be sent back */
-export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card';
+export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'unknown';
 
 /** Text reply */
 export interface TextReply {

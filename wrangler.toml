@@ -6,6 +6,7 @@ compatibility_date = "2025-02-24"
 # WeChat Personal Account bridge/gateway configuration (set via wrangler secret or .dev.vars for local)
 # WECHAT_TOKEN = "your_webhook_hmac_token"
 # WECHAT_CALLBACK_URL = "http://your-bridge-gateway/callback"
+WECHAT_API_BASE_URL = "http://127.0.0.1:7080"
 
 # Feishu App configuration
 # FEISHU_APP_ID = "your_feishu_app_id"

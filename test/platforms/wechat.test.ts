@@ -5,18 +5,25 @@ import {
   buildWechatReply,
 } from '../../src/platforms/wechat/index.js';
 import type { ReplyMessage } from '../../src/types/message.js';
-import type { WechatPersonalMessage } from '../../src/platforms/wechat/types.js';
+import type { WechatPushItem, WechatPushMessage } from '../../src/platforms/wechat/types.js';
 import { createHmac } from 'crypto';
 
-function makePayload(overrides: Partial<WechatPersonalMessage> = {}): WechatPersonalMessage {
+function makePushItem(overrides: Partial<WechatPushItem> = {}): WechatPushItem {
   return {
-    source: 'private',
-    messageId: 'msg_001',
-    timestamp: 1700000000,
-    from: { id: 'wxid_sender', name: 'Sender' },
-    self: 'wxid_bot',
-    type: 'text',
-    content: 'Hello Bot',
+    content: { value: 'Hello Bot' },
+    create_time: 1_700_000_000_000,
+    msg_id: 1001,
+    msg_source: 'private',
+    receiver: { value: 'wxid_bot' },
+    sender: { value: 'wxid_sender' },
+    type: 1,
+    ...overrides,
+  };
+}
+
+function makePayload(overrides: Partial<WechatPushMessage> = {}): WechatPushMessage {
+  return {
+    new_messages: [makePushItem()],
     ...overrides,
   };
 }
@@ -46,25 +53,31 @@ describe('parseWechatMessage', () => {
     expect(msg.source).toBe('private');
     expect(msg.content).toBe('Hello Bot');
     expect(msg.from).toBe('wxid_sender');
-    expect(msg.senderName).toBe('Sender');
     expect(msg.to).toBe('wxid_bot');
-    expect(msg.messageId).toBe('msg_001');
+    expect(msg.messageId).toBe('1001');
   });
 
   it('parses group text message with room info', () => {
     const msg = parseWechatMessage(makePayload({
-      source: 'group',
-      room: { id: 'room_123@chatroom', topic: 'Test Group' },
+      new_messages: [
+        makePushItem({
+          msg_source: 'group chatroom',
+          receiver: { value: 'room_123@chatroom' },
+        }),
+      ],
     }));
     expect(msg.source).toBe('group');
     expect(msg.room?.id).toBe('room_123@chatroom');
-    expect(msg.room?.topic).toBe('Test Group');
   });
 
   it('parses official account push', () => {
     const msg = parseWechatMessage(makePayload({
-      source: 'official',
-      content: 'Official news',
+      new_messages: [
+        makePushItem({
+          msg_source: 'official push',
+          content: { value: 'Official news' },
+        }),
+      ],
     }));
     expect(msg.source).toBe('official');
     expect(msg.content).toBe('Official news');
@@ -72,59 +85,86 @@ describe('parseWechatMessage', () => {
 
   it('parses image message', () => {
     const msg = parseWechatMessage(makePayload({
-      type: 'image',
-      mediaUrl: 'https://example.com/img.jpg',
+      new_messages: [makePushItem({ type: 3, image_buffer: { buffer: [1, 2, 3], len: 3 } })],
     }));
     expect(msg.type).toBe('image');
-    expect(msg.mediaId).toBe('https://example.com/img.jpg');
+    expect(msg.mediaId).toBe('1,2,3');
   });
 
   it('parses voice message', () => {
     const msg = parseWechatMessage(makePayload({
-      type: 'voice',
-      mediaUrl: 'https://example.com/voice.amr',
+      new_messages: [makePushItem({ type: 34 })],
     }));
     expect(msg.type).toBe('voice');
-    expect(msg.mediaId).toBe('https://example.com/voice.amr');
   });
 
   it('parses video message', () => {
     const msg = parseWechatMessage(makePayload({
-      type: 'video',
-      mediaUrl: 'https://example.com/video.mp4',
+      new_messages: [makePushItem({ type: 43 })],
     }));
     expect(msg.type).toBe('video');
-    expect(msg.mediaId).toBe('https://example.com/video.mp4');
   });
 
   it('parses location message', () => {
     const msg = parseWechatMessage(makePayload({
-      type: 'location',
-      location: { latitude: 39.9, longitude: 116.4, label: 'Beijing' },
+      new_messages: [makePushItem({ type: 48 })],
     }));
     expect(msg.type).toBe('location');
-    expect(msg.location?.latitude).toBe(39.9);
-    expect(msg.location?.longitude).toBe(116.4);
-    expect(msg.location?.label).toBe('Beijing');
+    expect(msg.location?.latitude).toBe(0);
+    expect(msg.location?.longitude).toBe(0);
   });
 
   it('parses link message', () => {
     const msg = parseWechatMessage(makePayload({
-      type: 'link',
-      link: { title: 'Test Page', description: 'Desc', url: 'https://example.com' },
+      new_messages: [makePushItem({ type: 49, content: { value: 'Test Page' } })],
     }));
     expect(msg.type).toBe('link');
     expect(msg.link?.title).toBe('Test Page');
-    expect(msg.link?.url).toBe('https://example.com');
   });
 
   it('falls back to text for unknown type', () => {
     const msg = parseWechatMessage(makePayload({
-      type: 'unknown_type',
-      content: 'some content',
+      new_messages: [makePushItem({ type: 999, content: { value: 'some content' } })],
     }));
     expect(msg.type).toBe('text');
     expect(msg.content).toBe('some content');
+  });
+
+  it('parses the provided webhook payload shape', () => {
+    const msg = parseWechatMessage({
+      modify_contacts: null,
+      delete_contacts: null,
+      new_messages: [
+        {
+          msg_id: 1149100601,
+          sender: { value: 'wxid_5jfnhtqy74xr22' },
+          receiver: { value: 'wxid_ahl9az25aljx22' },
+          type: 1,
+          content: { value: '你好' },
+          status: 3,
+          image_status: 1,
+          image_buffer: { len: 0 },
+          create_time: 1772785931,
+          msg_source: '<msgsource>...</msgsource>',
+          push_content: 'Liwncy : 你好',
+          new_msg_id: 1294278824268514573,
+          msg_seq: 913520601,
+        },
+      ],
+      modify_user_infos: null,
+      modify_user_images: null,
+      user_info_extends: null,
+      function_switches: null,
+      unknowns: null,
+      continue: false,
+    });
+
+    expect(msg.type).toBe('text');
+    expect(msg.content).toBe('你好');
+    expect(msg.from).toBe('wxid_5jfnhtqy74xr22');
+    expect(msg.to).toBe('wxid_ahl9az25aljx22');
+    expect(msg.timestamp).toBe(1772785931);
+    expect(msg.messageId).toBe('1149100601');
   });
 });
 

@@ -1,17 +1,6 @@
-import { hmacSha256Hex } from '../../utils/crypto.js';
-import type {
-  IncomingMessage,
-  ReplyMessage,
-  EventType,
-  MessageType,
-  Env,
-} from '../../types/message.js';
-import type {
-  FeishuEventBody,
-  FeishuTextContent,
-  FeishuImageContent,
-  FeishuAudioContent,
-} from './types.js';
+import {hmacSha256Hex} from '../../utils/crypto.js';
+import type {Env, IncomingMessage, MessageType, ReplyMessage,} from '../../types/message.js';
+import type {FeishuAudioContent, FeishuEventBody, FeishuImageContent, FeishuTextContent,} from './types.js';
 
 /**
  * Verify Feishu event signature.
