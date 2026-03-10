@@ -1,18 +1,18 @@
-/** Message source type from WeChat personal account bridge */
+/** 微信个人号网关的消息来源类型 */
 export type WechatSource = 'private' | 'group' | 'official';
 
-/** String wrapper used by several gateway fields. */
+/** 网关多个字段使用的字符串包装器。 */
 export interface WechatValueField {
   value: string;
 }
 
-/** Raw image buffer payload from the gateway. */
+/** 网关返回的原始图片缓冲区数据。 */
 export interface WechatImageBuffer {
   buffer?: number[];
   len: number;
 }
 
-/** One message entry in WeChat push payload `new_messages`. */
+/** 微信推送数据 `new_messages` 中的一条消息条目。 */
 export interface WechatPushItem {
   content?: WechatValueField;
   create_time: number;
@@ -30,8 +30,8 @@ export interface WechatPushItem {
 }
 
 /**
- * WeChat push payload envelope.
- * Message events are carried in `new_messages`.
+ * 微信推送数据信封。
+ * 消息事件包含在 `new_messages` 中。
  */
 export interface WechatPushMessage {
   modify_contacts?: unknown;

@@ -1,7 +1,7 @@
-/** Supported messaging platforms */
+/** 支持的消息平台 */
 export type Platform = 'wechat' | 'feishu' | 'dingtalk';
 
-/** Normalized incoming message types */
+/** 标准化消息类型 */
 export type MessageType =
   | 'text'
   | 'image'
@@ -11,10 +11,10 @@ export type MessageType =
   | 'link'
   | 'event';
 
-/** Message source for personal WeChat messages */
+/** 微信个人号消息来源 */
 export type MessageSource = 'private' | 'group' | 'official';
 
-/** Event subtypes for event messages */
+/** 事件消息子类型 */
 export type EventType =
   | 'subscribe'
   | 'unsubscribe'
@@ -25,93 +25,91 @@ export type EventType =
   | 'message_read'
   | 'unknown';
 
-/** Normalized incoming message from any platform */
+/** 标准化后的接收消息 */
 export interface IncomingMessage {
-  /** Source platform */
+  /** 来源平台 */
   platform: Platform;
-  /** Message type */
+  /** 消息类型 */
   type: MessageType;
-  /** Message source: private chat, group chat, or official account push (WeChat personal) */
+  /** 消息来源：私聊、群聊或公众号推送（微信个人号） */
   source?: MessageSource;
-  /** Sender ID (open_id / user_id depending on platform) */
+  /** 发送者 ID（open_id / user_id，视平台而定） */
   from: string;
-  /** Sender display name */
+  /** 发送者显示名称 */
   senderName?: string;
-  /** Receiver ID (bot/app ID) */
+  /** 接收者 ID（机器人 / 应用 ID） */
   to: string;
-  /** Unix timestamp (seconds) */
+  /** Unix 时间戳（秒） */
   timestamp: number;
-  /** Unique message ID */
+  /** 唯一消息 ID */
   messageId: string;
-  /** Text content (for text messages) */
+  /** 文本内容（文本消息） */
   content?: string;
-  /** Media URL or media_id (for image/voice/video messages) */
+  /** 媒体 URL 或 media_id（图片 / 语音 / 视频消息） */
   mediaId?: string;
-  /** Group/room info (for group messages) */
+  /** 群聊信息（群消息时存在） */
   room?: {
     id: string;
     topic?: string;
   };
-  /** Location info (for location messages) */
+  /** 位置信息（位置消息） */
   location?: {
     latitude: number;
     longitude: number;
     precision?: number;
     label?: string;
   };
-  /** Link info (for link messages) */
+  /** 链接信息（链接消息） */
   link?: {
     title: string;
     description: string;
     url: string;
   };
-  /** Event details (for event messages) */
+  /** 事件详情（事件消息） */
   event?: {
     type: EventType;
     key?: string;
     ticket?: string;
   };
-  /** Raw original platform payload */
+  /** 原始平台推送数据 */
   raw: unknown;
 }
 
-/** Reply message types that can be sent back */
+/** 回复消息类型 */
 export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'unknown';
 
 /**
- * Common optional fields shared by all reply types.
+ * 所有回复类型共享的可选字段。
  *
- * - `to` overrides the default recipient (which is normally the original
- *   sender or, for group messages, the room/conversation).
- * - `mentions` lists user IDs that should be @-mentioned in the reply
- *   (only effective in group chats).
+ * - `to` 覆盖默认接收者（默认为原始发送者，群消息时为群会话）。
+ * - `mentions` 列出需要 @提及的用户 ID（仅在群聊中生效）。
  */
 export interface ReplyBase {
-  /** Override the default recipient. When omitted the reply is sent to the original sender / room. */
+  /** 覆盖默认接收者。省略时回复原始发送者/群。 */
   to?: string;
-  /** User IDs to @mention in group chat replies. */
+  /** 群聊回复中需要 @提及的用户 ID 列表。 */
   mentions?: string[];
 }
 
-/** Text reply */
+/** 文本回复 */
 export interface TextReply extends ReplyBase {
   type: 'text';
   content: string;
 }
 
-/** Image reply */
+/** 图片回复 */
 export interface ImageReply extends ReplyBase {
   type: 'image';
   mediaId: string;
 }
 
-/** Voice reply */
+/** 语音回复 */
 export interface VoiceReply extends ReplyBase {
   type: 'voice';
   mediaId: string;
 }
 
-/** Video reply */
+/** 视频回复 */
 export interface VideoReply extends ReplyBase {
   type: 'video';
   mediaId: string;
@@ -119,7 +117,7 @@ export interface VideoReply extends ReplyBase {
   description?: string;
 }
 
-/** News / article reply (supports multiple articles) */
+/** 图文回复（支持多篇文章） */
 export interface NewsArticle {
   title: string;
   description?: string;
@@ -132,20 +130,20 @@ export interface NewsReply extends ReplyBase {
   articles: NewsArticle[];
 }
 
-/** Markdown reply (Feishu / DingTalk) */
+/** Markdown 回复（飞书 / 钉钉） */
 export interface MarkdownReply extends ReplyBase {
   type: 'markdown';
   title?: string;
   content: string;
 }
 
-/** Card / interactive message reply */
+/** 卡片 / 交互式消息回复 */
 export interface CardReply extends ReplyBase {
   type: 'card';
   cardContent: unknown;
 }
 
-/** Union of all reply types */
+/** 所有回复类型的联合类型 */
 export type ReplyMessage =
   | TextReply
   | ImageReply
@@ -156,38 +154,37 @@ export type ReplyMessage =
   | CardReply;
 
 /**
- * The result a handler may return: a single reply, multiple replies, or
- * nothing.  Returning an array allows a handler to send several messages
- * in response to a single incoming message.
+ * 处理器可能返回的结果：单条回复、多条回复或不回复。
+ * 返回数组可以对一条消息发送多条回复。
  */
 export type HandlerResponse = ReplyMessage | ReplyMessage[] | null;
 
-/** Handler function signature */
+/** 处理器函数签名 */
 export type MessageHandler = (
   message: IncomingMessage,
   env: Env,
 ) => Promise<HandlerResponse>;
 
-/** Cloudflare Workers environment bindings */
+/** Cloudflare Workers 环境变量绑定 */
 export interface Env {
-  // WeChat Personal Account (via bridge/gateway)
+  // 微信个人号（通过网关/桥接服务）
   WECHAT_TOKEN?: string;
   WECHAT_CALLBACK_URL?: string;
-  /** Base URL of the WeChat bridge/gateway API (e.g. http://gateway:8080). */
+  /** 微信网关 API 基础 URL（如 http://gateway:8080）。 */
   WECHAT_API_BASE_URL?: string;
-  // AI plugin
-  /** AI chat endpoint URL used by the ai plugin. */
+  // AI 插件
+  /** AI 插件使用的聊天接口 URL。 */
   AI_API_URL?: string;
-  /** Optional bearer token for AI endpoint authentication. */
+  /** AI 接口认证用的 Bearer Token（可选）。 */
   AI_API_KEY?: string;
-  /** Optional model name passed to AI endpoint. */
+  /** 传给 AI 接口的模型名称（可选）。 */
   AI_MODEL?: string;
-  // Feishu
+  // 飞书
   FEISHU_APP_ID?: string;
   FEISHU_APP_SECRET?: string;
   FEISHU_VERIFICATION_TOKEN?: string;
   FEISHU_ENCRYPT_KEY?: string;
-  // DingTalk
+  // 钉钉
   DINGTALK_APP_KEY?: string;
   DINGTALK_APP_SECRET?: string;
 }

@@ -73,17 +73,16 @@ describe('catImagePlugin', () => {
       expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     });
 
-    it('returns a text fallback when cat API returns non-ok', async () => {
+    it('returns null and logs error when cat API returns non-ok', async () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce(
         new Response('Server Error', { status: 500 }),
       );
 
       const reply = await catImagePlugin.handle(makeMessage({ content: '看看猫咪' }), env);
-      expect(reply).not.toBeNull();
-      expect(reply!.type).toBe('text');
+      expect(reply).toBeNull();
     });
 
-    it('returns a text fallback when cat API returns empty array', async () => {
+    it('returns null and logs error when cat API returns empty array', async () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce(
         new Response(JSON.stringify([]), {
           status: 200,
@@ -92,11 +91,10 @@ describe('catImagePlugin', () => {
       );
 
       const reply = await catImagePlugin.handle(makeMessage({ content: '看看猫咪' }), env);
-      expect(reply).not.toBeNull();
-      expect(reply!.type).toBe('text');
+      expect(reply).toBeNull();
     });
 
-    it('returns a text fallback when image download fails', async () => {
+    it('returns null and logs error when image download fails', async () => {
       globalThis.fetch = vi.fn()
         .mockResolvedValueOnce(
           new Response(JSON.stringify([{ url: 'https://cdn.example.com/cat.png' }]), {
@@ -109,17 +107,14 @@ describe('catImagePlugin', () => {
         );
 
       const reply = await catImagePlugin.handle(makeMessage({ content: '看看猫咪' }), env);
-      expect(reply).not.toBeNull();
-      expect(reply!.type).toBe('text');
+      expect(reply).toBeNull();
     });
 
-    it('returns a text fallback when fetch throws', async () => {
+    it('returns null and logs error when fetch throws', async () => {
       globalThis.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
 
       const reply = await catImagePlugin.handle(makeMessage({ content: '看看猫咪' }), env);
-      expect(reply).not.toBeNull();
-      expect(reply!.type).toBe('text');
-      expect((reply as { content: string }).content).toContain('失败');
+      expect(reply).toBeNull();
     });
   });
 });

@@ -2,15 +2,15 @@ import type { MessageEvent } from './types.js';
 import type { IncomingMessage } from '../types/message.js';
 
 /**
- * Central registry for message event handlers.
+ * 消息事件处理器的中央注册表。
  *
- * Handlers are matched in the order they were registered.
- * Use the exported singleton {@link pluginManager} for normal operation.
+ * 处理器按注册顺序进行匹配。
+ * 使用导出的单例 {@link pluginManager} 进行常规操作。
  */
 export class PluginManager {
   private plugins: MessageEvent[] = [];
 
-  /** Register a handler. If a handler with the same name exists it will be replaced. */
+  /** 注册一个处理器。如果已存在同名处理器则替换。 */
   register(plugin: MessageEvent): void {
     const idx = this.plugins.findIndex((p) => p.name === plugin.name);
     if (idx >= 0) {
@@ -20,14 +20,13 @@ export class PluginManager {
     }
   }
 
-  /** Remove a handler by name. */
+  /** 按名称移除一个处理器。 */
   unregister(name: string): void {
     this.plugins = this.plugins.filter((p) => p.name !== name);
   }
 
   /**
-   * Find the first handler whose {@link MessageEvent | match} returns `true`
-   * for the given message.
+   * 查找第一个对给定消息匹配（{@link MessageEvent | match} 返回 `true`）的处理器。
    */
   findPlugin(message: IncomingMessage): MessageEvent | undefined {
     return this.plugins.find((p) => {
@@ -42,11 +41,11 @@ export class PluginManager {
     });
   }
 
-  /** Return a snapshot of all registered handlers. */
+  /** 返回所有已注册处理器的快照。 */
   getPlugins(): ReadonlyArray<MessageEvent> {
     return [...this.plugins];
   }
 }
 
-/** Global singleton shared across the application. */
+/** 应用全局单例。 */
 export const pluginManager = new PluginManager();

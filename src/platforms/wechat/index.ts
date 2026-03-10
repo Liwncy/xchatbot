@@ -8,10 +8,11 @@ import type {
 } from '../../types/message.js';
 import type { WechatPushItem, WechatPushMessage } from './types.js';
 import { WechatApi } from './api.js';
+import { logger } from '../../utils/logger.js';
 
 /**
- * Verify the webhook signature from the WeChat bridge/gateway.
- * Uses HMAC-SHA256(timestamp + body, token) for authentication.
+ * 验证微信网关的 Webhook 签名。
+ * 使用 HMAC-SHA256(timestamp + body, token) 进行认证。
  */
 export async function verifyWechatSignature(
   token: string,
@@ -23,7 +24,7 @@ export async function verifyWechatSignature(
   return expected === signature;
 }
 
-/** Map WeChat numeric message type to normalized type. */
+/** 将微信数字消息类型映射为标准化类型。 */
 function mapWechatType(type: number): MessageType {
   switch (type) {
     case 1:
@@ -43,7 +44,7 @@ function mapWechatType(type: number): MessageType {
   }
 }
 
-/** Infer message source from gateway fields. */
+/** 根据网关字段推断消息来源。 */
 function inferWechatSource(payload: WechatPushItem): MessageSource {
   const source = payload.msg_source?.toLowerCase() ?? '';
   const sender = payload.sender?.value ?? '';
@@ -61,20 +62,20 @@ function inferWechatSource(payload: WechatPushItem): MessageSource {
   return 'private';
 }
 
-/** Convert millisecond timestamps to seconds for normalized message model. */
+/** 将毫秒时间戳转换为标准化消息模型所需的秒级时间戳。 */
 function toUnixSeconds(timestamp: number): number {
   if (!Number.isFinite(timestamp) || timestamp <= 0) return Math.floor(Date.now() / 1000);
   return timestamp > 1_000_000_000_000 ? Math.floor(timestamp / 1000) : Math.floor(timestamp);
 }
 
 /**
- * Parse the WeChat push payload into a normalized IncomingMessage.
- * Throws if there is no message in `new_messages`.
+ * 将微信推送消息解析为标准化的 IncomingMessage。
+ * 如果 `new_messages` 中没有消息则抛出异常。
  */
 export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
   const item = payload.new_messages?.[0];
   if (!item) {
-    throw new Error('No new_messages in WeChat push payload');
+    throw new Error('微信推送数据中没有 new_messages');
   }
 
   const msgType = mapWechatType(item.type);
@@ -86,7 +87,7 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
     from: item.sender?.value ?? '',
     to: item.receiver?.value ?? '',
     timestamp: toUnixSeconds(item.create_time),
-    // Prefer msg_id to avoid precision loss on large new_msg_id values.
+    // 优先使用 msg_id 以避免大 new_msg_id 值的精度损失。
     messageId: String(item.msg_id ?? item.create_time),
     raw: payload,
   };
@@ -152,12 +153,11 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
 }
 
 /**
- * Build the JSON reply payload to send back to the WeChat bridge.
+ * 构建发送给微信网关的 JSON 回复数据。
  *
- * When `reply.to` is set it overrides the default recipient.
- * When `reply.mentions` is set and the message is sent to a group,
- * a `remind` field (comma-separated wxids) is included so the bridge
- * can @-mention those users.
+ * 当 `reply.to` 被设置时会覆盖默认接收者。
+ * 当 `reply.mentions` 被设置且消息发送到群聊时，
+ * 会包含 `remind` 字段（逗号分隔的 wxid），以便网关 @提及这些用户。
  */
 export function buildWechatReply(
   reply: ReplyMessage,
@@ -167,7 +167,7 @@ export function buildWechatReply(
   const effectiveTo = reply.to ?? (roomId ? roomId : toUser);
   const target: Record<string, unknown> = { to: effectiveTo };
 
-  // Include @mention list when sending to a group
+  // 发送到群聊时包含 @提及列表
   if (reply.mentions?.length && (roomId || reply.to?.endsWith('@chatroom'))) {
     target.remind = reply.mentions.join(',');
   }
@@ -210,14 +210,13 @@ export function buildWechatReply(
 }
 
 /**
- * Send a reply through the WeChat bridge API.
+ * 通过微信网关 API 发送回复。
  *
- * Uses the typed {@link WechatApi} client to call the appropriate
- * message endpoint based on the reply type.
+ * 使用类型化的 {@link WechatApi} 客户端，根据回复类型调用相应的消息接口。
  *
- * When `reply.to` is set it overrides the default `receiver`.
- * When `reply.mentions` is set the `remind` parameter is forwarded
- * so that the bridge @-mentions those users in group chats.
+ * 当 `reply.to` 被设置时会覆盖默认 `receiver`。
+ * 当 `reply.mentions` 被设置时，`remind` 参数会被转发，
+ * 以便网关在群聊中 @提及这些用户。
  */
 export async function sendWechatReply(
   api: WechatApi,
@@ -239,11 +238,11 @@ export async function sendWechatReply(
       await api.sendImage({ receiver: effectiveReceiver, data: reply.mediaId });
       break;
     case 'voice':
-      // duration / format are not part of VoiceReply; use safe defaults (AMR, unknown length)
+      // VoiceReply 中没有 duration / format 字段；使用安全默认值（AMR 格式，未知时长）
       await api.sendVoice({ receiver: effectiveReceiver, data: reply.mediaId, duration: 0, format: 0 });
       break;
     case 'video':
-      // thumb_data / duration are not part of VideoReply; use safe defaults
+      // VideoReply 中没有 thumb_data / duration 字段；使用安全默认值
       await api.sendVideo({
         receiver: effectiveReceiver,
         video_data: reply.mediaId,
@@ -270,33 +269,34 @@ export async function sendWechatReply(
 }
 
 /**
- * Main WeChat personal account request handler.
- * Receives JSON from a bridge/gateway and processes the message.
+ * 微信个人号请求主处理器。
+ * 接收来自网关的 JSON 数据并处理消息。
  *
- * When {@link Env.WECHAT_API_BASE_URL} is set the reply is delivered
- * through the typed API client; otherwise the legacy callback URL is used.
+ * 当 {@link Env.WECHAT_API_BASE_URL} 被设置时，通过类型化 API 客户端发送回复；
+ * 否则使用旧版回调 URL。
  */
 export async function handleWechat(request: Request, env: Env): Promise<Response> {
   const token = env.WECHAT_TOKEN ?? '';
   const callbackUrl = env.WECHAT_CALLBACK_URL ?? '';
   const apiBaseUrl = env.WECHAT_API_BASE_URL ?? '';
 
-  // Only accept POST requests
+  // 仅接受 POST 请求
   if (request.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
   const body = await request.text();
 
-  console.log('Received WeChat message:', body);
+  logger.debug('收到微信消息', body);
 
-  // Verify HMAC-SHA256 signature if token is configured
+  // 如果配置了 token，验证 HMAC-SHA256 签名
   if (token) {
     const signature = request.headers.get('x-signature') ?? '';
     const timestamp = request.headers.get('x-timestamp') ?? '';
 
     const valid = await verifyWechatSignature(token, signature, timestamp, body);
     if (!valid) {
+      logger.warn('微信签名验证失败');
       return new Response('Invalid signature', { status: 403 });
     }
   }
@@ -305,6 +305,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
   try {
     payload = JSON.parse(body) as WechatPushMessage;
   } catch {
+    logger.error('微信消息 JSON 解析失败', body);
     return new Response('Invalid JSON', { status: 400 });
   }
 
@@ -312,16 +313,15 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
   try {
     message = parseWechatMessage(payload);
   } catch {
-    // Ignore non-message push updates (contacts/profile changes etc.)
+    // 忽略非消息推送（联系人变更、个人资料更新等）
+    logger.debug('跳过非消息推送');
     return new Response(JSON.stringify({ success: true, skipped: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  // console.log('Received WeChat message:', message);
-
-  // Dispatch to router
+  // 分发到路由
   const { routeMessage, toReplyArray } = await import('../../router/index.js');
   const response = await routeMessage(message, env);
   const replies = toReplyArray(response);
@@ -335,18 +335,18 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
 
   const receiver = message.room?.id ?? message.from;
 
-  // Prefer the typed API client when a base URL is configured
+  // 优先使用类型化 API 客户端（需配置 base URL）
   if (apiBaseUrl) {
     const api = new WechatApi(apiBaseUrl);
     for (const reply of replies) {
       try {
         await sendWechatReply(api, reply, receiver);
-      } catch {
-        // API delivery failed; fall through to legacy path
+      } catch (err) {
+        logger.error('微信 API 发送回复失败', err);
       }
     }
   } else if (callbackUrl) {
-    // Legacy: send each built payload to the callback URL
+    // 旧版方式：将构建好的数据发送到回调 URL
     for (const reply of replies) {
       const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
       try {
@@ -355,13 +355,14 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(replyPayload),
         });
-      } catch {
-        // Callback delivery failed; still return the reply in the response body
+      } catch (err) {
+        // 回调发送失败；仍在响应体中返回回复
+        logger.error('微信回调发送失败', err);
       }
     }
   }
 
-  // Also return the replies in the response
+  // 同时在响应体中返回回复
   const replyPayloads = replies.map((r) => buildWechatReply(r, message.from, message.room?.id));
   const responseBody = replyPayloads.length === 1 ? replyPayloads[0] : replyPayloads;
   return new Response(JSON.stringify(responseBody), {

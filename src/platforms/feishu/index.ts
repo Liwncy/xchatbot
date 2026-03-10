@@ -1,11 +1,12 @@
 import {hmacSha256Hex} from '../../utils/crypto.js';
 import type {Env, IncomingMessage, MessageType, ReplyMessage,} from '../../types/message.js';
 import type {FeishuAudioContent, FeishuEventBody, FeishuImageContent, FeishuTextContent,} from './types.js';
+import { logger } from '../../utils/logger.js';
 
 /**
- * Verify Feishu event signature.
- * Feishu signs requests using: HMAC-SHA256(timestamp + body, encrypt_key).
- * The signature header is "X-Lark-Signature".
+ * 验证飞书事件签名。
+ * 飞书使用 HMAC-SHA256(timestamp + body, encrypt_key) 签名请求。
+ * 签名 header 为 "X-Lark-Signature"。
  */
 export async function verifyFeishuSignature(
   encryptKey: string,
@@ -19,10 +20,10 @@ export async function verifyFeishuSignature(
 }
 
 /**
- * Parse a Feishu event body into a normalized IncomingMessage.
+ * 将飞书事件体解析为标准化的 IncomingMessage。
  */
 export function parseFeishuMessage(body: FeishuEventBody): IncomingMessage | null {
-  // Handle URL verification challenge
+  // 处理 URL 验证挑战
   if (body.type === 'url_verification' || body.challenge) {
     return null;
   }
@@ -82,12 +83,12 @@ export function parseFeishuMessage(body: FeishuEventBody): IncomingMessage | nul
 }
 
 /**
- * Send a reply message via the Feishu Messaging API.
- * Feishu uses a REST API, so we POST JSON to the API endpoint.
+ * 通过飞书消息 API 发送回复。
+ * 飞书使用 REST API，向 API 接口发送 JSON POST 请求。
  *
- * When `reply.to` is set it overrides the default `chatId` recipient.
- * When `reply.mentions` is set, `<at user_id="...">...</at>` tags are
- * appended to text content so the mentioned users are notified.
+ * 当 `reply.to` 被设置时会覆盖默认 `chatId` 接收者。
+ * 当 `reply.mentions` 被设置时，会在文本内容中追加 `<at user_id="...">...</at>` 标签，
+ * 以通知被提及的用户。
  */
 export async function sendFeishuReply(
   reply: ReplyMessage,
@@ -135,7 +136,7 @@ export async function sendFeishuReply(
     content = reply.cardContent;
   } else {
     msgType = 'text';
-    content = { text: 'Unsupported reply type' };
+    content = { text: '不支持的回复类型' };
   }
 
   await fetch('https://open.feishu.cn/open-apis/im/v1/messages', {
@@ -154,7 +155,7 @@ export async function sendFeishuReply(
 }
 
 /**
- * Obtain a Feishu app access token.
+ * 获取飞书应用访问令牌。
  */
 async function getFeishuAppToken(appId: string, appSecret: string): Promise<string> {
   const response = await fetch(
@@ -170,7 +171,7 @@ async function getFeishuAppToken(appId: string, appSecret: string): Promise<stri
 }
 
 /**
- * Main Feishu request handler.
+ * 飞书请求主处理器。
  */
 export async function handleFeishu(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') {
@@ -179,13 +180,14 @@ export async function handleFeishu(request: Request, env: Env): Promise<Response
 
   const body = await request.text();
 
-  // Verify signature if encrypt key is configured
+  // 如果配置了加密密钥，验证签名
   const encryptKey = env.FEISHU_ENCRYPT_KEY ?? '';
   if (encryptKey) {
     const timestamp = request.headers.get('X-Lark-Request-Timestamp') ?? '';
     const signature = request.headers.get('X-Lark-Signature') ?? '';
     const valid = await verifyFeishuSignature(encryptKey, timestamp, body, signature);
     if (!valid) {
+      logger.warn('飞书签名验证失败');
       return new Response('Invalid signature', { status: 403 });
     }
   }
@@ -194,10 +196,11 @@ export async function handleFeishu(request: Request, env: Env): Promise<Response
   try {
     eventBody = JSON.parse(body) as FeishuEventBody;
   } catch {
+    logger.error('飞书消息 JSON 解析失败', body);
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  // Handle URL verification
+  // 处理 URL 验证
   if (eventBody.challenge) {
     return new Response(JSON.stringify({ challenge: eventBody.challenge }), {
       status: 200,

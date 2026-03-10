@@ -66,21 +66,19 @@ describe('aiPlugin', () => {
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
-    it('returns fallback when AI_API_URL is missing', async () => {
+    it('returns null and logs error when AI_API_URL is missing', async () => {
       const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，讲个笑话' }), {});
-      const textReply = expectTextReply(reply);
-      expect(textReply.content).toContain('AI_API_URL');
+      expect(reply).toBeNull();
     });
 
-    it('returns fallback on non-ok response', async () => {
+    it('returns null and logs error on non-ok response', async () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }));
 
       const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，讲个故事' }), env);
-      const textReply = expectTextReply(reply);
-      expect(textReply.content).toContain('不可用');
+      expect(reply).toBeNull();
     });
 
-    it('returns fallback when response has no supported content shape', async () => {
+    it('returns null and logs warning when response has no supported content shape', async () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce(
         new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -89,8 +87,7 @@ describe('aiPlugin', () => {
       );
 
       const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，写首诗' }), env);
-      const textReply = expectTextReply(reply);
-      expect(textReply.content).toContain('可用内容');
+      expect(reply).toBeNull();
     });
   });
 });

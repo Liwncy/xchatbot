@@ -1,9 +1,10 @@
 import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 import { pluginManager } from '../plugins/index.js';
+import { logger } from '../utils/logger.js';
 
 /**
- * Handle text messages.
- * Checks registered plugins first, then falls back to built-in keyword routing.
+ * 处理文本消息。
+ * 优先检查已注册的插件，未匹配时走内置关键词路由。
  */
 export async function handleTextMessage(
   message: IncomingMessage,
@@ -11,7 +12,7 @@ export async function handleTextMessage(
 ): Promise<HandlerResponse> {
   const trimmed = (message.content ?? '').trim();
 
-  // Check plugins first — the first matching plugin wins
+  // 优先检查插件 —— 第一个匹配的插件生效
   const plugin = pluginManager.findPlugin(message);
   if (plugin) {
     const result = await plugin.handle(message, env);
@@ -38,7 +39,7 @@ export async function handleTextMessage(
     };
   }
 
-  // Default echo reply — replace with your own logic
-    console.log(`收到您的消息：${message.content ?? ''}`)
+  // 默认不回复 —— 仅记录日志
+  logger.info(`收到文本消息：${message.content ?? ''}`);
   return null;
 }

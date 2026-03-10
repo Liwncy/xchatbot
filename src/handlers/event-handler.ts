@@ -1,8 +1,8 @@
 import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
 /**
- * Handle event messages (subscribe, unsubscribe, SCAN, etc.).
- * Customize each event type with your own business logic.
+ * 处理事件消息（关注、取消关注、扫描二维码等）。
+ * 可根据各事件类型自定义业务逻辑。
  */
 export async function handleEventMessage(
   message: IncomingMessage,
@@ -18,7 +18,7 @@ export async function handleEventMessage(
       };
 
     case 'unsubscribe':
-      // No reply on unsubscribe (user has already left)
+      // 取消关注时无需回复（用户已离开）
       return null;
 
     case 'scan':
@@ -34,7 +34,7 @@ export async function handleEventMessage(
       };
 
     case 'view':
-      // Link click — no reply needed usually
+      // 链接点击 —— 通常无需回复
       return null;
 
     case 'location':

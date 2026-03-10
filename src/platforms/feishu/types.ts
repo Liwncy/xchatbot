@@ -1,4 +1,4 @@
-/** Feishu event message body structure */
+/** 飞书事件消息体结构 */
 export interface FeishuEventBody {
   schema?: string;
   header?: {
@@ -25,13 +25,13 @@ export interface FeishuEventBody {
       content: string;
     };
   };
-  // URL verification challenge
+  // URL 验证挑战
   challenge?: string;
   token?: string;
   type?: string;
 }
 
-/** Feishu message content types */
+/** 飞书消息内容类型 */
 export interface FeishuTextContent {
   text: string;
 }

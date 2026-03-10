@@ -1,11 +1,12 @@
 import type { TextMessage } from './types.js';
+import { logger } from '../utils/logger.js';
 
-/** Expected shape of TheCatAPI response items. */
+/** TheCatAPI 响应条目的预期结构。 */
 interface CatApiItem {
   url: string;
 }
 
-/** Convert an ArrayBuffer to a Base64-encoded string. */
+/** 将 ArrayBuffer 转换为 Base64 编码字符串。 */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   const chunkSize = 8192;
@@ -17,10 +18,9 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * 🐱 Cat-image plugin.
+ * 🐱 猫咪图片插件。
  *
- * When the incoming text contains "看看猫咪", fetches a random cat photo
- * from TheCatAPI and replies with an image message.
+ * 当文本包含"看看猫咪"时，从 TheCatAPI 获取随机猫咪图片并以图片消息回复。
  */
 export const catImagePlugin: TextMessage = {
   type: 'text',
@@ -33,28 +33,32 @@ export const catImagePlugin: TextMessage = {
     try {
       const apiRes = await fetch('https://api.thecatapi.com/v1/images/search');
       if (!apiRes.ok) {
-        return { type: 'text', content: '抱歉，暂时无法获取猫咪图片，请稍后再试。' };
+        logger.error('猫咪图片 API 请求失败', { status: apiRes.status });
+        return null;
       }
 
       const data = (await apiRes.json()) as CatApiItem[];
       const imageUrl = data?.[0]?.url;
 
       if (!imageUrl) {
-        return { type: 'text', content: '抱歉，暂时无法获取猫咪图片，请稍后再试。' };
+        logger.error('猫咪图片 API 返回数据中没有图片 URL');
+        return null;
       }
 
-      // Download the actual image bytes and encode as Base64
+      // 下载图片并编码为 Base64
       const imageRes = await fetch(imageUrl);
       if (!imageRes.ok) {
-        return { type: 'text', content: '猫咪图片下载失败，请稍后再试。' };
+        logger.error('猫咪图片下载失败', { url: imageUrl, status: imageRes.status });
+        return null;
       }
 
       const buffer = await imageRes.arrayBuffer();
       const base64 = arrayBufferToBase64(buffer);
 
       return { type: 'image', mediaId: base64 };
-    } catch {
-      return { type: 'text', content: '获取猫咪图片失败，请稍后再试。' };
+    } catch (err) {
+      logger.error('获取猫咪图片时发生异常', err);
+      return null;
     }
   },
 };
