@@ -61,7 +61,7 @@ export const aiPlugin: TextMessage = {
           model,
           input: prompt,
           messages: [
-            { role: 'system', content: '你是一个简洁、友好的聊天助手。' },
+            { role: 'system', content: env.AI_SYSTEM_PROMPT?.trim() || '你是我的智能助手，协助我回答问题和提供信息。' },
             { role: 'user', content: prompt },
           ],
         }),

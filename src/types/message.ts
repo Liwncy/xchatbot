@@ -179,6 +179,7 @@ export interface Env {
   AI_API_KEY?: string;
   /** 传给 AI 接口的模型名称（可选）。 */
   AI_MODEL?: string;
+    AI_SYSTEM_PROMPT?: string;
   // 飞书
   FEISHU_APP_ID?: string;
   FEISHU_APP_SECRET?: string;

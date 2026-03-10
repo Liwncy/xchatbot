@@ -7,7 +7,7 @@
 
 import { pluginManager } from './manager.js';
 import { catImagePlugin } from './cat-image.js';
-import { aiPlugin } from './ai/index.js';
+import { aiPlugin } from './ai';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(aiPlugin);
