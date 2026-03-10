@@ -39,7 +39,7 @@ export async function handleTextMessage(
     };
   }
 
-  // 默认不回复 —— 仅记录日志
+  // 未匹配到插件或关键词 —— 仅记录日志，不回复
   logger.info(`收到文本消息：${message.content ?? ''}`);
   return null;
 }

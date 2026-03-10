@@ -75,7 +75,7 @@ function toUnixSeconds(timestamp: number): number {
 export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
   const item = payload.new_messages?.[0];
   if (!item) {
-    throw new Error('微信推送数据中没有 new_messages');
+    throw new Error('No new_messages in WeChat push payload');
   }
 
   const msgType = mapWechatType(item.type);
