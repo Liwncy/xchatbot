@@ -1,195 +1,193 @@
 /**
- * WeChat API request and response types derived from the Swagger 2.0 specification
- * in _docs/wechat/apidoc.json.
+ * 微信 API 请求和响应类型，基于 _docs/wechat/apidoc.json 中的 Swagger 2.0 规范。
  *
- * These types cover the message-related endpoints used for sending replies
- * as well as shared base types referenced across the API.
+ * 这些类型覆盖了发送回复消息所用的接口，以及 API 中引用的共享基础类型。
  */
 
 // ---------------------------------------------------------------------------
-// Shared / base types
+// 共享 / 基础类型
 // ---------------------------------------------------------------------------
 
-/** Base response embedded in most protobuf-style replies. */
+/** 大多数 protobuf 风格回复中嵌入的基础响应。 */
 export interface BaseResponse {
-  /** Return code. 0 indicates success. */
+  /** 返回码。0 表示成功。 */
   code: number;
-  /** Error message (may be absent on success). */
+  /** 错误信息（成功时可能不存在）。 */
   message?: string;
 }
 
-/** Generic API response wrapper returned by all endpoints. */
+/** 所有接口返回的通用 API 响应包装器。 */
 export interface ApiResponse<T = unknown> {
-  /** Status code. 0 means success. */
+  /** 状态码。0 表示成功。 */
   code: number;
-  /** Status message. */
+  /** 状态信息。 */
   message: string;
-  /** Response payload. */
+  /** 响应数据。 */
   data?: T;
 }
 
 // ---------------------------------------------------------------------------
-// Message – request parameter types (dto.*)
+// 消息 – 请求参数类型 (dto.*)
 // ---------------------------------------------------------------------------
 
 /** POST /api/message/text */
 export interface SendTextParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Text content. */
+  /** 文本内容。 */
   content: string;
-  /** Comma-separated wxids to @mention (group only). */
+  /** 需要 @提及的 wxid（逗号分隔，仅群聊有效）。 */
   remind?: string;
-  /** Message sub-type: 1 = text (default), 42 = card, 48 = location. */
+  /** 消息子类型：1 = 文本（默认），42 = 名片，48 = 位置。 */
   type?: number;
 }
 
 /** POST /api/message/image */
 export interface SendImageParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Base64-encoded image data. */
+  /** Base64 编码的图片数据。 */
   data: string;
 }
 
 /** POST /api/message/video */
 export interface SendVideoParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Base64-encoded video data. */
+  /** Base64 编码的视频数据。 */
   video_data: string;
-  /** Base64-encoded thumbnail data. */
+  /** Base64 编码的缩略图数据。 */
   thumb_data: string;
-  /** Video duration in seconds. */
+  /** 视频时长（秒）。 */
   duration: number;
 }
 
 /** POST /api/message/voice */
 export interface SendVoiceParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Base64-encoded voice data. */
+  /** Base64 编码的语音数据。 */
   data: string;
-  /** Voice duration in milliseconds. */
+  /** 语音时长（毫秒）。 */
   duration: number;
-  /** Audio format: 0 = AMR, 1 = SPEEX, 2 = MP3, 3 = WAVE, 4 = SILK. */
+  /** 音频格式：0 = AMR，1 = SPEEX，2 = MP3，3 = WAVE，4 = SILK。 */
   format: number;
 }
 
 /** POST /api/message/emoji */
 export interface SendEmojiParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Base64-encoded emoji / GIF data. */
+  /** Base64 编码的表情 / GIF 数据。 */
   data: string;
-  /** MD5 hash of the emoji data (optional). */
+  /** 表情数据的 MD5 哈希（可选）。 */
   md5?: string;
 }
 
 /** POST /api/message/card */
 export interface SendCardParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Business card wxid. */
+  /** 名片 wxid。 */
   card_username: string;
-  /** Business card nickname. */
+  /** 名片昵称。 */
   card_nickname: string;
-  /** Business card alias (WeChat ID). */
+  /** 名片别名（微信号）。 */
   card_alias: string;
 }
 
 /** POST /api/message/link */
 export interface SendLinkParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Link URL. */
+  /** 链接 URL。 */
   url: string;
-  /** Link title. */
+  /** 链接标题。 */
   title: string;
-  /** Link description. */
+  /** 链接描述。 */
   desc: string;
-  /** Thumbnail URL. */
+  /** 缩略图 URL。 */
   thumb_url: string;
 }
 
 /** POST /api/message/position */
 export interface SendPositionParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Latitude. */
+  /** 纬度。 */
   lat: number;
-  /** Longitude. */
+  /** 经度。 */
   lon: number;
-  /** Address label. */
+  /** 地址标签。 */
   label: string;
-  /** POI name. */
+  /** POI 名称。 */
   poi_name: string;
-  /** Map scale / zoom level. */
+  /** 地图缩放级别。 */
   scale: number;
 }
 
 /** POST /api/message/app */
 export interface SendAppParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** App message type. */
+  /** 应用消息类型。 */
   type: number;
-  /** XML content of the app message. */
+  /** 应用消息的 XML 内容。 */
   xml: string;
 }
 
 /** POST /api/message/forward */
 export interface ForwardParam {
-  /** Recipient wxid. */
+  /** 接收者 wxid。 */
   receiver: string;
-  /** Forwarded content type (image / video / file). */
+  /** 转发内容类型（图片 / 视频 / 文件）。 */
   type: string;
-  /** Original message XML. */
+  /** 原始消息 XML。 */
   xml: string;
 }
 
 /** POST /api/message/revoke */
 export interface RevokeParam {
-  /** Recipient wxid (conversation). */
+  /** 接收者 wxid（会话）。 */
   receiver: string;
-  /** Client message ID of the message to revoke. */
+  /** 要撤回的消息的客户端消息 ID。 */
   client_msg_id: number;
-  /** Server message ID. */
+  /** 服务端消息 ID。 */
   new_msg_id: number;
-  /** Original message creation time. */
+  /** 原始消息创建时间。 */
   create_time: number;
 }
 
 // ---------------------------------------------------------------------------
-// Message – response types (messagepb.*)
+// 消息 – 响应类型 (messagepb.*)
 // ---------------------------------------------------------------------------
 
-/** Individual result entry in SendMessageResponse. */
+/** SendMessageResponse 中的单条结果条目。 */
 export interface SendMessageResult {
-  /** Client message ID. */
+  /** 客户端消息 ID。 */
   client_msg_id: number;
   /**
-   * Return code.
-   * 0 = success,
-   * -22 = message sent but rejected (blocked),
-   * -44 = friend verification required (deleted).
+   * 返回码。
+   * 0 = 成功，
+   * -22 = 消息已发送但被拒绝（被拉黑），
+   * -44 = 需要好友验证（已被删除）。
    */
   code: number;
-  /** Creation timestamp. */
+  /** 创建时间戳。 */
   create_time: number;
-  /** Server message ID. */
+  /** 服务端消息 ID。 */
   msg_id: number;
-  /** New message ID. */
+  /** 新消息 ID。 */
   new_msg_id: number;
-  /** Receiver username. */
+  /** 接收者用户名。 */
   receiver?: string;
-  /** Server timestamp. */
+  /** 服务端时间戳。 */
   server_time: number;
-  /** Message type. */
+  /** 消息类型。 */
   type: number;
 }
 
-/** Response for text / card / position messages. */
+/** 文本 / 名片 / 位置消息的响应。 */
 export interface SendMessageResponse {
   base_response: BaseResponse;
   count: number;
@@ -197,7 +195,7 @@ export interface SendMessageResponse {
   unknown?: number;
 }
 
-/** Response for link / app / forward messages. */
+/** 链接 / 应用 / 转发消息的响应。 */
 export interface SendAppMessageResponse {
   BaseResponse: BaseResponse;
   action_flag: number;
@@ -213,7 +211,7 @@ export interface SendAppMessageResponse {
   type: number;
 }
 
-/** Response for image uploads. */
+/** 图片上传的响应。 */
 export interface UploadImageResponse {
   base_response: BaseResponse;
   aes_key: string;
@@ -230,7 +228,7 @@ export interface UploadImageResponse {
   total_len: number;
 }
 
-/** Response for video uploads. */
+/** 视频上传的响应。 */
 export interface UploadVideoResponse {
   base_response: BaseResponse;
   action_flag: number;
@@ -243,7 +241,7 @@ export interface UploadVideoResponse {
   video_start_pos: number;
 }
 
-/** Response for voice uploads. */
+/** 语音上传的响应。 */
 export interface UploadVoiceResponse {
   base_response: BaseResponse;
   cancel_flag: number;
@@ -259,7 +257,7 @@ export interface UploadVoiceResponse {
   sender: string;
 }
 
-/** Individual emoji upload result. */
+/** 单个表情上传结果。 */
 export interface UploadEmojiResult {
   md5: string;
   msg_id: number;
@@ -269,7 +267,7 @@ export interface UploadEmojiResult {
   total_len: number;
 }
 
-/** Response for emoji uploads. */
+/** 表情上传的响应。 */
 export interface UploadEmojiResponse {
   base_response: BaseResponse;
   action_flag: number;
@@ -277,16 +275,16 @@ export interface UploadEmojiResponse {
   result: UploadEmojiResult[];
 }
 
-/** Response for message revocation. */
+/** 消息撤回的响应。 */
 export interface RevokeMessageResponse {
   base_response: BaseResponse;
-  /** Introduction text. */
+  /** 介绍文本。 */
   introduction: string;
-  /** System wording shown to participants. */
+  /** 展示给参与者的系统提示文字。 */
   sys_wording: string;
 }
 
-/** A new message returned by the sync endpoint. */
+/** 同步接口返回的新消息。 */
 export interface NewMessage {
   content?: string;
   create_time: number;
@@ -302,10 +300,10 @@ export interface NewMessage {
   type: number;
 }
 
-/** Result of the message sync endpoint. */
+/** 消息同步接口的结果。 */
 export interface SyncResult {
-  /** Whether the client should continue syncing. */
+  /** 客户端是否应继续同步。 */
   continue: boolean;
-  /** Newly received messages. */
+  /** 新接收到的消息。 */
   new_messages: NewMessage[];
 }

@@ -1,8 +1,9 @@
 import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
+import { logger } from '../utils/logger.js';
 
 /**
- * Handle link messages.
- * Replace with your own business logic.
+ * 处理链接消息。
+ * 可替换为自定义业务逻辑。
  */
 export async function handleLinkMessage(
   message: IncomingMessage,
@@ -12,6 +13,6 @@ export async function handleLinkMessage(
   if (!link) {
     return { type: 'text', content: '收到链接消息，但解析失败。' };
   }
-  console.log(`收到链接：${link.title}\n${link.url}`)
+  logger.info(`收到链接消息：${link.title} ${link.url}`);
   return null;
 }

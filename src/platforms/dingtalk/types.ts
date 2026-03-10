@@ -1,4 +1,4 @@
-/** DingTalk incoming webhook message structure */
+/** 钉钉接收的 Webhook 消息结构 */
 export interface DingTalkMessage {
   msgtype: string;
   msgId?: string;
@@ -16,7 +16,7 @@ export interface DingTalkMessage {
   audio?: { downloadCode?: string; duration?: string };
 }
 
-/** DingTalk reply message types */
+/** 钉钉回复消息类型 */
 export interface DingTalkTextReply {
   msgtype: 'text';
   text: { content: string };

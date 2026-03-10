@@ -1,19 +1,18 @@
 /**
- * Plugin entry-point.
+ * 插件入口。
  *
- * Import this module to ensure every built-in plugin is registered with the
- * global {@link pluginManager}.  Add new plugins by calling
- * `pluginManager.register(yourPlugin)` here.
+ * 导入本模块以确保所有内置插件注册到全局 {@link pluginManager}。
+ * 通过在此处调用 `pluginManager.register(yourPlugin)` 来添加新插件。
  */
 
 import { pluginManager } from './manager.js';
 import { catImagePlugin } from './cat-image.js';
 import { aiPlugin } from './ai/index.js';
 
-// ── Built-in plugins ────────────────────────────────────────────────────
+// ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(aiPlugin);
 pluginManager.register(catImagePlugin);
 
-// Re-export for convenience
+// 重新导出以便外部使用
 export { pluginManager } from './manager.js';
 export type { MessageEvent, TextMessage, ImageMessage } from './types.js';

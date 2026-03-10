@@ -1,9 +1,9 @@
 /**
- * Cryptographic utilities for Cloudflare Workers using the Web Crypto API.
+ * 基于 Web Crypto API 的加密工具，适用于 Cloudflare Workers 环境。
  */
 
 /**
- * Compute SHA-1 hash of the given string and return the hex digest.
+ * 计算给定字符串的 SHA-1 哈希值，返回十六进制摘要。
  */
 export async function sha1Hex(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -12,7 +12,7 @@ export async function sha1Hex(data: string): Promise<string> {
 }
 
 /**
- * Compute HMAC-SHA256 of the message using the given key, returning the hex digest.
+ * 使用给定密钥对消息计算 HMAC-SHA256，返回十六进制摘要。
  */
 export async function hmacSha256Hex(key: string, message: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -28,7 +28,7 @@ export async function hmacSha256Hex(key: string, message: string): Promise<strin
 }
 
 /**
- * Encode an ArrayBuffer as a lowercase hex string.
+ * 将 ArrayBuffer 编码为小写十六进制字符串。
  */
 function hexEncode(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))

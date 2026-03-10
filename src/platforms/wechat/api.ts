@@ -1,10 +1,10 @@
 /**
- * WeChat API client.
+ * 微信 API 客户端。
  *
- * Wraps the HTTP endpoints exposed by the WeChat bridge/gateway service
- * (documented in _docs/wechat/apidoc.json) as typed async methods.
+ * 封装微信网关服务暴露的 HTTP 接口（详见 _docs/wechat/apidoc.json），
+ * 提供类型化的异步方法。
  *
- * Usage:
+ * 使用方式：
  *   const api = new WechatApi('http://gateway:8080');
  *   await api.sendText({ receiver: 'wxid_xxx', content: 'hello' });
  */
@@ -36,15 +36,15 @@ export class WechatApi {
   private readonly baseUrl: string;
 
   constructor(baseUrl: string) {
-    // Strip trailing slash so callers don't need to worry about it
+    // 移除尾部斜杠，避免调用方重复处理
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 
   // -----------------------------------------------------------------------
-  // Internal helpers
+  // 内部辅助方法
   // -----------------------------------------------------------------------
 
-  /** Send a JSON POST request and return the parsed response body. */
+  /** 发送 JSON POST 请求并返回解析后的响应体。 */
   private async post<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
@@ -54,7 +54,7 @@ export class WechatApi {
     return (await res.json()) as ApiResponse<T>;
   }
 
-  /** Send a GET request (with optional query string) and return parsed JSON. */
+  /** 发送 GET 请求（可附带查询参数）并返回解析后的 JSON。 */
   private async get<T>(path: string, params?: Record<string, string>): Promise<ApiResponse<T>> {
     const url = new URL(`${this.baseUrl}${path}`);
     if (params) {
@@ -67,75 +67,75 @@ export class WechatApi {
   }
 
   // -----------------------------------------------------------------------
-  // Message endpoints
+  // 消息接口
   // -----------------------------------------------------------------------
 
-  /** Send a text message. POST /api/message/text */
+  /** 发送文本消息。POST /api/message/text */
   async sendText(params: SendTextParam): Promise<ApiResponse<SendMessageResponse>> {
     return this.post<SendMessageResponse>('/api/message/text', params);
   }
 
-  /** Send an image message. POST /api/message/image */
+  /** 发送图片消息。POST /api/message/image */
   async sendImage(params: SendImageParam): Promise<ApiResponse<UploadImageResponse>> {
     return this.post<UploadImageResponse>('/api/message/image', params);
   }
 
-  /** Send a video message. POST /api/message/video */
+  /** 发送视频消息。POST /api/message/video */
   async sendVideo(params: SendVideoParam): Promise<ApiResponse<UploadVideoResponse>> {
     return this.post<UploadVideoResponse>('/api/message/video', params);
   }
 
-  /** Send a voice message. POST /api/message/voice */
+  /** 发送语音消息。POST /api/message/voice */
   async sendVoice(params: SendVoiceParam): Promise<ApiResponse<UploadVoiceResponse>> {
     return this.post<UploadVoiceResponse>('/api/message/voice', params);
   }
 
-  /** Send an emoji message. POST /api/message/emoji */
+  /** 发送表情消息。POST /api/message/emoji */
   async sendEmoji(params: SendEmojiParam): Promise<ApiResponse<UploadEmojiResponse>> {
     return this.post<UploadEmojiResponse>('/api/message/emoji', params);
   }
 
-  /** Send a business card. POST /api/message/card */
+  /** 发送名片消息。POST /api/message/card */
   async sendCard(params: SendCardParam): Promise<ApiResponse<SendMessageResponse>> {
     return this.post<SendMessageResponse>('/api/message/card', params);
   }
 
-  /** Send a link message. POST /api/message/link */
+  /** 发送链接消息。POST /api/message/link */
   async sendLink(params: SendLinkParam): Promise<ApiResponse<SendAppMessageResponse>> {
     return this.post<SendAppMessageResponse>('/api/message/link', params);
   }
 
-  /** Send a location / position message. POST /api/message/position */
+  /** 发送位置消息。POST /api/message/position */
   async sendPosition(params: SendPositionParam): Promise<ApiResponse<SendMessageResponse>> {
     return this.post<SendMessageResponse>('/api/message/position', params);
   }
 
-  /** Send an app / card message (rich XML). POST /api/message/app */
+  /** 发送应用/卡片消息（富 XML）。POST /api/message/app */
   async sendApp(params: SendAppParam): Promise<ApiResponse<SendAppMessageResponse>> {
     return this.post<SendAppMessageResponse>('/api/message/app', params);
   }
 
-  /** Forward a message. POST /api/message/forward */
+  /** 转发消息。POST /api/message/forward */
   async forwardMessage(params: ForwardParam): Promise<ApiResponse<SendAppMessageResponse>> {
     return this.post<SendAppMessageResponse>('/api/message/forward', params);
   }
 
-  /** Revoke (recall) a sent message. POST /api/message/revoke */
+  /** 撤回已发送的消息。POST /api/message/revoke */
   async revokeMessage(params: RevokeParam): Promise<ApiResponse<RevokeMessageResponse>> {
     return this.post<RevokeMessageResponse>('/api/message/revoke', params);
   }
 
-  /** Start a typing indicator. POST /api/message/start */
+  /** 开始输入中状态指示。POST /api/message/start */
   async startTyping(receiver: string): Promise<ApiResponse> {
     return this.post('/api/message/start', { receiver });
   }
 
-  /** Stop a typing indicator. POST /api/message/stop */
+  /** 停止输入中状态指示。POST /api/message/stop */
   async stopTyping(receiver: string): Promise<ApiResponse> {
     return this.post('/api/message/stop', { receiver });
   }
 
-  /** Sync new messages. GET /api/message/sync */
+  /** 同步新消息。GET /api/message/sync */
   async syncMessages(): Promise<ApiResponse<SyncResult>> {
     return this.get<SyncResult>('/api/message/sync');
   }

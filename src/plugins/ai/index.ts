@@ -1,4 +1,5 @@
 import type { TextMessage } from '../types.js';
+import { logger } from '../../utils/logger.js';
 
 interface OpenAiLikeChoice {
   message?: {
@@ -26,10 +27,9 @@ function normalizeAiText(data: OpenAiLikeResponse): string | null {
 }
 
 /**
- * AI dialogue plugin.
+ * AI 对话插件。
  *
- * Triggered when text contains "小聪明儿". It forwards the user text to a
- * configurable AI endpoint and replies with the generated content.
+ * 当文本包含"小聪明儿"时触发，将用户文本转发到可配置的 AI 接口并以生成内容回复。
  */
 export const aiPlugin: TextMessage = {
   type: 'text',
@@ -41,7 +41,8 @@ export const aiPlugin: TextMessage = {
   handle: async (message, env) => {
     const apiUrl = env.AI_API_URL?.trim();
     if (!apiUrl) {
-      return { type: 'text', content: 'AI 服务未配置（缺少 AI_API_URL）。' };
+      logger.error('AI 服务未配置（缺少 AI_API_URL）');
+      return null;
     }
 
     try {
@@ -67,18 +68,21 @@ export const aiPlugin: TextMessage = {
       });
 
       if (!res.ok) {
-        return { type: 'text', content: 'AI 服务暂时不可用，请稍后再试。' };
+        logger.error('AI 服务响应异常', { status: res.status, url: apiUrl });
+        return null;
       }
 
       const data = (await res.json()) as OpenAiLikeResponse;
       const reply = normalizeAiText(data);
       if (!reply) {
-        return { type: 'text', content: 'AI 暂时没有返回可用内容。' };
+        logger.warn('AI 服务未返回可用内容', { data });
+        return null;
       }
 
       return { type: 'text', content: reply };
-    } catch {
-      return { type: 'text', content: '调用 AI 服务失败，请稍后再试。' };
+    } catch (err) {
+      logger.error('调用 AI 服务时发生异常', err);
+      return null;
     }
   },
 };

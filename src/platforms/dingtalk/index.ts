@@ -1,17 +1,18 @@
 import type { IncomingMessage, ReplyMessage, MessageType, Env } from '../../types/message.js';
 import type { DingTalkMessage } from './types.js';
+import { logger } from '../../utils/logger.js';
 
 /**
- * Verify DingTalk webhook signature.
- * DingTalk signs using: Base64(HMAC-SHA256(timestamp + '\n' + secret, secret))
- * Passed via query params: timestamp, sign
+ * 验证钉钉 Webhook 签名。
+ * 钉钉使用 Base64(HMAC-SHA256(timestamp + '\n' + secret, secret)) 签名。
+ * 通过查询参数传递：timestamp、sign。
  */
 export async function verifyDingTalkSignature(
   secret: string,
   timestamp: string,
   sign: string,
 ): Promise<boolean> {
-  // DingTalk message format: timestamp + newline + secret, keyed with secret
+  // 钉钉消息格式：timestamp + 换行符 + secret，以 secret 为密钥
   const message = `${timestamp}\n${secret}`;
   const encoder = new TextEncoder();
   const keyBytes = encoder.encode(secret);
@@ -25,13 +26,13 @@ export async function verifyDingTalkSignature(
   );
   const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgBytes);
   const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-  // `sign` from query param is URL-encoded Base64
+  // 查询参数中的 sign 是 URL 编码的 Base64
   const decodedSign = decodeURIComponent(sign);
   return base64Signature === decodedSign;
 }
 
 /**
- * Parse a DingTalk webhook message into a normalized IncomingMessage.
+ * 将钉钉 Webhook 消息解析为标准化的 IncomingMessage。
  */
 export function parseDingTalkMessage(msg: DingTalkMessage): IncomingMessage {
   const rawType = (msg.msgtype ?? 'text').toLowerCase();
@@ -76,10 +77,10 @@ function extractRichText(msg: DingTalkMessage): string {
 }
 
 /**
- * Send a reply to DingTalk via the session webhook URL.
+ * 通过会话 Webhook URL 向钉钉发送回复。
  *
- * When `reply.mentions` is set, an `at` block is appended to the
- * payload so the mentioned users are @-notified.
+ * 当 `reply.mentions` 被设置时，会在 payload 中追加 `at` 块，
+ * 以 @通知被提及的用户。
  */
 export async function sendDingTalkReply(
   reply: ReplyMessage,
@@ -106,10 +107,10 @@ export async function sendDingTalkReply(
       },
     };
   } else {
-    payload = { msgtype: 'text', text: { content: 'Unsupported reply type' } };
+    payload = { msgtype: 'text', text: { content: '不支持的回复类型' } };
   }
 
-  // Append @mention block when mentions are specified
+  // 设置了 mentions 时追加 @提及块
   if (reply.mentions?.length) {
     payload.at = { atUserIds: reply.mentions, isAtAll: false };
   }
@@ -122,14 +123,14 @@ export async function sendDingTalkReply(
 }
 
 /**
- * Main DingTalk request handler.
+ * 钉钉请求主处理器。
  */
 export async function handleDingTalk(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
-  // Verify signature if secret is configured
+  // 如果配置了密钥，验证签名
   const appSecret = env.DINGTALK_APP_SECRET ?? '';
   if (appSecret) {
     const url = new URL(request.url);
@@ -137,6 +138,7 @@ export async function handleDingTalk(request: Request, env: Env): Promise<Respon
     const sign = url.searchParams.get('sign') ?? '';
     const valid = await verifyDingTalkSignature(appSecret, timestamp, sign);
     if (!valid) {
+      logger.warn('钉钉签名验证失败');
       return new Response('Invalid signature', { status: 403 });
     }
   }
@@ -145,6 +147,7 @@ export async function handleDingTalk(request: Request, env: Env): Promise<Respon
   try {
     body = (await request.json()) as DingTalkMessage;
   } catch {
+    logger.error('钉钉消息 JSON 解析失败');
     return new Response('Invalid JSON', { status: 400 });
   }
 

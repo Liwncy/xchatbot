@@ -1,53 +1,52 @@
 import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
-/** Base fields shared by all message event handlers. */
+/** 所有消息事件处理器共享的基础字段。 */
 interface BaseMessageEvent {
-  /** Unique handler name used for registration and management. */
+  /** 唯一的处理器名称，用于注册和管理。 */
   name: string;
-  /** Human-readable description of what the handler does. */
+  /** 处理器功能的可读描述。 */
   description: string;
   /**
-   * Process the message and return one or more replies (or `null` to skip replying).
-   * @param message - The full normalized incoming message.
-   * @param env     - Cloudflare Workers environment bindings.
+   * 处理消息并返回一条或多条回复（或返回 `null` 跳过回复）。
+   * @param message - 标准化后的完整消息。
+   * @param env     - Cloudflare Workers 环境变量绑定。
    */
   handle: (message: IncomingMessage, env: Env) => Promise<HandlerResponse>;
 }
 
 /**
- * Event handler for text messages.
+ * 文本消息的事件处理器。
  *
- * Matches against the trimmed text content of incoming text messages.
+ * 基于文本消息的 trimmed 内容进行匹配。
  */
 export interface TextMessage extends BaseMessageEvent {
   type: 'text';
   /**
-   * Determine whether this handler should process the given text content.
-   * @param content - The trimmed text content of the incoming message.
-   * @param message - The full normalized incoming message.
+   * 判断是否应处理给定的文本内容。
+   * @param content - 文本消息的 trimmed 内容。
+   * @param message - 标准化后的完整消息。
    */
   match: (content: string, message: IncomingMessage) => boolean;
 }
 
 /**
- * Event handler for image messages.
+ * 图片消息的事件处理器。
  *
- * Matches against incoming image messages.
+ * 对接收到的图片消息进行匹配。
  */
 export interface ImageMessage extends BaseMessageEvent {
   type: 'image';
   /**
-   * Determine whether this handler should process the given image message.
-   * @param message - The full normalized incoming message.
+   * 判断是否应处理给定的图片消息。
+   * @param message - 标准化后的完整消息。
    */
   match: (message: IncomingMessage) => boolean;
 }
 
 /**
- * Union of all message event types.
+ * 所有消息事件类型的联合类型。
  *
- * Event handlers are checked in registration order when a message arrives.
- * The first handler whose {@link TextMessage.match | match} returns `true`
- * will handle the message.
+ * 事件处理器按注册顺序检查。
+ * 第一个 {@link TextMessage.match | match} 返回 `true` 的处理器将处理该消息。
  */
 export type MessageEvent = TextMessage | ImageMessage;

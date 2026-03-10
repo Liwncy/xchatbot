@@ -1,8 +1,9 @@
 import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
+import { logger } from '../utils/logger.js';
 
 /**
- * Handle location messages.
- * Replace with your own business logic (e.g., nearby services).
+ * 处理位置消息。
+ * 可替换为自定义业务逻辑（如附近服务查询等）。
  */
 export async function handleLocationMessage(
   message: IncomingMessage,
@@ -12,9 +13,7 @@ export async function handleLocationMessage(
   if (!loc) {
     return { type: 'text', content: '收到位置信息，但解析失败。' };
   }
-  console.log(`收到您的位置信息：\n` +
-      `纬度：${loc?.latitude}\n` +
-      `经度：${loc?.longitude}` +
-      (loc?.label ? `\n地址：${loc?.label}` : ''))
+  logger.info(`收到位置消息：纬度=${loc.latitude} 经度=${loc.longitude}` +
+      (loc.label ? ` 地址=${loc.label}` : ''));
   return null;
 }

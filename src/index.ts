@@ -8,7 +8,7 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    // Route to platform-specific handlers based on URL path
+    // 根据 URL 路径分发到对应平台的处理器
     if (pathname === '/webhook/wechat' || pathname.startsWith('/webhook/wechat/')) {
       return handleWechat(request, env);
     }
