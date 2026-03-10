@@ -7,13 +7,11 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleLinkMessage(
   message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage> {
+): Promise<ReplyMessage | null> {
   const link = message.link;
   if (!link) {
     return { type: 'text', content: '收到链接消息，但解析失败。' };
   }
-  return {
-    type: 'text',
-    content: `收到链接：${link.title}\n${link.url}`,
-  };
+  console.log(`收到链接：${link.title}\n${link.url}`)
+  return null;
 }

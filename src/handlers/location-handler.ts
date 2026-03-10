@@ -7,17 +7,14 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleLocationMessage(
   message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage> {
+): Promise<ReplyMessage | null> {
   const loc = message.location;
   if (!loc) {
     return { type: 'text', content: '收到位置信息，但解析失败。' };
   }
-  return {
-    type: 'text',
-    content:
-      `收到您的位置信息：\n` +
-      `纬度：${loc.latitude}\n` +
-      `经度：${loc.longitude}` +
-      (loc.label ? `\n地址：${loc.label}` : ''),
-  };
+  console.log(`收到您的位置信息：\n` +
+      `纬度：${loc?.latitude}\n` +
+      `经度：${loc?.longitude}` +
+      (loc?.label ? `\n地址：${loc?.label}` : ''))
+  return null;
 }

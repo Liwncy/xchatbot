@@ -6,9 +6,7 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleDefault(
   _message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage> {
-  return {
-    type: 'text',
-    content: '暂不支持该类型的消息。',
-  };
+): Promise<ReplyMessage | null> {
+  console.log(`收到不支持的消息类型：${_message.type}`)
+  return null;
 }

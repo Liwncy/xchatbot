@@ -8,7 +8,7 @@ import { pluginManager } from '../plugins/index.js';
 export async function handleTextMessage(
   message: IncomingMessage,
   env: Env,
-): Promise<ReplyMessage> {
+): Promise<ReplyMessage | null> {
   const trimmed = (message.content ?? '').trim();
 
   // Check plugins first — the first matching plugin wins
@@ -39,8 +39,6 @@ export async function handleTextMessage(
   }
 
   // Default echo reply — replace with your own logic
-  return {
-    type: 'unknown',
-    content: `收到您的消息：${message.content ?? ''}`,
-  };
+    console.log(`收到您的消息：${message.content ?? ''}`)
+  return null;
 }

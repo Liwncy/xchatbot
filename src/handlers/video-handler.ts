@@ -7,9 +7,7 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleVideoMessage(
   _message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage> {
-  return {
-    type: 'text',
-    content: '收到您发送的视频消息，暂时无法处理视频消息。',
-  };
+): Promise<ReplyMessage | null> {
+  console.log('收到视频消息，但暂时无法处理。');
+  return null;
 }
