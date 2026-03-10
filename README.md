@@ -72,6 +72,11 @@ WECHAT_TOKEN=your_hmac_token
 WECHAT_API_BASE_URL=http://127.0.0.1:7080
 # WECHAT_CALLBACK_URL=http://your-bridge/callback  # 旧版回调方式
 
+# AI 插件
+AI_API_URL=https://your-ai-endpoint/v1/chat/completions
+AI_API_KEY=your_ai_api_key
+AI_MODEL=gpt-4o-mini
+
 # 飞书
 FEISHU_APP_ID=your_app_id
 FEISHU_APP_SECRET=your_app_secret
@@ -169,6 +174,7 @@ registerHandler('text', async (message, env) => {
 
 | 插件名       | 触发条件           | 功能                     |
 | ------------ | ------------------ | ------------------------ |
+| `ai-dialog`  | 文本包含 `小聪明儿` | 调用 AI 接口返回文本回复 |
 | `cat-image`  | 文本包含 `看看猫咪` | 从 TheCatAPI 获取随机猫咪图片 |
 
 ### 编写自定义插件
@@ -268,6 +274,9 @@ test/                             # 单元测试（Vitest）
 | `WECHAT_TOKEN`            | 微信   | Webhook HMAC-SHA256 签名密钥                   |
 | `WECHAT_API_BASE_URL`     | 微信   | 桥接网关 API 地址（推荐，如 `http://localhost:8080`） |
 | `WECHAT_CALLBACK_URL`     | 微信   | 旧版回调地址（与 API 二选一）                  |
+| `AI_API_URL`              | 通用   | AI 对话接口地址（`ai-dialog` 插件使用）        |
+| `AI_API_KEY`              | 通用   | AI 对话接口 Bearer Token（可选）               |
+| `AI_MODEL`                | 通用   | AI 模型名（可选，默认 `gpt-4o-mini`）          |
 | `FEISHU_APP_ID`           | 飞书   | 应用 App ID                                    |
 | `FEISHU_APP_SECRET`       | 飞书   | 应用 App Secret                                |
 | `FEISHU_VERIFICATION_TOKEN` | 飞书 | 请求验证 Token（可选）                         |

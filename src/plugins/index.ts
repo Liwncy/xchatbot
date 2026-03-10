@@ -8,8 +8,10 @@
 
 import { pluginManager } from './manager.js';
 import { catImagePlugin } from './cat-image.js';
+import { aiPlugin } from './ai/index.js';
 
 // ── Built-in plugins ────────────────────────────────────────────────────
+pluginManager.register(aiPlugin);
 pluginManager.register(catImagePlugin);
 
 // Re-export for convenience

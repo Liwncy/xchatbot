@@ -175,6 +175,13 @@ export interface Env {
   WECHAT_CALLBACK_URL?: string;
   /** Base URL of the WeChat bridge/gateway API (e.g. http://gateway:8080). */
   WECHAT_API_BASE_URL?: string;
+  // AI plugin
+  /** AI chat endpoint URL used by the ai plugin. */
+  AI_API_URL?: string;
+  /** Optional bearer token for AI endpoint authentication. */
+  AI_API_KEY?: string;
+  /** Optional model name passed to AI endpoint. */
+  AI_MODEL?: string;
   // Feishu
   FEISHU_APP_ID?: string;
   FEISHU_APP_SECRET?: string;
