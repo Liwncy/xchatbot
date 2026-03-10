@@ -322,12 +322,11 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
   // console.log('Received WeChat message:', message);
 
   // Dispatch to router
-  const { routeMessage } = await import('../../router/index.js');
-  const reply = await routeMessage(message, env);
+  const { routeMessage, toReplyArray } = await import('../../router/index.js');
+  const response = await routeMessage(message, env);
+  const replies = toReplyArray(response);
 
-  // console.log('Generated reply for WeChat message:', reply);
-
-  if (!reply) {
+  if (replies.length === 0) {
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -339,28 +338,33 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
   // Prefer the typed API client when a base URL is configured
   if (apiBaseUrl) {
     const api = new WechatApi(apiBaseUrl);
-    try {
-      await sendWechatReply(api, reply, receiver);
-    } catch {
-      // API delivery failed; fall through to legacy path
+    for (const reply of replies) {
+      try {
+        await sendWechatReply(api, reply, receiver);
+      } catch {
+        // API delivery failed; fall through to legacy path
+      }
     }
   } else if (callbackUrl) {
-    // Legacy: send the built payload to the callback URL
-    const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
-    try {
-      await fetch(callbackUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(replyPayload),
-      });
-    } catch {
-      // Callback delivery failed; still return the reply in the response body
+    // Legacy: send each built payload to the callback URL
+    for (const reply of replies) {
+      const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
+      try {
+        await fetch(callbackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(replyPayload),
+        });
+      } catch {
+        // Callback delivery failed; still return the reply in the response body
+      }
     }
   }
 
-  // Also return the reply in the response
-  const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
-  return new Response(JSON.stringify(replyPayload), {
+  // Also return the replies in the response
+  const replyPayloads = replies.map((r) => buildWechatReply(r, message.from, message.room?.id));
+  const responseBody = replyPayloads.length === 1 ? replyPayloads[0] : replyPayloads;
+  return new Response(JSON.stringify(responseBody), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });

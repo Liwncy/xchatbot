@@ -155,11 +155,18 @@ export type ReplyMessage =
   | MarkdownReply
   | CardReply;
 
+/**
+ * The result a handler may return: a single reply, multiple replies, or
+ * nothing.  Returning an array allows a handler to send several messages
+ * in response to a single incoming message.
+ */
+export type HandlerResponse = ReplyMessage | ReplyMessage[] | null;
+
 /** Handler function signature */
 export type MessageHandler = (
   message: IncomingMessage,
   env: Env,
-) => Promise<ReplyMessage | null>;
+) => Promise<HandlerResponse>;
 
 /** Cloudflare Workers environment bindings */
 export interface Env {

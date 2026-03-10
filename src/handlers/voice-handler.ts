@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
 /**
  * Handle voice messages.
@@ -7,7 +7,7 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleVoiceMessage(
   _message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage | null> {
+): Promise<HandlerResponse> {
   console.log('收到语音消息，但暂时无法处理。');
   return null;
 }

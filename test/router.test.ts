@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { routeMessage, registerHandler } from '../src/router/index.js';
-import type { IncomingMessage, Env } from '../src/types/message.js';
+import { routeMessage, registerHandler, toReplyArray } from '../src/router/index.js';
+import type { IncomingMessage, Env, ReplyMessage, HandlerResponse } from '../src/types/message.js';
 
 const env: Env = {};
 
@@ -95,5 +95,48 @@ describe('routeMessage', () => {
     // Restore default handler for other tests
     const { handleTextMessage } = await import('../src/handlers/text-handler.js');
     registerHandler('text', handleTextMessage);
+  });
+
+  it('supports a handler returning multiple replies', async () => {
+    registerHandler('text', async (_msg, _env) => [
+      { type: 'text', content: 'first' },
+      { type: 'text', content: 'second' },
+      { type: 'image', mediaId: 'img_001' },
+    ]);
+    const msg = makeMessage({ type: 'text', content: 'multi' });
+    const response = await routeMessage(msg, env);
+    expect(Array.isArray(response)).toBe(true);
+    const replies = response as ReplyMessage[];
+    expect(replies).toHaveLength(3);
+    expect(replies[0]).toEqual({ type: 'text', content: 'first' });
+    expect(replies[1]).toEqual({ type: 'text', content: 'second' });
+    expect(replies[2]).toEqual({ type: 'image', mediaId: 'img_001' });
+
+    // Restore default handler
+    const { handleTextMessage } = await import('../src/handlers/text-handler.js');
+    registerHandler('text', handleTextMessage);
+  });
+});
+
+describe('toReplyArray', () => {
+  it('returns empty array for null', () => {
+    expect(toReplyArray(null)).toEqual([]);
+  });
+
+  it('wraps a single reply in an array', () => {
+    const reply: ReplyMessage = { type: 'text', content: 'hello' };
+    expect(toReplyArray(reply)).toEqual([reply]);
+  });
+
+  it('returns the array as-is for array input', () => {
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'first' },
+      { type: 'text', content: 'second' },
+    ];
+    expect(toReplyArray(replies)).toEqual(replies);
+  });
+
+  it('returns empty array for empty array input', () => {
+    expect(toReplyArray([])).toEqual([]);
   });
 });

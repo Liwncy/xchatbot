@@ -156,4 +156,24 @@ describe('sendFeishuReply', () => {
     const firstLine = content.post.zh_cn.content[0];
     expect(firstLine).toContainEqual({ tag: 'at', user_id: 'ou_user1' });
   });
+
+  it('sends multiple replies sequentially', async () => {
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'first' },
+      { type: 'text', content: 'second' },
+    ];
+    for (const reply of replies) {
+      await sendFeishuReply(reply, 'oc_chat', 'app_token');
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const body0 = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+    const content0 = JSON.parse(body0.content);
+    expect(content0.text).toBe('first');
+
+    const body1 = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+    const content1 = JSON.parse(body1.content);
+    expect(content1.text).toBe('second');
+  });
 });

@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 import { pluginManager } from '../plugins/index.js';
 
 /**
@@ -8,7 +8,7 @@ import { pluginManager } from '../plugins/index.js';
 export async function handleTextMessage(
   message: IncomingMessage,
   env: Env,
-): Promise<ReplyMessage | null> {
+): Promise<HandlerResponse> {
   const trimmed = (message.content ?? '').trim();
 
   // Check plugins first — the first matching plugin wins

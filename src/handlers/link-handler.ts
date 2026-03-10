@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
 /**
  * Handle link messages.
@@ -7,7 +7,7 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleLinkMessage(
   message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage | null> {
+): Promise<HandlerResponse> {
   const link = message.link;
   if (!link) {
     return { type: 'text', content: '收到链接消息，但解析失败。' };

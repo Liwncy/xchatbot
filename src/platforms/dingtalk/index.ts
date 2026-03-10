@@ -150,11 +150,14 @@ export async function handleDingTalk(request: Request, env: Env): Promise<Respon
 
   const message = parseDingTalkMessage(body);
 
-  const { routeMessage } = await import('../../router/index.js');
-  const reply = await routeMessage(message, env);
+  const { routeMessage, toReplyArray } = await import('../../router/index.js');
+  const response = await routeMessage(message, env);
+  const replies = toReplyArray(response);
 
-  if (reply && body.sessionWebhook) {
-    await sendDingTalkReply(reply, body.sessionWebhook);
+  if (replies.length > 0 && body.sessionWebhook) {
+    for (const reply of replies) {
+      await sendDingTalkReply(reply, body.sessionWebhook);
+    }
   }
 
   return new Response(JSON.stringify({ errcode: 0, errmsg: 'ok' }), {

@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, MessageHandler, Env } from '../types/message.js';
+import type { IncomingMessage, ReplyMessage, MessageHandler, HandlerResponse, Env } from '../types/message.js';
 import { handleTextMessage } from '../handlers/text-handler.js';
 import { handleImageMessage } from '../handlers/image-handler.js';
 import { handleVoiceMessage } from '../handlers/voice-handler.js';
@@ -24,14 +24,23 @@ const handlerRegistry: Record<string, MessageHandler> = {
 
 /**
  * Route an incoming normalized message to the appropriate handler.
- * Returns the reply message, or null if no reply should be sent.
+ * Returns the reply message(s), or null if no reply should be sent.
  */
 export async function routeMessage(
   message: IncomingMessage,
   env: Env,
-): Promise<ReplyMessage | null> {
+): Promise<HandlerResponse> {
   const handler = handlerRegistry[message.type] ?? handleDefault;
   return handler(message, env);
+}
+
+/**
+ * Normalize a {@link HandlerResponse} to a flat array of replies.
+ * Returns an empty array when the response is `null`.
+ */
+export function toReplyArray(response: HandlerResponse): ReplyMessage[] {
+  if (!response) return [];
+  return Array.isArray(response) ? response : [response];
 }
 
 /**

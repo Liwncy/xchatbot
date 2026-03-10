@@ -144,4 +144,24 @@ describe('sendDingTalkReply', () => {
     expect(body.msgtype).toBe('markdown');
     expect(body.at).toEqual({ atUserIds: ['user_003'], isAtAll: false });
   });
+
+  it('sends multiple replies sequentially', async () => {
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'first' },
+      { type: 'markdown', title: 'Title', content: '**bold**' },
+    ];
+    const webhook = 'https://oapi.dingtalk.com/robot/send?token=xxx';
+    for (const reply of replies) {
+      await sendDingTalkReply(reply, webhook);
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const body0 = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+    expect(body0.msgtype).toBe('text');
+    expect(body0.text.content).toBe('first');
+
+    const body1 = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+    expect(body1.msgtype).toBe('markdown');
+  });
 });

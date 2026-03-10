@@ -210,14 +210,17 @@ export async function handleFeishu(request: Request, env: Env): Promise<Response
     return new Response('', { status: 200 });
   }
 
-  const { routeMessage } = await import('../../router/index.js');
-  const reply = await routeMessage(message, env);
+  const { routeMessage, toReplyArray } = await import('../../router/index.js');
+  const response = await routeMessage(message, env);
+  const replies = toReplyArray(response);
 
-  if (reply && env.FEISHU_APP_ID && env.FEISHU_APP_SECRET) {
+  if (replies.length > 0 && env.FEISHU_APP_ID && env.FEISHU_APP_SECRET) {
     const appToken = await getFeishuAppToken(env.FEISHU_APP_ID, env.FEISHU_APP_SECRET);
     const chatId = (eventBody.event?.message as { chat_id?: string } | undefined)?.chat_id ?? '';
     if (appToken && chatId) {
-      await sendFeishuReply(reply, chatId, appToken);
+      for (const reply of replies) {
+        await sendFeishuReply(reply, chatId, appToken);
+      }
     }
   }
 

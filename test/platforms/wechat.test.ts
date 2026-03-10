@@ -297,4 +297,15 @@ describe('buildWechatReply', () => {
       content: 'Hey',
     });
   });
+
+  it('builds multiple reply payloads from an array of replies', () => {
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'Hello' },
+      { type: 'image', mediaId: 'media_001' },
+    ];
+    const payloads = replies.map((r) => buildWechatReply(r, 'wxid_sender'));
+    expect(payloads).toHaveLength(2);
+    expect(payloads[0]).toEqual({ to: 'wxid_sender', type: 'text', content: 'Hello' });
+    expect(payloads[1]).toEqual({ to: 'wxid_sender', type: 'image', mediaUrl: 'media_001' });
+  });
 });

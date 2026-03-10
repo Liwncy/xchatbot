@@ -319,4 +319,35 @@ describe('sendWechatReply', () => {
     const body = JSON.parse(init?.body as string);
     expect(body.receiver).toBe('wxid_other');
   });
+
+  it('sends multiple replies sequentially', async () => {
+    // Return a fresh Response for each call so the body can be read each time
+    mockFetch.mockImplementation(async () =>
+      new Response(JSON.stringify({ code: 0, message: 'ok', data: {} }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const api = new WechatApi(BASE_URL);
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'first' },
+      { type: 'text', content: 'second' },
+      { type: 'image', mediaId: 'img_data' },
+    ];
+
+    for (const reply of replies) {
+      await sendWechatReply(api, reply, 'wxid_recv');
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    const body0 = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+    expect(body0.content).toBe('first');
+
+    const body1 = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+    expect(body1.content).toBe('second');
+
+    const [url2] = mockFetch.mock.calls[2];
+    expect(url2).toBe(`${BASE_URL}/api/message/image`);
+  });
 });
