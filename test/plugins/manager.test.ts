@@ -116,4 +116,23 @@ describe('PluginManager', () => {
       expect(manager.getPlugins()).toHaveLength(1);
     });
   });
+
+  describe('multi-reply plugins', () => {
+    it('a plugin can return an array of replies', async () => {
+      const multiPlugin = createPlugin({
+        name: 'multi-reply',
+        match: (c) => c.includes('multi'),
+        handle: async () => [
+          { type: 'text', content: 'reply 1' },
+          { type: 'text', content: 'reply 2' },
+        ],
+      });
+      manager.register(multiPlugin);
+      const found = manager.findPlugin(makeMessage({ content: 'multi test' }));
+      expect(found).toBeDefined();
+      const result = await found!.handle(makeMessage({ content: 'multi test' }), env);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(2);
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
 /**
  * Handle event messages (subscribe, unsubscribe, SCAN, etc.).
@@ -7,7 +7,7 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleEventMessage(
   message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage | null> {
+): Promise<HandlerResponse> {
   const eventType = message.event?.type;
 
   switch (eventType) {

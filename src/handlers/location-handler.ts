@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
 /**
  * Handle location messages.
@@ -7,7 +7,7 @@ import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
 export async function handleLocationMessage(
   message: IncomingMessage,
   _env: Env,
-): Promise<ReplyMessage | null> {
+): Promise<HandlerResponse> {
   const loc = message.location;
   if (!loc) {
     return { type: 'text', content: '收到位置信息，但解析失败。' };

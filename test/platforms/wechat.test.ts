@@ -217,4 +217,95 @@ describe('buildWechatReply', () => {
     const result = buildWechatReply(reply, 'wxid_sender');
     expect(result).toEqual({});
   });
+
+  it('uses reply.to to override recipient in private chat', () => {
+    const reply: ReplyMessage = { type: 'text', content: 'Hi', to: 'wxid_other' };
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'wxid_other',
+      type: 'text',
+      content: 'Hi',
+    });
+  });
+
+  it('uses reply.to to override recipient in group chat', () => {
+    const reply: ReplyMessage = { type: 'text', content: 'Hi', to: 'room_456@chatroom' };
+    const result = buildWechatReply(reply, 'wxid_sender', 'room_123@chatroom');
+    expect(result).toEqual({
+      to: 'room_456@chatroom',
+      type: 'text',
+      content: 'Hi',
+    });
+  });
+
+  it('includes remind field for mentions in group chat', () => {
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'Hello everyone',
+      mentions: ['wxid_user1', 'wxid_user2'],
+    };
+    const result = buildWechatReply(reply, 'wxid_sender', 'room_123@chatroom');
+    expect(result).toEqual({
+      to: 'room_123@chatroom',
+      type: 'text',
+      content: 'Hello everyone',
+      remind: 'wxid_user1,wxid_user2',
+    });
+  });
+
+  it('does not include remind field for mentions in private chat without reply.to', () => {
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'Hello',
+      mentions: ['wxid_user1'],
+    };
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'wxid_sender',
+      type: 'text',
+      content: 'Hello',
+    });
+  });
+
+  it('includes remind field when reply.to is set even without roomId', () => {
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'Hey',
+      to: 'room_999@chatroom',
+      mentions: ['wxid_target'],
+    };
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'room_999@chatroom',
+      type: 'text',
+      content: 'Hey',
+      remind: 'wxid_target',
+    });
+  });
+
+  it('does not include remind field when reply.to is a private user', () => {
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'Hey',
+      to: 'wxid_other',
+      mentions: ['wxid_target'],
+    };
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'wxid_other',
+      type: 'text',
+      content: 'Hey',
+    });
+  });
+
+  it('builds multiple reply payloads from an array of replies', () => {
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'Hello' },
+      { type: 'image', mediaId: 'media_001' },
+    ];
+    const payloads = replies.map((r) => buildWechatReply(r, 'wxid_sender'));
+    expect(payloads).toHaveLength(2);
+    expect(payloads[0]).toEqual({ to: 'wxid_sender', type: 'text', content: 'Hello' });
+    expect(payloads[1]).toEqual({ to: 'wxid_sender', type: 'image', mediaUrl: 'media_001' });
+  });
 });

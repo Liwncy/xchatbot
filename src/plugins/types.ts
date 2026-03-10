@@ -1,4 +1,4 @@
-import type { IncomingMessage, ReplyMessage, Env } from '../types/message.js';
+import type { IncomingMessage, HandlerResponse, Env } from '../types/message.js';
 
 /** Base fields shared by all message event handlers. */
 interface BaseMessageEvent {
@@ -7,11 +7,11 @@ interface BaseMessageEvent {
   /** Human-readable description of what the handler does. */
   description: string;
   /**
-   * Process the message and return a reply (or `null` to skip replying).
+   * Process the message and return one or more replies (or `null` to skip replying).
    * @param message - The full normalized incoming message.
    * @param env     - Cloudflare Workers environment bindings.
    */
-  handle: (message: IncomingMessage, env: Env) => Promise<ReplyMessage | null>;
+  handle: (message: IncomingMessage, env: Env) => Promise<HandlerResponse>;
 }
 
 /**

@@ -272,4 +272,82 @@ describe('sendWechatReply', () => {
 
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('uses reply.to to override receiver for text reply', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = { type: 'text', content: 'hello', to: 'wxid_other' };
+    await sendWechatReply(api, reply, 'wxid_recv');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init?.body as string);
+    expect(body.receiver).toBe('wxid_other');
+  });
+
+  it('passes remind parameter for text reply with mentions', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'hello group',
+      mentions: ['wxid_a', 'wxid_b'],
+    };
+    await sendWechatReply(api, reply, 'room_123@chatroom');
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe(`${BASE_URL}/api/message/text`);
+    const body = JSON.parse(init?.body as string);
+    expect(body.receiver).toBe('room_123@chatroom');
+    expect(body.content).toBe('hello group');
+    expect(body.remind).toBe('wxid_a,wxid_b');
+  });
+
+  it('does not pass remind when mentions is empty', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = { type: 'text', content: 'hi', mentions: [] };
+    await sendWechatReply(api, reply, 'wxid_recv');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init?.body as string);
+    expect(body.remind).toBeUndefined();
+  });
+
+  it('uses reply.to to override receiver for image reply', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = { type: 'image', mediaId: 'img_data', to: 'wxid_other' };
+    await sendWechatReply(api, reply, 'wxid_recv');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init?.body as string);
+    expect(body.receiver).toBe('wxid_other');
+  });
+
+  it('sends multiple replies sequentially', async () => {
+    // Return a fresh Response for each call so the body can be read each time
+    mockFetch.mockImplementation(async () =>
+      new Response(JSON.stringify({ code: 0, message: 'ok', data: {} }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const api = new WechatApi(BASE_URL);
+    const replies: ReplyMessage[] = [
+      { type: 'text', content: 'first' },
+      { type: 'text', content: 'second' },
+      { type: 'image', mediaId: 'img_data' },
+    ];
+
+    for (const reply of replies) {
+      await sendWechatReply(api, reply, 'wxid_recv');
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    const body0 = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+    expect(body0.content).toBe('first');
+
+    const body1 = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+    expect(body1.content).toBe('second');
+
+    const [url2] = mockFetch.mock.calls[2];
+    expect(url2).toBe(`${BASE_URL}/api/message/image`);
+  });
 });
