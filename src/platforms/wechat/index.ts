@@ -153,13 +153,24 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
 
 /**
  * Build the JSON reply payload to send back to the WeChat bridge.
+ *
+ * When `reply.to` is set it overrides the default recipient.
+ * When `reply.mentions` is set and the message is sent to a group,
+ * a `remind` field (comma-separated wxids) is included so the bridge
+ * can @-mention those users.
  */
 export function buildWechatReply(
   reply: ReplyMessage,
   toUser: string,
   roomId?: string,
 ): Record<string, unknown> {
-  const target: Record<string, unknown> = roomId ? { to: roomId } : { to: toUser };
+  const effectiveTo = reply.to ?? (roomId ? roomId : toUser);
+  const target: Record<string, unknown> = { to: effectiveTo };
+
+  // Include @mention list when sending to a group
+  if (reply.mentions?.length && (roomId || reply.to)) {
+    target.remind = reply.mentions.join(',');
+  }
 
   if (reply.type === 'text') {
     return { ...target, type: 'text', content: reply.content };
@@ -203,28 +214,38 @@ export function buildWechatReply(
  *
  * Uses the typed {@link WechatApi} client to call the appropriate
  * message endpoint based on the reply type.
+ *
+ * When `reply.to` is set it overrides the default `receiver`.
+ * When `reply.mentions` is set the `remind` parameter is forwarded
+ * so that the bridge @-mentions those users in group chats.
  */
 export async function sendWechatReply(
   api: WechatApi,
   reply: ReplyMessage,
   receiver: string,
 ): Promise<void> {
+  const effectiveReceiver = reply.to ?? receiver;
+
   switch (reply.type) {
     case 'text':
     case 'markdown':
-      await api.sendText({ receiver, content: reply.content });
+      await api.sendText({
+        receiver: effectiveReceiver,
+        content: reply.content,
+        remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
+      });
       break;
     case 'image':
-      await api.sendImage({ receiver, data: reply.mediaId });
+      await api.sendImage({ receiver: effectiveReceiver, data: reply.mediaId });
       break;
     case 'voice':
       // duration / format are not part of VoiceReply; use safe defaults (AMR, unknown length)
-      await api.sendVoice({ receiver, data: reply.mediaId, duration: 0, format: 0 });
+      await api.sendVoice({ receiver: effectiveReceiver, data: reply.mediaId, duration: 0, format: 0 });
       break;
     case 'video':
       // thumb_data / duration are not part of VideoReply; use safe defaults
       await api.sendVideo({
-        receiver,
+        receiver: effectiveReceiver,
         video_data: reply.mediaId,
         thumb_data: '',
         duration: 0,
@@ -234,7 +255,7 @@ export async function sendWechatReply(
       const first = reply.articles[0];
       if (first?.url) {
         await api.sendLink({
-          receiver,
+          receiver: effectiveReceiver,
           url: first.url,
           title: first.title,
           desc: first.description ?? '',

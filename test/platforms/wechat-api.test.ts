@@ -272,4 +272,51 @@ describe('sendWechatReply', () => {
 
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('uses reply.to to override receiver for text reply', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = { type: 'text', content: 'hello', to: 'wxid_other' };
+    await sendWechatReply(api, reply, 'wxid_recv');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init?.body as string);
+    expect(body.receiver).toBe('wxid_other');
+  });
+
+  it('passes remind parameter for text reply with mentions', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'hello group',
+      mentions: ['wxid_a', 'wxid_b'],
+    };
+    await sendWechatReply(api, reply, 'room_123@chatroom');
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe(`${BASE_URL}/api/message/text`);
+    const body = JSON.parse(init?.body as string);
+    expect(body.receiver).toBe('room_123@chatroom');
+    expect(body.content).toBe('hello group');
+    expect(body.remind).toBe('wxid_a,wxid_b');
+  });
+
+  it('does not pass remind when mentions is empty', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = { type: 'text', content: 'hi', mentions: [] };
+    await sendWechatReply(api, reply, 'wxid_recv');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init?.body as string);
+    expect(body.remind).toBeUndefined();
+  });
+
+  it('uses reply.to to override receiver for image reply', async () => {
+    const api = new WechatApi(BASE_URL);
+    const reply: ReplyMessage = { type: 'image', mediaId: 'img_data', to: 'wxid_other' };
+    await sendWechatReply(api, reply, 'wxid_recv');
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init?.body as string);
+    expect(body.receiver).toBe('wxid_other');
+  });
 });

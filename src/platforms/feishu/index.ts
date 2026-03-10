@@ -84,28 +84,50 @@ export function parseFeishuMessage(body: FeishuEventBody): IncomingMessage | nul
 /**
  * Send a reply message via the Feishu Messaging API.
  * Feishu uses a REST API, so we POST JSON to the API endpoint.
+ *
+ * When `reply.to` is set it overrides the default `chatId` recipient.
+ * When `reply.mentions` is set, `<at user_id="...">...</at>` tags are
+ * appended to text content so the mentioned users are notified.
  */
 export async function sendFeishuReply(
   reply: ReplyMessage,
   chatId: string,
   appToken: string,
 ): Promise<void> {
+  const effectiveChatId = reply.to ?? chatId;
+
   let msgType: string;
   let content: unknown;
 
   if (reply.type === 'text') {
     msgType = 'text';
-    content = { text: reply.content };
+    let text = reply.content;
+    if (reply.mentions?.length) {
+      const mentionTags = reply.mentions
+        .map((id) => `<at user_id="${id}"></at>`)
+        .join(' ');
+      text = `${mentionTags} ${text}`;
+    }
+    content = { text };
   } else if (reply.type === 'image') {
     msgType = 'image';
     content = { image_key: reply.mediaId };
   } else if (reply.type === 'markdown') {
     msgType = 'post';
+    let titleText = reply.title ?? '';
+    const bodyContent: unknown[][] = [[{ tag: 'md', text: reply.content }]];
+    if (reply.mentions?.length) {
+      const mentionElements = reply.mentions.map((id) => ({
+        tag: 'at',
+        user_id: id,
+      }));
+      bodyContent[0].push(...mentionElements);
+    }
     content = {
       post: {
         zh_cn: {
-          title: reply.title ?? '',
-          content: [[{ tag: 'md', text: reply.content }]],
+          title: titleText,
+          content: bodyContent,
         },
       },
     };
@@ -124,7 +146,7 @@ export async function sendFeishuReply(
       Authorization: `Bearer ${appToken}`,
     },
     body: JSON.stringify({
-      receive_id: chatId,
+      receive_id: effectiveChatId,
       receive_id_type: 'chat_id',
       msg_type: msgType,
       content: JSON.stringify(content),

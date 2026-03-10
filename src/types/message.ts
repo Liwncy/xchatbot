@@ -78,26 +78,41 @@ export interface IncomingMessage {
 /** Reply message types that can be sent back */
 export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'unknown';
 
+/**
+ * Common optional fields shared by all reply types.
+ *
+ * - `to` overrides the default recipient (which is normally the original
+ *   sender or, for group messages, the room/conversation).
+ * - `mentions` lists user IDs that should be @-mentioned in the reply
+ *   (only effective in group chats).
+ */
+export interface ReplyBase {
+  /** Override the default recipient. When omitted the reply is sent to the original sender / room. */
+  to?: string;
+  /** User IDs to @mention in group chat replies. */
+  mentions?: string[];
+}
+
 /** Text reply */
-export interface TextReply {
+export interface TextReply extends ReplyBase {
   type: 'text';
   content: string;
 }
 
 /** Image reply */
-export interface ImageReply {
+export interface ImageReply extends ReplyBase {
   type: 'image';
   mediaId: string;
 }
 
 /** Voice reply */
-export interface VoiceReply {
+export interface VoiceReply extends ReplyBase {
   type: 'voice';
   mediaId: string;
 }
 
 /** Video reply */
-export interface VideoReply {
+export interface VideoReply extends ReplyBase {
   type: 'video';
   mediaId: string;
   title?: string;
@@ -112,20 +127,20 @@ export interface NewsArticle {
   picUrl?: string;
 }
 
-export interface NewsReply {
+export interface NewsReply extends ReplyBase {
   type: 'news';
   articles: NewsArticle[];
 }
 
 /** Markdown reply (Feishu / DingTalk) */
-export interface MarkdownReply {
+export interface MarkdownReply extends ReplyBase {
   type: 'markdown';
   title?: string;
   content: string;
 }
 
 /** Card / interactive message reply */
-export interface CardReply {
+export interface CardReply extends ReplyBase {
   type: 'card';
   cardContent: unknown;
 }

@@ -77,12 +77,15 @@ function extractRichText(msg: DingTalkMessage): string {
 
 /**
  * Send a reply to DingTalk via the session webhook URL.
+ *
+ * When `reply.mentions` is set, an `at` block is appended to the
+ * payload so the mentioned users are @-notified.
  */
 export async function sendDingTalkReply(
   reply: ReplyMessage,
   sessionWebhook: string,
 ): Promise<void> {
-  let payload: unknown;
+  let payload: Record<string, unknown>;
 
   if (reply.type === 'text') {
     payload = { msgtype: 'text', text: { content: reply.content } };
@@ -104,6 +107,11 @@ export async function sendDingTalkReply(
     };
   } else {
     payload = { msgtype: 'text', text: { content: 'Unsupported reply type' } };
+  }
+
+  // Append @mention block when mentions are specified
+  if (reply.mentions?.length) {
+    payload.at = { atUserIds: reply.mentions, isAtAll: false };
   }
 
   await fetch(sessionWebhook, {
