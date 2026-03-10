@@ -266,7 +266,7 @@ test/                             # 单元测试（Vitest）
 | 变量名                    | 平台   | 说明                                           |
 | ------------------------- | ------ | ---------------------------------------------- |
 | `WECHAT_TOKEN`            | 微信   | Webhook HMAC-SHA256 签名密钥                   |
-| `WECHAT_API_BASE_URL`     | 微信   | 桥接网关 API 地址（推荐，如 `http://gateway:8080`） |
+| `WECHAT_API_BASE_URL`     | 微信   | 桥接网关 API 地址（推荐，如 `http://localhost:8080`） |
 | `WECHAT_CALLBACK_URL`     | 微信   | 旧版回调地址（与 API 二选一）                  |
 | `FEISHU_APP_ID`           | 飞书   | 应用 App ID                                    |
 | `FEISHU_APP_SECRET`       | 飞书   | 应用 App Secret                                |
