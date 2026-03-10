@@ -282,4 +282,19 @@ describe('buildWechatReply', () => {
       remind: 'wxid_target',
     });
   });
+
+  it('does not include remind field when reply.to is a private user', () => {
+    const reply: ReplyMessage = {
+      type: 'text',
+      content: 'Hey',
+      to: 'wxid_other',
+      mentions: ['wxid_target'],
+    };
+    const result = buildWechatReply(reply, 'wxid_sender');
+    expect(result).toEqual({
+      to: 'wxid_other',
+      type: 'text',
+      content: 'Hey',
+    });
+  });
 });

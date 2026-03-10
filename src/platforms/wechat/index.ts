@@ -168,7 +168,7 @@ export function buildWechatReply(
   const target: Record<string, unknown> = { to: effectiveTo };
 
   // Include @mention list when sending to a group
-  if (reply.mentions?.length && (roomId || reply.to)) {
+  if (reply.mentions?.length && (roomId || reply.to?.endsWith('@chatroom'))) {
     target.remind = reply.mentions.join(',');
   }
 

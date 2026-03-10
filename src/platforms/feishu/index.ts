@@ -114,7 +114,6 @@ export async function sendFeishuReply(
     content = { image_key: reply.mediaId };
   } else if (reply.type === 'markdown') {
     msgType = 'post';
-    let titleText = reply.title ?? '';
     const bodyContent: unknown[][] = [[{ tag: 'md', text: reply.content }]];
     if (reply.mentions?.length) {
       const mentionElements = reply.mentions.map((id) => ({
@@ -126,7 +125,7 @@ export async function sendFeishuReply(
     content = {
       post: {
         zh_cn: {
-          title: titleText,
+          title: reply.title ?? '',
           content: bodyContent,
         },
       },
