@@ -200,7 +200,7 @@ export const myPlugin: TextMessage = {
 };
 ```
 
-2. 在 `src/plugins/index.ts` 中注册：
+2. 在 `src/plugins/ai-dialog.ts` 中注册：
 
 ```typescript
 import { myPlugin } from './my-plugin.js';
@@ -219,11 +219,11 @@ pluginManager.register(myPlugin);
 
 ```
 src/
-├── index.ts                      # Cloudflare Worker 入口
+├── ai-dialog.ts                      # Cloudflare Worker 入口
 ├── types/
 │   └── message.ts                # 归一化消息 & 回复类型定义
 ├── router/
-│   └── index.ts                  # 消息路由器（routeMessage / toReplyArray / registerHandler）
+│   └── ai-dialog.ts                  # 消息路由器（routeMessage / toReplyArray / registerHandler）
 ├── handlers/                     # 消息类型处理器
 │   ├── text-handler.ts           # 文本消息（含插件优先匹配）
 │   ├── image-handler.ts          # 图片消息
@@ -236,19 +236,19 @@ src/
 ├── plugins/                      # 插件系统
 │   ├── types.ts                  # 插件类型定义（TextMessage / ImageMessage）
 │   ├── manager.ts                # PluginManager 注册 & 匹配
-│   ├── index.ts                  # 插件入口（注册内置插件）
+│   ├── ai-dialog.ts                  # 插件入口（注册内置插件）
 │   └── cat-image.ts              # 内置猫咪图片插件
 ├── platforms/                    # 平台适配器
 │   ├── wechat/
-│   │   ├── index.ts              # 消息解析 / 签名验证 / 回复发送
+│   │   ├── ai-dialog.ts              # 消息解析 / 签名验证 / 回复发送
 │   │   ├── types.ts              # 微信推送消息类型
 │   │   ├── api.ts                # 类型化 API 客户端（WechatApi 类）
 │   │   └── api-types.ts          # API 请求 & 响应类型
 │   ├── feishu/
-│   │   ├── index.ts              # 消息解析 / URL 验证 / 回复发送
+│   │   ├── ai-dialog.ts              # 消息解析 / URL 验证 / 回复发送
 │   │   └── types.ts              # 飞书事件类型
 │   └── dingtalk/
-│       ├── index.ts              # 消息解析 / 签名验证 / 回复发送
+│       ├── ai-dialog.ts              # 消息解析 / 签名验证 / 回复发送
 │       └── types.ts              # 钉钉消息类型
 └── utils/
     ├── crypto.ts                 # SHA-1 / HMAC-SHA256（Web Crypto API）

@@ -7,10 +7,14 @@
 
 import { pluginManager } from './manager.js';
 import { catImagePlugin } from './cat-image.js';
-import { aiPlugin } from './ai';
+import { aiDialogPlugin } from './ai/ai-dialog';
+import { todayWifePlugin } from './meitu/today-wife';
+import { commonPluginsEngine } from './common-plugins.js';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
-pluginManager.register(aiPlugin);
+pluginManager.register(commonPluginsEngine);
+pluginManager.register(aiDialogPlugin);
+pluginManager.register(todayWifePlugin);
 pluginManager.register(catImagePlugin);
 
 // 重新导出以便外部使用

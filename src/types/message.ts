@@ -172,6 +172,14 @@ export interface Env {
   WECHAT_CALLBACK_URL?: string;
   /** 微信网关 API 基础 URL（如 http://gateway:8080）。 */
   WECHAT_API_BASE_URL?: string;
+  /** 发送视频时可选的 Base64 缩略图数据。 */
+  WECHAT_VIDEO_THUMB_BASE64?: string;
+  /** 发送视频时可选的视频时长（秒，字符串）。 */
+  WECHAT_VIDEO_DURATION?: string;
+  // 插件
+  COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
+  /** 通用插件 JSON 配置数组字符串。 */
+  COMMON_PLUGINS_CONFIG?: string;
   // AI 插件
   /** AI 插件使用的聊天接口 URL。 */
   AI_API_URL?: string;
@@ -179,7 +187,7 @@ export interface Env {
   AI_API_KEY?: string;
   /** 传给 AI 接口的模型名称（可选）。 */
   AI_MODEL?: string;
-    AI_SYSTEM_PROMPT?: string;
+  AI_SYSTEM_PROMPT?: string;
   // 飞书
   FEISHU_APP_ID?: string;
   FEISHU_APP_SECRET?: string;

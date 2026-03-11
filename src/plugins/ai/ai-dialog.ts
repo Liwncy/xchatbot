@@ -31,7 +31,7 @@ function normalizeAiText(data: OpenAiLikeResponse): string | null {
  *
  * 当文本包含"小聪明儿"时触发，将用户文本转发到可配置的 AI 接口并以生成内容回复。
  */
-export const aiPlugin: TextMessage = {
+export const aiDialogPlugin: TextMessage = {
   type: 'text',
   name: 'ai-dialog',
   description: '文本包含"小聪明儿"时调用 AI 接口回复',

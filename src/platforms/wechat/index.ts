@@ -10,6 +10,14 @@ import type { WechatPushItem, WechatPushMessage } from './types.js';
 import { WechatApi } from './api.js';
 import { logger } from '../../utils/logger.js';
 
+function ensureWechatApiSuccess(op: string, result: unknown): void {
+  const code = (result as { code?: unknown })?.code;
+  const message = (result as { message?: unknown })?.message;
+  if (typeof code === 'number' && code !== 0) {
+    throw new Error(`${op} failed: code=${code}, message=${String(message ?? '')}`);
+  }
+}
+
 /**
  * 验证微信网关的 Webhook 签名。
  * 使用 HMAC-SHA256(timestamp + body, token) 进行认证。
@@ -222,50 +230,68 @@ export async function sendWechatReply(
   api: WechatApi,
   reply: ReplyMessage,
   receiver: string,
+  env?: Env,
 ): Promise<void> {
   const effectiveReceiver = reply.to ?? receiver;
 
   switch (reply.type) {
     case 'text':
-    case 'markdown':
-      await api.sendText({
+    case 'markdown': {
+      const result = await api.sendText({
         receiver: effectiveReceiver,
         content: reply.content,
         remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
       });
+      ensureWechatApiSuccess('sendText', result);
       break;
-    case 'image':
-      await api.sendImage({ receiver: effectiveReceiver, data: reply.mediaId });
+    }
+    case 'image': {
+      const result = await api.sendImage({ receiver: effectiveReceiver, data: reply.mediaId });
+      ensureWechatApiSuccess('sendImage', result);
       break;
-    case 'voice':
+    }
+    case 'voice': {
       // VoiceReply 中没有 duration / format 字段；使用安全默认值（AMR 格式，未知时长）
-      await api.sendVoice({ receiver: effectiveReceiver, data: reply.mediaId, duration: 0, format: 0 });
+      const result = await api.sendVoice({ receiver: effectiveReceiver, data: reply.mediaId, duration: 0, format: 0 });
+      ensureWechatApiSuccess('sendVoice', result);
       break;
-    case 'video':
-      // VideoReply 中没有 thumb_data / duration 字段；使用安全默认值
-      await api.sendVideo({
+    }
+    case 'video': {
+      const { thumbData, duration } = resolveVideoOptions(env);
+      const result = await api.sendVideo({
         receiver: effectiveReceiver,
         video_data: reply.mediaId,
-        thumb_data: '',
-        duration: 0,
+        thumb_data: thumbData,
+        duration,
       });
+      ensureWechatApiSuccess('sendVideo', result);
       break;
+    }
     case 'news': {
       const first = reply.articles[0];
       if (first?.url) {
-        await api.sendLink({
+        const result = await api.sendLink({
           receiver: effectiveReceiver,
           url: first.url,
           title: first.title,
           desc: first.description ?? '',
           thumb_url: first.picUrl ?? '',
         });
+        ensureWechatApiSuccess('sendLink', result);
       }
       break;
     }
     default:
       break;
   }
+}
+
+function resolveVideoOptions(env?: Env): { thumbData: string; duration: number } {
+  const thumbData = env?.WECHAT_VIDEO_THUMB_BASE64?.trim() ?? '';
+  const durationRaw = env?.WECHAT_VIDEO_DURATION?.trim();
+  const parsed = durationRaw ? Number(durationRaw) : 0;
+  const duration = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+  return { thumbData, duration };
 }
 
 /**
@@ -340,7 +366,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     const api = new WechatApi(apiBaseUrl);
     for (const reply of replies) {
       try {
-        await sendWechatReply(api, reply, receiver);
+        await sendWechatReply(api, reply, receiver, env);
       } catch (err) {
         logger.error('微信 API 发送回复失败', err);
       }

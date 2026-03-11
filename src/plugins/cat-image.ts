@@ -1,20 +1,10 @@
 import type { TextMessage } from './types.js';
 import { logger } from '../utils/logger.js';
+import { arrayBufferToBase64 } from '../utils/binary.js';
 
 /** TheCatAPI 响应条目的预期结构。 */
 interface CatApiItem {
   url: string;
-}
-
-/** 将 ArrayBuffer 转换为 Base64 编码字符串。 */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 8192;
-  const parts: string[] = [];
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    parts.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
-  }
-  return btoa(parts.join(''));
 }
 
 /**

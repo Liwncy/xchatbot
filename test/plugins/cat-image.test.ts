@@ -20,19 +20,19 @@ function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage 
 describe('catImagePlugin', () => {
   describe('match', () => {
     it('matches text containing "看看猫咪"', () => {
-      expect(catImagePlugin.match('看看猫咪', makeMessage())).toBe(true);
+      expect(catImagePlugin.match('看看猫咪')).toBe(true);
     });
 
     it('matches text with "看看猫咪" embedded in a sentence', () => {
-      expect(catImagePlugin.match('我想看看猫咪吧', makeMessage())).toBe(true);
+      expect(catImagePlugin.match('我想看看猫咪吧')).toBe(true);
     });
 
     it('does not match unrelated text', () => {
-      expect(catImagePlugin.match('你好', makeMessage())).toBe(false);
+      expect(catImagePlugin.match('你好')).toBe(false);
     });
 
     it('does not match empty text', () => {
-      expect(catImagePlugin.match('', makeMessage())).toBe(false);
+      expect(catImagePlugin.match('')).toBe(false);
     });
   });
 

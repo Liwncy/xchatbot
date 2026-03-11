@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { aiPlugin } from '../../src/plugins/ai';
+import { aiDialogPlugin } from '../../src/plugins/ai/ai-dialog';
 import type { IncomingMessage, Env } from '../../src/types/message.js';
 
 const env: Env = {
@@ -31,11 +31,11 @@ function expectTextReply(reply: unknown): { type: 'text'; content: string } {
 describe('aiPlugin', () => {
   describe('match', () => {
     it('matches text containing "小聪明儿"', () => {
-      expect(aiPlugin.match('小聪明儿，今天天气如何？', makeMessage())).toBe(true);
+      expect(aiDialogPlugin.match('小聪明儿，今天天气如何？')).toBe(true);
     });
 
     it('does not match unrelated text', () => {
-      expect(aiPlugin.match('你好', makeMessage())).toBe(false);
+      expect(aiDialogPlugin.match('你好')).toBe(false);
     });
   });
 
@@ -60,21 +60,21 @@ describe('aiPlugin', () => {
         ),
       );
 
-      const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，在吗' }), env);
+      const reply = await aiDialogPlugin.handle(makeMessage({ content: '小聪明儿，在吗' }), env);
       const textReply = expectTextReply(reply);
       expect(textReply.content).toBe('你好呀，我在呢。');
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('returns null and logs error when AI_API_URL is missing', async () => {
-      const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，讲个笑话' }), {});
+      const reply = await aiDialogPlugin.handle(makeMessage({ content: '小聪明儿，讲个笑话' }), {});
       expect(reply).toBeNull();
     });
 
     it('returns null and logs error on non-ok response', async () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }));
 
-      const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，讲个故事' }), env);
+      const reply = await aiDialogPlugin.handle(makeMessage({ content: '小聪明儿，讲个故事' }), env);
       expect(reply).toBeNull();
     });
 
@@ -86,7 +86,7 @@ describe('aiPlugin', () => {
         }),
       );
 
-      const reply = await aiPlugin.handle(makeMessage({ content: '小聪明儿，写首诗' }), env);
+      const reply = await aiDialogPlugin.handle(makeMessage({ content: '小聪明儿，写首诗' }), env);
       expect(reply).toBeNull();
     });
   });
