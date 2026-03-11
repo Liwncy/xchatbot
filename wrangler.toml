@@ -21,56 +21,6 @@ AI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
 AI_MODEL = "moonshot-v1-8k"
 AI_SYSTEM_PROMPT = "你叫小聪明儿，是一个智能的AI助手，专门帮助用户解答问题和提供信息。请尽量简洁明了地回答用户的问题，并且保持友好和专业的态度。"
 
-# 通用插件配置json
-COMMON_PLUGINS_MAPPING = """
-[
-  {"keyword":"什么屌图","url":"https://api.yujn.cn/api/long.php?type=json","mode":"json","jsonPath":"$.data","rType":"image"},
-  {"keyword":"腹肌图片","url":"http://api.yujn.cn/api/fujiimg.php","mode":"base64","rType":"image"},
-  {"keyword":["坤坤表情包","食不食油饼","下的蛋","下得蛋","露出马脚","小黑子","我家哥哥"],"url":"http://api.yujn.cn/api/cxk.php","mode":"base64","rType":"image"},
-  {"keyword":"猫咪头像","url":"http://www.yujn.cn/api/maomi.php?type=json","mode":"json","jsonPath":"$.img","rType":"image"},
-  {"keyword":"十万COS图","url":"http://api.yujn.cn/api/cos.php?type=json","mode":"json","jsonPath":"$.img","rType":"image"},
-  {"keyword":"快手小姐姐","url":"http://api.yujn.cn/api/ksxjj.php?type=json","mode":"json","jsonPath":"$.img","rType":"image"},
-  {"keyword":"二次元图片","url":"http://api.yujn.cn/api/ecy.php?type=json","mode":"json","jsonPath":"$.img","rType":"image"},
-  {"keyword":"唯美写真","url":"http://api.yujn.cn/api/xiezhen.php?type=json","mode":"json","jsonPath":"$.img","rType":"image"},
-  {"keyword":"随机头像","url":"http://api.yujn.cn/api/sjtp.php","mode":"json","jsonPath":"$.image_url[0]","rType":"image"},
-  {"keyword":"cosplay","url":"https://api.yujn.cn/api/cosplay.php?type=json","mode":"json","jsonPath":"$.data.images[0]","rType":"image"},
-  {"keyword":"自拍","url":"http://api.yujn.cn/api/hlx_zipai.php?type=json","mode":"json","jsonPath":"$.data.images[0]","rType":"image"},
-  {"keyword":"来斤小姐姐1","url":"http://api.yujn.cn/api/xjj.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"来斤小姐姐2","url":"http://api.yujn.cn/api/zzxjj.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"辣鸡快手","url":"http://api.yujn.cn/api/ks_sj.php?count=1","mode":"json","jsonPath":"$.data[0].video","rType":"video"},
-  {"keyword":"小哥哥视频","url":"http://api.yujn.cn/api/xgg.php?type=video","mode":"base64","rType":"link"},
-  {"keyword":"怼脸","url":"https://api.yujn.cn/api/duilian.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"快手变装系列","url":"http://api.yujn.cn/api/ksbianzhuang.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"快手双倍快乐","url":"http://api.yujn.cn/api/sbkl.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"聚合小姐姐","url":"http://api.yujn.cn/api/juhexjj.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"鞠婧祎","url":"http://api.yujn.cn/api/jjy.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"章若楠","url":"http://api.yujn.cn/api/zrn.php?type=json","mode":"json","jsonPath":"$.data","rType":"link","linkTitle": "章若楠","linkDescription": "章若楠的视频链接","linkPicUrl": "https://bkimg.cdn.bcebos.com/pic/8c1001e93901213fb80ece6efbbe21d12f2eb9383f75"},
-  {"keyword":"慢摇系列视频","url":"http://api.yujn.cn/api/manyao.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"你的欲梦视频","url":"http://api.yujn.cn/api/ndym.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"甜妹系列视频","url":"http://api.yujn.cn/api/tianmei.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"洛丽塔视频","url":"http://api.yujn.cn/api/jksp.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"萝莉系列视频","url":"http://api.yujn.cn/api/luoli.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"吊带系列视频","url":"http://api.yujn.cn/api/diaodai.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"玉足美腿视频","url":"http://api.yujn.cn/api/yuzu.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"清纯系列视频","url":"http://api.yujn.cn/api/qingchun.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"街拍系列视频","url":"http://api.yujn.cn/api/jiepai.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"纯情女高视频","url":"http://api.yujn.cn/api/nvgao.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"COS系列视频","url":"http://api.yujn.cn/api/COS.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"古风视频","url":"http://api.yujn.cn/api/hanfu.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"玉足视频","url":"http://api.yujn.cn/api/jpmt.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"热舞视频","url":"http://api.yujn.cn/api/rewu.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"漫画芋视频","url":"http://api.yujn.cn/api/manhuay.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"帅哥视频","url":"http://api.yujn.cn/api/xgg.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"萌娃视频","url":"http://api.yujn.cn/api/mengwa.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":["穿搭视频","看看穿搭"],"url":"http://api.yujn.cn/api/chuanda.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"完美身材视频","url":"http://api.yujn.cn/api/wmsc.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"丝滑舞蹈视频","url":"http://api.yujn.cn/api/shwd.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"漫展视频","url":"https://api.yujn.cn/api/manzhan.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"黑丝视频","url":"http://api.yujn.cn/api/heisis.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"白丝视频","url":"http://api.yujn.cn/api/baisis.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"快手女大","url":"https://api.yujn.cn/api/nvda.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"抖音瞳瞳","url":"https://api.yujn.cn/api/tongtong.php?type=json","mode":"json","jsonPath":"$.data","rType":"video"},
-  {"keyword":"1245785478","url":"http://api.yujn.cn/api/tieba.php?type=json&msg=弱智","mode":"json","jsonPath":"$.title","rType":"text"},
-  {"keyword":"98568548","url":"http://api.yujn.cn/api/chi.php","mode":"text","rType":"text"}
-]
-"""
+# 通用插件配置（远程拉取）
+COMMON_PLUGINS_CONFIG_URL = "https://m1.apifoxmock.com/m1/7883103-7633002-default/common/plugins/config"
+COMMON_PLUGINS_CLIENT_ID = "6e64c2eeb9c6716965a67a6f8d3879e0"

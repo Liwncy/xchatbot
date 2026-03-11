@@ -1,7 +1,7 @@
 /**
  * 微信 API 客户端。
  *
- * 封装微信网关服务暴露的 HTTP 接口（详见 _docs/wechat/apidoc.json），
+ * 封装微信网关服务暴露的 HTTP 接口（详见 _docs/wechat/swagger.json），
  * 提供类型化的异步方法。
  *
  * 使用方式：
@@ -22,6 +22,11 @@ import type {
   SendAppParam,
   ForwardParam,
   RevokeParam,
+  CdnDownloadImageParam,
+  DownloadFileParam,
+  DownloadImgParam,
+  DownloadVideoParam,
+  DownloadVoiceParam,
   SendMessageResponse,
   SendAppMessageResponse,
   UploadImageResponse,
@@ -29,6 +34,11 @@ import type {
   UploadVoiceResponse,
   UploadEmojiResponse,
   RevokeMessageResponse,
+  GetCdnDnsResponse,
+  DownloadAppAttachResponse,
+  GetMsgImgResponse,
+  DownloadVideoResponse,
+  DownloadVoiceResponse,
   SyncResult,
 } from './api-types.js';
 
@@ -63,6 +73,18 @@ export class WechatApi {
       }
     }
     const res = await fetch(url.toString());
+    return (await res.json()) as ApiResponse<T>;
+  }
+
+  /** 发送不带 body 的 POST 请求（可附带查询参数）并返回解析后的 JSON。 */
+  private async postQuery<T>(path: string, params?: Record<string, string>): Promise<ApiResponse<T>> {
+    const url = new URL(`${this.baseUrl}${path}`);
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        url.searchParams.set(k, v);
+      }
+    }
+    const res = await fetch(url.toString(), { method: 'POST' });
     return (await res.json()) as ApiResponse<T>;
   }
 
@@ -125,18 +147,48 @@ export class WechatApi {
     return this.post<RevokeMessageResponse>('/api/message/revoke', params);
   }
 
-  /** 开始输入中状态指示。POST /api/message/start */
+  /** 开始输入中状态指示。POST /api/message/start?receiver=... */
   async startTyping(receiver: string): Promise<ApiResponse> {
-    return this.post('/api/message/start', { receiver });
+    return this.postQuery('/api/message/start', { receiver });
   }
 
-  /** 停止输入中状态指示。POST /api/message/stop */
+  /** 停止输入中状态指示。POST /api/message/stop?receiver=... */
   async stopTyping(receiver: string): Promise<ApiResponse> {
-    return this.post('/api/message/stop', { receiver });
+    return this.postQuery('/api/message/stop', { receiver });
   }
 
   /** 同步新消息。GET /api/message/sync */
   async syncMessages(): Promise<ApiResponse<SyncResult>> {
     return this.get<SyncResult>('/api/message/sync');
+  }
+
+  /** 获取 CDN DNS 信息。GET /api/message/cdn/dns */
+  async getCdnDns(): Promise<ApiResponse<GetCdnDnsResponse>> {
+    return this.get<GetCdnDnsResponse>('/api/message/cdn/dns');
+  }
+
+  /** CDN 下载高清图片（返回 base64 字符串）。POST /api/message/cdn/image */
+  async cdnDownloadImage(params: CdnDownloadImageParam): Promise<ApiResponse<string>> {
+    return this.post<string>('/api/message/cdn/image', params);
+  }
+
+  /** 下载文件附件。POST /api/message/download/file */
+  async downloadFile(params: DownloadFileParam): Promise<ApiResponse<DownloadAppAttachResponse>> {
+    return this.post<DownloadAppAttachResponse>('/api/message/download/file', params);
+  }
+
+  /** 下载图片。POST /api/message/download/image */
+  async downloadImage(params: DownloadImgParam): Promise<ApiResponse<GetMsgImgResponse>> {
+    return this.post<GetMsgImgResponse>('/api/message/download/image', params);
+  }
+
+  /** 下载视频。POST /api/message/download/video */
+  async downloadVideo(params: DownloadVideoParam): Promise<ApiResponse<DownloadVideoResponse>> {
+    return this.post<DownloadVideoResponse>('/api/message/download/video', params);
+  }
+
+  /** 下载语音。POST /api/message/download/voice */
+  async downloadVoice(params: DownloadVoiceParam): Promise<ApiResponse<DownloadVoiceResponse>> {
+    return this.post<DownloadVoiceResponse>('/api/message/download/voice', params);
   }
 }

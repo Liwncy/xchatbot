@@ -180,6 +180,10 @@ export interface Env {
   COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
   /** 通用插件 JSON 配置数组字符串。 */
   COMMON_PLUGINS_CONFIG?: string;
+  /** 通用插件远程配置接口地址（GET）。 */
+  COMMON_PLUGINS_CONFIG_URL?: string;
+  /** 拉取通用插件远程配置时使用的 clientid 请求头。 */
+  COMMON_PLUGINS_CLIENT_ID?: string;
   // AI 插件
   /** AI 插件使用的聊天接口 URL。 */
   AI_API_URL?: string;

@@ -311,4 +311,42 @@ describe('commonPluginsEngine', () => {
     expect((reply as { articles: Array<{ url: string; title: string; description: string }> }).articles[0].description).toBe('小哥哥视频的链接');
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
+
+  it('loads rules from remote config API with clientid header', async () => {
+    const env: Env = {
+      COMMON_PLUGINS_CONFIG_URL: 'https://config.example.com/common/plugins/config',
+      COMMON_PLUGINS_CLIENT_ID: '6e64c2eeb9c6716965a67a6f8d3879e0',
+    };
+
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              keyword: '远程菜单',
+              url: 'https://api.example.com/remote-menu',
+              mode: 'text',
+              rType: 'text',
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('remote menu ok', { status: 200 }));
+
+    const reply = await commonPluginsEngine.handle(makeMessage({ content: '看看远程菜单' }), env);
+    expect(reply).not.toBeNull();
+    expect((reply as { type: string }).type).toBe('text');
+    expect((reply as { content: string }).content).toContain('remote menu ok');
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://config.example.com/common/plugins/config',
+      {
+        method: 'GET',
+        headers: { clientid: '6e64c2eeb9c6716965a67a6f8d3879e0' },
+      },
+    );
+  });
 });

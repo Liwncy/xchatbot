@@ -1,7 +1,7 @@
 /**
- * 微信 API 请求和响应类型，基于 _docs/wechat/apidoc.json 中的 Swagger 2.0 规范。
+ * 微信 API 请求和响应类型，基于 _docs/wechat/swagger.json 中的 Swagger 2.0 规范。
  *
- * 这些类型覆盖了发送回复消息所用的接口，以及 API 中引用的共享基础类型。
+ * 这些类型覆盖发送消息与常用消息下载接口，以及 API 中引用的共享基础类型。
  */
 
 // ---------------------------------------------------------------------------
@@ -24,6 +24,17 @@ export interface ApiResponse<T = unknown> {
   message: string;
   /** 响应数据。 */
   data?: T;
+}
+
+/** protobuf 的 string wrapper。 */
+export interface StringValue {
+  value?: string;
+}
+
+/** protobuf 的二进制 buffer wrapper。 */
+export interface BufferValue {
+  buffer?: number[];
+  len: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +169,51 @@ export interface RevokeParam {
   create_time: number;
 }
 
+/** POST /api/message/cdn/image */
+export interface CdnDownloadImageParam {
+  /** CDN 文件 ID（从消息 XML 中获取）。 */
+  file_id: string;
+  /** hex 编码的 AES 密钥（从消息 XML 中获取）。 */
+  file_aes_key: string;
+}
+
+/** POST /api/message/download/file */
+export interface DownloadFileParam {
+  app_id: string;
+  attach_id: string;
+  total_len: number;
+  data_len: number;
+  start_pos: number;
+  username: string;
+}
+
+/** POST /api/message/download/image */
+export interface DownloadImgParam {
+  msg_id: number;
+  sender: string;
+  receiver: string;
+  total_len: number;
+  data_len: number;
+  start_pos: number;
+  compress_type: number;
+}
+
+/** POST /api/message/download/video */
+export interface DownloadVideoParam {
+  msg_id: number;
+  total_len: number;
+  start_pos: number;
+  mx_pack_size: number;
+}
+
+/** POST /api/message/download/voice */
+export interface DownloadVoiceParam {
+  msg_id: number;
+  buffer_id_str: string;
+  length: number;
+  group_name: string;
+}
+
 // ---------------------------------------------------------------------------
 // 消息 – 响应类型 (messagepb.*)
 // ---------------------------------------------------------------------------
@@ -284,18 +340,80 @@ export interface RevokeMessageResponse {
   sys_wording: string;
 }
 
+/** CDN DNS 单个 IP 条目。 */
+export interface CdnIpInfo {
+  ip?: string;
+}
+
+/** CDN DNS 信息。 */
+export interface CdnDnsInfo {
+  auth_key?: BufferValue;
+  uin?: number;
+  zone_ip_list?: CdnIpInfo[];
+}
+
+/** 获取 CDN DNS 的响应。 */
+export interface GetCdnDnsResponse {
+  base_response: BaseResponse;
+  fake_dns_info?: CdnDnsInfo;
+}
+
+/** 下载文件附件响应。 */
+export interface DownloadAppAttachResponse {
+  base_response: BaseResponse;
+  app_id?: string;
+  attach_id?: string;
+  data?: BufferValue;
+  data_len?: number;
+  start_pos?: number;
+  total_len?: number;
+}
+
+/** 下载图片响应。 */
+export interface GetMsgImgResponse {
+  base_response: BaseResponse;
+  data?: BufferValue;
+  data_len?: number;
+  start_pos?: number;
+}
+
+/** 视频下载响应。 */
+export interface DownloadVideoResponse {
+  base_response: BaseResponse;
+  data?: BufferValue;
+  data_len?: number;
+  msg_id?: number;
+  start_pos?: number;
+  total_len?: number;
+}
+
+/** 语音下载响应。 */
+export interface DownloadVoiceResponse {
+  base_response: BaseResponse;
+  cancel_flag?: number;
+  client_msg_id?: string;
+  data?: StringValue;
+  duration?: number;
+  end_flag?: number;
+  length?: number;
+  msg_id?: number;
+  new_msg_id?: number;
+  offset?: number;
+}
+
 /** 同步接口返回的新消息。 */
 export interface NewMessage {
-  content?: string;
+  content?: StringValue;
   create_time: number;
+  image_buffer?: BufferValue;
   image_status?: number;
   msg_id: number;
   msg_seq: number;
   msg_source: string;
   new_msg_id: number;
   push_content: string;
-  receiver?: string;
-  sender?: string;
+  receiver?: StringValue;
+  sender?: StringValue;
   status: number;
   type: number;
 }
@@ -306,4 +424,11 @@ export interface SyncResult {
   continue: boolean;
   /** 新接收到的消息。 */
   new_messages: NewMessage[];
+  modify_contacts?: unknown[];
+  delete_contacts?: unknown[];
+  modify_user_infos?: unknown[];
+  modify_user_images?: unknown[];
+  user_info_extends?: unknown[];
+  function_switches?: unknown[];
+  unknowns?: number[];
 }

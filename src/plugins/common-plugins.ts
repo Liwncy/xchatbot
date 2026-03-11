@@ -38,6 +38,11 @@ interface LegacyRule {
 
 let cachedRaw = '';
 let cachedRules: CommonPluginRule[] = [];
+let remoteCacheKey = '';
+let remoteCachedRules: CommonPluginRule[] = [];
+let remoteCacheExpiresAt = 0;
+
+const REMOTE_CONFIG_CACHE_MS = 60_000;
 
 function normalizeKeyword(keyword: string | string[] | undefined): string | string[] | undefined {
   if (!keyword) return undefined;
@@ -294,7 +299,7 @@ export const commonPluginsEngine: TextMessage = {
     const content = (message.content ?? '').trim();
     if (!content) return null;
 
-    const rules = parseRules(env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING);
+    const rules = await resolveRules(env);
     if (!rules.length) return null;
 
     const matchedRule = rules.find((rule) => keywordMatched(content, rule.keyword));
@@ -345,3 +350,41 @@ export const commonPluginsEngine: TextMessage = {
     }
   },
 };
+
+async function resolveRules(env: { COMMON_PLUGINS_CONFIG?: string; COMMON_PLUGINS_MAPPING?: string; COMMON_PLUGINS_CONFIG_URL?: string; COMMON_PLUGINS_CLIENT_ID?: string }): Promise<CommonPluginRule[]> {
+  const inlineConfig = env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING;
+  if (inlineConfig?.trim()) {
+    return parseRules(inlineConfig);
+  }
+
+  const remoteUrl = env.COMMON_PLUGINS_CONFIG_URL?.trim();
+  if (!remoteUrl) return [];
+
+  const clientId = env.COMMON_PLUGINS_CLIENT_ID?.trim() ?? '';
+  const cacheKey = `${remoteUrl}|${clientId}`;
+  const now = Date.now();
+  if (cacheKey === remoteCacheKey && now < remoteCacheExpiresAt) {
+    return remoteCachedRules;
+  }
+
+  try {
+    const headers: Record<string, string> = {};
+    if (clientId) headers.clientid = clientId;
+
+    const response = await fetch(remoteUrl, { method: 'GET', headers });
+    if (!response.ok) {
+      logger.error('通用插件远程配置请求失败', { status: response.status, url: remoteUrl });
+      return [];
+    }
+
+    const rawText = await response.text();
+    const rules = parseRules(rawText);
+    remoteCacheKey = cacheKey;
+    remoteCachedRules = rules;
+    remoteCacheExpiresAt = now + REMOTE_CONFIG_CACHE_MS;
+    return rules;
+  } catch (err) {
+    logger.error('通用插件远程配置加载异常', err);
+    return [];
+  }
+}
