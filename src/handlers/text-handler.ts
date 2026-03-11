@@ -12,9 +12,9 @@ export async function handleTextMessage(
 ): Promise<HandlerResponse> {
   const trimmed = (message.content ?? '').trim();
 
-  // 优先检查插件 —— 第一个匹配的插件生效
-  const plugin = pluginManager.findPlugin(message);
-  if (plugin) {
+  // 依次执行所有命中的插件，直到某个插件返回有效结果
+  const plugins = pluginManager.findPlugins(message);
+  for (const plugin of plugins) {
     const result = await plugin.handle(message, env);
     if (result) return result;
   }

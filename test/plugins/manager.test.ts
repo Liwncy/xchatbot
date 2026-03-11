@@ -103,6 +103,23 @@ describe('PluginManager', () => {
     });
   });
 
+  describe('findPlugins', () => {
+    it('returns all matching plugins in registration order', () => {
+      manager.register(createPlugin({ name: 'first', match: (c) => c.includes('go') }));
+      manager.register(createPlugin({ name: 'second', match: (c) => c.includes('go') }));
+      manager.register(createPlugin({ name: 'third', match: () => false }));
+
+      const found = manager.findPlugins(makeMessage({ content: 'go now' }));
+      expect(found.map((p) => p.name)).toEqual(['first', 'second']);
+    });
+
+    it('returns empty array when no plugin matches', () => {
+      manager.register(createPlugin({ name: 'none', match: () => false }));
+      const found = manager.findPlugins(makeMessage({ content: 'hello' }));
+      expect(found).toEqual([]);
+    });
+  });
+
   describe('getPlugins', () => {
     it('returns an empty array when no plugins are registered', () => {
       expect(manager.getPlugins()).toEqual([]);

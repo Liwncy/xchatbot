@@ -26,10 +26,10 @@ export class PluginManager {
   }
 
   /**
-   * 查找第一个对给定消息匹配（{@link MessageEvent | match} 返回 `true`）的处理器。
+   * 按注册顺序返回所有匹配给定消息的处理器。
    */
-  findPlugin(message: IncomingMessage): MessageEvent | undefined {
-    return this.plugins.find((p) => {
+  findPlugins(message: IncomingMessage): MessageEvent[] {
+    return this.plugins.filter((p) => {
       if (p.type !== message.type) return false;
       if (p.type === 'text') {
         return p.match((message.content ?? '').trim(), message);
@@ -39,6 +39,13 @@ export class PluginManager {
       }
       return false;
     });
+  }
+
+  /**
+   * 查找第一个对给定消息匹配（{@link MessageEvent | match} 返回 `true`）的处理器。
+   */
+  findPlugin(message: IncomingMessage): MessageEvent | undefined {
+    return this.findPlugins(message)[0];
   }
 
   /** 返回所有已注册处理器的快照。 */
