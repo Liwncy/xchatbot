@@ -368,7 +368,12 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
       try {
         await sendWechatReply(api, reply, receiver, env);
       } catch (err) {
-        logger.error('微信 API 发送回复失败', err);
+        logger.error('微信 API 发送回复失败', {
+          replyType: reply.type,
+          receiver,
+          apiBaseUrl,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   } else if (callbackUrl) {

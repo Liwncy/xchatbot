@@ -191,7 +191,8 @@ describe('WechatApi', () => {
 
     const [url, init] = mockFetch.mock.calls[0];
     expect(String(url)).toBe(`${BASE_URL}/api/message/cdn/dns`);
-    expect(init).toBeUndefined();
+    expect(init?.method).toBe('GET');
+    expect((init?.headers as Record<string, string>)?.['User-Agent']).toContain('Mozilla/5.0');
   });
 
   it('downloads CDN image via POST /api/message/cdn/image', async () => {
@@ -239,6 +240,15 @@ describe('WechatApi', () => {
 
     await api.downloadVoice({ msg_id: 3, buffer_id_str: 'buf', length: 4096, group_name: '' });
     expect(mockFetch.mock.calls[3][0]).toBe(`${BASE_URL}/api/message/download/voice`);
+  });
+
+  it('throws actionable error when gateway returns plain text instead of JSON', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('error code: 1003', { status: 200 }));
+
+    const api = new WechatApi(BASE_URL);
+    await expect(api.sendText({ receiver: 'wxid_test', content: 'hello' }))
+      .rejects
+      .toThrow('WechatApi /api/message/text returned non-JSON response (status 200): error code: 1003');
   });
 
   it('strips trailing slash from base URL', async () => {

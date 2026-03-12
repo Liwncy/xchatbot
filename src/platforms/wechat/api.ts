@@ -42,6 +42,16 @@ import type {
   SyncResult,
 } from './api-types.js';
 
+const BROWSER_LIKE_HEADERS: Record<string, string> = {
+  Accept: 'application/json, text/plain, */*',
+  'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+  'Cache-Control': 'no-cache',
+  Pragma: 'no-cache',
+  Referer: 'https://liwncy.us.ci/',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+};
+
 export class WechatApi {
   private readonly baseUrl: string;
 
@@ -58,10 +68,13 @@ export class WechatApi {
   private async post<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        ...BROWSER_LIKE_HEADERS,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(body),
     });
-    return (await res.json()) as ApiResponse<T>;
+    return this.parseApiResponse<T>(path, res);
   }
 
   /** 发送 GET 请求（可附带查询参数）并返回解析后的 JSON。 */
@@ -72,8 +85,11 @@ export class WechatApi {
         url.searchParams.set(k, v);
       }
     }
-    const res = await fetch(url.toString());
-    return (await res.json()) as ApiResponse<T>;
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers: BROWSER_LIKE_HEADERS,
+    });
+    return this.parseApiResponse<T>(path, res);
   }
 
   /** 发送不带 body 的 POST 请求（可附带查询参数）并返回解析后的 JSON。 */
@@ -84,8 +100,25 @@ export class WechatApi {
         url.searchParams.set(k, v);
       }
     }
-    const res = await fetch(url.toString(), { method: 'POST' });
-    return (await res.json()) as ApiResponse<T>;
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: BROWSER_LIKE_HEADERS,
+    });
+    return this.parseApiResponse<T>(path, res);
+  }
+
+  /**
+   * 网关偶发返回纯文本错误（例如：error code: 1003），这里统一做兼容解析。
+   */
+  private async parseApiResponse<T>(path: string, res: Response): Promise<ApiResponse<T>> {
+    const raw = await res.text();
+
+    try {
+      return JSON.parse(raw) as ApiResponse<T>;
+    } catch {
+      const compact = raw.replace(/\s+/g, ' ').trim();
+      throw new Error(`WechatApi ${path} returned non-JSON response (status ${res.status}): ${compact}`);
+    }
   }
 
   // -----------------------------------------------------------------------
