@@ -37,6 +37,7 @@ function mapWechatType(type: number): MessageType {
     switch (type) {
         case 1:
             return 'text';
+        case 3:
         case 47:
             return 'image';
         case 34:
@@ -77,15 +78,12 @@ function toUnixSeconds(timestamp: number): number {
 }
 
 /**
- * 将微信推送消息解析为标准化的 IncomingMessage。
- * 如果 `new_messages` 中没有消息则抛出异常。
+ * 将单条微信推送项解析为标准化的 IncomingMessage。
  */
-export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
-    const item = payload.new_messages?.[0];
-    if (!item) {
-        throw new Error('No new_messages in WeChat push payload');
-    }
-
+export function parseWechatPushItem(
+    item: WechatPushItem,
+    raw: unknown,
+): IncomingMessage {
     const msgType = mapWechatType(item.type);
     const source = inferWechatSource(item);
 
@@ -97,7 +95,7 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
         timestamp: toUnixSeconds(item.create_time),
         // 优先使用 msg_id 以避免大 new_msg_id 值的精度损失。
         messageId: String(item.msg_id ?? item.create_time),
-        raw: payload,
+        raw,
     };
 
     if (source === 'group') {
@@ -158,6 +156,31 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
     }
 
     return {...base, type: 'text', content: item.content?.value ?? item.push_content ?? ''};
+}
+
+/**
+ * 将微信推送消息解析为标准化的 IncomingMessage。
+ * 如果 `new_messages` 中没有消息则抛出异常。
+ */
+export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
+    const item = payload.new_messages?.[0];
+    if (!item) {
+        throw new Error('No new_messages in WeChat push payload');
+    }
+
+    return parseWechatPushItem(item, payload);
+}
+
+/**
+ * 将微信推送消息解析为标准化消息数组。
+ */
+export function parseWechatMessages(payload: WechatPushMessage): IncomingMessage[] {
+    const items = payload.new_messages ?? [];
+    if (items.length === 0) {
+        throw new Error('No new_messages in WeChat push payload');
+    }
+
+    return items.map((item) => parseWechatPushItem(item, payload));
 }
 
 /**
@@ -303,7 +326,7 @@ function resolveVideoOptions(env?: Env): { thumbData: string; duration: number }
  * 微信个人号请求主处理器。
  * 接收来自网关的 JSON 数据并处理消息。
  *
- * 当 {@link Env.WECHAT_API_BASE_URL} 被设置时，通过类型化 API 客户端发送回复；
+ * 当 `WECHAT_API_BASE_URL` 被设置时，通过类型化 API 客户端发送回复；
  * 否则使用旧版回调 URL。
  */
 export async function handleWechat(request: Request, env: Env): Promise<Response> {
@@ -340,9 +363,9 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         return new Response('Invalid JSON', {status: 400});
     }
 
-    let message: IncomingMessage;
+    let messages: IncomingMessage[];
     try {
-        message = parseWechatMessage(payload);
+        messages = parseWechatMessages(payload);
     } catch {
         // 忽略非消息推送（联系人变更、个人资料更新等）
         logger.debug('跳过非消息推送');
@@ -352,29 +375,35 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         });
     }
 
-    // 分发到路由
+    // 分发到路由（逐条处理批量消息）
     const {routeMessage, toReplyArray} = await import('../../router/index.js');
-    const response = await routeMessage(message, env);
-    const replies = toReplyArray(response);
+    const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
 
-    if (replies.length === 0) {
+    for (const message of messages) {
+        const response = await routeMessage(message, env);
+        const replies = toReplyArray(response);
+        for (const reply of replies) {
+            replyTasks.push({message, reply});
+        }
+    }
+
+    if (replyTasks.length === 0) {
         return new Response(JSON.stringify({success: true}), {
             status: 200,
             headers: {'Content-Type': 'application/json'},
         });
     }
 
-    const receiver = message.room?.id ?? message.from;
-
     // 优先使用类型化 API 客户端（需配置 base URL）
     if (apiBaseUrl) {
         const api = new WechatApi(apiBaseUrl);
-        for (const reply of replies) {
+        for (const task of replyTasks) {
+            const receiver = task.message.room?.id ?? task.message.from;
             try {
-                await sendWechatReply(api, reply, receiver, env);
+                await sendWechatReply(api, task.reply, receiver, env);
             } catch (err) {
                 logger.error('微信 API 发送回复失败', {
-                    replyType: reply.type,
+                    replyType: task.reply.type,
                     receiver,
                     apiBaseUrl,
                     error: err instanceof Error ? err.message : String(err),
@@ -383,8 +412,8 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         }
     } else if (callbackUrl) {
         // 旧版方式：将构建好的数据发送到回调 URL
-        for (const reply of replies) {
-            const replyPayload = buildWechatReply(reply, message.from, message.room?.id);
+        for (const task of replyTasks) {
+            const replyPayload = buildWechatReply(task.reply, task.message.from, task.message.room?.id);
             try {
                 await fetch(callbackUrl, {
                     method: 'POST',
@@ -399,7 +428,9 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     }
 
     // 同时在响应体中返回回复
-    const replyPayloads = replies.map((r) => buildWechatReply(r, message.from, message.room?.id));
+    const replyPayloads = replyTasks.map((task) =>
+        buildWechatReply(task.reply, task.message.from, task.message.room?.id),
+    );
     const responseBody = replyPayloads.length === 1 ? replyPayloads[0] : replyPayloads;
     return new Response(JSON.stringify(responseBody), {
         status: 200,
