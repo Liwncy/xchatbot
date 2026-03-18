@@ -11,6 +11,8 @@ import {WechatApi} from './api.js';
 import {logger} from '../utils/logger.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from './constants.js';
 
+const MESSAGE_EXPIRE_SECONDS = 3 * 60;
+
 function ensureWechatApiSuccess(op: string, result: unknown): void {
     const code = (result as { code?: unknown })?.code;
     const message = (result as { message?: unknown })?.message;
@@ -321,6 +323,10 @@ function resolveVideoOptions(): { thumbData: string; duration: number } {
     };
 }
 
+function isExpiredMessage(message: IncomingMessage, nowUnixSeconds: number): boolean {
+    return nowUnixSeconds - message.timestamp > MESSAGE_EXPIRE_SECONDS;
+}
+
 /**
  * 微信个人号请求主处理器。
  * 接收来自网关的 JSON 数据并处理消息。
@@ -372,11 +378,25 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         });
     }
 
+    const nowUnixSeconds = Math.floor(Date.now() / 1000);
+    const activeMessages = messages.filter((message) => !isExpiredMessage(message, nowUnixSeconds));
+    const expiredCount = messages.length - activeMessages.length;
+    if (expiredCount > 0) {
+        logger.debug('跳过过期微信消息', {expiredCount, thresholdSeconds: MESSAGE_EXPIRE_SECONDS});
+    }
+
+    if (activeMessages.length === 0) {
+        return new Response(JSON.stringify({success: true, skipped: true, reason: 'expired'}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
     // 分发到路由（逐条处理批量消息）
     const {routeMessage, toReplyArray} = await import('../bot/index.js');
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
 
-    for (const message of messages) {
+    for (const message of activeMessages) {
         const response = await routeMessage(message, env);
         const replies = toReplyArray(response);
         for (const reply of replies) {

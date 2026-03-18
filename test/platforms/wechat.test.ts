@@ -3,6 +3,7 @@ import {
     verifyWechatSignature,
     parseWechatMessage,
     buildWechatReply,
+    handleWechat,
 } from '../../src/wechat/index.js';
 import type {WechatPushItem, WechatPushMessage} from '../../src/wechat/types.js';
 import type {ReplyMessage} from '../../src/types/message.js';
@@ -307,5 +308,37 @@ describe('buildWechatReply', () => {
         expect(payloads).toHaveLength(2);
         expect(payloads[0]).toEqual({to: 'wxid_sender', type: 'text', content: 'Hello'});
         expect(payloads[1]).toEqual({to: 'wxid_sender', type: 'image', mediaUrl: 'media_001'});
+    });
+});
+
+describe('handleWechat', () => {
+    it('skips messages older than 3 minutes', async () => {
+        const oldTimestamp = Math.floor(Date.now() / 1000) - 181;
+        const payload: WechatPushMessage = {
+            new_messages: [
+                makePushItem({
+                    create_time: oldTimestamp,
+                    content: {value: '今日老婆'},
+                    type: 1,
+                }),
+            ],
+        };
+
+        const request = new Request('https://example.com/webhook/wechat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+
+        const response = await handleWechat(request, {
+            WECHAT_API_BASE_URL: 'https://api.example.com',
+        });
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toEqual({
+            success: true,
+            skipped: true,
+            reason: 'expired',
+        });
     });
 });
