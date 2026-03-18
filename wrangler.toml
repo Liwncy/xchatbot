@@ -5,7 +5,7 @@ workers_dev = true
 preview_urls = true
 
 routes = [
-  { pattern = "liwncy.us.ci", zone_name = "liwncy.us.ci", custom_domain = true }
+    { pattern = "liwncy.us.ci", zone_name = "liwncy.us.ci", custom_domain = true }
 ]
 
 [observability]

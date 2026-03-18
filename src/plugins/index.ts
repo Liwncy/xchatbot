@@ -5,11 +5,11 @@
  * 通过在此处调用 `pluginManager.register(yourPlugin)` 来添加新插件。
  */
 
-import { pluginManager } from './manager.js';
-import { catImagePlugin } from './cat-image.js';
-import { aiDialogPlugin } from './ai/ai-dialog';
-import { todayWifePlugin } from './meitu/today-wife';
-import { commonPluginsEngine } from './common-plugins.js';
+import {pluginManager} from './manager.js';
+import {catImagePlugin} from './cat-image.js';
+import {aiDialogPlugin} from './ai/ai-dialog';
+import {todayWifePlugin} from './meitu/today-wife';
+import {commonPluginsEngine} from './common-plugins.js';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(commonPluginsEngine);
@@ -18,5 +18,5 @@ pluginManager.register(todayWifePlugin);
 pluginManager.register(catImagePlugin);
 
 // 重新导出以便外部使用
-export { pluginManager } from './manager.js';
-export type { MessageEvent, TextMessage, ImageMessage } from './types.js';
+export {pluginManager} from './manager.js';
+export type {MessageEvent, TextMessage, ImageMessage} from './types.js';

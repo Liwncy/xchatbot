@@ -113,12 +113,12 @@ wrangler secret put DINGTALK_APP_SECRET
 
 ## 🔌 Webhook 端点
 
-| 平台   | 路径                            | 方法 | 签名验证                                 |
-| ------ | ------------------------------- | ---- | ---------------------------------------- |
-| 微信   | `/webhook/wechat`               | POST | HMAC-SHA256（`X-Signature` + `X-Timestamp` 头） |
-| 飞书   | `/webhook/feishu`               | POST | HMAC-SHA256（`X-Lark-Signature` 头）     |
-| 钉钉   | `/webhook/dingtalk`             | POST | HMAC-SHA256（`timestamp` + `sign` 查询参数） |
-| 健康检查 | `/health` 或 `/`              | GET  | 无                                       |
+| 平台   | 路径                  | 方法   | 签名验证                                         |
+|------|---------------------|------|----------------------------------------------|
+| 微信   | `/webhook/wechat`   | POST | HMAC-SHA256（`X-Signature` + `X-Timestamp` 头） |
+| 飞书   | `/webhook/feishu`   | POST | HMAC-SHA256（`X-Lark-Signature` 头）            |
+| 钉钉   | `/webhook/dingtalk` | POST | HMAC-SHA256（`timestamp` + `sign` 查询参数）       |
+| 健康检查 | `/health` 或 `/`     | GET  | 无                                            |
 
 ## 📝 自定义处理逻辑
 
@@ -172,10 +172,10 @@ registerHandler('text', async (message, env) => {
 
 ### 内置插件
 
-| 插件名       | 触发条件           | 功能                     |
-| ------------ | ------------------ | ------------------------ |
-| `ai-dialog`  | 文本包含 `小聪明儿` | 调用 AI 接口返回文本回复 |
-| `cat-image`  | 文本包含 `看看猫咪` | 从 TheCatAPI 获取随机猫咪图片 |
+| 插件名         | 触发条件        | 功能                   |
+|-------------|-------------|----------------------|
+| `ai-dialog` | 文本包含 `小聪明儿` | 调用 AI 接口返回文本回复       |
+| `cat-image` | 文本包含 `看看猫咪` | 从 TheCatAPI 获取随机猫咪图片 |
 
 ### 编写自定义插件
 
@@ -269,20 +269,20 @@ test/                             # 单元测试（Vitest）
 
 ## ⚙️ 环境变量
 
-| 变量名                    | 平台   | 说明                                           |
-| ------------------------- | ------ | ---------------------------------------------- |
-| `WECHAT_TOKEN`            | 微信   | Webhook HMAC-SHA256 签名密钥                   |
-| `WECHAT_API_BASE_URL`     | 微信   | 桥接网关 API 地址（推荐，如 `http://localhost:8080`） |
-| `WECHAT_CALLBACK_URL`     | 微信   | 旧版回调地址（与 API 二选一）                  |
-| `AI_API_URL`              | 通用   | AI 对话接口地址（`ai-dialog` 插件使用）        |
-| `AI_API_KEY`              | 通用   | AI 对话接口 Bearer Token（可选）               |
-| `AI_MODEL`                | 通用   | AI 模型名（可选，默认 `gpt-4o-mini`）          |
-| `FEISHU_APP_ID`           | 飞书   | 应用 App ID                                    |
-| `FEISHU_APP_SECRET`       | 飞书   | 应用 App Secret                                |
-| `FEISHU_VERIFICATION_TOKEN` | 飞书 | 请求验证 Token（可选）                         |
-| `FEISHU_ENCRYPT_KEY`      | 飞书   | 签名验证加密密钥                               |
-| `DINGTALK_APP_KEY`        | 钉钉   | 应用 App Key                                   |
-| `DINGTALK_APP_SECRET`     | 钉钉   | 应用 App Secret                                |
+| 变量名                         | 平台 | 说明                                        |
+|-----------------------------|----|-------------------------------------------|
+| `WECHAT_TOKEN`              | 微信 | Webhook HMAC-SHA256 签名密钥                  |
+| `WECHAT_API_BASE_URL`       | 微信 | 桥接网关 API 地址（推荐，如 `http://localhost:8080`） |
+| `WECHAT_CALLBACK_URL`       | 微信 | 旧版回调地址（与 API 二选一）                         |
+| `AI_API_URL`                | 通用 | AI 对话接口地址（`ai-dialog` 插件使用）               |
+| `AI_API_KEY`                | 通用 | AI 对话接口 Bearer Token（可选）                  |
+| `AI_MODEL`                  | 通用 | AI 模型名（可选，默认 `gpt-4o-mini`）               |
+| `FEISHU_APP_ID`             | 飞书 | 应用 App ID                                 |
+| `FEISHU_APP_SECRET`         | 飞书 | 应用 App Secret                             |
+| `FEISHU_VERIFICATION_TOKEN` | 飞书 | 请求验证 Token（可选）                            |
+| `FEISHU_ENCRYPT_KEY`        | 飞书 | 签名验证加密密钥                                  |
+| `DINGTALK_APP_KEY`          | 钉钉 | 应用 App Key                                |
+| `DINGTALK_APP_SECRET`       | 钉钉 | 应用 App Secret                             |
 
 本地开发时写入 `.dev.vars` 文件，生产环境通过 `wrangler secret put <KEY>` 设置。
 
