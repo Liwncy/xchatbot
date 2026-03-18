@@ -9,6 +9,7 @@ import type {
 import type {WechatPushItem, WechatPushMessage} from './types.js';
 import {WechatApi} from './api.js';
 import {logger} from '../utils/logger.js';
+import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from './constants.js';
 
 function ensureWechatApiSuccess(op: string, result: unknown): void {
     const code = (result as { code?: unknown })?.code;
@@ -253,7 +254,6 @@ export async function sendWechatReply(
     api: WechatApi,
     reply: ReplyMessage,
     receiver: string,
-    env?: Env,
 ): Promise<void> {
     const effectiveReceiver = reply.to ?? receiver;
 
@@ -285,7 +285,7 @@ export async function sendWechatReply(
             break;
         }
         case 'video': {
-            const {thumbData, duration} = resolveVideoOptions(env);
+            const {thumbData, duration} = resolveVideoOptions();
             const result = await api.sendVideo({
                 receiver: effectiveReceiver,
                 video_data: reply.mediaId,
@@ -314,12 +314,11 @@ export async function sendWechatReply(
     }
 }
 
-function resolveVideoOptions(env?: Env): { thumbData: string; duration: number } {
-    const thumbData = env?.WECHAT_VIDEO_THUMB_BASE64?.trim() ?? '';
-    const durationRaw = env?.WECHAT_VIDEO_DURATION?.trim();
-    const parsed = durationRaw ? Number(durationRaw) : 0;
-    const duration = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
-    return {thumbData, duration};
+function resolveVideoOptions(): { thumbData: string; duration: number } {
+    return {
+        thumbData: DEFAULT_VIDEO_THUMB_BASE64,
+        duration: DEFAULT_VIDEO_DURATION,
+    };
 }
 
 /**
@@ -400,7 +399,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         for (const task of replyTasks) {
             const receiver = task.message.room?.id ?? task.message.from;
             try {
-                await sendWechatReply(api, task.reply, receiver, env);
+                await sendWechatReply(api, task.reply, receiver);
             } catch (err) {
                 logger.error('微信 API 发送回复失败', {
                     replyType: task.reply.type,

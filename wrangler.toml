@@ -33,10 +33,6 @@ DEBUG_FORWARD_URL = "https://xbot.lwccorpbox.us.ci"
 # WECHAT_CALLBACK_URL = "http://your-bridge-gateway/callback"
 WECHAT_API_BASE_URL = "https://wxbot.lwcgolem.us.ci"
 BOT_OWNER_WECHAT_ID = "your_wechat_id"  # 机器人主人的微信ID，用于识别消息来源
-# 视频发送参数（示例）
-# 1x1 PNG (transparent) base64
-WECHAT_VIDEO_THUMB_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W0YQAAAAASUVORK5CYII="
-WECHAT_VIDEO_DURATION = "12"
 
 # AI plugin configuration
 AI_API_URL = "https://api.moonshot.cn/v1/chat/completions"

@@ -314,22 +314,7 @@ describe('sendWechatReply', () => {
         const [url, init] = mockFetch.mock.calls[0];
         expect(url).toBe(`${BASE_URL}/api/message/video`);
         const body = JSON.parse(init?.body as string);
-        expect(body.thumb_data).toBe('');
-        expect(body.duration).toBe(0);
-    });
-
-    it('uses env video thumb and duration when provided', async () => {
-        const api = new WechatApi(BASE_URL);
-        const reply: ReplyMessage = {type: 'video', mediaId: 'video_data'};
-        await sendWechatReply(api, reply, 'wxid_recv', {
-            WECHAT_VIDEO_THUMB_BASE64: 'thumb_base64',
-            WECHAT_VIDEO_DURATION: '12',
-        });
-
-        const [url, init] = mockFetch.mock.calls[0];
-        expect(url).toBe(`${BASE_URL}/api/message/video`);
-        const body = JSON.parse(init?.body as string);
-        expect(body.thumb_data).toBe('thumb_base64');
+        expect(body.thumb_data).toBe('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W0YQAAAAASUVORK5CYII=');
         expect(body.duration).toBe(12);
     });
 

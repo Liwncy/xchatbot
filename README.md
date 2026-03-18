@@ -109,8 +109,6 @@ test/
 | `WECHAT_TOKEN` | 微信 Webhook HMAC-SHA256 签名密钥 |
 | `WECHAT_API_BASE_URL` | 微信网关 API 地址（推荐） |
 | `WECHAT_CALLBACK_URL` | 旧版回调地址（与 API 二选一） |
-| `WECHAT_VIDEO_THUMB_BASE64` | 发送视频时的可选封面 base64 |
-| `WECHAT_VIDEO_DURATION` | 发送视频时的可选时长（秒） |
 | `AI_API_URL` | AI 接口地址（`ai-dialog` 使用） |
 | `AI_API_KEY` | AI 接口 Bearer Token（可选） |
 | `AI_MODEL` | AI 模型名称（可选） |

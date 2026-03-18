@@ -176,10 +176,6 @@ export interface Env {
     WECHAT_CALLBACK_URL?: string;
     /** 微信网关 API 基础 URL（如 http://gateway:8080）。 */
     WECHAT_API_BASE_URL?: string;
-    /** 发送视频时可选的 Base64 缩略图数据。 */
-    WECHAT_VIDEO_THUMB_BASE64?: string;
-    /** 发送视频时可选的视频时长（秒，字符串）。 */
-    WECHAT_VIDEO_DURATION?: string;
     // 插件
     COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
     /** 通用插件 JSON 配置数组字符串。 */
