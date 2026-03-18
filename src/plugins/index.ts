@@ -6,10 +6,10 @@
  */
 
 import {pluginManager} from './manager.js';
-import {catImagePlugin} from './cat-image.js';
+import {catImagePlugin} from './demo/cat-image';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {todayWifePlugin} from './meitu/today-wife';
-import {commonPluginsEngine} from './common-plugins.js';
+import {commonPluginsEngine} from './common/base';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(commonPluginsEngine);

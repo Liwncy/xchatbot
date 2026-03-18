@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {catImagePlugin} from '../../src/plugins/cat-image.js';
+import {catImagePlugin} from '../../src/plugins/demo/cat-image.js';
 import type {IncomingMessage, Env} from '../../src/types/message.js';
 
 const env: Env = {};

@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {commonPluginsEngine} from '../../src/plugins/common-plugins.js';
+import {commonPluginsEngine} from '../../src/plugins/common/base.js';
 import type {IncomingMessage, Env} from '../../src/types/message.js';
 
 function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {

@@ -1,6 +1,6 @@
-import type {TextMessage} from './types.js';
-import {logger} from '../utils/logger.js';
-import {arrayBufferToBase64} from '../utils/binary.js';
+import type {TextMessage} from '../types';
+import {logger} from '../../utils/logger';
+import {arrayBufferToBase64} from '../../utils/binary';
 
 /** TheCatAPI 响应条目的预期结构。 */
 interface CatApiItem {

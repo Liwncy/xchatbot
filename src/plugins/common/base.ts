@@ -1,6 +1,6 @@
-import type {TextMessage} from './types.js';
-import {logger} from '../utils/logger.js';
-import {arrayBufferToBase64} from '../utils/binary.js';
+import type {TextMessage} from '../types';
+import {logger} from '../../utils/logger';
+import {arrayBufferToBase64} from '../../utils/binary';
 
 type CommonPluginMode = 'text' | 'base64' | 'json';
 type CommonPluginReplyType = 'text' | 'image' | 'video' | 'voice' | 'link';
@@ -44,6 +44,7 @@ let remoteCacheExpiresAt = 0;
 
 const REMOTE_CONFIG_CACHE_MS = 60_000;
 
+/** 将关键词统一为字符串或字符串数组；支持 `a|b|c` 写法。 */
 function normalizeKeyword(keyword: string | string[] | undefined): string | string[] | undefined {
     if (!keyword) return undefined;
     if (Array.isArray(keyword)) {
@@ -56,6 +57,7 @@ function normalizeKeyword(keyword: string | string[] | undefined): string | stri
     return split.length === 1 ? split[0] : split;
 }
 
+/** 规范化请求模式，兼容历史 `base` -> `base64`。 */
 function normalizeMode(mode: string | undefined): CommonPluginMode | undefined {
     if (!mode) return undefined;
     const m = mode.trim().toLowerCase();
@@ -64,6 +66,7 @@ function normalizeMode(mode: string | undefined): CommonPluginMode | undefined {
     return undefined;
 }
 
+/** 规范化回复类型（text/image/video/voice/link）。 */
 function normalizeReplyType(value: string | undefined): CommonPluginReplyType | undefined {
     if (!value) return undefined;
     const t = value.trim().toLowerCase();
@@ -71,6 +74,7 @@ function normalizeReplyType(value: string | undefined): CommonPluginReplyType | 
     return undefined;
 }
 
+/** 将旧规则结构转换为统一规则对象；缺少关键字段时返回 null。 */
 function toRule(item: LegacyRule): CommonPluginRule | null {
     const keyword = normalizeKeyword(item.keyword);
     const url = item.url?.trim();
@@ -98,6 +102,7 @@ function toRule(item: LegacyRule): CommonPluginRule | null {
 function parseRules(raw: string | undefined): CommonPluginRule[] {
     const source = (raw ?? '').trim();
     if (!source) return [];
+    // Raw 字符串未变化时复用解析结果，避免重复 JSON.parse。
     if (source === cachedRaw) return cachedRules;
 
     try {
@@ -114,6 +119,7 @@ function parseRules(raw: string | undefined): CommonPluginRule[] {
         }
 
         cachedRaw = source;
+        // 兼容旧字段并过滤无效规则，最终统一为 CommonPluginRule。
         cachedRules = list
             .map((item) => (item && typeof item === 'object' ? toRule(item as LegacyRule) : null))
             .filter((item): item is CommonPluginRule => Boolean(item));
@@ -127,6 +133,7 @@ function parseRules(raw: string | undefined): CommonPluginRule[] {
     }
 }
 
+/** 判断消息内容是否包含任一关键词。 */
 function keywordMatched(content: string, keyword: string | string[]): boolean {
     const keywords = Array.isArray(keyword) ? keyword : [keyword];
     return keywords.some((k) => k && content.includes(k));
@@ -136,6 +143,7 @@ function getByJsonPath(data: unknown, jsonPath: string): unknown {
     const normalized = jsonPath.replace(/^\$\.?/, '');
     if (!normalized) return data;
 
+    // 支持简单路径：a.b[0].c（不支持过滤表达式）。
     const tokens = normalized.match(/[^.[\]]+|\[(\d+)]/g) ?? [];
     let current: unknown = data;
 
@@ -156,16 +164,19 @@ function getByJsonPath(data: unknown, jsonPath: string): unknown {
     return current;
 }
 
+/** 去除 data URL 前缀，返回纯 base64 字符串。 */
 function normalizeBase64(value: string): string {
     const trimmed = value.trim();
     const match = trimmed.match(/^data:[^;]+;base64,(.+)$/i);
     return match?.[1] ?? trimmed;
 }
 
+/** 判断字符串是否为 http/https URL。 */
 function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value.trim());
 }
 
+/** 粗略判断字符串是否为 base64。 */
 function looksLikeBase64(value: string): boolean {
     const normalized = value.replace(/\s+/g, '');
     if (!normalized || normalized.length % 4 !== 0) return false;
@@ -178,10 +189,12 @@ async function toMediaPayload(value: unknown): Promise<string | null> {
 
     const normalized = normalizeBase64(raw);
     if (looksLikeBase64(normalized)) {
+        // 已是 base64（含 data URL 或纯 base64）时直接复用。
         return normalized;
     }
 
     if (isHttpUrl(raw)) {
+        // URL 模式会下载资源并转为 base64，统一走微信发送接口。
         const mediaRes = await fetch(raw);
         if (!mediaRes.ok) {
             logger.error('通用插件媒体下载失败', {url: raw, status: mediaRes.status});
@@ -195,6 +208,7 @@ async function toMediaPayload(value: unknown): Promise<string | null> {
     return normalized;
 }
 
+/** 关键词兜底文本（用于 link 标题/描述默认值）。 */
 function keywordFallback(keyword: string | string[]): string {
     if (Array.isArray(keyword)) {
         return keyword.find((k) => k && k.trim())?.trim() ?? '链接消息';
@@ -202,6 +216,7 @@ function keywordFallback(keyword: string | string[]): string {
     return keyword?.trim() || '链接消息';
 }
 
+/** 将提取值转换为 link(news) 回复结构。 */
 function toLinkReply(rule: CommonPluginRule, value: unknown) {
     const keywordText = keywordFallback(rule.keyword);
     const defaultTitle = rule.linkTitle?.trim() || keywordText;
@@ -244,6 +259,7 @@ function toLinkReply(rule: CommonPluginRule, value: unknown) {
     return null;
 }
 
+/** 按规则回复类型组装最终回复对象。 */
 async function toReply(rule: CommonPluginRule, value: unknown) {
     const rType = rule.rType;
     if (rType === 'text') {
@@ -276,6 +292,7 @@ async function extractValueByMode(rule: CommonPluginRule, response: Response): P
         return arrayBufferToBase64(buffer);
     }
 
+    // json 模式：先反序列化，再按 jsonPath 抽取目标字段。
     const payload = (await response.json()) as unknown;
     if (!rule.jsonPath) return payload;
     return getByJsonPath(payload, rule.jsonPath);
@@ -351,6 +368,9 @@ export const commonPluginsEngine: TextMessage = {
     },
 };
 
+/**
+ * 解析可用规则：优先内联配置，其次远程配置（带短缓存）。
+ */
 async function resolveRules(env: {
     COMMON_PLUGINS_CONFIG?: string;
     COMMON_PLUGINS_MAPPING?: string;
@@ -358,6 +378,7 @@ async function resolveRules(env: {
     COMMON_PLUGINS_CLIENT_ID?: string
 }): Promise<CommonPluginRule[]> {
     const inlineConfig = env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING;
+    // 本地内联配置优先级最高，便于开发调试。
     if (inlineConfig?.trim()) {
         return parseRules(inlineConfig);
     }
@@ -368,6 +389,7 @@ async function resolveRules(env: {
     const clientId = env.COMMON_PLUGINS_CLIENT_ID?.trim() ?? '';
     const cacheKey = `${remoteUrl}|${clientId}`;
     const now = Date.now();
+    // 远程配置短缓存，降低请求频率并保持可热更新。
     if (cacheKey === remoteCacheKey && now < remoteCacheExpiresAt) {
         return remoteCachedRules;
     }
