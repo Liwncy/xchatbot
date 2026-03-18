@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {catImagePlugin} from '../../src/plugins/demo/cat-image.js';
-import type {IncomingMessage, Env} from '../../src/types/message.js';
+import type {IncomingMessage, Env, HandlerResponse} from '../../src/types/message.js';
 
 const env: Env = {};
 
@@ -17,22 +17,30 @@ function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage 
     };
 }
 
+function expectImageReply(reply: HandlerResponse): { type: 'image'; mediaId: string } {
+    expect(reply).not.toBeNull();
+    const single = Array.isArray(reply) ? reply[0] : reply;
+    expect(single).toBeDefined();
+    expect(single?.type).toBe('image');
+    return single as { type: 'image'; mediaId: string };
+}
+
 describe('catImagePlugin', () => {
     describe('match', () => {
         it('matches text containing "看看猫咪"', () => {
-            expect(catImagePlugin.match('看看猫咪')).toBe(true);
+            expect(catImagePlugin.match('看看猫咪', makeMessage({content: '看看猫咪'}))).toBe(true);
         });
 
         it('matches text with "看看猫咪" embedded in a sentence', () => {
-            expect(catImagePlugin.match('我想看看猫咪吧')).toBe(true);
+            expect(catImagePlugin.match('我想看看猫咪吧', makeMessage({content: '我想看看猫咪吧'}))).toBe(true);
         });
 
         it('does not match unrelated text', () => {
-            expect(catImagePlugin.match('你好')).toBe(false);
+            expect(catImagePlugin.match('你好', makeMessage({content: '你好'}))).toBe(false);
         });
 
         it('does not match empty text', () => {
-            expect(catImagePlugin.match('')).toBe(false);
+            expect(catImagePlugin.match('', makeMessage({content: ''}))).toBe(false);
         });
     });
 
@@ -65,9 +73,8 @@ describe('catImagePlugin', () => {
                 );
 
             const reply = await catImagePlugin.handle(makeMessage({content: '看看猫咪'}), env);
-            expect(reply).not.toBeNull();
-            expect(reply!.type).toBe('image');
-            expect((reply as { mediaId: string }).mediaId).toBeTruthy();
+            const imageReply = expectImageReply(reply);
+            expect(imageReply.mediaId).toBeTruthy();
 
             // Verify both API and image fetches were called
             expect(globalThis.fetch).toHaveBeenCalledTimes(2);

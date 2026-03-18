@@ -1,5 +1,5 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {parseXml, buildXml, cdata} from '../../src/utils/xml.js';
+import {describe, expect, it} from 'vitest';
+import {buildXml, cdata, parseXml} from '../../src/utils/xml.js';
 
 describe('parseXml', () => {
     it('parses simple tag values', () => {

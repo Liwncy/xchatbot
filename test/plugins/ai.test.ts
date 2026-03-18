@@ -31,11 +31,11 @@ function expectTextReply(reply: unknown): { type: 'text'; content: string } {
 describe('aiPlugin', () => {
     describe('match', () => {
         it('matches text containing "小聪明儿"', () => {
-            expect(aiDialogPlugin.match('小聪明儿，今天天气如何？')).toBe(true);
+            expect(aiDialogPlugin.match('小聪明儿，今天天气如何？', makeMessage({content: '小聪明儿，今天天气如何？'}))).toBe(true);
         });
 
         it('does not match unrelated text', () => {
-            expect(aiDialogPlugin.match('你好')).toBe(false);
+            expect(aiDialogPlugin.match('你好', makeMessage({content: '你好'}))).toBe(false);
         });
     });
 

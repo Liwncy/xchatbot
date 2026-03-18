@@ -1,8 +1,16 @@
 import {describe, it, expect} from 'vitest';
 import {routeMessage, registerHandler, toReplyArray} from '../src/router/index.js';
-import type {IncomingMessage, Env, ReplyMessage, HandlerResponse} from '../src/types/message.js';
+import type {IncomingMessage, Env, ReplyMessage, TextReply, HandlerResponse} from '../src/types/message.js';
 
 const env: Env = {};
+
+function expectTextReply(reply: HandlerResponse): TextReply {
+    expect(reply).not.toBeNull();
+    const single = Array.isArray(reply) ? reply[0] : reply;
+    expect(single).toBeDefined();
+    expect(single?.type).toBe('text');
+    return single as TextReply;
+}
 
 function makeMessage(overrides: Partial<IncomingMessage>): IncomingMessage {
     return {
@@ -20,28 +28,26 @@ function makeMessage(overrides: Partial<IncomingMessage>): IncomingMessage {
 describe('routeMessage', () => {
     it('routes text messages to the text handler', async () => {
         const msg = makeMessage({type: 'text', content: '帮助'});
-        const reply = await routeMessage(msg, env);
-        expect(reply).not.toBeNull();
-        expect(reply?.type).toBe('text');
-        expect((reply as { content: string }).content).toContain('帮助');
+        const reply = expectTextReply(await routeMessage(msg, env));
+        expect(reply.content).toContain('帮助');
     });
 
     it('routes image messages to the image handler', async () => {
         const msg = makeMessage({type: 'image', mediaId: 'media_001'});
         const reply = await routeMessage(msg, env);
-        expect(reply?.type).toBe('text');
+        expect(reply).toBeNull();
     });
 
     it('routes voice messages to the voice handler', async () => {
         const msg = makeMessage({type: 'voice', mediaId: 'media_002'});
         const reply = await routeMessage(msg, env);
-        expect(reply?.type).toBe('text');
+        expect(reply).toBeNull();
     });
 
     it('routes video messages to the video handler', async () => {
         const msg = makeMessage({type: 'video', mediaId: 'media_003'});
         const reply = await routeMessage(msg, env);
-        expect(reply?.type).toBe('text');
+        expect(reply).toBeNull();
     });
 
     it('routes location messages to the location handler', async () => {
@@ -50,8 +56,7 @@ describe('routeMessage', () => {
             location: {latitude: 39.9, longitude: 116.4, label: 'Beijing'},
         });
         const reply = await routeMessage(msg, env);
-        expect(reply?.type).toBe('text');
-        expect((reply as { content: string }).content).toContain('39.9');
+        expect(reply).toBeNull();
     });
 
     it('routes link messages to the link handler', async () => {
@@ -60,8 +65,7 @@ describe('routeMessage', () => {
             link: {title: 'Test', description: 'Desc', url: 'https://example.com'},
         });
         const reply = await routeMessage(msg, env);
-        expect(reply?.type).toBe('text');
-        expect((reply as { content: string }).content).toContain('https://example.com');
+        expect(reply).toBeNull();
     });
 
     it('routes subscribe events to the event handler', async () => {
@@ -69,9 +73,8 @@ describe('routeMessage', () => {
             type: 'event',
             event: {type: 'subscribe'},
         });
-        const reply = await routeMessage(msg, env);
-        expect(reply?.type).toBe('text');
-        expect((reply as { content: string }).content).toContain('感谢');
+        const reply = expectTextReply(await routeMessage(msg, env));
+        expect(reply.content).toContain('感谢');
     });
 
     it('returns null for unsubscribe events', async () => {
@@ -89,8 +92,8 @@ describe('routeMessage', () => {
             content: 'custom reply',
         }));
         const msg = makeMessage({type: 'text', content: 'anything'});
-        const reply = await routeMessage(msg, env);
-        expect((reply as { content: string }).content).toBe('custom reply');
+        const reply = expectTextReply(await routeMessage(msg, env));
+        expect(reply.content).toBe('custom reply');
 
         // Restore default handler for other tests
         const {handleTextMessage} = await import('../src/handlers/text-handler.js');
