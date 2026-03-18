@@ -325,12 +325,10 @@ function resolveVideoOptions(): { thumbData: string; duration: number } {
  * 微信个人号请求主处理器。
  * 接收来自网关的 JSON 数据并处理消息。
  *
- * 当 `WECHAT_API_BASE_URL` 被设置时，通过类型化 API 客户端发送回复；
- * 否则使用旧版回调 URL。
+ * 通过类型化 API 客户端发送回复。
  */
 export async function handleWechat(request: Request, env: Env): Promise<Response> {
     const token = env.WECHAT_TOKEN ?? '';
-    const callbackUrl = env.WECHAT_CALLBACK_URL ?? '';
     const apiBaseUrl = env.WECHAT_API_BASE_URL ?? '';
 
     // 仅接受 POST 请求
@@ -407,21 +405,6 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
                     apiBaseUrl,
                     error: err instanceof Error ? err.message : String(err),
                 });
-            }
-        }
-    } else if (callbackUrl) {
-        // 旧版方式：将构建好的数据发送到回调 URL
-        for (const task of replyTasks) {
-            const replyPayload = buildWechatReply(task.reply, task.message.from, task.message.room?.id);
-            try {
-                await fetch(callbackUrl, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(replyPayload),
-                });
-            } catch (err) {
-                // 回调发送失败；仍在响应体中返回回复
-                logger.error('微信回调发送失败', err);
             }
         }
     }

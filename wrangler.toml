@@ -30,7 +30,6 @@ DEBUG_FORWARD_URL = "https://xbot.lwccorpbox.us.ci"
 
 # WeChat Personal Account bridge/gateway configuration (set via wrangler secret or .dev.vars for local)
 # WECHAT_TOKEN = "your_webhook_hmac_token"
-# WECHAT_CALLBACK_URL = "http://your-bridge-gateway/callback"
 WECHAT_API_BASE_URL = "https://wxbot.lwcgolem.us.ci"
 BOT_OWNER_WECHAT_ID = "your_wechat_id"  # 机器人主人的微信ID，用于识别消息来源
 

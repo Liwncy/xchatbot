@@ -173,7 +173,6 @@ export interface Env {
 
     // 微信个人号（通过网关/桥接服务）
     WECHAT_TOKEN?: string;
-    WECHAT_CALLBACK_URL?: string;
     /** 微信网关 API 基础 URL（如 http://gateway:8080）。 */
     WECHAT_API_BASE_URL?: string;
     // 插件
