@@ -3,9 +3,9 @@ import {
     verifyWechatSignature,
     parseWechatMessage,
     buildWechatReply,
-} from '../../src/platforms/wechat/index.js';
+} from '../../src/wechat/index.js';
+import type {WechatPushItem, WechatPushMessage} from '../../src/wechat/types.js';
 import type {ReplyMessage} from '../../src/types/message.js';
-import type {WechatPushItem, WechatPushMessage} from '../../src/platforms/wechat/types.js';
 import {createHmac} from 'crypto';
 
 function makePushItem(overrides: Partial<WechatPushItem> = {}): WechatPushItem {

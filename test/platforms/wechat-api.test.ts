@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {WechatApi} from '../../src/platforms/wechat/api.js';
-import {sendWechatReply} from '../../src/platforms/wechat/index.js';
+import {WechatApi} from '../../src/wechat/api.js';
+import {sendWechatReply} from '../../src/wechat/index.js';
 import type {ReplyMessage} from '../../src/types/message.js';
 
 const BASE_URL = 'http://gateway:8080';

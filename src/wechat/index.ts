@@ -1,14 +1,14 @@
-import {hmacSha256Hex} from '../../utils/crypto.js';
+import {hmacSha256Hex} from '../utils/crypto.js';
 import type {
     IncomingMessage,
     ReplyMessage,
     MessageType,
     MessageSource,
     Env,
-} from '../../types/message.js';
+} from '../types/message.js';
 import type {WechatPushItem, WechatPushMessage} from './types.js';
 import {WechatApi} from './api.js';
-import {logger} from '../../utils/logger.js';
+import {logger} from '../utils/logger.js';
 
 function ensureWechatApiSuccess(op: string, result: unknown): void {
     const code = (result as { code?: unknown })?.code;
@@ -376,7 +376,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     }
 
     // 分发到路由（逐条处理批量消息）
-    const {routeMessage, toReplyArray} = await import('../../router/index.js');
+    const {routeMessage, toReplyArray} = await import('../bot/index.js');
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
 
     for (const message of messages) {

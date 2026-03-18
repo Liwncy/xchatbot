@@ -1,5 +1,5 @@
 /** 支持的消息平台 */
-export type Platform = 'wechat' | 'feishu' | 'dingtalk';
+export type Platform = 'wechat';
 
 /** 标准化消息类型 */
 export type MessageType =
@@ -130,7 +130,7 @@ export interface NewsReply extends ReplyBase {
     articles: NewsArticle[];
 }
 
-/** Markdown 回复（飞书 / 钉钉） */
+/** Markdown 回复 */
 export interface MarkdownReply extends ReplyBase {
     type: 'markdown';
     title?: string;
@@ -196,12 +196,4 @@ export interface Env {
     /** 传给 AI 接口的模型名称（可选）。 */
     AI_MODEL?: string;
     AI_SYSTEM_PROMPT?: string;
-    // 飞书
-    FEISHU_APP_ID?: string;
-    FEISHU_APP_SECRET?: string;
-    FEISHU_VERIFICATION_TOKEN?: string;
-    FEISHU_ENCRYPT_KEY?: string;
-    // 钉钉
-    DINGTALK_APP_KEY?: string;
-    DINGTALK_APP_SECRET?: string;
 }

@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {routeMessage, registerHandler, toReplyArray} from '../src/router/index.js';
+import {routeMessage, registerHandler, toReplyArray} from '../src/bot/index.js';
 import type {IncomingMessage, Env, ReplyMessage, TextReply, HandlerResponse} from '../src/types/message.js';
 
 const env: Env = {};

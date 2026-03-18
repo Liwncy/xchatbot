@@ -1,6 +1,4 @@
-import {handleWechat} from './platforms/wechat/index.js';
-import {handleFeishu} from './platforms/feishu/index.js';
-import {handleDingTalk} from './platforms/dingtalk/index.js';
+import {handleWechat} from './wechat/index.js';
 import type {Env} from './types/message.js';
 
 function isTruthyFlag(value?: string): boolean {
@@ -52,21 +50,13 @@ export default {
         const pathname = url.pathname;
 
 
-        // 根据 URL 路径分发到对应平台的处理器
+        // 微信专用入口
         if (pathname === '/webhook/wechat' || pathname.startsWith('/webhook/wechat/')) {
             return handleWechat(request, env);
         }
 
-        if (pathname === '/webhook/feishu' || pathname.startsWith('/webhook/feishu/')) {
-            return handleFeishu(request, env);
-        }
-
-        if (pathname === '/webhook/dingtalk' || pathname.startsWith('/webhook/dingtalk/')) {
-            return handleDingTalk(request, env);
-        }
-
         if (pathname === '/' || pathname === '/health') {
-            return new Response(JSON.stringify({status: 'ok', service: 'xchatbot'}), {
+            return new Response(JSON.stringify({status: 'ok', service: 'xchatbot-wechat'}), {
                 status: 200,
                 headers: {'Content-Type': 'application/json'},
             });
