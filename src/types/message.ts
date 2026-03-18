@@ -167,6 +167,10 @@ export type MessageHandler = (
 
 /** Cloudflare Workers 环境变量绑定 */
 export interface Env {
+  // 全局调试透传（开启后所有请求直接转发到调试地址）
+  DEBUG_FORWARD_ENABLED?: string;
+  DEBUG_FORWARD_URL?: string;
+
   // 微信个人号（通过网关/桥接服务）
   WECHAT_TOKEN?: string;
   WECHAT_CALLBACK_URL?: string;
