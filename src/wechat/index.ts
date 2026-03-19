@@ -80,6 +80,43 @@ function toUnixSeconds(timestamp: number): number {
     return timestamp > 1_000_000_000_000 ? Math.floor(timestamp / 1000) : Math.floor(timestamp);
 }
 
+function resolveRoomId(item: WechatPushItem): string {
+    if (item.receiver?.value?.endsWith('@chatroom')) return item.receiver.value;
+    if (item.sender?.value?.endsWith('@chatroom')) return item.sender.value;
+    return item.receiver?.value ?? '';
+}
+
+/**
+ * 群文本常见格式：`wxid_xxx:\n消息内容`。
+ * 解析后用于将标准化 `from` 还原为具体群成员 ID。
+ */
+function parseGroupTextSender(rawContent: string): { senderId?: string; content: string } {
+    const text = rawContent ?? '';
+    const separatorIndex = text.indexOf(':\n');
+    if (separatorIndex <= 0) {
+        return {content: text};
+    }
+
+    const senderId = text.slice(0, separatorIndex).trim();
+    const content = text.slice(separatorIndex + 2);
+    if (!senderId) {
+        return {content: text};
+    }
+
+    return {senderId, content};
+}
+
+/**
+ * `push_content` 常见格式：`显示名 : 消息内容`，用于补充 senderName。
+ */
+function parseSenderNameFromPushContent(pushContent?: string): string | undefined {
+    if (!pushContent) return undefined;
+    const separatorIndex = pushContent.indexOf(' : ');
+    if (separatorIndex <= 0) return undefined;
+    const name = pushContent.slice(0, separatorIndex).trim();
+    return name || undefined;
+}
+
 /**
  * 将单条微信推送项解析为标准化的 IncomingMessage。
  */
@@ -89,11 +126,17 @@ export function parseWechatPushItem(
 ): IncomingMessage {
     const msgType = mapWechatType(item.type);
     const source = inferWechatSource(item);
+    const rawContent = item.content?.value ?? item.push_content ?? '';
+    const groupText = source === 'group' && msgType === 'text'
+        ? parseGroupTextSender(rawContent)
+        : {content: rawContent};
 
     const base: Omit<IncomingMessage, 'type'> = {
         platform: 'wechat' as const,
         source,
-        from: item.sender?.value ?? '',
+        // 群消息里 sender 字段常为 chatroom，文本前缀里才有真实发送者 wxid。
+        from: source === 'group' ? (groupText.senderId ?? item.sender?.value ?? '') : (item.sender?.value ?? ''),
+        senderName: parseSenderNameFromPushContent(item.push_content),
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),
         // 优先使用 msg_id 以避免大 new_msg_id 值的精度损失。
@@ -103,11 +146,7 @@ export function parseWechatPushItem(
 
     if (source === 'group') {
         base.room = {
-            id: item.receiver?.value?.endsWith('@chatroom')
-                ? item.receiver.value
-                : item.sender?.value?.endsWith('@chatroom')
-                    ? item.sender.value
-                    : item.receiver?.value ?? '',
+            id: resolveRoomId(item),
         };
     }
 
@@ -115,7 +154,7 @@ export function parseWechatPushItem(
         return {
             ...base,
             type: 'text',
-            content: item.content?.value ?? item.push_content ?? '',
+            content: groupText.content,
         };
     }
 
@@ -397,6 +436,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
 
     for (const message of activeMessages) {
+        console.log('处理微信消息', { routeMessage, toReplyArray, message });
         const response = await routeMessage(message, env);
         const replies = toReplyArray(response);
         for (const reply of replies) {

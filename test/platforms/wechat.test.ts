@@ -58,6 +58,22 @@ describe('parseWechatMessage', () => {
         expect(msg.messageId).toBe('1001');
     });
 
+    it('extracts senderName from push_content in private chat', () => {
+        const msg = parseWechatMessage(makePayload({
+            new_messages: [
+                makePushItem({
+                    push_content: 'Liwncy : 今日老婆',
+                    content: {value: '今日老婆'},
+                }),
+            ],
+        }));
+
+        expect(msg.source).toBe('private');
+        expect(msg.from).toBe('wxid_sender');
+        expect(msg.senderName).toBe('Liwncy');
+        expect(msg.content).toBe('今日老婆');
+    });
+
     it('parses group text message with room info', () => {
         const msg = parseWechatMessage(makePayload({
             new_messages: [
@@ -69,6 +85,26 @@ describe('parseWechatMessage', () => {
         }));
         expect(msg.source).toBe('group');
         expect(msg.room?.id).toBe('room_123@chatroom');
+    });
+
+    it('extracts real group sender from content prefix', () => {
+        const msg = parseWechatMessage(makePayload({
+            new_messages: [
+                makePushItem({
+                    sender: {value: '47275691424@chatroom'},
+                    receiver: {value: 'wxid_ahl9az25aljx22'},
+                    msg_source: '<msgsource><membercount>2</membercount></msgsource>',
+                    content: {value: 'wxid_5jfnhtqy74xr22:\n今日老婆'},
+                    push_content: '李芈仙 : 今日老婆',
+                }),
+            ],
+        }));
+
+        expect(msg.source).toBe('group');
+        expect(msg.room?.id).toBe('47275691424@chatroom');
+        expect(msg.from).toBe('wxid_5jfnhtqy74xr22');
+        expect(msg.senderName).toBe('李芈仙');
+        expect(msg.content).toBe('今日老婆');
     });
 
     it('parses official account push', () => {

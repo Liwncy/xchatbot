@@ -35,6 +35,7 @@ export const todayWifePlugin: TextMessage = {
     handle: async (message) => {
         try {
             const sender = (message.from ?? '').trim() || 'anonymous';
+            console.log(`触发今日老婆插件，sender=${sender}, messageId=${message.messageId}`);
             const userId = mapToStableRange(sender, MIN_ID, MAX_ID);
             const apiRes = await fetch(`${API_URL}?id=${userId}`);
             if (!apiRes.ok) {
