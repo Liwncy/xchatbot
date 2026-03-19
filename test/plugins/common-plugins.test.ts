@@ -82,6 +82,33 @@ describe('commonPluginsEngine', () => {
         expect((reply as { content: string }).content).toContain('hello from api');
     });
 
+    it('supports jsonPath array random index with [x]', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '随机一句',
+                    url: 'https://api.example.com/random-list',
+                    mode: 'json',
+                    jsonPath: '$.data.list[x]',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        vi.spyOn(Math, 'random').mockReturnValue(0.6); // 3 项数组会命中索引 1
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({data: {list: ['first', 'second', 'third']}}),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '来个随机一句'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe('second');
+    });
+
     it('returns null when no rule matches keyword', async () => {
         const env: Env = {
             COMMON_PLUGINS_CONFIG: JSON.stringify([

@@ -143,16 +143,22 @@ function getByJsonPath(data: unknown, jsonPath: string): unknown {
     const normalized = jsonPath.replace(/^\$\.?/, '');
     if (!normalized) return data;
 
-    // 支持简单路径：a.b[0].c（不支持过滤表达式）。
-    const tokens = normalized.match(/[^.[\]]+|\[(\d+)]/g) ?? [];
+    // 支持简单路径：a.b[0].c / a.b[x].c（x 表示数组随机项，不支持过滤表达式）。
+    const tokens = normalized.match(/[^.[\]]+|\[(\d+|x)]/gi) ?? [];
     let current: unknown = data;
 
     for (const token of tokens) {
         if (current == null) return undefined;
 
         if (token.startsWith('[') && token.endsWith(']')) {
-            const idx = Number(token.slice(1, -1));
-            if (!Array.isArray(current) || !Number.isInteger(idx)) return undefined;
+            if (!Array.isArray(current)) return undefined;
+
+            const rawIndex = token.slice(1, -1).toLowerCase();
+            const idx = rawIndex === 'x'
+                ? (current.length ? Math.floor(Math.random() * current.length) : -1)
+                : Number(rawIndex);
+
+            if (!Number.isInteger(idx) || idx < 0) return undefined;
             current = current[idx];
             continue;
         }
