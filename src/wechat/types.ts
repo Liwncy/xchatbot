@@ -8,7 +8,7 @@ export interface WechatValueField {
 
 /** 网关返回的原始图片缓冲区数据。 */
 export interface WechatImageBuffer {
-    buffer?: number[];
+    buffer?: number[] | string;
     len: number;
 }
 

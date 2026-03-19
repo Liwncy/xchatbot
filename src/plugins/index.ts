@@ -10,12 +10,15 @@ import {catImagePlugin} from './demo/cat-image';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {todayWifePlugin} from './meitu/today-wife';
 import {commonPluginsEngine} from './common/base';
+import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(commonPluginsEngine);
 pluginManager.register(aiDialogPlugin);
 pluginManager.register(todayWifePlugin);
 pluginManager.register(catImagePlugin);
+pluginManager.register(imageIntentTriggerPlugin);
+pluginManager.register(imageIntentProcessPlugin);
 
 // 重新导出以便外部使用
 export {pluginManager} from './manager.js';

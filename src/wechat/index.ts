@@ -111,10 +111,40 @@ function parseGroupTextSender(rawContent: string): { senderId?: string; content:
  */
 function parseSenderNameFromPushContent(pushContent?: string): string | undefined {
     if (!pushContent) return undefined;
+
+    // 私聊常见格式：`昵称 : 内容`
     const separatorIndex = pushContent.indexOf(' : ');
-    if (separatorIndex <= 0) return undefined;
-    const name = pushContent.slice(0, separatorIndex).trim();
-    return name || undefined;
+    if (separatorIndex > 0) {
+        const name = pushContent.slice(0, separatorIndex).trim();
+        if (name) return name;
+    }
+
+    // 群图片等常见格式：`昵称在群聊中发了...`
+    const groupActionMatch = pushContent.match(/^(.+?)在群聊中发了/);
+    if (groupActionMatch?.[1]) {
+        const name = groupActionMatch[1].trim();
+        if (name) return name;
+    }
+
+    return undefined;
+}
+
+function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
+    const buffer = item.image_buffer?.buffer;
+    if (!buffer) return undefined;
+
+    // 新网关格式：base64 字符串
+    if (typeof buffer === 'string') {
+        const normalized = buffer.trim();
+        return normalized || undefined;
+    }
+
+    // 兼容旧格式：number[]
+    if (Array.isArray(buffer) && buffer.length > 0) {
+        return buffer.join(',');
+    }
+
+    return undefined;
 }
 
 /**
@@ -127,15 +157,15 @@ export function parseWechatPushItem(
     const msgType = mapWechatType(item.type);
     const source = inferWechatSource(item);
     const rawContent = item.content?.value ?? item.push_content ?? '';
-    const groupText = source === 'group' && msgType === 'text'
+    const groupMeta = source === 'group'
         ? parseGroupTextSender(rawContent)
         : {content: rawContent};
 
     const base: Omit<IncomingMessage, 'type'> = {
         platform: 'wechat' as const,
         source,
-        // 群消息里 sender 字段常为 chatroom，文本前缀里才有真实发送者 wxid。
-        from: source === 'group' ? (groupText.senderId ?? item.sender?.value ?? '') : (item.sender?.value ?? ''),
+        // 群消息里 sender 字段常为 chatroom，content 前缀里才有真实发送者 wxid。
+        from: source === 'group' ? (groupMeta.senderId ?? item.sender?.value ?? '') : (item.sender?.value ?? ''),
         senderName: parseSenderNameFromPushContent(item.push_content),
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),
@@ -154,7 +184,7 @@ export function parseWechatPushItem(
         return {
             ...base,
             type: 'text',
-            content: groupText.content,
+            content: groupMeta.content,
         };
     }
 
@@ -162,7 +192,7 @@ export function parseWechatPushItem(
         return {
             ...base,
             type: 'image',
-            mediaId: item.image_buffer?.buffer?.length ? item.image_buffer.buffer.join(',') : undefined,
+            mediaId: parseWechatImageMediaId(item),
         };
     }
 

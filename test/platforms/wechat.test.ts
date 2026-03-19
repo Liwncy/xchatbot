@@ -128,6 +128,40 @@ describe('parseWechatMessage', () => {
         expect(msg.mediaId).toBe('1,2,3');
     });
 
+    it('parses image message when image_buffer.buffer is base64 string', () => {
+        const msg = parseWechatMessage(makePayload({
+            new_messages: [
+                makePushItem({
+                    type: 3,
+                    image_buffer: {buffer: '/9j/4AAQSkZJRgABAQAAAQABAAD...', len: 4660},
+                }),
+            ],
+        }));
+        expect(msg.type).toBe('image');
+        expect(msg.mediaId).toContain('/9j/4AAQSkZJRgABAQAAAQABAAD');
+    });
+
+    it('extracts real sender for group image message from content prefix', () => {
+        const msg = parseWechatMessage(makePayload({
+            new_messages: [
+                makePushItem({
+                    type: 3,
+                    sender: {value: '47275691424@chatroom'},
+                    receiver: {value: 'wxid_ahl9az25aljx22'},
+                    content: {value: 'wxid_5jfnhtqy74xr22:\n<?xml version="1.0"?><msg><img/></msg>'},
+                    push_content: '李芈仙在群聊中发了一张图片',
+                    image_buffer: {len: 0},
+                }),
+            ],
+        }));
+
+        expect(msg.source).toBe('group');
+        expect(msg.room?.id).toBe('47275691424@chatroom');
+        expect(msg.from).toBe('wxid_5jfnhtqy74xr22');
+        expect(msg.senderName).toBe('李芈仙');
+        expect(msg.type).toBe('image');
+    });
+
     it('parses voice message', () => {
         const msg = parseWechatMessage(makePayload({
             new_messages: [makePushItem({type: 34})],
