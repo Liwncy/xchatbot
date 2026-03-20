@@ -183,6 +183,12 @@ export interface Env {
     COMMON_PLUGINS_CONFIG_URL?: string;
     /** 拉取通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_PLUGINS_CLIENT_ID?: string;
+    /** 拉取动态通用插件远程配置时使用的 clientid 请求头。 */
+    COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;
+    /** 拉取 workflow 通用插件远程配置时使用的 clientid 请求头。 */
+    COMMON_WORKFLOW_PLUGINS_CLIENT_ID?: string;
+    /** 兼容旧变量名：拉取动态通用插件远程配置时使用的 clientid 请求头。 */
+    COMMON_ADVANCED_PLUGINS_CLIENT_ID?: string;
     // AI 插件
     /** AI 插件使用的聊天接口 URL。 */
     AI_API_URL?: string;

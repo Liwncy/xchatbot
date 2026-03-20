@@ -1,6 +1,12 @@
 import type {TextMessage} from '../types';
 import {logger} from '../../utils/logger';
-import {arrayBufferToBase64} from '../../utils/binary';
+import {
+    extractValueByMode,
+    toLinkReply,
+} from './shared';
+import {loadRemoteRules} from './remote-config';
+import {createCachedRuleParser} from './parser';
+import {buildCommonReply} from './reply-builder';
 
 type CommonPluginMode = 'text' | 'base64' | 'json';
 type CommonPluginReplyType = 'text' | 'image' | 'video' | 'voice' | 'link';
@@ -36,23 +42,16 @@ interface LegacyRule {
     linkPicUrl?: string;
 }
 
-let cachedRaw = '';
-let cachedRules: CommonPluginRule[] = [];
-let remoteCacheKey = '';
-let remoteCachedRules: CommonPluginRule[] = [];
-let remoteCacheExpiresAt = 0;
-
-const REMOTE_CONFIG_CACHE_MS = 60_000;
-
 /** 将关键词统一为字符串或字符串数组；支持 `a|b|c` 写法。 */
 function normalizeKeyword(keyword: string | string[] | undefined): string | string[] | undefined {
     if (!keyword) return undefined;
-    if (Array.isArray(keyword)) {
-        const items = keyword.map((k) => k.trim()).filter(Boolean);
-        return items.length ? items : undefined;
-    }
 
-    const split = keyword.split('|').map((k) => k.trim()).filter(Boolean);
+    const rawItems = Array.isArray(keyword) ? keyword : [keyword];
+    const split = rawItems
+        .flatMap((item) => item.split('|'))
+        .map((k) => k.trim())
+        .filter(Boolean);
+
     if (!split.length) return undefined;
     return split.length === 1 ? split[0] : split;
 }
@@ -99,39 +98,10 @@ function toRule(item: LegacyRule): CommonPluginRule | null {
     };
 }
 
-function parseRules(raw: string | undefined): CommonPluginRule[] {
-    const source = (raw ?? '').trim();
-    if (!source) return [];
-    // Raw 字符串未变化时复用解析结果，避免重复 JSON.parse。
-    if (source === cachedRaw) return cachedRules;
-
-    try {
-        const parsed = JSON.parse(source) as unknown;
-        const list = Array.isArray(parsed)
-            ? parsed
-            : (parsed as { keywordMapping?: unknown })?.keywordMapping;
-
-        if (!Array.isArray(list)) {
-            logger.warn('COMMON_PLUGINS 配置不是数组/keywordMapping，已忽略');
-            cachedRaw = source;
-            cachedRules = [];
-            return cachedRules;
-        }
-
-        cachedRaw = source;
-        // 兼容旧字段并过滤无效规则，最终统一为 CommonPluginRule。
-        cachedRules = list
-            .map((item) => (item && typeof item === 'object' ? toRule(item as LegacyRule) : null))
-            .filter((item): item is CommonPluginRule => Boolean(item));
-
-        return cachedRules;
-    } catch (err) {
-        logger.error('COMMON_PLUGINS 配置 JSON 解析失败', err);
-        cachedRaw = source;
-        cachedRules = [];
-        return cachedRules;
-    }
-}
+const parseRules = createCachedRuleParser<CommonPluginRule>({
+    logPrefix: 'COMMON_PLUGINS',
+    mapItem: (item) => toRule(item as LegacyRule),
+});
 
 /** 判断消息内容是否包含任一关键词。 */
 function keywordMatched(content: string, keyword: string | string[]): boolean {
@@ -139,170 +109,6 @@ function keywordMatched(content: string, keyword: string | string[]): boolean {
     return keywords.some((k) => k && content.includes(k));
 }
 
-function getByJsonPath(data: unknown, jsonPath: string): unknown {
-    const normalized = jsonPath.replace(/^\$\.?/, '');
-    if (!normalized) return data;
-
-    // 支持简单路径：a.b[0].c / a.b[x].c（x 表示数组随机项，不支持过滤表达式）。
-    const tokens = normalized.match(/[^.[\]]+|\[(\d+|x)]/gi) ?? [];
-    let current: unknown = data;
-
-    for (const token of tokens) {
-        if (current == null) return undefined;
-
-        if (token.startsWith('[') && token.endsWith(']')) {
-            if (!Array.isArray(current)) return undefined;
-
-            const rawIndex = token.slice(1, -1).toLowerCase();
-            const idx = rawIndex === 'x'
-                ? (current.length ? Math.floor(Math.random() * current.length) : -1)
-                : Number(rawIndex);
-
-            if (!Number.isInteger(idx) || idx < 0) return undefined;
-            current = current[idx];
-            continue;
-        }
-
-        if (typeof current !== 'object') return undefined;
-        current = (current as Record<string, unknown>)[token];
-    }
-
-    return current;
-}
-
-/** 去除 data URL 前缀，返回纯 base64 字符串。 */
-function normalizeBase64(value: string): string {
-    const trimmed = value.trim();
-    const match = trimmed.match(/^data:[^;]+;base64,(.+)$/i);
-    return match?.[1] ?? trimmed;
-}
-
-/** 判断字符串是否为 http/https URL。 */
-function isHttpUrl(value: string): boolean {
-    return /^https?:\/\//i.test(value.trim());
-}
-
-/** 粗略判断字符串是否为 base64。 */
-function looksLikeBase64(value: string): boolean {
-    const normalized = value.replace(/\s+/g, '');
-    if (!normalized || normalized.length % 4 !== 0) return false;
-    return /^[A-Za-z0-9+/=]+$/.test(normalized);
-}
-
-async function toMediaPayload(value: unknown): Promise<string | null> {
-    const raw = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
-    if (!raw) return null;
-
-    const normalized = normalizeBase64(raw);
-    if (looksLikeBase64(normalized)) {
-        // 已是 base64（含 data URL 或纯 base64）时直接复用。
-        return normalized;
-    }
-
-    if (isHttpUrl(raw)) {
-        // URL 模式会下载资源并转为 base64，统一走微信发送接口。
-        const mediaRes = await fetch(raw);
-        if (!mediaRes.ok) {
-            logger.error('通用插件媒体下载失败', {url: raw, status: mediaRes.status});
-            return null;
-        }
-        const buffer = await mediaRes.arrayBuffer();
-        return arrayBufferToBase64(buffer);
-    }
-
-    // Last resort: return normalized string to keep backward compatibility.
-    return normalized;
-}
-
-/** 关键词兜底文本（用于 link 标题/描述默认值）。 */
-function keywordFallback(keyword: string | string[]): string {
-    if (Array.isArray(keyword)) {
-        return keyword.find((k) => k && k.trim())?.trim() ?? '链接消息';
-    }
-    return keyword?.trim() || '链接消息';
-}
-
-/** 将提取值转换为 link(news) 回复结构。 */
-function toLinkReply(rule: CommonPluginRule, value: unknown) {
-    const keywordText = keywordFallback(rule.keyword);
-    const defaultTitle = rule.linkTitle?.trim() || keywordText;
-    const defaultDescription = rule.linkDescription?.trim() || `${keywordText}的链接`;
-
-    if (typeof value === 'string') {
-        const url = value.trim();
-        if (!url) return null;
-        return {
-            type: 'news' as const,
-            articles: [
-                {
-                    title: defaultTitle,
-                    description: defaultDescription,
-                    url,
-                    picUrl: rule.linkPicUrl ?? '',
-                },
-            ],
-        };
-    }
-
-    if (value && typeof value === 'object') {
-        const obj = value as Record<string, unknown>;
-        const url = typeof obj.url === 'string' ? obj.url.trim() : '';
-        if (!url) return null;
-        return {
-            type: 'news' as const,
-            articles: [
-                {
-                    title: (typeof obj.title === 'string' && obj.title.trim()) || defaultTitle,
-                    description:
-                        (typeof obj.description === 'string' && obj.description.trim()) || defaultDescription,
-                    url,
-                    picUrl: (typeof obj.picUrl === 'string' && obj.picUrl.trim()) || rule.linkPicUrl || '',
-                },
-            ],
-        };
-    }
-
-    return null;
-}
-
-/** 按规则回复类型组装最终回复对象。 */
-async function toReply(rule: CommonPluginRule, value: unknown) {
-    const rType = rule.rType;
-    if (rType === 'text') {
-        const content = typeof value === 'string' ? value : JSON.stringify(value);
-        return content ? {type: 'text' as const, content} : null;
-    }
-
-    if (rType === 'link') {
-        return toLinkReply(rule, value);
-    }
-
-    const mediaId = await toMediaPayload(value);
-    if (!mediaId) return null;
-    return {type: rType, mediaId};
-}
-
-async function extractValueByMode(rule: CommonPluginRule, response: Response): Promise<unknown> {
-    if (rule.mode === 'text') {
-        return response.text();
-    }
-
-    if (rule.mode === 'base64') {
-        const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
-        if (contentType.includes('application/json') || contentType.startsWith('text/')) {
-            const text = await response.text();
-            return normalizeBase64(text);
-        }
-
-        const buffer = await response.arrayBuffer();
-        return arrayBufferToBase64(buffer);
-    }
-
-    // json 模式：先反序列化，再按 jsonPath 抽取目标字段。
-    const payload = (await response.json()) as unknown;
-    if (!rule.jsonPath) return payload;
-    return getByJsonPath(payload, rule.jsonPath);
-}
 
 /**
  * 通用插件引擎。
@@ -356,7 +162,7 @@ export const commonPluginsEngine: TextMessage = {
                 return null;
             }
 
-            const value = await extractValueByMode(matchedRule, response);
+            const value = await extractValueByMode(response, matchedRule.mode, matchedRule.jsonPath);
             if (value === undefined || value === null || value === '') {
                 logger.warn('通用插件未提取到有效返回值', {
                     url: matchedRule.url,
@@ -366,7 +172,7 @@ export const commonPluginsEngine: TextMessage = {
                 return null;
             }
 
-            return await toReply(matchedRule, value);
+            return await buildCommonReply(matchedRule, value, '通用插件');
         } catch (err) {
             logger.error('通用插件处理异常', err);
             return null;
@@ -393,31 +199,11 @@ async function resolveRules(env: {
     if (!remoteUrl) return [];
 
     const clientId = env.COMMON_PLUGINS_CLIENT_ID?.trim() ?? '';
-    const cacheKey = `${remoteUrl}|${clientId}`;
-    const now = Date.now();
-    // 远程配置短缓存，降低请求频率并保持可热更新。
-    if (cacheKey === remoteCacheKey && now < remoteCacheExpiresAt) {
-        return remoteCachedRules;
-    }
-
-    try {
-        const headers: Record<string, string> = {};
-        if (clientId) headers.clientid = clientId;
-
-        const response = await fetch(remoteUrl, {method: 'GET', headers});
-        if (!response.ok) {
-            logger.error('通用插件远程配置请求失败', {status: response.status, url: remoteUrl});
-            return [];
-        }
-
-        const rawText = await response.text();
-        const rules = parseRules(rawText);
-        remoteCacheKey = cacheKey;
-        remoteCachedRules = rules;
-        remoteCacheExpiresAt = now + REMOTE_CONFIG_CACHE_MS;
-        return rules;
-    } catch (err) {
-        logger.error('通用插件远程配置加载异常', err);
-        return [];
-    }
+    return loadRemoteRules({
+        cacheNamespace: 'common-base',
+        remoteUrl,
+        clientId,
+        parseRules: (rawText) => parseRules(rawText),
+        logPrefix: '通用插件',
+    });
 }

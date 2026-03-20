@@ -10,9 +10,13 @@ import {catImagePlugin} from './demo/cat-image';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {todayWifePlugin} from './meitu/today-wife';
 import {commonPluginsEngine} from './common/base';
+import {dynamicCommonPluginsEngine} from './common/dynamic';
+import {workflowCommonPluginsEngine} from './common/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
+pluginManager.register(workflowCommonPluginsEngine);
+pluginManager.register(dynamicCommonPluginsEngine);
 pluginManager.register(commonPluginsEngine);
 pluginManager.register(aiDialogPlugin);
 pluginManager.register(todayWifePlugin);

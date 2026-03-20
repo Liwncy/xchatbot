@@ -82,6 +82,26 @@ describe('commonPluginsEngine', () => {
         expect((reply as { content: string }).content).toContain('hello from api');
     });
 
+    it('supports pipe-separated aliases in keyword string', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '摸鱼日报|今日摸鱼|上班日报',
+                    url: 'https://api.example.com/moyu',
+                    mode: 'text',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(new Response('摸鱼快乐', {status: 200}));
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '今日摸鱼'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toContain('摸鱼快乐');
+    });
+
     it('supports jsonPath array random index with [x]', async () => {
         const env: Env = {
             COMMON_PLUGINS_CONFIG: JSON.stringify([
@@ -107,6 +127,131 @@ describe('commonPluginsEngine', () => {
         expect(reply).not.toBeNull();
         expect((reply as { type: string }).type).toBe('text');
         expect((reply as { content: string }).content).toBe('second');
+    });
+
+    it('supports jsonPath concatenation with +', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '拼接地址',
+                    url: 'https://api.example.com/addr',
+                    mode: 'json',
+                    jsonPath: '$.data.province + "-" + $.data.city',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({data: {province: '北京', city: '朝阳'}}),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '拼接地址'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe('北京-朝阳');
+    });
+
+    it('supports jsonPath sibling list with comma', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '并列字段',
+                    url: 'https://api.example.com/fields',
+                    mode: 'json',
+                    jsonPath: '$.data.a,$.data.b',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({data: {a: 'A', b: 'B'}}),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '并列字段'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe('["A","B"]');
+    });
+
+    it('supports auto array matching without index in jsonPath', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '油价标题',
+                    url: 'https://api.example.com/oil',
+                    mode: 'json',
+                    jsonPath: '$.prices.title',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    prices: [
+                        {title: '山东92#汽油', price: '7.60'},
+                        {title: '山东95#汽油', price: '8.15'},
+                    ],
+                }),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '油价标题'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe('["山东92#汽油","山东95#汽油"]');
+    });
+
+    it('supports lines() in jsonPath for array object formatting', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '山东油价',
+                    url: 'https://api.example.com/oil-price',
+                    mode: 'json',
+                    jsonPath: "$.city + $.tips + ':\\n' + lines($.prices,'{title}:{price}')",
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    data: 200,
+                    city: '山东',
+                    tips: '下次油价3月23日24时调整',
+                    prices: [
+                        {title: '山东92#汽油', price: '7.60'},
+                        {title: '山东95#汽油', price: '8.15'},
+                        {title: '山东98#汽油', price: '9.15'},
+                        {title: '山东0#柴油', price: '7.21'},
+                    ],
+                }),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '查山东油价'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe(
+            '山东下次油价3月23日24时调整:\n' +
+            '山东92#汽油:7.60\n' +
+            '山东95#汽油:8.15\n' +
+            '山东98#汽油:9.15\n' +
+            '山东0#柴油:7.21',
+        );
     });
 
     it('returns null when no rule matches keyword', async () => {
