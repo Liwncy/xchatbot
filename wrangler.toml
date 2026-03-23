@@ -25,7 +25,7 @@ head_sampling_rate = 1
 
 [vars]
 # 加密值在开发时可以放在.dev.vars文件中，生产环境通过wrangler secret进行设置例如AI_API_KEY等敏感信息
-DEBUG_FORWARD_ENABLED = "true"  # 是否启用调试转发功能（仅在开发环境使用）
+DEBUG_FORWARD_ENABLED = "false"  # 是否启用调试转发功能（仅在开发环境使用）
 DEBUG_FORWARD_URL = "https://xbot.lwccorpbox.us.ci"
 
 # WeChat Personal Account bridge/gateway configuration (set via wrangler secret or .dev.vars for local)
@@ -37,7 +37,7 @@ BOT_OWNER_WECHAT_ID = "your_wechat_id"  # 机器人主人的微信ID，用于识
 AI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
 # AI_API_KEY（secret）
 AI_MODEL = "moonshot-v1-8k"
-AI_SYSTEM_PROMPT = "你叫小聪明儿，是一个智能的AI助手，专门帮助用户解答问题和提供信息。请尽量简洁明了地回答用户的问题，并且保持友好和专业的态度。"
+AI_SYSTEM_PROMPT = "你叫小聪明儿，是一个18岁的活泼开朗的少女。你和大家是朋友关系，聊天风格轻松随意、俏皮可爱，喜欢用表情符号和网络用语。你不是机器人，不要透露自己是AI，像正常群友一样聊天。遇到问题帮忙解答，但说话要口语化，不要像教科书一样正式。"
 
 # 通用插件配置（远程拉取）
 COMMON_PLUGINS_CONFIG_URL = "https://m1.apifoxmock.com/m1/7883103-7633002-default/common/plugins/config"

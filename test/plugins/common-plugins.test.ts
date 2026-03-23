@@ -531,4 +531,82 @@ describe('commonPluginsEngine', () => {
             },
         );
     });
+
+    it('supports message template params in url (e.g. {{message.from}})', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '查用户',
+                    url: 'https://api.example.com/profile?id={{message.from}}&to={{message.to}}',
+                    mode: 'text',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(new Response('ok', {status: 200}));
+
+        const reply = await commonPluginsEngine.handle(
+            makeMessage({content: '查用户信息', from: 'wxid_from_001', to: 'wxid_to_001'}),
+            env,
+        );
+
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            'https://api.example.com/profile?id=wxid_from_001&to=wxid_to_001',
+            {method: 'GET', headers: undefined},
+        );
+    });
+
+    it('supports alternate __message.from__ placeholder syntax in url', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '查用户2',
+                    url: 'https://api.example.com/profile?id=__message.from__&to=__message.to__',
+                    mode: 'text',
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(new Response('ok', {status: 200}));
+
+        const reply = await commonPluginsEngine.handle(
+            makeMessage({content: '查用户2', from: 'wxid_from_002', to: 'wxid_to_002'}),
+            env,
+        );
+
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            'https://api.example.com/profile?id=wxid_from_002&to=wxid_to_002',
+            {method: 'GET', headers: undefined},
+        );
+    });
+
+    it('supports message template params for base64-link shortcut mode', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '个人主页',
+                    url: 'https://example.com/u/{{message.from}}',
+                    mode: 'base64',
+                    rType: 'link',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn();
+        const reply = await commonPluginsEngine.handle(
+            makeMessage({content: '看个人主页', from: 'wxid_abc_123'}),
+            env,
+        );
+
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('news');
+        expect((reply as { articles: Array<{ url: string }> }).articles[0].url).toBe('https://example.com/u/wxid_abc_123');
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
 });

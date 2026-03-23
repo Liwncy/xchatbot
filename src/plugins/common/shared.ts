@@ -358,12 +358,20 @@ export function toLinkReply(source: LinkReplySource, value: unknown) {
     return null;
 }
 
-/** 字符串模板替换：支持 `{{var}}`。 */
+/**
+ * 字符串模板替换：支持 `{{var}}` 与 `__var__`。
+ *
+ * `__var__` 主要用于某些配置平台不允许出现 `{{` / `}}` 的场景。
+ */
 export function renderTemplateString(value: string, params: Record<string, string>, encode = false): string {
-    return value.replace(/{{\s*([\w.-]+)\s*}}/g, (_m, key: string) => {
+    const renderValue = (key: string) => {
         const raw = params[key] ?? '';
         return encode ? encodeURIComponent(raw) : raw;
-    });
+    };
+
+    return value
+        .replace(/{{\s*([\w.-]+)\s*}}/g, (_m, key: string) => renderValue(key))
+        .replace(/__([\w.-]+)__/g, (_m, key: string) => renderValue(key));
 }
 
 /** 深度渲染对象/数组中的模板字段。 */

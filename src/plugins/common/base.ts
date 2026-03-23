@@ -1,7 +1,8 @@
 import type {TextMessage} from '../types';
 import {logger} from '../../utils/logger';
 import {
-    extractValueByMode,
+    fetchTemplatedValue,
+    renderTemplateString,
     toLinkReply,
 } from './shared';
 import {loadRemoteRules} from './remote-config';
@@ -109,6 +110,32 @@ function keywordMatched(content: string, keyword: string | string[]): boolean {
     return keywords.some((k) => k && content.includes(k));
 }
 
+/** 构建可用于模板替换的消息参数（示例：{{message.from}}）。 */
+function buildMessageParams(message: Parameters<TextMessage['handle']>[0]): Record<string, string> {
+    const params: Record<string, string> = {
+        'message.platform': message.platform,
+        'message.type': message.type,
+        'message.from': message.from,
+        'message.to': message.to,
+        'message.source': message.source ?? '',
+        'message.content': message.content ?? '',
+        'message.timestamp': String(message.timestamp),
+        'message.messageId': message.messageId,
+        'message.senderName': message.senderName ?? '',
+        // 简短别名，方便配置书写。
+        from: message.from,
+        to: message.to,
+        content: message.content ?? '',
+        messageId: message.messageId,
+        timestamp: String(message.timestamp),
+    };
+
+    if (message.room?.id) params['message.room.id'] = message.room.id;
+    if (message.room?.topic) params['message.room.topic'] = message.room.topic;
+    if (message.mediaId) params['message.mediaId'] = message.mediaId;
+    return params;
+}
+
 
 /**
  * 通用插件引擎。
@@ -127,6 +154,7 @@ export const commonPluginsEngine: TextMessage = {
     handle: async (message, env) => {
         const content = (message.content ?? '').trim();
         if (!content) return null;
+        const templateParams = buildMessageParams(message);
 
         const rules = await resolveRules(env);
         if (!rules.length) return null;
@@ -137,32 +165,21 @@ export const commonPluginsEngine: TextMessage = {
         try {
             // For link replies in base64 mode, treat rule.url as the final link and skip API fetch.
             if (matchedRule.mode === 'base64' && matchedRule.rType === 'link') {
-                return toLinkReply(matchedRule, matchedRule.url);
+                return toLinkReply(matchedRule, renderTemplateString(matchedRule.url, templateParams, true));
             }
 
-            const method = matchedRule.method ?? 'GET';
-            const requestInit: RequestInit = {
-                method,
-                headers: matchedRule.headers,
-            };
-
-            if (method === 'POST' && matchedRule.body !== undefined) {
-                requestInit.body = typeof matchedRule.body === 'string'
-                    ? matchedRule.body
-                    : JSON.stringify(matchedRule.body);
-            }
-
-            const response = await fetch(matchedRule.url, requestInit);
-            if (!response.ok) {
-                logger.error('通用插件请求失败', {
-                    status: response.status,
+            const value = await fetchTemplatedValue(
+                {
                     url: matchedRule.url,
-                    rule: matchedRule.name ?? matchedRule.keyword,
-                });
-                return null;
-            }
-
-            const value = await extractValueByMode(response, matchedRule.mode, matchedRule.jsonPath);
+                    method: matchedRule.method,
+                    headers: matchedRule.headers,
+                    body: matchedRule.body,
+                    mode: matchedRule.mode,
+                    jsonPath: matchedRule.jsonPath,
+                },
+                templateParams,
+                '通用插件',
+            );
             if (value === undefined || value === null || value === '') {
                 logger.warn('通用插件未提取到有效返回值', {
                     url: matchedRule.url,
