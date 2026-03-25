@@ -6,23 +6,23 @@
  */
 
 import {pluginManager} from './manager.js';
-import {catImagePlugin} from './demo/cat-image';
 import {aiDialogPlugin} from './ai/ai-dialog';
-import {todayWifePlugin} from './meitu/today-wife';
 import {videoLinkParserPlugin} from './video/video-link-parser';
+import {helpPlugin} from './system/help';
 import {commonPluginsEngine} from './common/base';
 import {dynamicCommonPluginsEngine} from './common/dynamic';
 import {workflowCommonPluginsEngine} from './common/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
-pluginManager.register(videoLinkParserPlugin);
-pluginManager.register(workflowCommonPluginsEngine);
-pluginManager.register(dynamicCommonPluginsEngine);
+pluginManager.register(helpPlugin);
+// 通用插件配置
 pluginManager.register(commonPluginsEngine);
+pluginManager.register(dynamicCommonPluginsEngine);
+pluginManager.register(workflowCommonPluginsEngine);
+// 自定义插件
 pluginManager.register(aiDialogPlugin);
-pluginManager.register(todayWifePlugin);
-pluginManager.register(catImagePlugin);
+pluginManager.register(videoLinkParserPlugin);
 pluginManager.register(imageIntentTriggerPlugin);
 pluginManager.register(imageIntentProcessPlugin);
 

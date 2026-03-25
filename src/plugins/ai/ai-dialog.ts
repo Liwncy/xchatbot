@@ -34,7 +34,7 @@ function normalizeAiText(data: OpenAiLikeResponse): string | null {
 export const aiDialogPlugin: TextMessage = {
     type: 'text',
     name: 'ai-dialog',
-    description: '文本包含"小聪明儿"时调用 AI 接口回复',
+    description: '提到“小聪明儿”时由 AI 回复',
 
     match: (content) => content.includes('小聪明儿'),
 

@@ -146,7 +146,7 @@ function buildMessageParams(message: Parameters<TextMessage['handle']>[0]): Reco
 export const commonPluginsEngine: TextMessage = {
     type: 'text',
     name: 'common-plugins-engine',
-    description: '根据 COMMON_PLUGINS_CONFIG/COMMON_PLUGINS_MAPPING 动态匹配关键词并请求外部接口',
+    description: '按关键词匹配通用配置并请求接口',
 
     // Always true, register this plugin after specific plugins.
     match: () => true,

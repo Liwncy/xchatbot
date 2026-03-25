@@ -15,7 +15,7 @@ interface CatApiItem {
 export const catImagePlugin: TextMessage = {
     type: 'text',
     name: 'cat-image',
-    description: '发送"看看猫咪"获取随机猫咪图片',
+    description: '发送“看看猫咪”返回随机猫图',
 
     match: (content) => content.includes('看看猫咪'),
 

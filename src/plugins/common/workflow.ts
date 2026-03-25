@@ -159,7 +159,7 @@ async function executeWorkflow(rule: WorkflowCommonRule, baseParams: Record<stri
 export const workflowCommonPluginsEngine: TextMessage = {
     type: 'text',
     name: 'workflow-common-plugins-engine',
-    description: '支持多步骤请求编排的 workflow 通用插件引擎',
+    description: '支持多步骤编排的通用插件',
     match: () => true,
     handle: async (message, env) => {
         const content = (message.content ?? '').trim();

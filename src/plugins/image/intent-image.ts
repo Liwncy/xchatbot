@@ -144,7 +144,7 @@ async function resolveImageDataForRecognize(
 export const imageIntentTriggerPlugin: TextMessage = {
     type: 'text',
     name: 'image-intent-trigger',
-    description: '用户明确提出识图需求后，开启短时图片处理窗口',
+    description: '识图入口：收到指令后等待图片',
     match: (content) => TRIGGER_KEYWORDS.some((k) => content.includes(k)),
     handle: async (message) => {
         pendingImageBySession.set(getSessionKey(message), Date.now() + WAIT_IMAGE_TTL_MS);
@@ -158,7 +158,7 @@ export const imageIntentTriggerPlugin: TextMessage = {
 export const imageIntentProcessPlugin: ImageMessage = {
     type: 'image',
     name: 'image-intent-process',
-    description: '仅处理已明确触发识图意图后的图片消息',
+    description: '处理识图流程中的图片消息',
     match: (message) => hasPendingIntent(message),
     handle: async (message, env) => {
         pendingImageBySession.delete(getSessionKey(message));

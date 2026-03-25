@@ -108,7 +108,7 @@ async function resolveRules(env: {
 export const dynamicCommonPluginsEngine: TextMessage = {
     type: 'text',
     name: 'dynamic-common-plugins-engine',
-    description: '支持参数化匹配与模板渲染的动态通用插件引擎',
+    description: '支持参数提取的动态通用插件',
     match: () => true,
     handle: async (message, env) => {
         const content = (message.content ?? '').trim();

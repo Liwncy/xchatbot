@@ -150,7 +150,7 @@ function normalizeApiResult(
 export const videoLinkParserPlugin: TextMessage = {
     type: 'text',
     name: 'video-link-parser',
-    description: '识别短视频分享链接，调用解析 API 后返回链接消息',
+    description: '解析短视频分享链接并返回卡片',
 
     match: (content) => Boolean(findShortVideoShareUrl(content)),
 

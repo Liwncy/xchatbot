@@ -28,7 +28,7 @@ interface TodayWifeApiResponse {
 export const todayWifePlugin: TextMessage = {
     type: 'text',
     name: 'today-wife',
-    description: '发送"今日老婆"获取今日二次元老婆图片',
+    description: '发送“今日老婆”返回今日老婆图',
 
     match: (content) => content.includes('今日老婆'),
 
