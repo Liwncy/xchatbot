@@ -121,9 +121,17 @@ function toArray(value: unknown): unknown[] {
 function renderArrayItemTemplate(template: string, item: unknown, index: number): string {
     if (!item || typeof item !== 'object') return template;
     const obj = item as Record<string, unknown>;
+    const indexText = String(index + 1);
+    const normalizedTemplate = template
+        // 兼容旧写法
+        .replace(/\{#\}/g, indexText)
+        // 新增更易读写法
+        .replace(/\{index\}/gi, indexText)
+        .replace(/\{i\}/gi, indexText)
+        // 新增无花括号写法，避免与某些配置平台模板语法冲突
+        .replace(/__index__/gi, indexText);
 
-    return template
-        .replace(/\{#\}/g, String(index + 1))
+    return normalizedTemplate
         .replace(/\{([^{}]+)\}/g, (_m, key: string) => {
             const value = getBySinglePath(obj, key.trim());
             return toPathPieceString(value);
@@ -133,6 +141,13 @@ function renderArrayItemTemplate(template: string, item: unknown, index: number)
 function evalPathToken(token: string, data: unknown): unknown {
     const literal = unquoteToken(token);
     if (literal !== null) return literal;
+
+    const trimmed = token.trim();
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+    if (trimmed === 'true') return true;
+    if (trimmed === 'false') return false;
+    if (trimmed === 'null') return null;
+
     return getBySinglePath(data, token);
 }
 
@@ -145,9 +160,9 @@ function evalFunctionToken(token: string, data: unknown): unknown {
 
     if (fnName === 'lines') {
         if (argTokens.length < 2) return '';
-        const source = toArray(evalPathToken(argTokens[0], data));
-        const template = toPathPieceString(evalPathToken(argTokens[1], data));
-        const separator = argTokens[2] ? toPathPieceString(evalPathToken(argTokens[2], data)) : '\n';
+        const source = toArray(evalExprToken(argTokens[0], data));
+        const template = toPathPieceString(evalExprToken(argTokens[1], data));
+        const separator = argTokens[2] ? toPathPieceString(evalExprToken(argTokens[2], data)) : '\n';
         return source
             .map((item, idx) => renderArrayItemTemplate(template, item, idx))
             .join(separator);
@@ -155,9 +170,19 @@ function evalFunctionToken(token: string, data: unknown): unknown {
 
     if (fnName === 'join') {
         if (argTokens.length < 1) return '';
-        const source = toArray(evalPathToken(argTokens[0], data)).map((v) => toPathPieceString(v));
-        const separator = argTokens[1] ? toPathPieceString(evalPathToken(argTokens[1], data)) : '';
+        const source = toArray(evalExprToken(argTokens[0], data)).map((v) => toPathPieceString(v));
+        const separator = argTokens[1] ? toPathPieceString(evalExprToken(argTokens[1], data)) : '';
         return source.join(separator);
+    }
+
+    // 截取前 N 项：take($.data, 10) / limit($.data, 10)
+    if (fnName === 'take' || fnName === 'limit') {
+        if (argTokens.length < 1) return [];
+        const source = toArray(evalExprToken(argTokens[0], data));
+        const rawCount = argTokens[1] ? evalExprToken(argTokens[1], data) : source.length;
+        const count = Number(rawCount);
+        if (!Number.isFinite(count)) return source;
+        return source.slice(0, Math.max(0, Math.floor(count)));
     }
 
     return undefined;

@@ -254,6 +254,102 @@ describe('commonPluginsEngine', () => {
         );
     });
 
+    it('supports __index__ placeholder in lines() template', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '油价序号',
+                    url: 'https://api.example.com/oil-index',
+                    mode: 'json',
+                    jsonPath: "'' + lines($.prices,'__index__. {title}:{price}')",
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    prices: [
+                        {title: '山东92#汽油', price: '7.60'},
+                        {title: '山东95#汽油', price: '8.15'},
+                    ],
+                }),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '油价序号'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe(
+            '1. 山东92#汽油:7.60\n2. 山东95#汽油:8.15',
+        );
+    });
+
+    it('supports take() in jsonPath to limit array output', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '热榜两条',
+                    url: 'https://api.example.com/hot',
+                    mode: 'json',
+                    jsonPath: "'' + lines(take($.data,2), '{index}. {title}')",
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    data: [
+                        {title: 'A'},
+                        {title: 'B'},
+                        {title: 'C'},
+                    ],
+                }),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '热榜两条'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe('1. A\n2. B');
+    });
+
+    it('supports limit() alias in jsonPath', async () => {
+        const env: Env = {
+            COMMON_PLUGINS_CONFIG: JSON.stringify([
+                {
+                    keyword: '热榜一条',
+                    url: 'https://api.example.com/hot-one',
+                    mode: 'json',
+                    jsonPath: "'' + lines(limit($.data,1), '{index}. {title}')",
+                    rType: 'text',
+                },
+            ]),
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    data: [
+                        {title: 'A'},
+                        {title: 'B'},
+                    ],
+                }),
+                {status: 200, headers: {'Content-Type': 'application/json'}},
+            ),
+        );
+
+        const reply = await commonPluginsEngine.handle(makeMessage({content: '热榜一条'}), env);
+        expect(reply).not.toBeNull();
+        expect((reply as { type: string }).type).toBe('text');
+        expect((reply as { content: string }).content).toBe('1. A');
+    });
+
     it('returns null when no rule matches keyword', async () => {
         const env: Env = {
             COMMON_PLUGINS_CONFIG: JSON.stringify([
