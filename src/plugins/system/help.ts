@@ -54,7 +54,6 @@ function buildHelpText(): string {
         '- 帮助 / help / 插件列表',
         '- 帮助 插件名（查看单个插件详情）',
         '- 小聪明儿 今天天气怎么样',
-        '- 今日老婆',
     ].join('\n');
 }
 

@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {todayWifePlugin} from '../../src/plugins/meitu/today-wife.js';
+import {todayWifePlugin} from '../../src/plugins/demo/today-wife.js';
 import type {IncomingMessage, Env} from '../../src/types/message.js';
 
 const env: Env = {};
