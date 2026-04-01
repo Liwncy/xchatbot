@@ -49,3 +49,13 @@ COMMON_DYNAMIC_PLUGINS_CLIENT_ID = "dynamic_client_id"
 # workflow 通用插件远程拉取 clientid（与 COMMON_PLUGINS_CLIENT_ID 可不同）
 COMMON_WORKFLOW_PLUGINS_CLIENT_ID = "workflow_client_id"
 
+# ── KV 命名空间绑定 ──
+[[kv_namespaces]]
+binding = "XBOT_KV"
+id = "b9e4e9631e9849efb433441111db831f"
+
+# ── D1 数据库绑定 ──
+[[d1_databases]]
+binding = "XBOT_DB"
+database_name = "xbotdata"
+database_id = "941571aa-a060-4d08-9cad-44b439b03c11"

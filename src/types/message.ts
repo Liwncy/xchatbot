@@ -167,6 +167,12 @@ export type MessageHandler = (
 
 /** Cloudflare Workers 环境变量绑定 */
 export interface Env {
+    // ── 存储绑定 ──
+    /** KV 命名空间（XBOT_KV） */
+    XBOT_KV: KVNamespace;
+    /** D1 数据库（xbotdata） */
+    XBOT_DB: D1Database;
+
     // 全局调试透传（开启后所有请求直接转发到调试地址）
     DEBUG_FORWARD_ENABLED?: string;
     DEBUG_FORWARD_URL?: string;
