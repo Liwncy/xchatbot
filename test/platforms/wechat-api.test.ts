@@ -148,8 +148,8 @@ describe('WechatApi', () => {
         const api = new WechatApi(BASE_URL);
         await api.revokeMessage({
             receiver: 'wxid_test',
-            client_msg_id: 123,
-            new_msg_id: 456,
+            client_id: 123,
+            new_id: 456,
             create_time: 1700000000,
         });
 
@@ -185,22 +185,22 @@ describe('WechatApi', () => {
         expect(String(url)).toBe(`${BASE_URL}/api/message/sync`);
     });
 
-    it('gets CDN DNS via GET /api/message/cdn/dns', async () => {
+    it('gets CDN DNS via GET /api/message/download/cdn/dns', async () => {
         const api = new WechatApi(BASE_URL);
         await api.getCdnDns();
 
         const [url, init] = mockFetch.mock.calls[0];
-        expect(String(url)).toBe(`${BASE_URL}/api/message/cdn/dns`);
+        expect(String(url)).toBe(`${BASE_URL}/api/message/download/cdn/dns`);
         expect(init?.method).toBe('GET');
         expect((init?.headers as Record<string, string>)?.['User-Agent']).toContain('Mozilla/5.0');
     });
 
-    it('downloads CDN image via POST /api/message/cdn/image', async () => {
+    it('downloads CDN image via POST /api/message/download/cdn/image', async () => {
         const api = new WechatApi(BASE_URL);
         await api.cdnDownloadImage({file_id: 'cdn_file_1', file_aes_key: 'aabbcc'});
 
         const [url, init] = mockFetch.mock.calls[0];
-        expect(url).toBe(`${BASE_URL}/api/message/cdn/image`);
+        expect(url).toBe(`${BASE_URL}/api/message/download/cdn/image`);
         expect(JSON.parse(init?.body as string)).toEqual({file_id: 'cdn_file_1', file_aes_key: 'aabbcc'});
     });
 
@@ -217,28 +217,25 @@ describe('WechatApi', () => {
         await api.downloadFile({
             app_id: 'wx123',
             attach_id: 'att_1',
-            total_len: 1000,
-            data_len: 256,
-            start_pos: 0,
+            size: 1000,
+            chunk_size: 256,
+            offset: 0,
             username: 'wxid_xxx',
         });
         expect(mockFetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/message/download/file`);
 
         await api.downloadImage({
-            msg_id: 1,
+            id: 1,
+            new_id: 100,
             sender: 'wxid_a',
-            receiver: 'wxid_b',
-            total_len: 2000,
-            data_len: 512,
-            start_pos: 0,
-            compress_type: 0,
+            size: 2000,
         });
         expect(mockFetch.mock.calls[1][0]).toBe(`${BASE_URL}/api/message/download/image`);
 
-        await api.downloadVideo({msg_id: 2, total_len: 3000, start_pos: 0, mx_pack_size: 1024});
+        await api.downloadVideo({id: 2, new_id: 200, size: 3000});
         expect(mockFetch.mock.calls[2][0]).toBe(`${BASE_URL}/api/message/download/video`);
 
-        await api.downloadVoice({msg_id: 3, buffer_id_str: 'buf', length: 4096, group_name: ''});
+        await api.downloadVoice({id: 3, new_id: 300, buffer_id: 99, length: 4096, group_id: ''});
         expect(mockFetch.mock.calls[3][0]).toBe(`${BASE_URL}/api/message/download/voice`);
     });
 

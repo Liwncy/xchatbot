@@ -295,8 +295,13 @@ export function looksLikeBase64(value: string): boolean {
     return /^[A-Za-z0-9+/=]+$/.test(normalized);
 }
 
+/** 单个媒体文件的大小上限（20 MB），超过此值网关大概率拒绝。 */
+const MAX_MEDIA_SIZE = 20 * 1024 * 1024;
+
 /**
  * 将返回值标准化为媒体可发送 payload（优先复用 base64，否则下载 URL 转 base64）。
+ *
+ * 下载时会检查文件大小，超过限制则跳过。
  */
 export async function toMediaPayload(value: unknown, logPrefix: string): Promise<string | null> {
     const raw = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
@@ -306,14 +311,54 @@ export async function toMediaPayload(value: unknown, logPrefix: string): Promise
     if (looksLikeBase64(normalized)) return normalized;
 
     if (isHttpUrl(raw)) {
-        const res = await fetch(raw);
-        if (!res.ok) {
-            logger.error(`${logPrefix}媒体下载失败`, {url: raw, status: res.status});
+        try {
+            const res = await fetch(raw, {redirect: 'follow'});
+            if (!res.ok) {
+                logger.error(`${logPrefix}媒体下载失败`, {url: raw, status: res.status});
+                return null;
+            }
+
+            // 检查 Content-Length，超过上限直接跳过以免浪费流量和超时
+            const contentLength = Number(res.headers.get('content-length') ?? '0');
+            if (contentLength > MAX_MEDIA_SIZE) {
+                logger.warn(`${logPrefix}媒体文件过大，跳过下载`, {
+                    url: raw,
+                    size: contentLength,
+                    limit: MAX_MEDIA_SIZE,
+                });
+                return null;
+            }
+
+            const buffer = await res.arrayBuffer();
+            if (buffer.byteLength > MAX_MEDIA_SIZE) {
+                logger.warn(`${logPrefix}媒体文件过大，跳过`, {
+                    url: raw,
+                    size: buffer.byteLength,
+                    limit: MAX_MEDIA_SIZE,
+                });
+                return null;
+            }
+
+            if (buffer.byteLength === 0) {
+                logger.warn(`${logPrefix}媒体下载到空内容`, {url: raw});
+                return null;
+            }
+
+            const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
+            logger.debug(`${logPrefix}媒体下载成功`, {
+                url: raw,
+                size: buffer.byteLength,
+                contentType,
+            });
+
+            return arrayBufferToBase64(buffer);
+        } catch (err) {
+            logger.error(`${logPrefix}媒体下载异常`, {
+                url: raw,
+                error: err instanceof Error ? err.message : String(err),
+            });
             return null;
         }
-
-        const buffer = await res.arrayBuffer();
-        return arrayBufferToBase64(buffer);
     }
 
     return normalized;

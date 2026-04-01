@@ -17,7 +17,8 @@ function ensureWechatApiSuccess(op: string, result: unknown): void {
     const code = (result as { code?: unknown })?.code;
     const message = (result as { message?: unknown })?.message;
     if (typeof code === 'number' && code !== 0) {
-        throw new Error(`${op} failed: code=${code}, message=${String(message ?? '')}`);
+        const detail = JSON.stringify(result).slice(0, 500);
+        throw new Error(`${op} failed: code=${code}, message=${String(message ?? '')}, detail=${detail}`);
     }
 }
 
@@ -340,8 +341,38 @@ export async function sendWechatReply(
             break;
         }
         case 'image': {
-            const result = await api.sendImage({receiver: effectiveReceiver, data: reply.mediaId});
-            ensureWechatApiSuccess('sendImage', result);
+            const dataSize = reply.mediaId?.length ?? 0;
+            const format = detectImageFormat(reply.mediaId);
+            logger.debug('发送图片消息', {
+                receiver: effectiveReceiver,
+                base64Length: dataSize,
+                estimatedBytes: Math.floor(dataSize * 0.75),
+                format,
+                head: reply.mediaId?.slice(0, 20) ?? '',
+            });
+            try {
+                const result = await api.sendImage({receiver: effectiveReceiver, data: reply.mediaId});
+                ensureWechatApiSuccess('sendImage', result);
+            } catch (imgErr) {
+                // 图片发送失败时，尝试降级为链接消息（如果有原始 URL）
+                const originalUrl = (reply as { originalUrl?: string }).originalUrl;
+                if (originalUrl) {
+                    logger.warn('图片发送失败，降级为链接消息', {
+                        error: imgErr instanceof Error ? imgErr.message : String(imgErr),
+                        fallbackUrl: originalUrl,
+                    });
+                    const linkResult = await api.sendLink({
+                        receiver: effectiveReceiver,
+                        url: originalUrl,
+                        title: '📷 图片',
+                        desc: '点击查看原图',
+                        thumb_url: originalUrl,
+                    });
+                    ensureWechatApiSuccess('sendLink(fallback)', linkResult);
+                } else {
+                    throw imgErr;
+                }
+            }
             break;
         }
         case 'voice': {
@@ -390,6 +421,26 @@ function resolveVideoOptions(): { thumbData: string; duration: number } {
         thumbData: DEFAULT_VIDEO_THUMB_BASE64,
         duration: DEFAULT_VIDEO_DURATION,
     };
+}
+
+/**
+ * 通过 base64 开头字节（magic bytes）识别图片格式。
+ *
+ * - JPEG: /9j/
+ * - PNG:  iVBOR
+ * - GIF:  R0lGO
+ * - WEBP: UklGR (RIFF...WEBP)
+ * - BMP:  Qk
+ */
+function detectImageFormat(base64?: string): string {
+    if (!base64) return 'empty';
+    const head = base64.slice(0, 16);
+    if (head.startsWith('/9j/')) return 'jpeg';
+    if (head.startsWith('iVBOR')) return 'png';
+    if (head.startsWith('R0lGO')) return 'gif';
+    if (head.startsWith('UklGR')) return 'webp';
+    if (head.startsWith('Qk')) return 'bmp';
+    return `unknown(${head})`;
 }
 
 function isExpiredMessage(message: IncomingMessage, nowUnixSeconds: number): boolean {

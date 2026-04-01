@@ -36,7 +36,7 @@ import type {
     RevokeMessageResponse,
     GetCdnDnsResponse,
     DownloadAppAttachResponse,
-    GetMsgImgResponse,
+    DownloadImageResponse,
     DownloadVideoResponse,
     DownloadVoiceResponse,
     SyncResult,
@@ -195,14 +195,14 @@ export class WechatApi {
         return this.get<SyncResult>('/api/message/sync');
     }
 
-    /** 获取 CDN DNS 信息。GET /api/message/cdn/dns */
+    /** 获取 CDN DNS 信息。GET /api/message/download/cdn/dns */
     async getCdnDns(): Promise<ApiResponse<GetCdnDnsResponse>> {
-        return this.get<GetCdnDnsResponse>('/api/message/cdn/dns');
+        return this.get<GetCdnDnsResponse>('/api/message/download/cdn/dns');
     }
 
-    /** CDN 下载高清图片（返回 base64 字符串）。POST /api/message/cdn/image */
+    /** CDN 下载高清图片（返回 base64 字符串）。POST /api/message/download/cdn/image */
     async cdnDownloadImage(params: CdnDownloadImageParam): Promise<ApiResponse<string>> {
-        return this.post<string>('/api/message/cdn/image', params);
+        return this.post<string>('/api/message/download/cdn/image', params);
     }
 
     /** 下载文件附件。POST /api/message/download/file */
@@ -211,8 +211,8 @@ export class WechatApi {
     }
 
     /** 下载图片。POST /api/message/download/image */
-    async downloadImage(params: DownloadImgParam): Promise<ApiResponse<GetMsgImgResponse>> {
-        return this.post<GetMsgImgResponse>('/api/message/download/image', params);
+    async downloadImage(params: DownloadImgParam): Promise<ApiResponse<DownloadImageResponse>> {
+        return this.post<DownloadImageResponse>('/api/message/download/image', params);
     }
 
     /** 下载视频。POST /api/message/download/video */

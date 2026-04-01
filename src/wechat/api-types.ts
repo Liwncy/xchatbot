@@ -33,7 +33,7 @@ export interface StringValue {
 
 /** protobuf 的二进制 buffer wrapper。 */
 export interface BufferValue {
-    buffer?: number[];
+    buffer?: number[] | string;
     len: number;
 }
 
@@ -91,7 +91,7 @@ export interface SendEmojiParam {
     receiver: string;
     /** Base64 编码的表情 / GIF 数据。 */
     data: string;
-    /** 表情数据的 MD5 哈希（可选）。 */
+    /** 表情数据的 MD5 哈希（为空时自动计算）。 */
     md5?: string;
 }
 
@@ -151,7 +151,7 @@ export interface SendAppParam {
 export interface ForwardParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** 转发内容类型（图片 / 视频 / 文件）。 */
+    /** 转发内容类型（image / video / file）。 */
     type: string;
     /** 原始消息 XML。 */
     xml: string;
@@ -161,15 +161,15 @@ export interface ForwardParam {
 export interface RevokeParam {
     /** 接收者 wxid（会话）。 */
     receiver: string;
-    /** 要撤回的消息的客户端消息 ID。 */
-    client_msg_id: number;
+    /** 客户端消息 ID。 */
+    client_id: number;
     /** 服务端消息 ID。 */
-    new_msg_id: number;
+    new_id: number;
     /** 原始消息创建时间。 */
     create_time: number;
 }
 
-/** POST /api/message/cdn/image */
+/** POST /api/message/download/cdn/image */
 export interface CdnDownloadImageParam {
     /** CDN 文件 ID（从消息 XML 中获取）。 */
     file_id: string;
@@ -179,49 +179,64 @@ export interface CdnDownloadImageParam {
 
 /** POST /api/message/download/file */
 export interface DownloadFileParam {
-    app_id: string;
-    attach_id: string;
-    total_len: number;
-    data_len: number;
-    start_pos: number;
+    /** 小程序 / App ID。 */
+    app_id?: string;
+    /** 附件媒体 ID，从消息 XML 中获取。 */
+    attach_id?: string;
+    /** 文件总长度（字节）。 */
+    size: number;
+    /** 本次请求长度。 */
+    chunk_size: number;
+    /** 起始位置。 */
+    offset: number;
+    /** 用户名。 */
     username: string;
 }
 
 /** POST /api/message/download/image */
 export interface DownloadImgParam {
-    msg_id: number;
+    /** 消息 ID。 */
+    id: number;
+    /** 新消息 ID。 */
+    new_id: number;
+    /** 发送者 wxid。 */
     sender: string;
-    receiver: string;
-    total_len: number;
-    data_len: number;
-    start_pos: number;
-    compress_type: number;
+    /** 文件总长度（字节），从消息 XML 中获取。 */
+    size: number;
 }
 
 /** POST /api/message/download/video */
 export interface DownloadVideoParam {
-    msg_id: number;
-    total_len: number;
-    start_pos: number;
-    mx_pack_size: number;
+    /** 消息 ID。 */
+    id: number;
+    /** 新消息 ID。 */
+    new_id: number;
+    /** 视频总长度（字节）。 */
+    size: number;
 }
 
 /** POST /api/message/download/voice */
 export interface DownloadVoiceParam {
-    msg_id: number;
-    buffer_id_str: string;
+    /** 消息 ID。 */
+    id: number;
+    /** 新消息 ID。 */
+    new_id: number;
+    /** Data ID，从消息中获取。 */
+    buffer_id: number;
+    /** 语音数据长度。 */
     length: number;
-    group_name: string;
+    /** 群聊名称（非群聊传空字符串）。 */
+    group_id?: string;
 }
 
 // ---------------------------------------------------------------------------
-// 消息 – 响应类型 (messagepb.*)
+// 消息 – 响应类型 (golem_proto_message.*)
 // ---------------------------------------------------------------------------
 
 /** SendMessageResponse 中的单条结果条目。 */
 export interface SendMessageResult {
     /** 客户端消息 ID。 */
-    client_msg_id: number;
+    client_id: number;
     /**
      * 返回码。
      * 0 = 成功，
@@ -231,12 +246,12 @@ export interface SendMessageResult {
     code: number;
     /** 创建时间戳。 */
     create_time: number;
-    /** 服务端消息 ID。 */
-    msg_id: number;
+    /** 消息 ID。 */
+    id: number;
     /** 新消息 ID。 */
-    new_msg_id: number;
+    new_id: number;
     /** 接收者用户名。 */
-    receiver?: string;
+    receiver?: StringValue;
     /** 服务端时间戳。 */
     server_time: number;
     /** 消息类型。 */
@@ -253,15 +268,15 @@ export interface SendMessageResponse {
 
 /** 链接 / 应用 / 转发消息的响应。 */
 export interface SendAppMessageResponse {
-    BaseResponse: BaseResponse;
+    base_response: BaseResponse;
     action_flag: number;
     aes_key: string;
     app_id: string;
-    client_msg_id: string;
+    client_id: string;
     create_time: number;
-    msg_id: number;
-    msg_source: string;
-    new_msg_id: number;
+    extend_xml: string;
+    id: number;
+    new_id: number;
     receiver: string;
     sender: string;
     type: number;
@@ -271,17 +286,17 @@ export interface SendAppMessageResponse {
 export interface UploadImageResponse {
     base_response: BaseResponse;
     aes_key: string;
-    client_img_id?: string;
+    client_id?: StringValue;
     create_time: number;
-    data_len: number;
+    chunk_size: number;
+    extend_xml: string;
     file_id: string;
-    msg_id: number;
-    msg_source: string;
-    new_msg_id: number;
-    receiver?: string;
-    sender?: string;
-    start_pos: number;
-    total_len: number;
+    id: number;
+    new_id: number;
+    offset: number;
+    receiver?: StringValue;
+    sender?: StringValue;
+    size: number;
 }
 
 /** 视频上传的响应。 */
@@ -289,38 +304,43 @@ export interface UploadVideoResponse {
     base_response: BaseResponse;
     action_flag: number;
     aes_key: string;
-    client_msg_id: string;
-    msg_id: number;
-    msg_source: string;
-    new_msg_id: number;
-    thumb_start_pos: number;
-    video_start_pos: number;
+    client_id: string;
+    extend_xml: string;
+    id: number;
+    new_id: number;
+    thumb_offset: number;
+    video_offset: number;
 }
 
 /** 语音上传的响应。 */
 export interface UploadVoiceResponse {
     base_response: BaseResponse;
     cancel_flag: number;
-    client_msg_id: string;
+    client_id: string;
     create_time: number;
     duration: number;
     end_flag: number;
-    length: number;
-    msg_id: number;
-    new_msg_id: number;
+    id: number;
+    new_id: number;
     offset: number;
     receiver: string;
     sender: string;
+    size: number;
 }
 
 /** 单个表情上传结果。 */
 export interface UploadEmojiResult {
+    /** 返回码。 */
+    code: number;
+    /** 消息 ID。 */
+    id: number;
     md5: string;
-    msg_id: number;
-    new_msg_id: number;
-    ret: number;
-    start_pos: number;
-    total_len: number;
+    /** 新消息 ID。 */
+    new_id: number;
+    /** 起始位置。 */
+    offset: number;
+    /** 总长度。 */
+    size: number;
 }
 
 /** 表情上传的响应。 */
@@ -340,65 +360,101 @@ export interface RevokeMessageResponse {
     sys_wording: string;
 }
 
-/** CDN DNS 单个 IP 条目。 */
-export interface CdnIpInfo {
-    ip?: string;
+/** CDN DNS 端口信息。 */
+export interface CdnPortInfo {
+    /** 端口号。 */
+    port?: number;
+    /** 端口类型。 */
+    type?: number;
 }
 
-/** CDN DNS 信息。 */
+/** CDN DNS 单节点信息。 */
 export interface CdnDnsInfo {
     auth_key?: BufferValue;
+    expire_time?: number;
+    fake_uin?: number;
+    front_id?: number;
+    front_ip_count?: number;
+    front_ip_list?: StringValue[];
+    front_port_count?: number;
+    front_port_list?: CdnPortInfo[];
+    new_auth_key?: BufferValue;
     uin?: number;
-    zone_ip_list?: CdnIpInfo[];
+    ver?: number;
+    zone_domain?: string;
+    zone_id?: number;
+    zone_ip_count?: number;
+    zone_ip_list?: StringValue[];
+    zone_port_count?: number;
+    zone_port_list?: CdnPortInfo[];
+}
+
+/** CDN DNS 配置。 */
+export interface CdnDnsConfig {
+    [key: string]: unknown;
 }
 
 /** 获取 CDN DNS 的响应。 */
 export interface GetCdnDnsResponse {
     base_response: BaseResponse;
+    app_dns_info?: CdnDnsInfo;
+    default_config?: CdnDnsConfig;
+    disaster_config?: CdnDnsConfig;
+    dns_info?: CdnDnsInfo;
     fake_dns_info?: CdnDnsInfo;
+    fake_rule_buffer?: number[];
+    interval?: number;
+    moments_dns_info?: CdnDnsInfo;
+    rule_buffer?: number[];
 }
 
 /** 下载文件附件响应。 */
 export interface DownloadAppAttachResponse {
     base_response: BaseResponse;
     app_id?: string;
-    attach_id?: string;
-    data?: BufferValue;
-    data_len?: number;
-    start_pos?: number;
-    total_len?: number;
+    chunk?: BufferValue;
+    chunk_size?: number;
+    media_id?: string;
+    offset?: number;
+    size?: number;
+    username?: string;
 }
 
 /** 下载图片响应。 */
-export interface GetMsgImgResponse {
+export interface DownloadImageResponse {
     base_response: BaseResponse;
-    data?: BufferValue;
-    data_len?: number;
-    start_pos?: number;
+    chunk?: BufferValue;
+    chunk_size?: number;
+    id?: number;
+    new_id?: number;
+    offset?: number;
+    receiver?: StringValue;
+    sender?: StringValue;
+    size?: number;
 }
 
 /** 视频下载响应。 */
 export interface DownloadVideoResponse {
     base_response: BaseResponse;
-    data?: BufferValue;
-    data_len?: number;
-    msg_id?: number;
-    start_pos?: number;
-    total_len?: number;
+    chunk?: BufferValue;
+    id?: number;
+    new_id?: number;
+    offset?: number;
+    size?: number;
 }
 
 /** 语音下载响应。 */
 export interface DownloadVoiceResponse {
     base_response: BaseResponse;
     cancel_flag?: number;
-    client_msg_id?: string;
-    data?: StringValue;
+    client_id?: string;
+    data?: BufferValue;
     duration?: number;
     end_flag?: number;
-    length?: number;
-    msg_id?: number;
-    new_msg_id?: number;
+    id?: number;
+    new_id?: number;
     offset?: number;
+    size?: number;
 }
 
 /** 同步接口返回的新消息。 */
@@ -407,10 +463,14 @@ export interface NewMessage {
     create_time: number;
     image_buffer?: BufferValue;
     image_status?: number;
-    msg_id: number;
-    msg_seq: number;
-    msg_source: string;
-    new_msg_id: number;
+    /** 消息 ID。 */
+    id: number;
+    /** 新消息 ID。 */
+    new_id: number;
+    /** 消息序列号。 */
+    sequence: number;
+    /** 消息来源。 */
+    source: string;
     push_content: string;
     receiver?: StringValue;
     sender?: StringValue;

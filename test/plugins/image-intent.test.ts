@@ -114,7 +114,7 @@ describe('image intent plugins', () => {
         const envWithApi: Env = {WECHAT_API_BASE_URL: 'https://wechat-gateway.example.com'};
         const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
             const url = String(input);
-            if (url.includes('/api/message/cdn/image')) {
+            if (url.includes('/api/message/download/cdn/image')) {
                 return new Response(JSON.stringify({
                     code: 0,
                     message: 'ok',
