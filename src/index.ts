@@ -8,6 +8,9 @@ const KV_DEBUG_URL     = 'debug:forward:url';
 // 调试开关默认 TTL：8 小时（单位：秒）。超时后 KV 自动删除，转发自动关闭。
 const DEBUG_TTL_SECONDS = 8 * 60 * 60;
 
+// 防递归标识头：转发请求时携带此头，Workers 收到后跳过调试转发直接处理
+const DEBUG_FORWARDED_HEADER = 'x-xchatbot-debug-forwarded';
+
 // ── 管理接口鉴权 Token 的 KV Key ──
 // 通过 `wrangler secret put ADMIN_TOKEN` 设置，或放在 .dev.vars
 // 未配置时管理接口不可用
@@ -30,15 +33,19 @@ async function loadDebugConfig(kv: KVNamespace): Promise<{ enabled: boolean; url
     };
 }
 
-/** 将请求原封不动转发到调试地址 */
+/** 将请求原封不动转发到调试地址（附加防递归标识头） */
 async function forwardDebugRequest(request: Request, debugUrl: string): Promise<Response> {
     const incomingUrl = new URL(request.url);
     const targetBase  = new URL(debugUrl);
     const targetUrl   = new URL(incomingUrl.pathname + incomingUrl.search, targetBase);
 
+    // 复制原始请求头，并加入防递归标识
+    const headers = new Headers(request.headers);
+    headers.set(DEBUG_FORWARDED_HEADER, '1');
+
     const init: RequestInit = {
         method: request.method,
-        headers: request.headers,
+        headers,
         redirect: 'manual',
     };
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -140,20 +147,25 @@ export default {
             return handleAdminDebug(request, env);
         }
 
-        // ── 从 KV 读取调试转发配置（无额外延迟，Promise.all 并行）──
-        const debugConfig = await loadDebugConfig(env.XBOT_KV);
-        if (debugConfig.enabled) {
-            if (!debugConfig.url) {
-                return new Response(
-                    JSON.stringify({error: 'debug:forward:url 未在 KV 中配置'}),
-                    {status: 500, headers: {'Content-Type': 'application/json'}},
-                );
-            }
-            try {
-                return await forwardDebugRequest(request, debugConfig.url);
-            } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                return new Response(`Debug forward failed: ${message}`, {status: 502});
+        // ── 防递归：已经是转发过来的请求，直接正常处理 ──
+        if (request.headers.get(DEBUG_FORWARDED_HEADER)) {
+            // 跳过调试转发，走正常流程
+        } else {
+            // ── 从 KV 读取调试转发配置 ──
+            const debugConfig = await loadDebugConfig(env.XBOT_KV);
+            if (debugConfig.enabled) {
+                if (!debugConfig.url) {
+                    return new Response(
+                        JSON.stringify({error: 'debug:forward:url 未在 KV 中配置'}),
+                        {status: 500, headers: {'Content-Type': 'application/json'}},
+                    );
+                }
+                try {
+                    return await forwardDebugRequest(request, debugConfig.url);
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    return new Response(`Debug forward failed: ${message}`, {status: 502});
+                }
             }
         }
 
