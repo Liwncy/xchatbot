@@ -5,6 +5,9 @@ import type {Env} from './types/message.js';
 const KV_DEBUG_ENABLED = 'debug:forward:enabled';
 const KV_DEBUG_URL     = 'debug:forward:url';
 
+// 调试开关默认 TTL：8 小时（单位：秒）。超时后 KV 自动删除，转发自动关闭。
+const DEBUG_TTL_SECONDS = 8 * 60 * 60;
+
 // ── 管理接口鉴权 Token 的 KV Key ──
 // 通过 `wrangler secret put ADMIN_TOKEN` 设置，或放在 .dev.vars
 // 未配置时管理接口不可用
@@ -82,26 +85,36 @@ async function handleAdminDebug(request: Request, env: Env): Promise<Response> {
         }, null, 2), {headers: {'Content-Type': 'application/json'}});
     }
 
-    // POST /admin/debug/enable → 开启
+    // POST /admin/debug/enable → 开启（TTL 自动过期）
     if (request.method === 'POST' && pathname.endsWith('/enable')) {
         let forwardUrl = '';
+        let ttl = DEBUG_TTL_SECONDS;
         try {
-            const body = await request.json() as { url?: string };
+            const body = await request.json() as { url?: string; ttl?: number };
             forwardUrl = body?.url?.trim() ?? '';
+            // 支持自定义 TTL（秒），范围 60s ~ 24h
+            if (body?.ttl && body.ttl >= 60 && body.ttl <= 86400) {
+                ttl = body.ttl;
+            }
         } catch {
             // body 非 JSON 时忽略
         }
 
-        await env.XBOT_KV.put(KV_DEBUG_ENABLED, 'true');
+        // enabled 设置 TTL，到期自动删除 → 转发自动关闭
+        await env.XBOT_KV.put(KV_DEBUG_ENABLED, 'true', {expirationTtl: ttl});
         if (forwardUrl) {
-            await env.XBOT_KV.put(KV_DEBUG_URL, forwardUrl);
+            // URL 同步设置相同 TTL
+            await env.XBOT_KV.put(KV_DEBUG_URL, forwardUrl, {expirationTtl: ttl});
         }
 
         const saved = await env.XBOT_KV.get(KV_DEBUG_URL);
+        const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
         return new Response(JSON.stringify({
-            ok:      true,
-            enabled: true,
-            url:     saved ?? '',
+            ok:        true,
+            enabled:   true,
+            url:       saved ?? '',
+            expiresAt,
+            ttlSeconds: ttl,
         }, null, 2), {headers: {'Content-Type': 'application/json'}});
     }
 
