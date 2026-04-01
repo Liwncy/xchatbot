@@ -25,8 +25,6 @@ head_sampling_rate = 1
 
 [vars]
 # 加密值在开发时可以放在.dev.vars文件中，生产环境通过wrangler secret进行设置例如AI_API_KEY等敏感信息
-DEBUG_FORWARD_ENABLED = "false"  # 是否启用调试转发功能（仅在开发环境使用）
-DEBUG_FORWARD_URL = "https://xbot.lwccorpbox.us.ci"
 
 # WeChat Personal Account bridge/gateway configuration (set via wrangler secret or .dev.vars for local)
 # WECHAT_TOKEN = "your_webhook_hmac_token"

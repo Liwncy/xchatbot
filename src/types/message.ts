@@ -173,9 +173,13 @@ export interface Env {
     /** D1 数据库（xbotdata） */
     XBOT_DB: D1Database;
 
-    // 全局调试透传（开启后所有请求直接转发到调试地址）
-    DEBUG_FORWARD_ENABLED?: string;
-    DEBUG_FORWARD_URL?: string;
+    // ── 调试透传（从 KV 动态读取，无需重新部署） ──
+    // KV key: "debug:forward:enabled"  value: "true" | "false"
+    // KV key: "debug:forward:url"      value: "https://your-local-tunnel-url"
+    // 通过 POST /admin/debug 接口控制
+
+    /** 管理接口鉴权 Token（wrangler secret put ADMIN_TOKEN）。未设置时 /admin/debug 无鉴权保护。 */
+    ADMIN_TOKEN?: string;
 
     // 微信个人号（通过网关/桥接服务）
     WECHAT_TOKEN?: string;
