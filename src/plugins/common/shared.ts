@@ -298,6 +298,9 @@ export function looksLikeBase64(value: string): boolean {
 /** 单个媒体文件的大小上限（20 MB），超过此值网关大概率拒绝。 */
 const MAX_MEDIA_SIZE = 20 * 1024 * 1024;
 
+/** 外部 API 请求超时时间（毫秒）。Cloudflare Workers 对外请求无限等待会触发内部错误。 */
+const FETCH_TIMEOUT_MS = 15_000;
+
 /**
  * 将返回值标准化为媒体可发送 payload（优先复用 base64，否则下载 URL 转 base64）。
  *
@@ -311,8 +314,11 @@ export async function toMediaPayload(value: unknown, logPrefix: string): Promise
     if (looksLikeBase64(normalized)) return normalized;
 
     if (isHttpUrl(raw)) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
         try {
-            const res = await fetch(raw, {redirect: 'follow'});
+            const res = await fetch(raw, {redirect: 'follow', signal: controller.signal});
+            clearTimeout(timer);
             if (!res.ok) {
                 logger.error(`${logPrefix}媒体下载失败`, {url: raw, status: res.status});
                 return null;
@@ -353,9 +359,11 @@ export async function toMediaPayload(value: unknown, logPrefix: string): Promise
 
             return arrayBufferToBase64(buffer);
         } catch (err) {
+            clearTimeout(timer);
+            const isTimeout = err instanceof Error && err.name === 'AbortError';
             logger.error(`${logPrefix}媒体下载异常`, {
                 url: raw,
-                error: err instanceof Error ? err.message : String(err),
+                error: isTimeout ? `超时（>${FETCH_TIMEOUT_MS}ms）` : (err instanceof Error ? err.message : String(err)),
             });
             return null;
         }
@@ -471,11 +479,15 @@ export function mergeTemplateParams(base: Record<string, string>, context: Recor
 
 /**
  * 按模板参数渲染并执行 HTTP 请求，返回按 mode/jsonPath 提取后的值。
+ *
+ * 内置 15 秒超时，超时后抛出明确错误，避免触发 Cloudflare 内部 internal error。
+ * 若传入 proxyBaseUrl，所有请求自动经代理转发（解决 Workers 访问国内 API 慢/超时问题）。
  */
 export async function fetchTemplatedValue(
     request: TemplatedRequestSpec,
     params: Record<string, string>,
     errorPrefix: string,
+    proxyBaseUrl?: string,
 ): Promise<unknown> {
     const method = request.method ?? 'GET';
     const headers = request.headers
@@ -495,11 +507,47 @@ export async function fetchTemplatedValue(
     }
 
     const renderedUrl = renderTemplateString(request.url, params, true);
-    const response = await fetch(renderedUrl, requestInit);
-    if (!response.ok) {
-        throw new Error(`${errorPrefix}请求失败 status=${response.status} url=${renderedUrl}`);
+
+    // 若配置了代理，将目标 URL 作为 query 参数附加到代理地址
+    // 代理格式：https://your-server/proxy?url=<encodedTargetUrl>
+    const finalUrl = proxyBaseUrl?.trim()
+        ? `${proxyBaseUrl.trim()}?url=${encodeURIComponent(renderedUrl)}`
+        : renderedUrl;
+
+    // 使用 AbortController 设置超时，防止长时间挂起触发 CF internal error
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    requestInit.signal = controller.signal;
+
+    let response: Response;
+    try {
+        response = await fetch(finalUrl, requestInit);
+    } catch (err) {
+        clearTimeout(timer);
+        if (err instanceof Error && err.name === 'AbortError') {
+            throw new Error(`${errorPrefix}请求超时（>${FETCH_TIMEOUT_MS}ms） url=${renderedUrl}`);
+        }
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`${errorPrefix}网络请求异常 url=${renderedUrl} reason=${msg}`);
+    } finally {
+        clearTimeout(timer);
     }
 
-    return extractValueByMode(response, request.mode, request.jsonPath);
+    if (!response.ok) {
+        let body = '';
+        try {
+            body = (await response.text()).slice(0, 200);
+        } catch {
+            // 忽略读取失败
+        }
+        throw new Error(`${errorPrefix}请求失败 status=${response.status} url=${renderedUrl} body=${body}`);
+    }
+
+    try {
+        return await extractValueByMode(response, request.mode, request.jsonPath);
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`${errorPrefix}响应解析失败 url=${renderedUrl} reason=${msg}`);
+    }
 }
 
