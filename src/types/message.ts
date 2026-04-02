@@ -205,10 +205,18 @@ export interface Env {
     COMMON_PLUGINS_CONFIG?: string;
     /** 通用插件远程配置接口地址（GET）。 */
     COMMON_PLUGINS_CONFIG_URL?: string;
+    /**
+     * 通用插件配置加载顺序：
+     * 1) COMMON_PLUGINS_CONFIG / COMMON_PLUGINS_MAPPING（内联）
+     * 2) KV: plugins:common:mapping
+     * 3) COMMON_PLUGINS_CONFIG_URL（远程）
+     */
     /** 拉取通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_PLUGINS_CLIENT_ID?: string;
+    /** KV: plugins:parameterized:mapping（动态参数规则）。 */
     /** 拉取动态通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;
+    /** KV: plugins:workflow:mapping（多步骤 workflow 规则）。 */
     /** 拉取 workflow 通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_WORKFLOW_PLUGINS_CLIENT_ID?: string;
     /** 兼容旧变量名：拉取动态通用插件远程配置时使用的 clientid 请求头。 */

@@ -11,7 +11,7 @@ import {
     normalizeKeyword,
     normalizeMatchMode,
 } from './matcher';
-import {loadRemoteRules} from './remote-config';
+import {loadRulesFromSources} from './remote-config';
 import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
 
@@ -114,21 +114,23 @@ const parseRules = createCachedRuleParser<WorkflowCommonRule>({
     },
 });
 
+const COMMON_WORKFLOW_PLUGINS_KV_KEY = 'plugins:workflow:mapping';
+
 async function resolveRules(env: {
+    XBOT_KV: KVNamespace;
     COMMON_PLUGINS_CONFIG_URL?: string;
     COMMON_WORKFLOW_PLUGINS_CLIENT_ID?: string;
     COMMON_PLUGINS_CLIENT_ID?: string;
 }): Promise<WorkflowCommonRule[]> {
-    const remoteUrl = env.COMMON_PLUGINS_CONFIG_URL?.trim();
-    if (!remoteUrl) return [];
-
     const workflowClientId = env.COMMON_WORKFLOW_PLUGINS_CLIENT_ID?.trim();
     const fallbackClientId = env.COMMON_PLUGINS_CLIENT_ID?.trim();
     const clientId = workflowClientId || fallbackClientId || '';
 
-    return loadRemoteRules({
+    return loadRulesFromSources({
         cacheNamespace: 'common-workflow',
-        remoteUrl,
+        kv: env.XBOT_KV,
+        kvKey: COMMON_WORKFLOW_PLUGINS_KV_KEY,
+        remoteUrl: env.COMMON_PLUGINS_CONFIG_URL?.trim(),
         clientId,
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: 'workflow 通用插件',

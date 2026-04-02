@@ -5,7 +5,7 @@ import {
     renderTemplateString,
     toLinkReply,
 } from './shared';
-import {loadRemoteRules} from './remote-config';
+import {loadRulesFromSources} from './remote-config';
 import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
 
@@ -107,6 +107,8 @@ const parseRules = createCachedRuleParser<CommonPluginRule>({
     logPrefix: 'COMMON_PLUGINS',
     mapItem: (item) => toRule(item as LegacyRule),
 });
+
+const COMMON_PLUGINS_KV_KEY = 'plugins:common:mapping';
 
 /** 判断消息内容是否包含任一关键词。 */
 function keywordMatched(content: string, keyword: string | string[]): boolean {
@@ -234,24 +236,19 @@ export const commonPluginsEngine: TextMessage = {
  * 解析可用规则：优先内联配置，其次远程配置（带短缓存）。
  */
 async function resolveRules(env: {
+    XBOT_KV: KVNamespace;
     COMMON_PLUGINS_CONFIG?: string;
     COMMON_PLUGINS_MAPPING?: string;
     COMMON_PLUGINS_CONFIG_URL?: string;
     COMMON_PLUGINS_CLIENT_ID?: string
 }): Promise<CommonPluginRule[]> {
-    const inlineConfig = env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING;
-    // 本地内联配置优先级最高，便于开发调试。
-    if (inlineConfig?.trim()) {
-        return parseRules(inlineConfig);
-    }
-
-    const remoteUrl = env.COMMON_PLUGINS_CONFIG_URL?.trim();
-    if (!remoteUrl) return [];
-
     const clientId = env.COMMON_PLUGINS_CLIENT_ID?.trim() ?? '';
-    return loadRemoteRules({
+    return loadRulesFromSources({
         cacheNamespace: 'common-base',
-        remoteUrl,
+        inlineConfig: env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING,
+        kv: env.XBOT_KV,
+        kvKey: COMMON_PLUGINS_KV_KEY,
+        remoteUrl: env.COMMON_PLUGINS_CONFIG_URL?.trim(),
         clientId,
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: '通用插件',

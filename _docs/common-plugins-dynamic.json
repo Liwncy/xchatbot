@@ -1,0 +1,114 @@
+[
+    {
+        "name": "fuel-price-dynamic",
+        "keyword": "今日油价",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "tail",
+            "names": [
+                "region"
+            ],
+            "required": [
+                "region"
+            ]
+        },
+        "url": "https://60s.viki.moe/v2/fuel-price?region={{region}}&encoding=json",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'⛽ ' + $.data.region + ' 今日油价\\n' + '📈 趋势: ' + $.data.trend.direction + '｜⏰ 调整: ' + $.data.trend.next_adjustment_date + '\\n' + '💡 预估: ' + $.data.trend.change_liter_desc + '\\n' + lines($.data.items,'🔹 {name}: {price_desc}') + '\\n' + '🕒 更新: ' + $.data.updated"
+    },
+    {
+        "name": "realtime-weather",
+        "keyword": "实时天气",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "tail",
+            "names": [
+                "query"
+            ],
+            "required": [
+                "query"
+            ]
+        },
+        "url": "https://60s.viki.moe/v2/weather?query={{query}}",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🌤️ ' + $.data.location.name + ' 实时天气\\n' + '☁️ 天气: ' + $.data.weather.condition + '  ' + $.data.weather.temperature + '℃\\n' + '💧 湿度: ' + $.data.weather.humidity + '%\\n' + '🌬️ 风向: ' + $.data.weather.wind_direction + ' ' + $.data.weather.wind_power + '\\n' + '😷 空气: AQI ' + $.data.air_quality.aqi + '（' + $.data.air_quality.quality + '）\\n' + '🌅 日出/日落: ' + $.data.sunrise.sunrise_desc + ' / ' + $.data.sunrise.sunset_desc + '\\n' + '🕒 更新: ' + $.data.weather.updated"
+    },
+    {
+        "name": "weather-forecast-with-days",
+        "matchMode": "regex",
+        "pattern": "^天气预报\\s+(.+?)\\s+(\\d{1,2})天?$",
+        "args": {
+            "mode": "regex",
+            "names": [
+                "query",
+                "days"
+            ],
+            "required": [
+                "query",
+                "days"
+            ]
+        },
+        "url": "https://60s.viki.moe/v2/weather/forecast?query={{query}}&days={{days}}&encoding=json",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🛰️ ' + $.data.location.name + ' 天气预报\\n' + '🌅日出/🌇日落: ' + $.data.sunrise_sunset[0].sunrise_desc + ' / ' + $.data.sunrise_sunset[0].sunset_desc + '\\n' + '📆 预报详情:\\n' + lines($.data.daily_forecast,'🔹 {date}  {day_condition}/{night_condition}  \\n🔹 🌡️{min_temperature}~{max_temperature}℃  💨{day_wind_direction}{day_wind_power}  😷AQI {aqi}({air_quality})')"
+    },
+    {
+        "name": "weather-forecast-default-days",
+        "keyword": "天气预报",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "tail",
+            "names": [
+                "query"
+            ],
+            "required": [
+                "query"
+            ]
+        },
+        "url": "https://60s.viki.moe/v2/weather/forecast?query={{query}}&days=3&encoding=json",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🛰️ ' + $.data.location.name + ' 天气预报\\n' + '🌅日出/🌇日落: ' + $.data.sunrise_sunset[0].sunrise_desc + ' / ' + $.data.sunrise_sunset[0].sunset_desc + '\\n' + '📆 预报详情:\\n' + lines($.data.daily_forecast,'🔹 {date}  {day_condition}/{night_condition}  \\n🔹 🌡️{min_temperature}~{max_temperature}℃  💨{day_wind_direction}{day_wind_power}  😷AQI {aqi}({air_quality})')"
+    },
+    {
+        "name": "health-analysis",
+        "keyword": "健康分析|身体健康分析",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "split",
+            "names": [
+                "height",
+                "weight",
+                "age",
+                "gender"
+            ],
+            "required": [
+                "height",
+                "weight",
+                "age",
+                "gender"
+            ]
+        },
+        "url": "https://60s.viki.moe/v2/health?height={{height}}&weight={{weight}}&age={{age}}&gender={{gender}}&encoding=text",
+        "mode": "text",
+        "rType": "text",
+        "jsonPath": "'🧬 身体健康分析报告\\n' + '👤 ' + $.data.basic_info.gender_desc + '｜' + $.data.basic_info.age_desc + '｜' + $.data.basic_info.height_desc + '｜' + $.data.basic_info.weight_desc + '\\n' + '📏 BMI: ' + $.data.bmi.value_desc + '（' + $.data.bmi.category_desc + '）\\n' + '⚖️ 体重状态: ' + $.data.weight_assessment.status_desc + '，' + $.data.weight_assessment.adjustment_desc + '\\n' + '🔥 BMR: ' + $.data.metabolism.bmr_desc + '｜TDEE: ' + $.data.metabolism.tdee_desc + '\\n' + '🥗 建议摄入: ' + $.data.metabolism.recommended_calories_desc + '\\n' + '💧 饮水: ' + $.data.health_advice.daily_water_intake_desc + '\\n' + '🏃 运动: ' + $.data.health_advice.exercise_recommendation_desc + '\\n' + '🍽️ 营养: ' + $.data.health_advice.nutrition_advice_desc + '\\n' + '💡 提示: ' + join($.data.health_advice.health_tips,'；') + '\\n' + '📌 免责声明: ' + $.data.disclaimer"
+    },
+    {
+        "name": "dailyhot-by-title",
+        "keyword": "今日热榜|看热榜",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "tail",
+            "names": ["title"],
+            "required": ["title"]
+        },
+        "url": "https://api.pearktrue.cn/api/dailyhot/?title=__title__",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'📊 ' + $.title + '｜' + $.type + '\\n' + '🕒 更新时间：' + $.updateTime + '\\n' + lines(take($.data,10), '{index}. {title}\\n🔥 热度：{hot}\\n🔗 {url}\\n', '\\n')"
+    }
+]

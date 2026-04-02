@@ -1,0 +1,108 @@
+[
+    {
+        "keyword": [
+            "整点啊",
+            "走不走",
+            "小酌",
+            "整不整"
+        ],
+        "url": "https://m1.apifoxmock.com/m1/7883103-7633002-default/common/plugins/data?type=drink",
+        "mode": "json",
+        "jsonPath": "$[x]",
+        "rType": "text"
+    },
+    {
+        "name": "ai-news-today",
+        "keyword": "AI资讯快报|AI快报|今日AI资讯|AI新闻",
+        "url": "https://60s.viki.moe/v2/ai-news?date=2026-03-23&encoding=json",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🤖 AI资讯快报｜' + $.data.date + '\\n' + '📰 今日重点：\\n' + lines($.data.news, '{i}. {title}\\n🏷️ 来源: {source}\\n🔗 {link}\\n')"
+    },
+    {
+        "name": "moyu-daily",
+        "keyword": "摸鱼日报|今日摸鱼|上班日报",
+        "url": "https://60s.viki.moe/v2/moyu?encoding=text",
+        "mode": "text",
+        "rType": "text"
+    },
+    {
+        "name": "epic-weekly-free",
+        "keyword": "epic周免|epic免费|epic游戏|epic本周",
+        "url": "https://60s.viki.moe/v2/epic?encoding=json",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🎮 Epic Games 周更情报\\n' + '📢 本周可领与即将免费游戏如下：\\n' + lines($.data,'🔹 {title}（{seller}）\\n💰 原价: {original_price_desc}\\n🆓 当前免费: {is_free_now}\\n⏰ 免费时间: {free_start} ~ {free_end}\\n🔗 {link}\\n')"
+    },
+    {
+        "name": "daily-60s-world",
+        "keyword": "60秒读懂世界|读懂世界|每日60秒",
+        "url": "https://60s.viki.moe/v2/60s?encoding=json",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🗞️ 每天60秒读懂世界｜' + $.data.date + ' ' + $.data.day_of_week + '\\n' + '🌙 农历: ' + $.data.lunar_date + '\\n' + '📌 今日速览:\\n🔹 ' + join($.data.news,'\\n🔹 ') + '\\n' + '💡 ' + $.data.tip"
+    },
+    {
+        "name": "dailyhot-platform-list",
+        "keyword": "热榜平台|热榜平台列表|今日热榜平台",
+        "matchMode": "contains",
+        "url": "https://api.pearktrue.cn/api/dailyhot/",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'📚 可查询热榜平台（共 ' + $.data.total + ' 个）\\n' + '提示: 发送“今日热榜 平台名”查询，例如：今日热榜 哔哩哔哩\\n\\n' + $.data.platforms[*]"
+    },
+    {
+        "name": "ruozhiba-qa",
+        "keyword": "天才|机智|弱智吧问答|来个弱智吧",
+        "url": "https://api.pearktrue.cn/api/ruozhiba",
+        "method": "GET",
+        "mode": "json",
+        "jsonPath": "$.data.instruction",
+        "rType": "text"
+    },
+    {
+        "name": "superpower-text",
+        "keyword": "随机超能力|今日超能力",
+        "url": "https://api.pearktrue.cn/api/superpower",
+        "method": "GET",
+        "mode": "json",
+        "jsonPath": "'🦸 随机超能力\\n✨ ' + $.data.superpower + '\\n⚠️ 但是：' + $.data.disadvantage + '\\n🖼️ 配图：' + $.data.image_url",
+        "rType": "text"
+    },
+    {
+        "name": "today-wife",
+        "keyword": "今日老婆|来个老婆|拗个对象",
+        "url": "https://api.pearktrue.cn/api/today_wife?id={{from}}",
+        "method": "GET",
+        "mode": "json",
+        "jsonPath": "$.data.image_url",
+        "rType": "image"
+    },
+    {
+        "keyword": "什么屌图",
+        "url": "https://api.yujn.cn/api/long.php?type=json",
+        "mode": "json",
+        "jsonPath": "$.data",
+        "rType": "image"
+    },
+    {
+        "keyword": "腹肌图片",
+        "url": "http://api.yujn.cn/api/fujiimg.php",
+        "mode": "base64",
+        "rType": "image"
+    },
+    {
+        "keyword": [
+            "坤坤表情包",
+            "食不食油饼",
+            "下的蛋",
+            "下得蛋",
+            "露出马脚",
+            "小黑子",
+            "我家哥哥"
+        ],
+        "url": "http://api.yujn.cn/api/cxk.php",
+        "mode": "base64",
+        "rType": "image"
+    }
+]

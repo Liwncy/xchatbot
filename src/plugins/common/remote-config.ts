@@ -15,6 +15,15 @@ interface RemoteRulesOptions<T> {
     logPrefix: string;
 }
 
+interface RuleSourceOptions<T> extends RemoteRulesOptions<T> {
+    /** 内联配置文本（优先级最高）。 */
+    inlineConfig?: string;
+    /** KV 命名空间（次优先级）。 */
+    kv?: KVNamespace;
+    /** KV 中的规则 key。 */
+    kvKey?: string;
+}
+
 interface CacheEntry {
     expiresAt: number;
     rules: unknown[];
@@ -22,6 +31,27 @@ interface CacheEntry {
 
 const DEFAULT_CACHE_MS = 60_000;
 const remoteRulesCache = new Map<string, CacheEntry>();
+
+/** 管理接口使用：清空远程/kv 规则内存缓存，下一次请求会重新加载。 */
+export function clearRemoteRulesCache(): number {
+    const size = remoteRulesCache.size;
+    remoteRulesCache.clear();
+    return size;
+}
+
+/** 管理接口使用：获取当前内存缓存条目数量。 */
+export function getRemoteRulesCacheSize(): number {
+    return remoteRulesCache.size;
+}
+
+function parseRulesSafely<T>(rawText: string, parseRules: (rawText: string) => T[], logPrefix: string): T[] {
+    try {
+        return parseRules(rawText);
+    } catch (err) {
+        logger.error(`${logPrefix}规则解析异常`, err);
+        return [];
+    }
+}
 
 /**
  * 统一拉取远程规则并做短缓存。
@@ -53,12 +83,46 @@ export async function loadRemoteRules<T>(options: RemoteRulesOptions<T>): Promis
         }
 
         const rawText = await response.text();
-        const rules = options.parseRules(rawText);
+        const rules = parseRulesSafely(rawText, options.parseRules, options.logPrefix);
         remoteRulesCache.set(cacheKey, {rules, expiresAt: now + cacheMs});
         return rules;
     } catch (err) {
         logger.error(`${options.logPrefix}远程配置加载异常`, err);
         return [];
     }
+}
+
+/**
+ * 统一规则加载顺序：inline > KV > remote。
+ */
+export async function loadRulesFromSources<T>(options: RuleSourceOptions<T>): Promise<T[]> {
+    const inlineConfig = options.inlineConfig?.trim();
+    if (inlineConfig) {
+        return parseRulesSafely(inlineConfig, options.parseRules, options.logPrefix);
+    }
+
+    const kvKey = options.kvKey?.trim();
+    if (options.kv && kvKey) {
+        const cacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
+        const cacheKey = `${options.cacheNamespace}|kv|${kvKey}`;
+        const now = Date.now();
+        const cached = remoteRulesCache.get(cacheKey);
+        if (cached && now < cached.expiresAt) {
+            return cached.rules as T[];
+        }
+
+        try {
+            const rawText = await options.kv.get(kvKey);
+            if (rawText?.trim()) {
+                const rules = parseRulesSafely(rawText, options.parseRules, options.logPrefix);
+                remoteRulesCache.set(cacheKey, {rules, expiresAt: now + cacheMs});
+                return rules;
+            }
+        } catch (err) {
+            logger.error(`${options.logPrefix}KV 配置加载异常`, {kvKey, error: err});
+        }
+    }
+
+    return loadRemoteRules(options);
 }
 

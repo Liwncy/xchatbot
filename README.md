@@ -59,6 +59,40 @@ DEBUG_FORWARD_URL=http://127.0.0.1:8787
 npm run dev
 ```
 
+如果你要在本地使用 KV 里的通用插件配置，先执行：
+
+```bash
+npm run kv:seed:local
+```
+
+一键写入本地 KV 后再启动：
+
+```bash
+npm run dev:seed
+```
+
+查看本地 KV 当前配置：
+
+```bash
+npm run kv:get:local:common
+npm run kv:get:local:dynamic
+npm run kv:get:local:workflow
+```
+
+写入线上 KV（Cloudflare）：
+
+```bash
+npm run kv:seed:remote
+```
+
+查看线上 KV 当前配置：
+
+```bash
+npm run kv:get:remote:common
+npm run kv:get:remote:dynamic
+npm run kv:get:remote:workflow
+```
+
 ### 4) 部署
 
 ```bash
@@ -72,6 +106,8 @@ npm run deploy
 | 路径 | 方法 | 说明 |
 |---|---|---|
 | `/webhook/wechat` | POST | 微信消息入口 |
+| `/admin/plugins` | GET | 查看插件配置来源状态（inline/kv/remote） |
+| `/admin/plugins/reload` | POST | 清空插件规则内存缓存 |
 | `/health` | GET | 健康检查 |
 | `/` | GET | 健康检查 |
 
@@ -87,11 +123,29 @@ npm run deploy
 
 ## 通用配置规则使用
 
-通用规则支持两种引擎，均可通过同一个远程配置地址拉取：
+通用规则支持三种引擎，支持 `内联 -> KV -> 远程` 分层加载：
 
 - 基础引擎：`common-plugins-engine`（`COMMON_PLUGINS_CLIENT_ID`）
 - 动态引擎：`dynamic-common-plugins-engine`（`COMMON_DYNAMIC_PLUGINS_CLIENT_ID`）
 - workflow 引擎：`workflow-common-plugins-engine`（`COMMON_WORKFLOW_PLUGINS_CLIENT_ID`）
+
+KV key 约定：
+
+- 基础规则：`plugins:common:mapping`
+- 动态规则：`plugins:parameterized:mapping`
+- workflow 规则：`plugins:workflow:mapping`
+
+加载优先级：
+
+1. 内联配置（`COMMON_PLUGINS_CONFIG` / `COMMON_PLUGINS_MAPPING`，仅基础规则）
+2. Cloudflare KV（上述 3 个 key）
+3. 远程配置（`COMMON_PLUGINS_CONFIG_URL` + 不同 `clientid`）
+
+管理接口（需 `Authorization: Bearer <ADMIN_TOKEN>`，未配置 `ADMIN_TOKEN` 时不鉴权）：
+
+- `GET /admin/plugins`：查看当前三层配置是否已配置、KV key 是否存在、缓存条目数。
+- `POST /admin/plugins/reload`：清空规则内存缓存，下一次命中插件时重新加载配置。
+
 ### 3) Workflow 规则（workflow-common-plugins-engine）
 
 适合需要串行调用多个接口并复用中间结果的场景。
@@ -283,11 +337,12 @@ test/
 | `AI_API_KEY` | AI 接口 Bearer Token（可选） |
 | `AI_MODEL` | AI 模型名称（可选） |
 | `AI_SYSTEM_PROMPT` | AI 系统提示词（可选） |
-| `COMMON_PLUGINS_CONFIG` | 通用插件 JSON 配置（内联） |
+| `COMMON_PLUGINS_CONFIG` | 通用插件 JSON 配置（内联，优先级最高，仅基础规则） |
 | `COMMON_PLUGINS_CONFIG_URL` | 通用插件远程配置地址 |
 | `COMMON_PLUGINS_CLIENT_ID` | 通用插件远程配置请求头 `clientid` |
 | `COMMON_DYNAMIC_PLUGINS_CLIENT_ID` | 动态通用插件远程配置请求头 `clientid` |
 | `COMMON_WORKFLOW_PLUGINS_CLIENT_ID` | workflow 通用插件远程配置请求头 `clientid` |
+| `XBOT_KV` | KV 命名空间（用于存储通用插件配置） |
 | `DEBUG_FORWARD_ENABLED` | 是否开启全局调试转发 |
 | `DEBUG_FORWARD_URL` | 调试转发目标地址 |
 

@@ -1,9 +1,13 @@
 import {handleWechat} from './wechat/index.js';
 import type {Env} from './types/message.js';
+import {clearRemoteRulesCache, getRemoteRulesCacheSize} from './plugins/common/remote-config.js';
 
 // ── KV Key 常量 ──
 const KV_DEBUG_ENABLED = 'debug:forward:enabled';
 const KV_DEBUG_URL     = 'debug:forward:url';
+const KV_COMMON_BASE_RULES = 'plugins:common:mapping';
+const KV_COMMON_DYNAMIC_RULES = 'plugins:parameterized:mapping';
+const KV_COMMON_WORKFLOW_RULES = 'plugins:workflow:mapping';
 
 // 调试开关默认 TTL：8 小时（单位：秒）。超时后 KV 自动删除，转发自动关闭。
 const DEBUG_TTL_SECONDS = 8 * 60 * 60;
@@ -19,6 +23,21 @@ function isTruthyFlag(value?: string | null): boolean {
     if (!value) return false;
     const normalized = value.trim().toLowerCase();
     return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+
+/** 管理接口统一鉴权：校验 Authorization: Bearer <ADMIN_TOKEN>。 */
+function authorizeAdmin(request: Request, env: Env): Response | null {
+    const adminToken = env.ADMIN_TOKEN?.trim();
+    if (!adminToken) return null;
+
+    const auth = request.headers.get('Authorization') ?? '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+    if (token === adminToken) return null;
+
+    return new Response(JSON.stringify({error: 'Unauthorized'}), {
+        status: 401,
+        headers: {'Content-Type': 'application/json'},
+    });
 }
 
 /** 从 KV 读取调试转发配置 */
@@ -66,18 +85,8 @@ async function forwardDebugRequest(request: Request, debugUrl: string): Promise<
  * ADMIN_TOKEN 通过 wrangler secret 或 .dev.vars 配置。
  */
 async function handleAdminDebug(request: Request, env: Env): Promise<Response> {
-    // 鉴权：校验 ADMIN_TOKEN
-    const adminToken = env.ADMIN_TOKEN?.trim();
-    if (adminToken) {
-        const auth = request.headers.get('Authorization') ?? '';
-        const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-        if (token !== adminToken) {
-            return new Response(JSON.stringify({error: 'Unauthorized'}), {
-                status: 401,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
-    }
+    const unauthorized = authorizeAdmin(request, env);
+    if (unauthorized) return unauthorized;
 
     const url      = new URL(request.url);
     const pathname = url.pathname; // e.g. /admin/debug/enable
@@ -137,6 +146,63 @@ async function handleAdminDebug(request: Request, env: Env): Promise<Response> {
     return new Response('Not Found', {status: 404});
 }
 
+/** 插件管理接口：查看配置来源状态 & 刷新规则缓存。 */
+async function handleAdminPlugins(request: Request, env: Env): Promise<Response> {
+    const unauthorized = authorizeAdmin(request, env);
+    if (unauthorized) return unauthorized;
+
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+
+    if (request.method === 'GET' && pathname === '/admin/plugins') {
+        const [baseRaw, dynamicRaw, workflowRaw] = await Promise.all([
+            env.XBOT_KV.get(KV_COMMON_BASE_RULES),
+            env.XBOT_KV.get(KV_COMMON_DYNAMIC_RULES),
+            env.XBOT_KV.get(KV_COMMON_WORKFLOW_RULES),
+        ]);
+
+        const inlineBase = (env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING || '').trim();
+        return new Response(JSON.stringify({
+            sources: {
+                priority: ['inline', 'kv', 'remote'],
+                inline: {
+                    baseConfigured: Boolean(inlineBase),
+                },
+                kv: {
+                    base: {key: KV_COMMON_BASE_RULES, configured: Boolean(baseRaw?.trim()), size: baseRaw?.length ?? 0},
+                    dynamic: {key: KV_COMMON_DYNAMIC_RULES, configured: Boolean(dynamicRaw?.trim()), size: dynamicRaw?.length ?? 0},
+                    workflow: {key: KV_COMMON_WORKFLOW_RULES, configured: Boolean(workflowRaw?.trim()), size: workflowRaw?.length ?? 0},
+                },
+                remote: {
+                    configUrlConfigured: Boolean(env.COMMON_PLUGINS_CONFIG_URL?.trim()),
+                    baseClientIdConfigured: Boolean(env.COMMON_PLUGINS_CLIENT_ID?.trim()),
+                    dynamicClientIdConfigured: Boolean(env.COMMON_DYNAMIC_PLUGINS_CLIENT_ID?.trim() || env.COMMON_ADVANCED_PLUGINS_CLIENT_ID?.trim()),
+                    workflowClientIdConfigured: Boolean(env.COMMON_WORKFLOW_PLUGINS_CLIENT_ID?.trim()),
+                },
+            },
+            cache: {
+                entries: getRemoteRulesCacheSize(),
+            },
+            tips: 'POST /admin/plugins/reload 可清空插件规则缓存，下一次消息触发时会重新加载配置',
+        }, null, 2), {
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    if (request.method === 'POST' && pathname === '/admin/plugins/reload') {
+        const cleared = clearRemoteRulesCache();
+        return new Response(JSON.stringify({
+            ok: true,
+            clearedEntries: cleared,
+            nowEntries: getRemoteRulesCacheSize(),
+        }, null, 2), {
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    return new Response('Not Found', {status: 404});
+}
+
 export default {
     async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
         const url      = new URL(request.url);
@@ -145,6 +211,11 @@ export default {
         // ── 管理接口（调试控制）──
         if (pathname === '/admin/debug' || pathname.startsWith('/admin/debug/')) {
             return handleAdminDebug(request, env);
+        }
+
+        // ── 管理接口（插件配置）──
+        if (pathname === '/admin/plugins' || pathname.startsWith('/admin/plugins/')) {
+            return handleAdminPlugins(request, env);
         }
 
         // ── 防递归：已经是转发过来的请求，直接正常处理 ──

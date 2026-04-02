@@ -12,7 +12,7 @@ import {
     normalizeKeyword,
     normalizeMatchMode,
 } from './matcher';
-import {loadRemoteRules} from './remote-config';
+import {loadRulesFromSources} from './remote-config';
 import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
 
@@ -82,23 +82,25 @@ const parseRules = createCachedRuleParser<DynamicCommonRule>({
     },
 });
 
+const COMMON_DYNAMIC_PLUGINS_KV_KEY = 'plugins:parameterized:mapping';
+
 async function resolveRules(env: {
+    XBOT_KV: KVNamespace;
     COMMON_PLUGINS_CONFIG_URL?: string;
     COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;
     COMMON_ADVANCED_PLUGINS_CLIENT_ID?: string;
     COMMON_PLUGINS_CLIENT_ID?: string;
 }): Promise<DynamicCommonRule[]> {
-    const remoteUrl = env.COMMON_PLUGINS_CONFIG_URL?.trim();
-    if (!remoteUrl) return [];
-
     const dynamicClientId = env.COMMON_DYNAMIC_PLUGINS_CLIENT_ID?.trim();
     const legacyAdvancedClientId = env.COMMON_ADVANCED_PLUGINS_CLIENT_ID?.trim();
     const fallbackClientId = env.COMMON_PLUGINS_CLIENT_ID?.trim();
     const clientId = dynamicClientId || legacyAdvancedClientId || fallbackClientId || '';
 
-    return loadRemoteRules({
+    return loadRulesFromSources({
         cacheNamespace: 'common-dynamic',
-        remoteUrl,
+        kv: env.XBOT_KV,
+        kvKey: COMMON_DYNAMIC_PLUGINS_KV_KEY,
+        remoteUrl: env.COMMON_PLUGINS_CONFIG_URL?.trim(),
         clientId,
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: '动态通用插件',
