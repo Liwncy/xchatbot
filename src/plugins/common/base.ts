@@ -106,6 +106,12 @@ const parseRules = createCachedRuleParser<CommonPluginRule>({
 
 const COMMON_PLUGINS_KV_KEY = 'plugins:common:mapping';
 
+function parseCacheMs(raw: string | undefined): number | undefined {
+    const value = Number((raw ?? '').trim());
+    if (!Number.isFinite(value) || value < 0) return undefined;
+    return Math.floor(value);
+}
+
 /** 判断消息内容是否包含任一关键词。 */
 function keywordMatched(content: string, keyword: string | string[]): boolean {
     const keywords = Array.isArray(keyword) ? keyword : [keyword];
@@ -206,9 +212,11 @@ async function resolveRules(env: {
     COMMON_PLUGINS_CONFIG?: string;
     COMMON_PLUGINS_MAPPING?: string;
     COMMON_PLUGINS_CONFIG_URL?: string;
-    COMMON_PLUGINS_CLIENT_ID?: string
+    COMMON_PLUGINS_CLIENT_ID?: string;
+    COMMON_PLUGINS_CACHE_MS?: string;
 }): Promise<CommonPluginRule[]> {
     const clientId = env.COMMON_PLUGINS_CLIENT_ID?.trim() ?? '';
+    const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
     return loadRulesFromSources({
         cacheNamespace: 'common-base',
         inlineConfig: env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING,
@@ -216,6 +224,7 @@ async function resolveRules(env: {
         kvKey: COMMON_PLUGINS_KV_KEY,
         remoteUrl: env.COMMON_PLUGINS_CONFIG_URL?.trim(),
         clientId,
+        cacheMs,
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: '通用插件',
     });

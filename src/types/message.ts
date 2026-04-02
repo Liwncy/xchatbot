@@ -199,6 +199,8 @@ export interface Env {
      */
     /** 拉取通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_PLUGINS_CLIENT_ID?: string;
+    /** 通用插件规则缓存毫秒数（0 表示禁用缓存，实时读取）。 */
+    COMMON_PLUGINS_CACHE_MS?: string;
     /** KV: plugins:parameterized:mapping（动态参数规则）。 */
     /** 拉取动态通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;

@@ -178,6 +178,7 @@ async function handleAdminPlugins(request: Request, env: Env): Promise<Response>
                     baseClientIdConfigured: Boolean(env.COMMON_PLUGINS_CLIENT_ID?.trim()),
                     dynamicClientIdConfigured: Boolean(env.COMMON_DYNAMIC_PLUGINS_CLIENT_ID?.trim() || env.COMMON_ADVANCED_PLUGINS_CLIENT_ID?.trim()),
                     workflowClientIdConfigured: Boolean(env.COMMON_WORKFLOW_PLUGINS_CLIENT_ID?.trim()),
+                    cacheMs: env.COMMON_PLUGINS_CACHE_MS?.trim() || '60000(default)',
                 },
             },
             cache: {

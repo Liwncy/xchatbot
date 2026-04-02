@@ -63,13 +63,17 @@ export async function loadRemoteRules<T>(options: RemoteRulesOptions<T>): Promis
     if (!remoteUrl) return [];
 
     const clientId = options.clientId?.trim() ?? '';
-    const cacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
+    const configuredCacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
+    const cacheMs = Number.isFinite(configuredCacheMs) ? Math.max(0, configuredCacheMs) : DEFAULT_CACHE_MS;
+    const cacheEnabled = cacheMs > 0;
     const cacheKey = `${options.cacheNamespace}|${remoteUrl}|${clientId}`;
     const now = Date.now();
 
-    const cached = remoteRulesCache.get(cacheKey);
-    if (cached && now < cached.expiresAt) {
-        return cached.rules as T[];
+    if (cacheEnabled) {
+        const cached = remoteRulesCache.get(cacheKey);
+        if (cached && now < cached.expiresAt) {
+            return cached.rules as T[];
+        }
     }
 
     try {
@@ -84,7 +88,9 @@ export async function loadRemoteRules<T>(options: RemoteRulesOptions<T>): Promis
 
         const rawText = await response.text();
         const rules = parseRulesSafely(rawText, options.parseRules, options.logPrefix);
-        remoteRulesCache.set(cacheKey, {rules, expiresAt: now + cacheMs});
+        if (cacheEnabled) {
+            remoteRulesCache.set(cacheKey, {rules, expiresAt: now + cacheMs});
+        }
         return rules;
     } catch (err) {
         logger.error(`${options.logPrefix}远程配置加载异常`, err);
@@ -103,19 +109,25 @@ export async function loadRulesFromSources<T>(options: RuleSourceOptions<T>): Pr
 
     const kvKey = options.kvKey?.trim();
     if (options.kv && kvKey) {
-        const cacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
+        const configuredCacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
+        const cacheMs = Number.isFinite(configuredCacheMs) ? Math.max(0, configuredCacheMs) : DEFAULT_CACHE_MS;
+        const cacheEnabled = cacheMs > 0;
         const cacheKey = `${options.cacheNamespace}|kv|${kvKey}`;
         const now = Date.now();
-        const cached = remoteRulesCache.get(cacheKey);
-        if (cached && now < cached.expiresAt) {
-            return cached.rules as T[];
+        if (cacheEnabled) {
+            const cached = remoteRulesCache.get(cacheKey);
+            if (cached && now < cached.expiresAt) {
+                return cached.rules as T[];
+            }
         }
 
         try {
             const rawText = await options.kv.get(kvKey);
             if (rawText?.trim()) {
                 const rules = parseRulesSafely(rawText, options.parseRules, options.logPrefix);
-                remoteRulesCache.set(cacheKey, {rules, expiresAt: now + cacheMs});
+                if (cacheEnabled) {
+                    remoteRulesCache.set(cacheKey, {rules, expiresAt: now + cacheMs});
+                }
                 return rules;
             }
         } catch (err) {

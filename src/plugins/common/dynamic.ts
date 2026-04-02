@@ -84,17 +84,25 @@ const parseRules = createCachedRuleParser<DynamicCommonRule>({
 
 const COMMON_DYNAMIC_PLUGINS_KV_KEY = 'plugins:parameterized:mapping';
 
+function parseCacheMs(raw: string | undefined): number | undefined {
+    const value = Number((raw ?? '').trim());
+    if (!Number.isFinite(value) || value < 0) return undefined;
+    return Math.floor(value);
+}
+
 async function resolveRules(env: {
     XBOT_KV: KVNamespace;
     COMMON_PLUGINS_CONFIG_URL?: string;
     COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;
     COMMON_ADVANCED_PLUGINS_CLIENT_ID?: string;
     COMMON_PLUGINS_CLIENT_ID?: string;
+    COMMON_PLUGINS_CACHE_MS?: string;
 }): Promise<DynamicCommonRule[]> {
     const dynamicClientId = env.COMMON_DYNAMIC_PLUGINS_CLIENT_ID?.trim();
     const legacyAdvancedClientId = env.COMMON_ADVANCED_PLUGINS_CLIENT_ID?.trim();
     const fallbackClientId = env.COMMON_PLUGINS_CLIENT_ID?.trim();
     const clientId = dynamicClientId || legacyAdvancedClientId || fallbackClientId || '';
+    const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
 
     return loadRulesFromSources({
         cacheNamespace: 'common-dynamic',
@@ -102,6 +110,7 @@ async function resolveRules(env: {
         kvKey: COMMON_DYNAMIC_PLUGINS_KV_KEY,
         remoteUrl: env.COMMON_PLUGINS_CONFIG_URL?.trim(),
         clientId,
+        cacheMs,
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: '动态通用插件',
     });
