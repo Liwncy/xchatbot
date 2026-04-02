@@ -180,20 +180,6 @@ export interface Env {
 
     /** 管理接口鉴权 Token（wrangler secret put ADMIN_TOKEN）。未设置时 /admin/debug 无鉴权保护。 */
     ADMIN_TOKEN?: string;
-    /**
-     * 国内 API 代理地址（解决 Workers 海外节点访问国内接口超时问题）。
-     * 格式：https://your-server/proxy
-     * 设置后通用插件所有外部请求自动经此代理转发。
-     * 留空则直接请求。
-     */
-    CHINA_API_PROXY_URL?: string;
-    /**
-     * 需要自动走代理的域名列表，逗号分隔。
-     * 例如："api.yujn.cn,api.pearktrue.cn"
-     * URL 域名命中列表时自动走代理，无需每条规则单独设置 proxy:true。
-     * 单条规则设置 proxy:true 可强制走代理（不受此列表限制）。
-     */
-    CHINA_API_PROXY_HOSTS?: string;
 
     // 微信个人号（通过网关/桥接服务）
     WECHAT_TOKEN?: string;

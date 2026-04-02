@@ -481,13 +481,11 @@ export function mergeTemplateParams(base: Record<string, string>, context: Recor
  * 按模板参数渲染并执行 HTTP 请求，返回按 mode/jsonPath 提取后的值。
  *
  * 内置 15 秒超时，超时后抛出明确错误，避免触发 Cloudflare 内部 internal error。
- * 若传入 proxyBaseUrl，所有请求自动经代理转发（解决 Workers 访问国内 API 慢/超时问题）。
  */
 export async function fetchTemplatedValue(
     request: TemplatedRequestSpec,
     params: Record<string, string>,
     errorPrefix: string,
-    proxyBaseUrl?: string,
 ): Promise<unknown> {
     const method = request.method ?? 'GET';
     const headers = request.headers
@@ -508,21 +506,9 @@ export async function fetchTemplatedValue(
 
     const renderedUrl = renderTemplateString(request.url, params, true);
 
-    // 若配置了代理，通过请求头 X-Proxy-Target 传递目标 URL
-    // 避免 query string 方式因目标 URL 含 ? 参数被 nginx $arg_url 截断的问题
-    let finalUrl: string;
-    if (proxyBaseUrl?.trim()) {
-        finalUrl = proxyBaseUrl.trim();
-        if (!requestInit.headers) requestInit.headers = {};
-        (requestInit.headers as Record<string, string>)['X-Proxy-Target'] = renderedUrl;
-    } else {
-        finalUrl = renderedUrl;
-    }
-
     logger.debug(`${errorPrefix}发起请求`, {
         targetUrl: renderedUrl,
-        finalUrl,
-        viaProxy: !!proxyBaseUrl,
+        finalUrl: renderedUrl,
     });
 
     // 使用 AbortController 设置超时，防止长时间挂起触发 CF internal error
@@ -532,7 +518,7 @@ export async function fetchTemplatedValue(
 
     let response: Response;
     try {
-        response = await fetch(finalUrl, requestInit);
+        response = await fetch(renderedUrl, requestInit);
     } catch (err) {
         clearTimeout(timer);
         if (err instanceof Error && err.name === 'AbortError') {
@@ -551,7 +537,7 @@ export async function fetchTemplatedValue(
         } catch {
             // 忽略读取失败
         }
-        throw new Error(`${errorPrefix}请求失败 status=${response.status} targetUrl=${renderedUrl} finalUrl=${finalUrl} body=${body}`);
+        throw new Error(`${errorPrefix}请求失败 status=${response.status} url=${renderedUrl} body=${body}`);
     }
 
     try {

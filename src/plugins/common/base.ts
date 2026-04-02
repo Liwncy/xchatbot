@@ -25,8 +25,6 @@ export interface CommonPluginRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
-    /** 是否通过 CHINA_API_PROXY_URL 代理请求。true=走代理，false/undefined=直连。 */
-    proxy?: boolean;
 }
 
 interface LegacyRule {
@@ -43,7 +41,6 @@ interface LegacyRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
-    proxy?: boolean;
 }
 
 /** 将关键词统一为字符串或字符串数组；支持 `a|b|c` 写法。 */
@@ -99,7 +96,6 @@ function toRule(item: LegacyRule): CommonPluginRule | null {
         linkTitle: item.linkTitle,
         linkDescription: item.linkDescription,
         linkPicUrl: item.linkPicUrl,
-        proxy: item.proxy === true,
     };
 }
 
@@ -168,35 +164,6 @@ export const commonPluginsEngine: TextMessage = {
         const matchedRule = rules.find((rule) => keywordMatched(content, rule.keyword));
         if (!matchedRule) return null;
 
-        const envRecord = (env as unknown) as Record<string, string | undefined>;
-        const configuredProxy = envRecord['CHINA_API_PROXY_URL']?.trim();
-
-        // 判断是否需要走代理：
-        // 1. 规则明确设置 proxy:true → 强制走代理
-        // 2. URL 域名命中 CHINA_API_PROXY_HOSTS 列表 → 自动走代理
-        // 3. 以上都不满足 → 直连
-        let proxyBaseUrl: string | undefined;
-        if (configuredProxy) {
-            if (matchedRule.proxy) {
-                proxyBaseUrl = configuredProxy;
-            } else {
-                const proxyHosts = (envRecord['CHINA_API_PROXY_HOSTS'] ?? '')
-                    .split(',')
-                    .map((h) => h.trim().toLowerCase())
-                    .filter(Boolean);
-                if (proxyHosts.length) {
-                    try {
-                        const urlHost = new URL(matchedRule.url).hostname.toLowerCase();
-                        if (proxyHosts.some((h) => urlHost === h || urlHost.endsWith(`.${h}`))) {
-                            proxyBaseUrl = configuredProxy;
-                        }
-                    } catch {
-                        // URL 解析失败时不走代理
-                    }
-                }
-            }
-        }
-
         try {
             if (matchedRule.mode === 'base64' && matchedRule.rType === 'link') {
                 return toLinkReply(matchedRule, renderTemplateString(matchedRule.url, templateParams, true));
@@ -213,7 +180,6 @@ export const commonPluginsEngine: TextMessage = {
                 },
                 templateParams,
                 '通用插件',
-                proxyBaseUrl,
             );
             if (value === undefined || value === null || value === '') {
                 logger.warn('通用插件未提取到有效返回值', {
