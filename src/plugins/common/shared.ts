@@ -508,11 +508,22 @@ export async function fetchTemplatedValue(
 
     const renderedUrl = renderTemplateString(request.url, params, true);
 
-    // 若配置了代理，将目标 URL 作为 query 参数附加到代理地址
-    // 代理格式：https://your-server/proxy?url=<encodedTargetUrl>
-    const finalUrl = proxyBaseUrl?.trim()
-        ? `${proxyBaseUrl.trim()}?url=${encodeURIComponent(renderedUrl)}`
-        : renderedUrl;
+    // 若配置了代理，通过请求头 X-Proxy-Target 传递目标 URL
+    // 避免 query string 方式因目标 URL 含 ? 参数被 nginx $arg_url 截断的问题
+    let finalUrl: string;
+    if (proxyBaseUrl?.trim()) {
+        finalUrl = proxyBaseUrl.trim();
+        if (!requestInit.headers) requestInit.headers = {};
+        (requestInit.headers as Record<string, string>)['X-Proxy-Target'] = renderedUrl;
+    } else {
+        finalUrl = renderedUrl;
+    }
+
+    logger.debug(`${errorPrefix}发起请求`, {
+        targetUrl: renderedUrl,
+        finalUrl,
+        viaProxy: !!proxyBaseUrl,
+    });
 
     // 使用 AbortController 设置超时，防止长时间挂起触发 CF internal error
     const controller = new AbortController();
@@ -536,11 +547,11 @@ export async function fetchTemplatedValue(
     if (!response.ok) {
         let body = '';
         try {
-            body = (await response.text()).slice(0, 200);
+            body = (await response.text()).slice(0, 500);
         } catch {
             // 忽略读取失败
         }
-        throw new Error(`${errorPrefix}请求失败 status=${response.status} url=${renderedUrl} body=${body}`);
+        throw new Error(`${errorPrefix}请求失败 status=${response.status} targetUrl=${renderedUrl} finalUrl=${finalUrl} body=${body}`);
     }
 
     try {
