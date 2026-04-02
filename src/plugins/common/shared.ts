@@ -175,6 +175,43 @@ function evalFunctionToken(token: string, data: unknown): unknown {
         return source.join(separator);
     }
 
+    // 从数组中按字段精确匹配首个对象：pick($.data, 'trainumber', 'G1')
+    if (fnName === 'pick' || fnName === 'find') {
+        if (argTokens.length < 3) return null;
+        const source = toArray(evalExprToken(argTokens[0], data));
+        const field = toPathPieceString(evalExprToken(argTokens[1], data)).trim();
+        const expected = toPathPieceString(evalExprToken(argTokens[2], data)).trim();
+        if (!field) return null;
+
+        return source.find((item) => {
+            if (!item || typeof item !== 'object') return false;
+            const actual = toPathPieceString((item as Record<string, unknown>)[field]).trim();
+            return actual === expected;
+        }) ?? null;
+    }
+
+    // 从对象中读取字段：get($.obj, 'name') / prop($.obj, 'name')
+    if (fnName === 'get' || fnName === 'prop') {
+        if (argTokens.length < 2) return undefined;
+        const target = evalExprToken(argTokens[0], data);
+        const field = toPathPieceString(evalExprToken(argTokens[1], data)).trim();
+        if (!field || !target || typeof target !== 'object') return undefined;
+        return (target as Record<string, unknown>)[field];
+    }
+
+    // 按页切片：page($.data, 2, 10) => 第 2 页，每页 10 条
+    if (fnName === 'page') {
+        if (argTokens.length < 1) return [];
+        const source = toArray(evalExprToken(argTokens[0], data));
+        const rawPage = argTokens[1] ? Number(evalExprToken(argTokens[1], data)) : 1;
+        const rawSize = argTokens[2] ? Number(evalExprToken(argTokens[2], data)) : 10;
+
+        const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
+        const size = Number.isFinite(rawSize) ? Math.max(1, Math.floor(rawSize)) : 10;
+        const start = (page - 1) * size;
+        return source.slice(start, start + size);
+    }
+
     // 截取前 N 项：take($.data, 10) / limit($.data, 10)
     if (fnName === 'take' || fnName === 'limit') {
         if (argTokens.length < 1) return [];
@@ -377,6 +414,7 @@ export async function extractValueByMode(
     response: Response,
     mode: SharedRequestMode,
     jsonPath?: string,
+    templateParams?: Record<string, string>,
 ): Promise<unknown> {
     if (mode === 'text') return response.text();
 
@@ -390,7 +428,14 @@ export async function extractValueByMode(
 
     const payload = (await response.json()) as unknown;
     if (!jsonPath) return payload;
-    return getByJsonPath(payload, jsonPath);
+
+    // 允许 jsonPath 使用 $__params.xx 访问输入参数，实现纯配置分页等能力。
+    if (payload && typeof payload === 'object') {
+        (payload as Record<string, unknown>).__params = templateParams ?? {};
+        return getByJsonPath(payload, jsonPath);
+    }
+
+    return getByJsonPath({value: payload, __params: templateParams ?? {}}, jsonPath);
 }
 
 /** 统一构建 link(news) 回复，支持字符串 URL 或对象结构。 */
@@ -541,7 +586,7 @@ export async function fetchTemplatedValue(
     }
 
     try {
-        return await extractValueByMode(response, request.mode, request.jsonPath);
+        return await extractValueByMode(response, request.mode, request.jsonPath, params);
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(`${errorPrefix}响应解析失败 url=${renderedUrl} reason=${msg}`);

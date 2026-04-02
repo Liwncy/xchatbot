@@ -110,5 +110,75 @@
         "mode": "json",
         "rType": "text",
         "jsonPath": "'📊 ' + $.title + '｜' + $.type + '\\n' + '🕒 更新时间：' + $.updateTime + '\\n' + lines(take($.data,10), '{index}. {title}\\n🔥 热度：{hot}\\n🔗 {url}\\n', '\\n')"
+    },
+    {
+        "name": "highspeed-ticket-query",
+        "keyword": "高铁票查询|动车票查询|车票查询",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "split",
+            "names": [
+                "from",
+                "to",
+                "time"
+            ],
+            "required": [
+                "from",
+                "to"
+            ]
+        },
+        "url": "https://api.pearktrue.cn/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
+        "method": "GET",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🚄 ' + $.from + ' → ' + $.to + ' 车票查询\\n' + '📅 日期: ' + $.time + '\\n' + '📌 状态: ' + $.msg + '（code=' + $.code + '）\\n' + '📊 共 ' + $.count + ' 趟（当前显示前 10 条）\\n' + '──────────\\n' + lines(take($.data,10), '{index}. {trainumber}｜{traintype}｜{departtime}-{arrivetime}（{runtime}）\\n   {departstation} → {arrivestation}', '\\n')"
+    },
+    {
+        "name": "highspeed-ticket-paging",
+        "keyword": "车票翻页",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "split",
+            "names": [
+                "page",
+                "from",
+                "to",
+                "time"
+            ],
+            "required": [
+                "page",
+                "from",
+                "to"
+            ]
+        },
+        "url": "https://api.pearktrue.cn/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
+        "method": "GET",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🚄 ' + $.from + ' → ' + $.to + ' 车票查询（第 ' + $__params.page + ' 页）\\n' + '📅 日期: ' + $.time + '\\n' + '📌 状态: ' + $.msg + '（code=' + $.code + '）\\n' + '📊 共 ' + $.count + ' 趟（每页 10 条）\\n' + '──────────\\n' + lines(page($.data,$.__params.page,10), '{index}. {trainumber}｜{traintype}｜{departtime}-{arrivetime}（{runtime}）\\n   {departstation} → {arrivestation}', '\\n')"
+    },
+    {
+        "name": "highspeed-ticket-detail",
+        "keyword": "车票详情",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "split",
+            "names": [
+                "trainnumber",
+                "from",
+                "to",
+                "time"
+            ],
+            "required": [
+                "trainnumber",
+                "from",
+                "to"
+            ]
+        },
+        "url": "https://api.pearktrue.cn/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
+        "method": "GET",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "'🚆 车票详情：' + $.__params.trainnumber + '\\n' + '📍 ' + $.from + ' → ' + $.to + '\\n' + '📅 日期: ' + $.time + '\\n' + '──────────\\n' + '类型: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"traintype\") + '\\n' + '车次: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"trainumber\") + '\\n' + '出发: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"departstation\") + ' ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"departtime\") + '\\n' + '到达: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"arrivestation\") + ' ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"arrivetime\") + '\\n' + '历时: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"runtime\") + '\\n' + '🎫 座位余票:\\n' + lines(get(pick($.data,\"trainumber\",$.__params.trainnumber),\"ticket_info\"), '{seatname}: {bookable}｜¥{seatprice}｜余票 {seatinventory}', '\\n')"
     }
 ]
