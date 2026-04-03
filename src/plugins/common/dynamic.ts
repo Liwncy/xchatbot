@@ -35,6 +35,16 @@ export interface DynamicCommonRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
+    voiceFormat?: number;
+    voiceDurationMs?: number;
+    voiceFallbackText?: string;
+}
+
+function normalizeOptionalNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return undefined;
+    return Math.floor(n);
 }
 
 function normalizeMode(mode: string | undefined): RequestMode | undefined {
@@ -74,6 +84,9 @@ const parseRules = createCachedRuleParser<DynamicCommonRule>({
             linkTitle: typeof rawRule.linkTitle === 'string' ? rawRule.linkTitle : undefined,
             linkDescription: typeof rawRule.linkDescription === 'string' ? rawRule.linkDescription : undefined,
             linkPicUrl: typeof rawRule.linkPicUrl === 'string' ? rawRule.linkPicUrl : undefined,
+            voiceFormat: normalizeOptionalNumber(rawRule.voiceFormat),
+            voiceDurationMs: normalizeOptionalNumber(rawRule.voiceDurationMs),
+            voiceFallbackText: typeof rawRule.voiceFallbackText === 'string' ? rawRule.voiceFallbackText : undefined,
         };
 
         if (rule.matchMode === 'regex' && !rule.pattern) return null;

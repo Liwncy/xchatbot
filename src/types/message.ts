@@ -107,6 +107,14 @@ export interface ImageReply extends ReplyBase {
 export interface VoiceReply extends ReplyBase {
     type: 'voice';
     mediaId: string;
+    /** 语音时长（毫秒）。 */
+    duration?: number;
+    /** 音频格式：0=AMR,1=SPEEX,2=MP3,3=WAVE,4=SILK。 */
+    format?: number;
+    /** 语音原始链接（发送失败时可用于降级提示）。 */
+    originalUrl?: string;
+    /** 语音发送失败时降级文案。 */
+    fallbackText?: string;
 }
 
 /** 视频回复 */

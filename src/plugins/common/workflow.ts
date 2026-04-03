@@ -41,9 +41,19 @@ export interface WorkflowCommonRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
+    voiceFormat?: number;
+    voiceDurationMs?: number;
+    voiceFallbackText?: string;
     steps: WorkflowStep[];
     /** workflow 模式最终输出来源（默认取最后一步结果）。 */
     outputFrom?: string;
+}
+
+function normalizeOptionalNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return undefined;
+    return Math.floor(n);
 }
 
 function normalizeReplyType(t: string | undefined): ReplyType | undefined {
@@ -104,6 +114,9 @@ const parseRules = createCachedRuleParser<WorkflowCommonRule>({
             linkTitle: typeof rawRule.linkTitle === 'string' ? rawRule.linkTitle : undefined,
             linkDescription: typeof rawRule.linkDescription === 'string' ? rawRule.linkDescription : undefined,
             linkPicUrl: typeof rawRule.linkPicUrl === 'string' ? rawRule.linkPicUrl : undefined,
+            voiceFormat: normalizeOptionalNumber(rawRule.voiceFormat),
+            voiceDurationMs: normalizeOptionalNumber(rawRule.voiceDurationMs),
+            voiceFallbackText: typeof rawRule.voiceFallbackText === 'string' ? rawRule.voiceFallbackText : undefined,
             steps,
             outputFrom: typeof rawRule.outputFrom === 'string' ? rawRule.outputFrom : undefined,
         };

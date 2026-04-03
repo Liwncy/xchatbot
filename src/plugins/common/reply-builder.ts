@@ -8,6 +8,9 @@ interface ReplyBuildRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
+    voiceFormat?: number;
+    voiceDurationMs?: number;
+    voiceFallbackText?: string;
 }
 
 /**
@@ -40,6 +43,18 @@ export async function buildCommonReply(
 
     const mediaId = await toMediaPayload(value, logPrefix);
     if (!mediaId) return null;
+
+    if (rule.rType === 'voice') {
+        return {
+            type: 'voice' as const,
+            mediaId,
+            originalUrl,
+            format: rule.voiceFormat,
+            duration: rule.voiceDurationMs,
+            fallbackText: rule.voiceFallbackText,
+        };
+    }
+
     return {type: rule.rType, mediaId, originalUrl};
 }
 

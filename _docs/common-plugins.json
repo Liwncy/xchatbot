@@ -104,5 +104,15 @@
         "url": "http://api.yujn.cn/api/cxk.php",
         "mode": "base64",
         "rType": "image"
+    },
+    {
+        "name": "random-greentea-voice",
+        "keyword": "随机绿茶语音|绿茶语音|来段绿茶语音|好妹妹呢|茶艺展示",
+        "method": "GET",
+        "url": "https://api.pearktrue.cn/api/greentea/?type=mp3",
+        "mode": "json",
+        "jsonPath": "$.audiopath",
+        "rType": "voice",
+        "voiceFormat": 2
     }
 ]

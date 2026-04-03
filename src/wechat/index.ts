@@ -285,7 +285,13 @@ export function buildWechatReply(
     }
 
     if (reply.type === 'voice') {
-        return {...target, type: 'voice', mediaUrl: reply.mediaId};
+        return {
+            ...target,
+            type: 'voice',
+            mediaUrl: reply.mediaId,
+            duration: reply.duration ?? 0,
+            format: reply.format ?? 0,
+        };
     }
 
     if (reply.type === 'video') {
@@ -376,14 +382,32 @@ export async function sendWechatReply(
             break;
         }
         case 'voice': {
-            // VoiceReply 中没有 duration / format 字段；使用安全默认值（AMR 格式，未知时长）
-            const result = await api.sendVoice({
-                receiver: effectiveReceiver,
-                data: reply.mediaId,
-                duration: 0,
-                format: 0
-            });
-            ensureWechatApiSuccess('sendVoice', result);
+            const format = Number.isFinite(reply.format) ? Number(reply.format) : 0;
+            const duration = Number.isFinite(reply.duration) ? Math.max(0, Number(reply.duration)) : 0;
+            try {
+                const result = await api.sendVoice({
+                    receiver: effectiveReceiver,
+                    data: reply.mediaId,
+                    duration,
+                    format,
+                });
+                ensureWechatApiSuccess('sendVoice', result);
+            } catch (voiceErr) {
+                const fallbackText = reply.fallbackText?.trim()
+                    || (reply.originalUrl ? `语音发送失败，可尝试打开原链接：${reply.originalUrl}` : '语音发送失败，请稍后重试');
+                logger.warn('语音发送失败，降级为文本提示', {
+                    receiver: effectiveReceiver,
+                    format,
+                    duration,
+                    error: voiceErr instanceof Error ? voiceErr.message : String(voiceErr),
+                });
+                const textResult = await api.sendText({
+                    receiver: effectiveReceiver,
+                    content: fallbackText,
+                    remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
+                });
+                ensureWechatApiSuccess('sendText(fallback)', textResult);
+            }
             break;
         }
         case 'video': {

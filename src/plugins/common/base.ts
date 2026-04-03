@@ -25,6 +25,9 @@ export interface CommonPluginRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
+    voiceFormat?: number;
+    voiceDurationMs?: number;
+    voiceFallbackText?: string;
 }
 
 interface LegacyRule {
@@ -41,6 +44,16 @@ interface LegacyRule {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
+    voiceFormat?: unknown;
+    voiceDurationMs?: unknown;
+    voiceFallbackText?: unknown;
+}
+
+function normalizeOptionalNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return undefined;
+    return Math.floor(n);
 }
 
 /** 将关键词统一为字符串或字符串数组；支持 `a|b|c` 写法。 */
@@ -96,6 +109,9 @@ function toRule(item: LegacyRule): CommonPluginRule | null {
         linkTitle: item.linkTitle,
         linkDescription: item.linkDescription,
         linkPicUrl: item.linkPicUrl,
+        voiceFormat: normalizeOptionalNumber(item.voiceFormat),
+        voiceDurationMs: normalizeOptionalNumber(item.voiceDurationMs),
+        voiceFallbackText: typeof item.voiceFallbackText === 'string' ? item.voiceFallbackText : undefined,
     };
 }
 
