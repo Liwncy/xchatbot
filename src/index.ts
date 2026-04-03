@@ -198,6 +198,8 @@ async function handleAdminPlugins(request: Request, env: Env): Promise<Response>
         ]);
 
         const includeFullRaw = url.searchParams.get('full') === '1';
+        const probeKey = (url.searchParams.get('key') ?? '').trim();
+        const probeRaw = probeKey ? await env.XBOT_KV.get(probeKey) : null;
         const previewSize = 300;
         const toDisplay = (value: string | null) => {
             if (!value) return null;
@@ -229,10 +231,18 @@ async function handleAdminPlugins(request: Request, env: Env): Promise<Response>
                     size: workflowRaw?.length ?? 0,
                     raw: toDisplay(workflowRaw),
                 },
+                probe: probeKey
+                    ? {
+                        key: probeKey,
+                        configured: Boolean(probeRaw?.trim()),
+                        size: probeRaw?.length ?? 0,
+                        raw: toDisplay(probeRaw),
+                    }
+                    : null,
             },
             tips: includeFullRaw
                 ? '当前返回 full=1 的完整 KV 内容，注意可能较大。'
-                : '默认仅返回前 300 字符预览，追加 ?full=1 可查看完整内容。',
+                : '默认仅返回前 300 字符预览，追加 ?full=1 可查看完整内容；追加 ?key=你的KV键 可探测任意键。',
         }, null, 2), {
             headers: {'Content-Type': 'application/json'},
         });
