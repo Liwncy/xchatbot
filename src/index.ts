@@ -190,6 +190,54 @@ async function handleAdminPlugins(request: Request, env: Env): Promise<Response>
         });
     }
 
+    if (request.method === 'GET' && pathname === '/admin/plugins/raw') {
+        const [baseRaw, dynamicRaw, workflowRaw] = await Promise.all([
+            env.XBOT_KV.get(KV_COMMON_BASE_RULES),
+            env.XBOT_KV.get(KV_COMMON_DYNAMIC_RULES),
+            env.XBOT_KV.get(KV_COMMON_WORKFLOW_RULES),
+        ]);
+
+        const includeFullRaw = url.searchParams.get('full') === '1';
+        const previewSize = 300;
+        const toDisplay = (value: string | null) => {
+            if (!value) return null;
+            if (includeFullRaw) return value;
+            return value.length > previewSize
+                ? `${value.slice(0, previewSize)}...(truncated)`
+                : value;
+        };
+
+        return new Response(JSON.stringify({
+            keys: {
+                base: KV_COMMON_BASE_RULES,
+                dynamic: KV_COMMON_DYNAMIC_RULES,
+                workflow: KV_COMMON_WORKFLOW_RULES,
+            },
+            values: {
+                base: {
+                    configured: Boolean(baseRaw?.trim()),
+                    size: baseRaw?.length ?? 0,
+                    raw: toDisplay(baseRaw),
+                },
+                dynamic: {
+                    configured: Boolean(dynamicRaw?.trim()),
+                    size: dynamicRaw?.length ?? 0,
+                    raw: toDisplay(dynamicRaw),
+                },
+                workflow: {
+                    configured: Boolean(workflowRaw?.trim()),
+                    size: workflowRaw?.length ?? 0,
+                    raw: toDisplay(workflowRaw),
+                },
+            },
+            tips: includeFullRaw
+                ? '当前返回 full=1 的完整 KV 内容，注意可能较大。'
+                : '默认仅返回前 300 字符预览，追加 ?full=1 可查看完整内容。',
+        }, null, 2), {
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
     if (request.method === 'POST' && pathname === '/admin/plugins/reload') {
         const cleared = clearRemoteRulesCache();
         return new Response(JSON.stringify({
