@@ -10,6 +10,7 @@ import type {WechatPushItem, WechatPushMessage} from './types.js';
 import {WechatApi} from './api.js';
 import {logger} from '../utils/logger.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from './constants.js';
+import {normalizeVoiceForWechat} from '../utils/silk-converter.js';
 
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 
@@ -289,8 +290,8 @@ export function buildWechatReply(
             ...target,
             type: 'voice',
             mediaUrl: reply.mediaId,
-            duration: reply.duration ?? 0,
-            format: reply.format ?? 0,
+            duration: reply.duration ?? 5000,
+            format: reply.format ?? 4,
         };
     }
 
@@ -332,6 +333,10 @@ export async function sendWechatReply(
     api: WechatApi,
     reply: ReplyMessage,
     receiver: string,
+    options?: {
+        voiceToSilkApiUrl?: string;
+        voiceToSilkAppSecret?: string;
+    },
 ): Promise<void> {
     const effectiveReceiver = reply.to ?? receiver;
 
@@ -382,14 +387,30 @@ export async function sendWechatReply(
             break;
         }
         case 'voice': {
-            const format = Number.isFinite(reply.format) ? Number(reply.format) : 0;
-            const duration = Number.isFinite(reply.duration) ? Math.max(0, Number(reply.duration)) : 0;
+            const requestedFormat = Number.isFinite(reply.format) ? Number(reply.format) : 4;
+            const duration = Number.isFinite(reply.duration) ? Math.max(0, Number(reply.duration)) : 5000;
+
+            const normalizedVoice = await normalizeVoiceForWechat(
+                {
+                    format: requestedFormat,
+                    mediaData: reply.mediaId,
+                    durationMs: duration,
+                    originalUrl: reply.originalUrl,
+                },
+                {
+                    toSilkApiUrl: options?.voiceToSilkApiUrl,
+                    toSilkAppSecret: options?.voiceToSilkAppSecret,
+                },
+            );
+            if (!normalizedVoice) {
+                throw new Error(`voice conversion unavailable: format=${requestedFormat}`);
+            }
             try {
                 const result = await api.sendVoice({
                     receiver: effectiveReceiver,
-                    data: reply.mediaId,
-                    duration,
-                    format,
+                    data: normalizedVoice.mediaData,
+                    duration: normalizedVoice.durationMs,
+                    format: normalizedVoice.format,
                 });
                 ensureWechatApiSuccess('sendVoice', result);
             } catch (voiceErr) {
@@ -397,7 +418,7 @@ export async function sendWechatReply(
                     || (reply.originalUrl ? `语音发送失败，可尝试打开原链接：${reply.originalUrl}` : '语音发送失败，请稍后重试');
                 logger.warn('语音发送失败，降级为文本提示', {
                     receiver: effectiveReceiver,
-                    format,
+                    requestedFormat,
                     duration,
                     error: voiceErr instanceof Error ? voiceErr.message : String(voiceErr),
                 });
@@ -469,6 +490,20 @@ function detectImageFormat(base64?: string): string {
 
 function isExpiredMessage(message: IncomingMessage, nowUnixSeconds: number): boolean {
     return nowUnixSeconds - message.timestamp > MESSAGE_EXPIRE_SECONDS;
+}
+
+function resolveVoiceConversionOptions(env: Env): {
+    voiceToSilkApiUrl?: string;
+    voiceToSilkAppSecret?: string;
+} {
+    const voiceEnv = env as Env & {
+        VOICE_TOSILK_API_URL?: string;
+        VOICE_TOSILK_APP_SECRET?: string;
+    };
+    return {
+        voiceToSilkApiUrl: voiceEnv.VOICE_TOSILK_API_URL,
+        voiceToSilkAppSecret: voiceEnv.VOICE_TOSILK_APP_SECRET,
+    };
 }
 
 /**
@@ -559,10 +594,11 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     // 优先使用类型化 API 客户端（需配置 base URL）
     if (apiBaseUrl) {
         const api = new WechatApi(apiBaseUrl);
+        const voiceOptions = resolveVoiceConversionOptions(env);
         for (const task of replyTasks) {
             const receiver = task.message.room?.id ?? task.message.from;
             try {
-                await sendWechatReply(api, task.reply, receiver);
+                await sendWechatReply(api, task.reply, receiver, voiceOptions);
             } catch (err) {
                 logger.error('微信 API 发送回复失败', {
                     replyType: task.reply.type,
