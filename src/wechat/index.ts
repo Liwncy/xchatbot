@@ -334,8 +334,7 @@ export async function sendWechatReply(
     reply: ReplyMessage,
     receiver: string,
     options?: {
-        voiceToSilkApiUrl?: string;
-        voiceToSilkAppSecret?: string;
+        voiceConvertApiUrl?: string;
     },
 ): Promise<void> {
     const effectiveReceiver = reply.to ?? receiver;
@@ -398,8 +397,7 @@ export async function sendWechatReply(
                     originalUrl: reply.originalUrl,
                 },
                 {
-                    toSilkApiUrl: options?.voiceToSilkApiUrl,
-                    toSilkAppSecret: options?.voiceToSilkAppSecret,
+                    convertApiUrl: options?.voiceConvertApiUrl,
                 },
             );
             if (!normalizedVoice) {
@@ -493,16 +491,15 @@ function isExpiredMessage(message: IncomingMessage, nowUnixSeconds: number): boo
 }
 
 function resolveVoiceConversionOptions(env: Env): {
-    voiceToSilkApiUrl?: string;
-    voiceToSilkAppSecret?: string;
+    voiceConvertApiUrl?: string;
 } {
     const voiceEnv = env as Env & {
+        VOICE_CONVERT_API_URL?: string;
         VOICE_TOSILK_API_URL?: string;
-        VOICE_TOSILK_APP_SECRET?: string;
     };
     return {
-        voiceToSilkApiUrl: voiceEnv.VOICE_TOSILK_API_URL,
-        voiceToSilkAppSecret: voiceEnv.VOICE_TOSILK_APP_SECRET,
+        // Prefer the new generic variable name; keep legacy fallback.
+        voiceConvertApiUrl: voiceEnv.VOICE_CONVERT_API_URL || voiceEnv.VOICE_TOSILK_API_URL,
     };
 }
 

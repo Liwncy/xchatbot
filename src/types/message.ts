@@ -217,9 +217,11 @@ export interface Env {
     COMMON_WORKFLOW_PLUGINS_CLIENT_ID?: string;
     /** 兼容旧变量名：拉取动态通用插件远程配置时使用的 clientid 请求头。 */
     COMMON_ADVANCED_PLUGINS_CLIENT_ID?: string;
-    /** MP3 转 SILK 服务地址（可选，默认使用内置 dudunas 地址）。 */
+    /** 通用音频转 SILK 服务地址（可选，默认使用内置 convert 地址）。 */
+    VOICE_CONVERT_API_URL?: string;
+    /** 兼容旧变量名：MP3 转 SILK 服务地址。 */
     VOICE_TOSILK_API_URL?: string;
-    /** MP3 转 SILK 服务密钥（可选，默认使用内置示例密钥）。 */
+    /** 兼容旧变量名：MP3 转 SILK 服务密钥（当前 convert 接口不需要）。 */
     VOICE_TOSILK_APP_SECRET?: string;
     // AI 插件
     /** AI 插件使用的聊天接口 URL。 */

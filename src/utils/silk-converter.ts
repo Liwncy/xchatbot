@@ -1,8 +1,7 @@
 import {arrayBufferToBase64} from './binary.js';
 import {logger} from './logger.js';
 
-const DEFAULT_TOSILK_API = 'https://api.dudunas.top/api/tosilk';
-const DEFAULT_TOSILK_APP_SECRET = 'a3c838e4dfbd21b3ab09e81ccd8b185d';
+const DEFAULT_AUDIO_CONVERT_API = 'https://api.chrelyonly.cn/convert';
 const FETCH_TIMEOUT_MS = 15_000;
 
 export interface VoiceConversionInput {
@@ -13,8 +12,7 @@ export interface VoiceConversionInput {
 }
 
 export interface VoiceConversionOptions {
-    toSilkApiUrl?: string;
-    toSilkAppSecret?: string;
+    convertApiUrl?: string;
 }
 
 export interface VoiceConversionResult {
@@ -24,86 +22,70 @@ export interface VoiceConversionResult {
     converted: boolean;
 }
 
-interface ToSilkApiResponse {
-    code?: number;
-    msg?: string;
-    data?: {
-        silkurl?: string;
-    };
-}
-
 function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test((value ?? '').trim());
 }
 
-async function fetchWithTimeout(url: string): Promise<Response> {
+function normalizeBase64(value: string): string {
+    const trimmed = (value ?? '').trim();
+    const match = trimmed.match(/^data:[^;]+;base64,(.+)$/i);
+    return match?.[1] ?? trimmed;
+}
+
+async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-        return await fetch(url, {method: 'GET', signal: controller.signal});
+        return await fetch(url, {...init, signal: controller.signal});
     } finally {
         clearTimeout(timer);
     }
 }
 
-export class Mp3ToSilkConverter {
+export class AudioToSilkConverter {
     private readonly apiUrl: string;
-    private readonly appSecret: string;
 
     constructor(options?: VoiceConversionOptions) {
-        this.apiUrl = options?.toSilkApiUrl?.trim() || DEFAULT_TOSILK_API;
-        this.appSecret = options?.toSilkAppSecret?.trim() || DEFAULT_TOSILK_APP_SECRET;
+        this.apiUrl = options?.convertApiUrl?.trim() || DEFAULT_AUDIO_CONVERT_API;
     }
 
-    async convertUrl(mp3Url: string): Promise<string | null> {
-        if (!isHttpUrl(mp3Url)) return null;
+    async convertToSilkBase64(source: {audioUrl?: string; base64Audio?: string}): Promise<string | null> {
+        const formData = new FormData();
+        if (source.audioUrl?.trim()) formData.append('audioUrl', source.audioUrl.trim());
+        if (source.base64Audio?.trim()) formData.append('base64Audio', normalizeBase64(source.base64Audio));
+        if (!formData.has('audioUrl') && !formData.has('base64Audio')) return null;
 
-        const requestUrl = `${this.apiUrl}?AppSecret=${encodeURIComponent(this.appSecret)}&url=${encodeURIComponent(mp3Url)}`;
         try {
-            const response = await fetchWithTimeout(requestUrl);
+            const response = await fetchWithTimeout(this.apiUrl, {
+                method: 'POST',
+                body: formData,
+            });
             if (!response.ok) {
-                logger.warn('MP3->SILK conversion request failed', {status: response.status, requestUrl});
+                logger.warn('audio->silk conversion request failed', {status: response.status, apiUrl: this.apiUrl});
                 return null;
             }
 
-            const payload = (await response.json()) as ToSilkApiResponse;
-            const silkUrl = payload?.data?.silkurl?.trim() ?? '';
-            if (!silkUrl || !isHttpUrl(silkUrl)) {
-                logger.warn('MP3->SILK conversion returned invalid silk url', {
-                    requestUrl,
-                    code: payload?.code,
-                    msg: payload?.msg,
+            const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
+            if (contentType.includes('application/json')) {
+                const text = (await response.text()).slice(0, 300);
+                logger.warn('audio->silk converter returned json instead of stream', {
+                    apiUrl: this.apiUrl,
+                    contentType,
+                    bodyPreview: text,
                 });
                 return null;
             }
-            return silkUrl;
+
+            const buffer = await response.arrayBuffer();
+            if (buffer.byteLength <= 0) return null;
+            return arrayBufferToBase64(buffer);
         } catch (error) {
-            logger.warn('MP3->SILK conversion exception', {
-                requestUrl,
+            logger.warn('audio->silk conversion exception', {
+                apiUrl: this.apiUrl,
                 error: error instanceof Error ? error.message : String(error),
             });
             return null;
         }
-    }
-}
-
-async function downloadAsBase64(url: string): Promise<string | null> {
-    try {
-        const response = await fetchWithTimeout(url);
-        if (!response.ok) {
-            logger.warn('Download converted SILK failed', {status: response.status, url});
-            return null;
-        }
-
-        const buffer = await response.arrayBuffer();
-        if (buffer.byteLength <= 0) return null;
-        return arrayBufferToBase64(buffer);
-    } catch (error) {
-        logger.warn('Download converted SILK exception', {
-            url,
-            error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
     }
 }
 
@@ -112,7 +94,7 @@ async function downloadAsBase64(url: string): Promise<string | null> {
  *
  * Current strategy:
  * - format=4: direct pass-through
- * - format=2(MP3): use mp3 url -> silk url converter, then download silk as base64
+ * - others: use convert API to get SILK stream, then encode as base64
  */
 export async function normalizeVoiceForWechat(
     input: VoiceConversionInput,
@@ -127,22 +109,13 @@ export async function normalizeVoiceForWechat(
         };
     }
 
-    if (input.format !== 2) {
-        logger.warn('No voice converter registered for format', {format: input.format});
-        return null;
-    }
-
-    const mp3Url = (input.originalUrl?.trim() || (isHttpUrl(input.mediaData) ? input.mediaData.trim() : ''));
-    if (!mp3Url) {
-        logger.warn('MP3 voice conversion requires original http url');
-        return null;
-    }
-
-    const converter = new Mp3ToSilkConverter(options);
-    const silkUrl = await converter.convertUrl(mp3Url);
-    if (!silkUrl) return null;
-
-    const silkBase64 = await downloadAsBase64(silkUrl);
+    const converter = new AudioToSilkConverter(options);
+    const audioUrl = input.originalUrl?.trim() || (isHttpUrl(input.mediaData) ? input.mediaData.trim() : '');
+    const base64Audio = audioUrl ? '' : normalizeBase64(input.mediaData);
+    const silkBase64 = await converter.convertToSilkBase64({
+        audioUrl: audioUrl || undefined,
+        base64Audio: base64Audio || undefined,
+    });
     if (!silkBase64) return null;
 
     return {
