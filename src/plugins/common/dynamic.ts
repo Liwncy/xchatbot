@@ -84,6 +84,33 @@ const parseRules = createCachedRuleParser<DynamicCommonRule>({
 
 const COMMON_DYNAMIC_PLUGINS_KV_KEY = 'plugins:parameterized:mapping';
 
+function buildMessageParams(message: Parameters<TextMessage['handle']>[0]): Record<string, string> {
+    const senderName = message.senderName?.trim() || '主人';
+    const params: Record<string, string> = {
+        'message.platform': message.platform,
+        'message.type': message.type,
+        'message.from': message.from,
+        'message.to': message.to,
+        'message.source': message.source ?? '',
+        'message.content': message.content ?? '',
+        'message.timestamp': String(message.timestamp),
+        'message.messageId': message.messageId,
+        'message.senderName': senderName,
+        // Short aliases for easier config writing.
+        from: message.from,
+        to: message.to,
+        content: message.content ?? '',
+        senderName,
+        messageId: message.messageId,
+        timestamp: String(message.timestamp),
+    };
+
+    if (message.room?.id) params['message.room.id'] = message.room.id;
+    if (message.room?.topic) params['message.room.topic'] = message.room.topic;
+    if (message.mediaId) params['message.mediaId'] = message.mediaId;
+    return params;
+}
+
 function parseCacheMs(raw: string | undefined): number | undefined {
     const value = Number((raw ?? '').trim());
     if (!Number.isFinite(value) || value < 0) return undefined;
@@ -124,6 +151,7 @@ export const dynamicCommonPluginsEngine: TextMessage = {
     handle: async (message, env) => {
         const content = (message.content ?? '').trim();
         if (!content) return null;
+        const messageParams = buildMessageParams(message);
 
         const rules = await resolveRules(env);
         if (!rules.length) return null;
@@ -132,10 +160,11 @@ export const dynamicCommonPluginsEngine: TextMessage = {
         if (!context) return null;
 
         const {rule, params} = context;
+        const templateParams = {...messageParams, ...params};
 
         try {
             if (rule.mode === 'base64' && rule.rType === 'link') {
-                return toLinkReply(rule, renderTemplateString(rule.url, params, true));
+                return toLinkReply(rule, renderTemplateString(rule.url, templateParams, true));
             }
 
             const value = await fetchTemplatedValue(
@@ -147,7 +176,7 @@ export const dynamicCommonPluginsEngine: TextMessage = {
                     mode: rule.mode,
                     jsonPath: rule.jsonPath,
                 },
-                params,
+                templateParams,
                 '动态通用插件',
             );
             if (value === undefined || value === null || value === '') {

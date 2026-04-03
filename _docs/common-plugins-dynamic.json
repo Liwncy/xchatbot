@@ -180,5 +180,34 @@
         "mode": "json",
         "rType": "text",
         "jsonPath": "'🚆 车票详情：' + $.__params.trainnumber + '\\n' + '📍 ' + $.from + ' → ' + $.to + '\\n' + '📅 日期: ' + $.time + '\\n' + '──────────\\n' + '类型: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"traintype\") + '\\n' + '车次: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"trainumber\") + '\\n' + '出发: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"departstation\") + ' ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"departtime\") + '\\n' + '到达: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"arrivestation\") + ' ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"arrivetime\") + '\\n' + '历时: ' + get(pick($.data,\"trainumber\",$.__params.trainnumber),\"runtime\") + '\\n' + '🎫 座位余票:\\n' + lines(get(pick($.data,\"trainumber\",$.__params.trainnumber),\"ticket_info\"), '{seatname}: {bookable}｜¥{seatprice}｜余票 {seatinventory}', '\\n')"
+    },
+    {
+        "name": "fabing-with-name",
+        "matchMode": "regex",
+        "pattern": "^(?:随机)?发病文学\\s+(.+)$",
+        "args": {
+            "mode": "regex",
+            "names": [
+                "name"
+            ],
+            "required": [
+                "name"
+            ]
+        },
+        "url": "https://60s.viki.moe/v2/fabing?name={{name}}&encoding=json",
+        "method": "GET",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "$.data.saying"
+    },
+    {
+        "name": "fabing-default",
+        "keyword": "随机发病文学|发病文学",
+        "matchMode": "exact",
+        "url": "https://60s.viki.moe/v2/fabing?name={{message.senderName}}&encoding=json",
+        "method": "GET",
+        "mode": "json",
+        "rType": "text",
+        "jsonPath": "$.data.saying"
     }
 ]
