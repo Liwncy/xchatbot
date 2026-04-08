@@ -5,7 +5,7 @@ workers_dev = true
 preview_urls = true
 
 routes = [
-    { pattern = "xchatbot.lwcfworker.dpdns.org", zone_name = "xchatbot.lwcfworker.dpdns.org", custom_domain = true }
+    { pattern = "xchatbot.lwcfworker.dpdns.org", zone_name = "lwcfworker.dpdns.org", custom_domain = true }
 ]
 
 [observability]
