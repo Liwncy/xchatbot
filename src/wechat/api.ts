@@ -47,17 +47,22 @@ const BROWSER_LIKE_HEADERS: Record<string, string> = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     'Cache-Control': 'no-cache',
     Pragma: 'no-cache',
-    Referer: 'https://liwncy.us.ci/',
     'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
 };
 
 export class WechatApi {
     private readonly baseUrl: string;
+    private readonly requestHeaders: Record<string, string>;
 
     constructor(baseUrl: string) {
         // 移除尾部斜杠，避免调用方重复处理
         this.baseUrl = baseUrl.replace(/\/+$/, '');
+        this.requestHeaders = {
+            ...BROWSER_LIKE_HEADERS,
+            // Referer 跟随 WECHAT_API_BASE_URL，避免写死固定域名。
+            Referer: this.baseUrl,
+        };
     }
 
     // -----------------------------------------------------------------------
@@ -69,7 +74,7 @@ export class WechatApi {
         const res = await fetch(`${this.baseUrl}${path}`, {
             method: 'POST',
             headers: {
-                ...BROWSER_LIKE_HEADERS,
+                ...this.requestHeaders,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
@@ -87,7 +92,7 @@ export class WechatApi {
         }
         const res = await fetch(url.toString(), {
             method: 'GET',
-            headers: BROWSER_LIKE_HEADERS,
+            headers: this.requestHeaders,
         });
         return this.parseApiResponse<T>(path, res);
     }
@@ -102,7 +107,7 @@ export class WechatApi {
         }
         const res = await fetch(url.toString(), {
             method: 'POST',
-            headers: BROWSER_LIKE_HEADERS,
+            headers: this.requestHeaders,
         });
         return this.parseApiResponse<T>(path, res);
     }
