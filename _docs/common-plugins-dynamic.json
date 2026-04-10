@@ -209,5 +209,29 @@
         "mode": "json",
         "rType": "text",
         "jsonPath": "$.data.saying"
+    },
+    {
+        "name": "music-link",
+        "keyword": "music|点个歌|唱个歌",
+        "matchMode": "prefix",
+        "args": {
+            "mode": "tail",
+            "names": [
+                "query"
+            ],
+            "required": [
+                "query"
+            ]
+        },
+        "url": "https://109a.cn/API/qqyy/api.php?msg={{query}}",
+        "method": "GET",
+        "headers": {
+            "Accept": "application/json,text/plain,*/*",
+            "User-Agent": "Mozilla/5.0"
+        },
+        "mode": "json",
+        "rType": "app",
+        "appType": 76,
+        "jsonPath": "'<appmsg appid=\"wx1ebb9c41ccbfb6d4\" sdkver=\"0\"><title><![CDATA[🎵 ' + $.data[0].song + ']]></title><des><![CDATA[歌手：' + $.data[0].singer + ']]></des><type>76</type><url><![CDATA[' + $.data[0].url + ']]></url><lowurl><![CDATA[' + $.data[0].url + ']]></lowurl><dataurl><![CDATA[' + $.data[0].url + ']]></dataurl><lowdataurl><![CDATA[' + $.data[0].url + ']]></lowdataurl><songalbumurl><![CDATA[' + $.data[0].cover + ']]></songalbumurl><songlyric><![CDATA[' + $.data[0].lyric + ']]></songlyric><appattach><cdnthumbaeskey /><aeskey></aeskey></appattach></appmsg>'"
     }
 ]

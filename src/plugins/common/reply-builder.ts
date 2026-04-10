@@ -1,6 +1,6 @@
 import {isHttpUrl, toLinkReply, toMediaPayload} from './shared';
 
-export type CommonReplyType = 'text' | 'image' | 'video' | 'voice' | 'link';
+export type CommonReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
 interface ReplyBuildRule {
     rType: CommonReplyType;
@@ -11,6 +11,19 @@ interface ReplyBuildRule {
     voiceFormat?: number;
     voiceDurationMs?: number;
     voiceFallbackText?: string;
+    cardUsername?: string;
+    cardNickname?: string;
+    cardAlias?: string;
+    appType?: number;
+    appXml?: string;
+}
+
+function getObjectStringField(obj: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+        const value = obj[key];
+        if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return '';
 }
 
 /**
@@ -35,6 +48,33 @@ export async function buildCommonReply(
 
     if (rule.rType === 'link') {
         return toLinkReply(rule, value);
+    }
+
+    if (rule.rType === 'card') {
+        const obj = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+        const card_username = getObjectStringField(obj, ['card_username', 'username']) || rule.cardUsername || '';
+        const card_nickname = getObjectStringField(obj, ['card_nickname', 'nickname']) || rule.cardNickname || '';
+        const card_alias = getObjectStringField(obj, ['card_alias', 'alias']) || rule.cardAlias || '';
+        if (!card_username || !card_nickname) return null;
+        return {
+            type: 'card' as const,
+            cardContent: {card_username, card_nickname, card_alias},
+        };
+    }
+
+    if (rule.rType === 'app') {
+        const obj = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+        const appXml = (typeof value === 'string' ? value.trim() : '')
+            || getObjectStringField(obj, ['xml', 'appXml'])
+            || (rule.appXml?.trim() ?? '');
+        const rawType = obj.type ?? obj.appType ?? rule.appType;
+        const appType = Number.isFinite(Number(rawType)) ? Math.floor(Number(rawType)) : 5;
+        if (!appXml) return null;
+        return {
+            type: 'app' as const,
+            appType,
+            appXml,
+        };
     }
 
     // 记录原始 URL，供发送失败时降级为链接回复

@@ -213,7 +213,9 @@ KV key 约定：
 - `keyword`：字符串或数组，支持 `a|b|c` 写法
 - `mode`：`text` / `json` / `base64`
 - `jsonPath`：仅 `mode=json` 时使用，支持简化路径与 `[x]` 随机索引
-- `rType`：`text` / `image` / `video` / `voice` / `link`
+- `rType`：`text` / `image` / `video` / `voice` / `link` / `card` / `app`
+- `card` 规则可选字段：`cardUsername` / `cardNickname` / `cardAlias`
+- `app` 规则可选字段：`appType` / `appXml`（`jsonPath` 也可直接返回 xml 字符串）
 
 #### `jsonPath` 速查（建议收藏）
 

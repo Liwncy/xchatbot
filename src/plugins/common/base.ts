@@ -10,7 +10,7 @@ import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
 
 type CommonPluginMode = 'text' | 'base64' | 'json';
-type CommonPluginReplyType = 'text' | 'image' | 'video' | 'voice' | 'link';
+type CommonPluginReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
 export interface CommonPluginRule {
     name?: string;
@@ -28,6 +28,11 @@ export interface CommonPluginRule {
     voiceFormat?: number;
     voiceDurationMs?: number;
     voiceFallbackText?: string;
+    cardUsername?: string;
+    cardNickname?: string;
+    cardAlias?: string;
+    appType?: number;
+    appXml?: string;
 }
 
 interface LegacyRule {
@@ -47,6 +52,11 @@ interface LegacyRule {
     voiceFormat?: unknown;
     voiceDurationMs?: unknown;
     voiceFallbackText?: unknown;
+    cardUsername?: unknown;
+    cardNickname?: unknown;
+    cardAlias?: unknown;
+    appType?: unknown;
+    appXml?: unknown;
 }
 
 function normalizeOptionalNumber(value: unknown): number | undefined {
@@ -83,7 +93,7 @@ function normalizeMode(mode: string | undefined): CommonPluginMode | undefined {
 function normalizeReplyType(value: string | undefined): CommonPluginReplyType | undefined {
     if (!value) return undefined;
     const t = value.trim().toLowerCase();
-    if (t === 'text' || t === 'image' || t === 'video' || t === 'voice' || t === 'link') return t;
+    if (t === 'text' || t === 'image' || t === 'video' || t === 'voice' || t === 'link' || t === 'card' || t === 'app') return t;
     return undefined;
 }
 
@@ -112,6 +122,11 @@ function toRule(item: LegacyRule): CommonPluginRule | null {
         voiceFormat: normalizeOptionalNumber(item.voiceFormat),
         voiceDurationMs: normalizeOptionalNumber(item.voiceDurationMs),
         voiceFallbackText: typeof item.voiceFallbackText === 'string' ? item.voiceFallbackText : undefined,
+        cardUsername: typeof item.cardUsername === 'string' ? item.cardUsername : undefined,
+        cardNickname: typeof item.cardNickname === 'string' ? item.cardNickname : undefined,
+        cardAlias: typeof item.cardAlias === 'string' ? item.cardAlias : undefined,
+        appType: normalizeOptionalNumber(item.appType),
+        appXml: typeof item.appXml === 'string' ? item.appXml : undefined,
     };
 }
 
@@ -175,7 +190,7 @@ export const commonPluginsEngine: TextMessage = {
     // Always true, register this plugin after specific plugins.
     match: () => true,
 
-    handle: async (message, env) => {
+    handle: async (message, env): ReturnType<TextMessage['handle']> => {
         const content = (message.content ?? '').trim();
         if (!content) return null;
         const templateParams = buildMessageParams(message);

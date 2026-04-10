@@ -16,7 +16,7 @@ import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
 
 type RequestMode = 'text' | 'base64' | 'json';
-type ReplyType = 'text' | 'image' | 'video' | 'voice' | 'link';
+type ReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
 interface WorkflowStep {
     name?: string;
@@ -44,6 +44,11 @@ export interface WorkflowCommonRule {
     voiceFormat?: number;
     voiceDurationMs?: number;
     voiceFallbackText?: string;
+    cardUsername?: string;
+    cardNickname?: string;
+    cardAlias?: string;
+    appType?: number;
+    appXml?: string;
     steps: WorkflowStep[];
     /** workflow 模式最终输出来源（默认取最后一步结果）。 */
     outputFrom?: string;
@@ -58,7 +63,7 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
 
 function normalizeReplyType(t: string | undefined): ReplyType | undefined {
     const v = (t ?? '').trim().toLowerCase();
-    if (v === 'text' || v === 'image' || v === 'video' || v === 'voice' || v === 'link') return v;
+    if (v === 'text' || v === 'image' || v === 'video' || v === 'voice' || v === 'link' || v === 'card' || v === 'app') return v;
     return undefined;
 }
 
@@ -117,6 +122,11 @@ const parseRules = createCachedRuleParser<WorkflowCommonRule>({
             voiceFormat: normalizeOptionalNumber(rawRule.voiceFormat),
             voiceDurationMs: normalizeOptionalNumber(rawRule.voiceDurationMs),
             voiceFallbackText: typeof rawRule.voiceFallbackText === 'string' ? rawRule.voiceFallbackText : undefined,
+            cardUsername: typeof rawRule.cardUsername === 'string' ? rawRule.cardUsername : undefined,
+            cardNickname: typeof rawRule.cardNickname === 'string' ? rawRule.cardNickname : undefined,
+            cardAlias: typeof rawRule.cardAlias === 'string' ? rawRule.cardAlias : undefined,
+            appType: normalizeOptionalNumber(rawRule.appType),
+            appXml: typeof rawRule.appXml === 'string' ? rawRule.appXml : undefined,
             steps,
             outputFrom: typeof rawRule.outputFrom === 'string' ? rawRule.outputFrom : undefined,
         };
@@ -185,7 +195,7 @@ export const workflowCommonPluginsEngine: TextMessage = {
     name: 'workflow-common-plugins-engine',
     description: '支持多步骤编排的通用插件',
     match: () => true,
-    handle: async (message, env) => {
+    handle: async (message, env): ReturnType<TextMessage['handle']> => {
         const content = (message.content ?? '').trim();
         if (!content) return null;
 

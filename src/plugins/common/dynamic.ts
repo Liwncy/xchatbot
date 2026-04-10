@@ -17,7 +17,7 @@ import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
 
 type RequestMode = 'text' | 'base64' | 'json';
-type ReplyType = 'text' | 'image' | 'video' | 'voice' | 'link';
+type ReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
 export interface DynamicCommonRule {
     name?: string;
@@ -38,6 +38,11 @@ export interface DynamicCommonRule {
     voiceFormat?: number;
     voiceDurationMs?: number;
     voiceFallbackText?: string;
+    cardUsername?: string;
+    cardNickname?: string;
+    cardAlias?: string;
+    appType?: number;
+    appXml?: string;
 }
 
 function normalizeOptionalNumber(value: unknown): number | undefined {
@@ -56,7 +61,7 @@ function normalizeMode(mode: string | undefined): RequestMode | undefined {
 
 function normalizeReplyType(t: string | undefined): ReplyType | undefined {
     const v = (t ?? '').trim().toLowerCase();
-    if (v === 'text' || v === 'image' || v === 'video' || v === 'voice' || v === 'link') return v;
+    if (v === 'text' || v === 'image' || v === 'video' || v === 'voice' || v === 'link' || v === 'card' || v === 'app') return v;
     return undefined;
 }
 
@@ -87,6 +92,11 @@ const parseRules = createCachedRuleParser<DynamicCommonRule>({
             voiceFormat: normalizeOptionalNumber(rawRule.voiceFormat),
             voiceDurationMs: normalizeOptionalNumber(rawRule.voiceDurationMs),
             voiceFallbackText: typeof rawRule.voiceFallbackText === 'string' ? rawRule.voiceFallbackText : undefined,
+            cardUsername: typeof rawRule.cardUsername === 'string' ? rawRule.cardUsername : undefined,
+            cardNickname: typeof rawRule.cardNickname === 'string' ? rawRule.cardNickname : undefined,
+            cardAlias: typeof rawRule.cardAlias === 'string' ? rawRule.cardAlias : undefined,
+            appType: normalizeOptionalNumber(rawRule.appType),
+            appXml: typeof rawRule.appXml === 'string' ? rawRule.appXml : undefined,
         };
 
         if (rule.matchMode === 'regex' && !rule.pattern) return null;
@@ -161,7 +171,7 @@ export const dynamicCommonPluginsEngine: TextMessage = {
     name: 'dynamic-common-plugins-engine',
     description: '支持参数提取的动态通用插件',
     match: () => true,
-    handle: async (message, env) => {
+    handle: async (message, env): ReturnType<TextMessage['handle']> => {
         const content = (message.content ?? '').trim();
         if (!content) return null;
         const messageParams = buildMessageParams(message);

@@ -76,7 +76,7 @@ export interface IncomingMessage {
 }
 
 /** 回复消息类型 */
-export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'unknown';
+export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'app' | 'unknown';
 
 /**
  * 所有回复类型共享的可选字段。
@@ -148,7 +148,18 @@ export interface MarkdownReply extends ReplyBase {
 /** 卡片 / 交互式消息回复 */
 export interface CardReply extends ReplyBase {
     type: 'card';
-    cardContent: unknown;
+    cardContent: {
+        card_username: string;
+        card_nickname: string;
+        card_alias: string;
+    };
+}
+
+/** 微信 app 消息（富 XML）。 */
+export interface AppReply extends ReplyBase {
+    type: 'app';
+    appType: number;
+    appXml: string;
 }
 
 /** 所有回复类型的联合类型 */
@@ -159,7 +170,8 @@ export type ReplyMessage =
     | VideoReply
     | NewsReply
     | MarkdownReply
-    | CardReply;
+    | CardReply
+    | AppReply;
 
 /**
  * 处理器可能返回的结果：单条回复、多条回复或不回复。

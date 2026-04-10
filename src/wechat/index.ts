@@ -313,6 +313,23 @@ export function buildWechatReply(
         };
     }
 
+    if (reply.type === 'card') {
+        return {
+            ...target,
+            type: 'card',
+            cardContent: reply.cardContent,
+        };
+    }
+
+    if (reply.type === 'app') {
+        return {
+            ...target,
+            type: 'app',
+            appType: reply.appType,
+            appXml: reply.appXml,
+        };
+    }
+
     if (reply.type === 'markdown') {
         return {...target, type: 'text', content: reply.content};
     }
@@ -452,6 +469,25 @@ export async function sendWechatReply(
                 });
                 ensureWechatApiSuccess('sendLink', result);
             }
+            break;
+        }
+        case 'card': {
+            const result = await api.sendCard({
+                receiver: effectiveReceiver,
+                card_username: reply.cardContent.card_username,
+                card_nickname: reply.cardContent.card_nickname,
+                card_alias: reply.cardContent.card_alias,
+            });
+            ensureWechatApiSuccess('sendCard', result);
+            break;
+        }
+        case 'app': {
+            const result = await api.sendApp({
+                receiver: effectiveReceiver,
+                type: reply.appType,
+                xml: reply.appXml,
+            });
+            ensureWechatApiSuccess('sendApp', result);
             break;
         }
         default:
