@@ -1,19 +1,14 @@
 import {handleWechat} from './wechat/index.js';
 import type {Env} from './types/message.js';
 import {clearRemoteRulesCache, getRemoteRulesCacheSize} from './plugins/common/remote-config.js';
-
-// ── KV Key 常量 ──
-const KV_DEBUG_ENABLED = 'debug:forward:enabled';
-const KV_DEBUG_URL     = 'debug:forward:url';
-const KV_COMMON_BASE_RULES = 'plugins:common:mapping';
-const KV_COMMON_DYNAMIC_RULES = 'plugins:parameterized:mapping';
-const KV_COMMON_WORKFLOW_RULES = 'plugins:workflow:mapping';
-
-// 调试开关默认 TTL：8 小时（单位：秒）。超时后 KV 自动删除，转发自动关闭。
-const DEBUG_TTL_SECONDS = 8 * 60 * 60;
-
-// 防递归标识头：转发请求时携带此头，Workers 收到后跳过调试转发直接处理
-const DEBUG_FORWARDED_HEADER = 'x-xchatbot-debug-forwarded';
+import {
+    KV_COMMON_BASE_RULES,
+    KV_COMMON_DYNAMIC_RULES,
+    KV_COMMON_WORKFLOW_RULES,
+    KV_DEBUG_ENABLED,
+    KV_DEBUG_URL,
+} from './constants/kv.js';
+import {DEBUG_FORWARDED_HEADER, DEBUG_TTL_SECONDS} from './constants/debug.js';
 
 // ── 管理接口鉴权 Token 的 KV Key ──
 // 通过 `wrangler secret put ADMIN_TOKEN` 设置，或放在 .dev.vars

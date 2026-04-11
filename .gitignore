@@ -4,3 +4,4 @@ dist/
 .dev.vars
 *.tsbuildinfo
 .idea
+/_docs/vue-xiuxiangame-main/
