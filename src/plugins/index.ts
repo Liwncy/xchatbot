@@ -13,6 +13,7 @@ import {commonPluginsEngine} from './common/base';
 import {dynamicCommonPluginsEngine} from './common/dynamic';
 import {workflowCommonPluginsEngine} from './common/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
+import {xiuxianPlugin} from './game/xiuxian';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
@@ -20,6 +21,7 @@ pluginManager.register(helpPlugin);
 pluginManager.register(commonPluginsEngine);
 pluginManager.register(dynamicCommonPluginsEngine);
 pluginManager.register(workflowCommonPluginsEngine);
+pluginManager.register(xiuxianPlugin);
 // 自定义插件
 pluginManager.register(aiDialogPlugin);
 pluginManager.register(videoLinkParserPlugin);

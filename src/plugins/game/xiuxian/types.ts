@@ -1,0 +1,76 @@
+export interface XiuxianIdentity {
+    platform: 'wechat';
+    userId: string;
+}
+
+export type XiuxianCommand =
+    | {type: 'create'; name?: string}
+    | {type: 'status'}
+    | {type: 'cultivate'; times?: number}
+    | {type: 'explore'}
+    | {type: 'bag'; page?: number}
+    | {type: 'equip'; itemId: number}
+    | {type: 'unequip'; slot: EquipmentSlot}
+    | {type: 'challenge'}
+    | {type: 'help'};
+
+export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
+
+export interface XiuxianPlayer {
+    id: number;
+    platform: string;
+    userId: string;
+    userName: string;
+    level: number;
+    exp: number;
+    hp: number;
+    maxHp: number;
+    attack: number;
+    defense: number;
+    dodge: number;
+    crit: number;
+    spiritStone: number;
+    cultivation: number;
+    backpackCap: number;
+    weaponItemId: number | null;
+    armorItemId: number | null;
+    accessoryItemId: number | null;
+    sutraItemId: number | null;
+    createdAt: number;
+    updatedAt: number;
+    version: number;
+}
+
+export interface XiuxianItem {
+    id: number;
+    playerId: number;
+    itemType: EquipmentSlot;
+    itemName: string;
+    itemLevel: number;
+    quality: string;
+    attack: number;
+    defense: number;
+    hp: number;
+    dodge: number;
+    crit: number;
+    score: number;
+    isLocked: number;
+    createdAt: number;
+}
+
+export interface CooldownState {
+    action: string;
+    nextAt: number;
+    dayKey: string;
+    dayCount: number;
+    updatedAt: number;
+}
+
+export interface CombatPower {
+    attack: number;
+    defense: number;
+    maxHp: number;
+    dodge: number;
+    crit: number;
+}
+
