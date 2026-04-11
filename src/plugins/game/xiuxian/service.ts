@@ -136,7 +136,7 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'equip') {
             const item = await repo.findItem(player.id, cmd.itemId);
-            if (!item) return asText('🔎 未找到该装备编号，请先用「背包」查看。');
+            if (!item) return asText('🔎 未找到该装备编号，请先用「修仙背包」查看。');
 
             if (item.itemType === 'weapon') player.weaponItemId = item.id;
             if (item.itemType === 'armor') player.armorItemId = item.id;

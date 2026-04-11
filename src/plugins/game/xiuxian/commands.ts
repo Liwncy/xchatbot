@@ -26,26 +26,26 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙状态') return {type: 'status'};
 
-    const cultivateMatch = text.match(/^修炼(?:\s+(\d+))?$/);
+    const cultivateMatch = text.match(/^修仙修炼(?:\s+(\d+))?$/);
     if (cultivateMatch) return {type: 'cultivate', times: parsePositiveInt(cultivateMatch[1])};
 
-    if (text === '探索') return {type: 'explore'};
+    if (text === '修仙探索') return {type: 'explore'};
 
-    const bagMatch = text.match(/^背包(?:\s+(\d+))?$/);
+    const bagMatch = text.match(/^修仙背包(?:\s+(\d+))?$/);
     if (bagMatch) return {type: 'bag', page: parsePositiveInt(bagMatch[1])};
 
-    const equipMatch = text.match(/^装备\s+(\d+)$/);
+    const equipMatch = text.match(/^修仙装备\s+(\d+)$/);
     if (equipMatch) return {type: 'equip', itemId: Number(equipMatch[1])};
 
-    const unequipMatch = text.match(/^卸下\s+(.+)$/);
+    const unequipMatch = text.match(/^修仙卸装\s+(.+)$/);
     if (unequipMatch) {
         const slot = parseSlot(unequipMatch[1]);
         if (slot) return {type: 'unequip', slot};
     }
 
-    if (text === '挑战') return {type: 'challenge'};
+    if (text === '修仙挑战') return {type: 'challenge'};
 
-    if (text === '修仙帮助') return {type: 'help'};
+    if (text === '修仙帮助' || text === '修仙指令' || text === '修仙菜单') return {type: 'help'};
     return null;
 }
 
