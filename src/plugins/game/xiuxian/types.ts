@@ -8,10 +8,12 @@ export type XiuxianCommand =
     | {type: 'status'}
     | {type: 'cultivate'; times?: number}
     | {type: 'explore'}
-    | {type: 'bag'; page?: number}
+    | {type: 'bag'; page?: number; filter?: string}
     | {type: 'equip'; itemId: number}
     | {type: 'unequip'; slot: EquipmentSlot}
     | {type: 'challenge'}
+    | {type: 'battleLog'; page?: number}
+    | {type: 'battleDetail'; battleId: number}
     | {type: 'help'};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -57,6 +59,26 @@ export interface XiuxianItem {
     isLocked: number;
     createdAt: number;
 }
+
+export interface XiuxianBattle {
+    id: number;
+    playerId: number;
+    enemyName: string;
+    enemyLevel: number;
+    result: 'win' | 'lose';
+    rounds: number;
+    rewardJson: string;
+    battleLog: string;
+    createdAt: number;
+}
+
+export interface XiuxianBagQuery {
+    itemType?: EquipmentSlot;
+    quality?: 'common' | 'rare' | 'epic';
+    sort?: XiuxianBagSort;
+}
+
+export type XiuxianBagSort = 'id_desc' | 'score_desc' | 'score_asc';
 
 export interface CooldownState {
     action: string;

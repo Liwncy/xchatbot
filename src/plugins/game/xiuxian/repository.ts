@@ -1,4 +1,13 @@
-import type {CooldownState, EquipmentSlot, XiuxianIdentity, XiuxianItem, XiuxianPlayer} from './types.js';
+import type {
+    CooldownState,
+    EquipmentSlot,
+    XiuxianBagQuery,
+    XiuxianBagSort,
+    XiuxianBattle,
+    XiuxianIdentity,
+    XiuxianItem,
+    XiuxianPlayer,
+} from './types.js';
 
 function toPlayer(row: Record<string, unknown>): XiuxianPlayer {
     return {
@@ -44,6 +53,43 @@ function toItem(row: Record<string, unknown>): XiuxianItem {
         isLocked: Number(row.is_locked),
         createdAt: Number(row.created_at),
     };
+}
+
+function toBattle(row: Record<string, unknown>): XiuxianBattle {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        enemyName: String(row.enemy_name),
+        enemyLevel: Number(row.enemy_level),
+        result: String(row.result) as 'win' | 'lose',
+        rounds: Number(row.rounds),
+        rewardJson: String(row.reward_json ?? '{}'),
+        battleLog: String(row.battle_log ?? ''),
+        createdAt: Number(row.created_at),
+    };
+}
+
+function buildBagWhere(filter?: XiuxianBagQuery): {sql: string; args: unknown[]} {
+    const clauses: string[] = [];
+    const args: unknown[] = [];
+    if (filter?.itemType) {
+        clauses.push('item_type = ?');
+        args.push(filter.itemType);
+    }
+    if (filter?.quality) {
+        clauses.push('quality = ?');
+        args.push(filter.quality);
+    }
+    return {
+        sql: clauses.length ? ` AND ${clauses.join(' AND ')}` : '',
+        args,
+    };
+}
+
+function buildBagOrder(sort?: XiuxianBagSort): string {
+    if (sort === 'score_desc') return 'ORDER BY score DESC, id DESC';
+    if (sort === 'score_asc') return 'ORDER BY score ASC, id DESC';
+    return 'ORDER BY id DESC';
 }
 
 export class XiuxianRepository {
@@ -134,24 +180,28 @@ export class XiuxianRepository {
             .run();
     }
 
-    async listInventory(playerId: number, page: number, pageSize: number): Promise<XiuxianItem[]> {
+    async listInventory(playerId: number, page: number, pageSize: number, filter?: XiuxianBagQuery): Promise<XiuxianItem[]> {
         const offset = (page - 1) * pageSize;
+        const where = buildBagWhere(filter);
+        const orderSql = buildBagOrder(filter?.sort);
         const rows = await this.db
             .prepare(
                 `SELECT * FROM xiuxian_inventory
-                 WHERE player_id = ?1
-                 ORDER BY id DESC
-                 LIMIT ?2 OFFSET ?3`,
+                 WHERE player_id = ?
+                 ${where.sql}
+                 ${orderSql}
+                 LIMIT ? OFFSET ?`,
             )
-            .bind(playerId, pageSize, offset)
+            .bind(playerId, ...where.args, pageSize, offset)
             .all<Record<string, unknown>>();
         return (rows.results ?? []).map(toItem);
     }
 
-    async countInventory(playerId: number): Promise<number> {
+    async countInventory(playerId: number, filter?: XiuxianBagQuery): Promise<number> {
+        const where = buildBagWhere(filter);
         const row = await this.db
-            .prepare('SELECT COUNT(1) AS cnt FROM xiuxian_inventory WHERE player_id = ?1')
-            .bind(playerId)
+            .prepare(`SELECT COUNT(1) AS cnt FROM xiuxian_inventory WHERE player_id = ? ${where.sql}`)
+            .bind(playerId, ...where.args)
             .first<Record<string, unknown>>();
         return Number(row?.cnt ?? 0);
     }
@@ -266,6 +316,32 @@ export class XiuxianRepository {
             )
             .bind(playerId, enemyName, enemyLevel, result, rounds, rewardJson, battleLog, now)
             .run();
+    }
+
+    async listBattles(playerId: number, page: number, pageSize: number): Promise<XiuxianBattle[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_battles
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(playerId, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toBattle);
+    }
+
+    async findBattle(playerId: number, battleId: number): Promise<XiuxianBattle | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_battles
+                 WHERE player_id = ?1 AND id = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, battleId)
+            .first<Record<string, unknown>>();
+        return row ? toBattle(row) : null;
     }
 }
 

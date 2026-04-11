@@ -31,8 +31,15 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙探索') return {type: 'explore'};
 
-    const bagMatch = text.match(/^修仙背包(?:\s+(\d+))?$/);
-    if (bagMatch) return {type: 'bag', page: parsePositiveInt(bagMatch[1])};
+    const bagMatch = text.match(/^修仙背包(?:\s+(.+))?$/);
+    if (bagMatch) {
+        const arg = bagMatch[1]?.trim();
+        if (!arg) return {type: 'bag'};
+        const parts = arg.split(/\s+/).filter(Boolean);
+        const firstNum = parsePositiveInt(parts[0]);
+        if (firstNum) return {type: 'bag', page: firstNum, filter: parts.slice(1).join(' ')};
+        return {type: 'bag', filter: parts.join(' ')};
+    }
 
     const equipMatch = text.match(/^修仙装备\s+(\d+)$/);
     if (equipMatch) return {type: 'equip', itemId: Number(equipMatch[1])};
@@ -44,6 +51,12 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     }
 
     if (text === '修仙挑战') return {type: 'challenge'};
+
+    const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
+    if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
+
+    const battleDetailMatch = text.match(/^修仙战详\s+(\d+)$/);
+    if (battleDetailMatch) return {type: 'battleDetail', battleId: Number(battleDetailMatch[1])};
 
     if (text === '修仙帮助' || text === '修仙指令' || text === '修仙菜单') return {type: 'help'};
     return null;
