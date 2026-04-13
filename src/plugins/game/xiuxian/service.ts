@@ -31,6 +31,7 @@ import type {
     XiuxianItemQuality,
 } from './types.js';
 import {XiuxianRepository} from './repository.js';
+import {formatRealm, realmName} from './realm.js';
 import {
     applyExpProgress,
     bossEnemy,
@@ -271,7 +272,7 @@ function worldBossHp(level: number): number {
 
 function towerEnemy(level: number, floor: number): {name: string; attack: number; defense: number; maxHp: number; dodge: number; crit: number} {
     return {
-        name: `镇塔守卫 第${floor}层`,
+        name: `镇塔守卫·${realmName(level)}（第${floor}层）`,
         attack: 10 + level * 2 + floor * 2,
         defense: 6 + level + floor,
         maxHp: 100 + level * 20 + floor * 35,
@@ -890,7 +891,7 @@ export async function handleXiuxianCommand(
                     `✨ 修为 +${reward.gainedCultivation}`,
                     `📈 经验 +${reward.gainedExp}`,
                     `💎 灵石 +${reward.gainedStone}${petBonus > 0 ? `（灵宠加成 +${petBonus}）` : ''}`,
-                    `🪪 当前境界：${player.level} 级`,
+                    `🪪 当前境界：${formatRealm(player.level)}`,
                 ].join('\n'),
             );
         }
@@ -1641,6 +1642,7 @@ export async function handleXiuxianCommand(
                 rounds: result.rounds,
                 reward,
                 highestFloor,
+                enemyName: enemy.name,
             });
             if (!autoSeason) return asText(climbText);
             return asText(

@@ -15,6 +15,7 @@ import type {
     XiuxianTowerRankRow,
     XiuxianTowerSeasonRankRow,
 } from './types.js';
+import {formatRealm, realmName} from './realm.js';
 
 function qualityLabel(raw: string): string {
     if (raw === 'mythic') return '神话(红)';
@@ -138,7 +139,7 @@ export function createdText(player: XiuxianPlayer): string {
     return [
         `🎉 创建成功：${player.userName}`,
         '━━━━━━━━━━━━',
-        `🪪 境界：${player.level} 级`,
+        `🪪 境界：${formatRealm(player.level)}`,
         `❤️ 气血：${player.hp}/${player.maxHp}`,
         `🗡️ 攻击：${player.attack}`,
         `🛡️ 防御：${player.defense}`,
@@ -162,7 +163,7 @@ export function statusText(
     return [
         `🧾 ${player.userName} 的修仙面板`,
         '━━━━━━━━━━━━',
-        `🪪 境界：${player.level} 级`,
+        `🪪 境界：${formatRealm(player.level)}`,
         `✨ 修为：${player.cultivation}`,
         `📈 经验：${player.exp}`,
         `❤️ 气血：${player.hp}/${power.maxHp}`,
@@ -195,7 +196,7 @@ export function battleLogText(logs: XiuxianBattle[], page: number, pageSize: num
     if (!logs.length) return '📚 暂无战报，先去「修仙挑战」试试身手吧。';
     const lines = logs.map((it) => {
         const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
-        return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} ${it.enemyName} Lv.${it.enemyLevel} | ${it.rounds}回合 | ${dt}`;
+        return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} ${it.enemyName}（${realmName(it.enemyLevel)}） | ${it.rounds}回合 | ${dt}`;
     });
     return [`📚 战报第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 查看详情：修仙战详 [战报ID]'].join('\n');
 }
@@ -209,7 +210,7 @@ export function battleDetailText(battle: XiuxianBattle): string {
     return [
         `🔎 战报 #${battle.id}`,
         '━━━━━━━━━━━━',
-        `👾 对手：${battle.enemyName} Lv.${battle.enemyLevel}`,
+        `👾 对手：${battle.enemyName}（${realmName(battle.enemyLevel)}）`,
         `📌 结果：${battle.result === 'win' ? '胜利' : '失败'}`,
         `🕒 回合：${battle.rounds}`,
         ...lines,
@@ -279,7 +280,7 @@ export function checkinText(
         `💎 灵石 +${reward.spiritStone}`,
         `📈 经验 +${reward.exp}`,
         `✨ 修为 +${reward.cultivation}`,
-        `🪪 当前境界：${level} 级`,
+        `🪪 当前境界：${formatRealm(level)}`,
         `💼 当前灵石：${spiritStone}`,
     ].join('\n');
 }
@@ -391,7 +392,7 @@ export function worldBossStatusText(
         `📢 世界BOSS：${state.bossName}`,
         '━━━━━━━━━━━━',
         `🔁 轮次：第 ${extra?.cycleNo ?? state.cycleNo} 轮`,
-        `🪪 等级：Lv.${state.bossLevel}`,
+        `🪪 境界：${formatRealm(state.bossLevel)}`,
         `❤️ 血量：${state.currentHp}/${state.maxHp}`,
         `📌 状态：${state.status === 'alive' ? '存活' : '已击败，等待重生'}`,
         ...(state.status === 'defeated' ? [`⌛ 重生倒计时：${extra?.respawnLeftSec ?? 0}s`] : []),
@@ -448,10 +449,12 @@ export function towerClimbText(params: {
     rounds: number;
     reward: {spiritStone: number; exp: number; cultivation: number};
     highestFloor: number;
+    enemyName: string;
 }): string {
     return [
         `${params.result === 'win' ? '🏆' : '💥'} 爬塔${params.result === 'win' ? '成功' : '失败'}：第 ${params.floor} 层`,
         '━━━━━━━━━━━━',
+        `👾 守卫：${params.enemyName}`,
         `🕒 回合：${params.rounds}`,
         `💎 灵石 +${params.reward.spiritStone}`,
         `📈 经验 +${params.reward.exp}`,

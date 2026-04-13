@@ -1,4 +1,5 @@
 import type {CombatPower, EquipmentSlot, XiuxianItem, XiuxianItemQuality, XiuxianPlayer} from './types.js';
+import {realmName} from './realm.js';
 
 export interface ProgressResult {
     level: number;
@@ -245,7 +246,7 @@ export function calcCombatPower(player: XiuxianPlayer, equipped: XiuxianItem[]):
 
 export function challengeEnemy(level: number): CombatPower & {name: string; level: number} {
     return {
-        name: `山野妖兽 Lv.${level}`,
+        name: `山野妖兽·${realmName(level)}`,
         level,
         attack: 8 + level * 3,
         defense: 5 + level * 2,
@@ -292,7 +293,7 @@ export function runSimpleBattle(player: CombatPower, enemy: CombatPower): {win: 
 
 export function bossEnemy(level: number): CombatPower & {name: string; level: number} {
     return {
-        name: `镇域魔主 Lv.${level + 2}`,
+        name: `镇域魔主·${realmName(level + 2)}`,
         level: level + 2,
         attack: 16 + level * 4,
         defense: 10 + level * 3,
