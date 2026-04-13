@@ -41,6 +41,7 @@ import {
     battleLogText,
     buyResultText,
     checkinText,
+    claimTaskBatchText,
     claimTaskText,
     cooldownText,
     createdText,
@@ -193,7 +194,7 @@ async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, 
 }
 
 function dayKeyOf(now: number): string {
-    return new Date(now).toISOString().slice(0, 10);
+    return new Date(now + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 function parseJsonRecord(raw: string): Record<string, unknown> {
@@ -300,8 +301,7 @@ async function computeAchievementProgress(repo: XiuxianRepository, player: Xiuxi
         return repo.countCheckins(player.id);
     }
     if (type === 'battle_win_total') {
-        const logs = await repo.listBattles(player.id, 1, 500);
-        return logs.filter((v) => v.result === 'win').length;
+        return repo.countBattleWins(player.id);
     }
     return 0;
 }
@@ -618,6 +618,13 @@ export async function handleXiuxianCommand(
             await syncDailyTasks(repo, player, now);
             const defs = (await repo.listTaskDefs()).slice(0, XIUXIAN_TASK_DEFAULT_LIMIT);
             const states = await repo.listPlayerTasks(player.id, todayKey);
+            if (cmd.onlyClaimable) {
+                const stateMap = new Map<number, (typeof states)[number]>();
+                for (const row of states) stateMap.set(row.taskId, row);
+                const filtered = defs.filter((def) => stateMap.get(def.id)?.status === 'claimable');
+                if (!filtered.length) return asText('📭 当前没有可领取任务奖励。');
+                return asText(taskText(filtered, states, todayKey, true));
+            }
             return asText(taskText(defs, states, todayKey));
         }
 
@@ -629,26 +636,40 @@ export async function handleXiuxianCommand(
             const stateMap = new Map<number, (typeof states)[number]>();
             for (const row of states) stateMap.set(row.taskId, row);
 
-            let targetTaskId = cmd.taskId;
-            if (!targetTaskId) {
-                const first = defs.find((d) => stateMap.get(d.id)?.status === 'claimable');
-                targetTaskId = first?.id;
+            let targets = defs.filter((d) => stateMap.get(d.id)?.status === 'claimable');
+            if (cmd.taskId) {
+                const one = defs.find((v) => v.id === cmd.taskId);
+                if (!one) return asText('🔎 未找到该任务，请先发送「修仙任务」。');
+                const st = stateMap.get(one.id);
+                if (!st) return asText('🔎 未找到该任务，请先发送「修仙任务」。');
+                if (st.status === 'claimed') return asText('🧾 该任务奖励已领取。');
+                if (st.status !== 'claimable') return asText('⏳ 该任务尚未完成，先继续努力吧。');
+                targets = [one];
+            } else if (!cmd.claimAll) {
+                targets = targets.slice(0, 1);
             }
-            if (!targetTaskId) return asText('📭 当前没有可领取任务奖励，可发送「修仙任务」查看进度。');
 
-            const def = defs.find((v) => v.id === targetTaskId);
-            const state = stateMap.get(targetTaskId);
-            if (!def || !state) return asText('🔎 未找到该任务，请先发送「修仙任务」。');
-            if (state.status === 'claimed') return asText('🧾 该任务奖励已领取。');
-            if (state.status !== 'claimable') return asText('⏳ 该任务尚未完成，先继续努力吧。');
+            if (!targets.length) return asText('📭 当前没有可领取任务奖励，可发送「修仙任务」查看进度。');
 
-            const locked = await repo.markTaskClaimed(player.id, targetTaskId, todayKey, now);
-            if (!locked) return asText('⚠️ 奖励状态已变化，请刷新任务列表后重试。');
+            const claimedTitles: string[] = [];
+            const claimedIds: number[] = [];
+            let gainStone = 0;
+            let gainExp = 0;
+            let gainCultivation = 0;
 
-            const reward = parseJsonRecord(def.rewardJson);
-            const gainStone = Number(reward.spiritStone ?? 0);
-            const gainExp = Number(reward.exp ?? 0);
-            const gainCultivation = Number(reward.cultivation ?? 0);
+            for (const def of targets) {
+                const locked = await repo.markTaskClaimed(player.id, def.id, todayKey, now);
+                if (!locked) continue;
+                const reward = parseJsonRecord(def.rewardJson);
+                gainStone += Number(reward.spiritStone ?? 0);
+                gainExp += Number(reward.exp ?? 0);
+                gainCultivation += Number(reward.cultivation ?? 0);
+                claimedIds.push(def.id);
+                claimedTitles.push(def.title);
+            }
+
+            if (!claimedIds.length) return asText('⚠️ 奖励状态已变化，请刷新任务列表后重试。');
+
             const progress = applyExpProgress(player, gainExp);
             player.level = progress.level;
             player.exp = progress.exp;
@@ -659,20 +680,28 @@ export async function handleXiuxianCommand(
             player.spiritStone += gainStone;
             player.cultivation += gainCultivation;
             await repo.updatePlayer(player, now);
+
             if (gainStone > 0) {
+                const single = claimedIds.length === 1;
                 await repo.createEconomyLog({
                     playerId: player.id,
                     bizType: 'reward',
                     deltaSpiritStone: gainStone,
                     balanceAfter: player.spiritStone,
-                    refType: 'task',
-                    refId: targetTaskId,
-                    idempotencyKey: `${player.id}:task-claim:${todayKey}:${targetTaskId}`,
-                    extraJson: JSON.stringify({task: def.code, exp: gainExp, cultivation: gainCultivation}),
+                    refType: single ? 'task' : 'task_batch',
+                    refId: single ? claimedIds[0] : null,
+                    idempotencyKey: single
+                        ? `${player.id}:task-claim:${todayKey}:${claimedIds[0]}`
+                        : `${player.id}:task-claim:${todayKey}:batch:${claimedIds.join(',')}`,
+                    extraJson: JSON.stringify({taskIds: claimedIds, exp: gainExp, cultivation: gainCultivation}),
                     now,
                 });
             }
-            return asText(claimTaskText(def.title, {spiritStone: gainStone, exp: gainExp, cultivation: gainCultivation}, player.spiritStone));
+
+            if (claimedIds.length === 1) {
+                return asText(claimTaskText(claimedTitles[0], {spiritStone: gainStone, exp: gainExp, cultivation: gainCultivation}, player.spiritStone));
+            }
+            return asText(claimTaskBatchText(claimedTitles, {spiritStone: gainStone, exp: gainExp, cultivation: gainCultivation}, player.spiritStone));
         }
 
         if (cmd.type === 'achievement') {

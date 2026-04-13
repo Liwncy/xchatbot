@@ -19,8 +19,8 @@ export type XiuxianCommand =
     | {type: 'sell'; itemId: number}
     | {type: 'ledger'; limit?: number}
     | {type: 'checkin'}
-    | {type: 'task'}
-    | {type: 'claim'; taskId?: number}
+    | {type: 'task'; onlyClaimable?: boolean}
+    | {type: 'claim'; taskId?: number; claimAll?: boolean}
     | {type: 'achievement'}
     | {type: 'help'};
 

@@ -49,8 +49,9 @@ export function helpText(): string {
         '💰 修仙出售 [装备ID]',
         '📒 修仙流水 [条数]',
         '📅 修仙签到',
-        '📝 修仙任务',
+        '📝 修仙任务 [可领]',
         '🎁 修仙领奖 [任务ID]',
+        '🎁 修仙领奖 全部',
         '🏅 修仙成就',
         '📚 修仙战报 [页码]',
         '🔎 修仙战详 [战报ID]',
@@ -213,7 +214,7 @@ export function checkinText(
     ].join('\n');
 }
 
-export function taskText(defs: XiuxianTaskDef[], states: XiuxianPlayerTask[], dayKey: string): string {
+export function taskText(defs: XiuxianTaskDef[], states: XiuxianPlayerTask[], dayKey: string, onlyClaimable?: boolean): string {
     if (!defs.length) return '📝 暂无任务配置。';
     const stateMap = new Map<number, XiuxianPlayerTask>();
     for (const row of states) stateMap.set(row.taskId, row);
@@ -224,7 +225,15 @@ export function taskText(defs: XiuxianTaskDef[], states: XiuxianPlayerTask[], da
         const flag = st?.status === 'claimed' ? '✅ 已领' : st?.status === 'claimable' ? '🎁 可领' : '⏳ 进行中';
         return `#${def.id} ${def.title} | ${progress}/${target} | ${flag}`;
     });
-    return [`📝 每日任务（${dayKey}）`, '━━━━━━━━━━━━', ...lines, '💡 领取：修仙领奖 [任务ID]'].join('\n');
+    const claimableCount = states.filter((v) => v.status === 'claimable').length;
+    const modeLabel = onlyClaimable ? '（仅可领）' : '';
+    return [
+        `📝 每日任务${modeLabel}（${dayKey}）`,
+        '━━━━━━━━━━━━',
+        ...lines,
+        `🎁 当前可领：${claimableCount} 项`,
+        '💡 领取：修仙领奖 [任务ID] / 修仙领奖 全部',
+    ].join('\n');
 }
 
 export function claimTaskText(
@@ -235,6 +244,22 @@ export function claimTaskText(
     return [
         `🎁 任务奖励已领取：${taskTitle}`,
         '━━━━━━━━━━━━',
+        `💎 灵石 +${reward.spiritStone}`,
+        `📈 经验 +${reward.exp}`,
+        `✨ 修为 +${reward.cultivation}`,
+        `💼 当前灵石：${balanceAfter}`,
+    ].join('\n');
+}
+
+export function claimTaskBatchText(
+    taskTitles: string[],
+    reward: {spiritStone: number; exp: number; cultivation: number},
+    balanceAfter: number,
+): string {
+    return [
+        `🎁 已领取 ${taskTitles.length} 项任务奖励`,
+        '━━━━━━━━━━━━',
+        `🧾 任务：${taskTitles.join('、')}`,
         `💎 灵石 +${reward.spiritStone}`,
         `📈 经验 +${reward.exp}`,
         `✨ 修为 +${reward.cultivation}`,
@@ -258,6 +283,8 @@ export function achievementText(
         return `${def.title} | ${progress}/${target} | ${flag}`;
     });
     const auto = justClaimedTitles.length ? [`🎊 本次自动领取：${justClaimedTitles.join('、')}`, '━━━━━━━━━━━━'] : [];
-    return ['🏅 成就进度', ...auto, ...lines].join('\n');
+    const claimableCount = states.filter((v) => v.status === 'claimable').length;
+    const claimedCount = states.filter((v) => v.status === 'claimed').length;
+    return ['🏅 成就进度', ...auto, ...lines, '━━━━━━━━━━━━', `🎯 可领取：${claimableCount}  |  ✅ 已完成：${claimedCount}`].join('\n');
 }
 

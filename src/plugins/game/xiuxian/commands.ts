@@ -66,9 +66,15 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     if (text === '修仙签到') return {type: 'checkin'};
 
     if (text === '修仙任务') return {type: 'task'};
+    if (text === '修仙任务 可领') return {type: 'task', onlyClaimable: true};
 
-    const claimMatch = text.match(/^修仙领奖(?:\s+(\d+))?$/);
-    if (claimMatch) return {type: 'claim', taskId: parsePositiveInt(claimMatch[1])};
+    const claimMatch = text.match(/^修仙领奖(?:\s+(.+))?$/);
+    if (claimMatch) {
+        const arg = claimMatch[1]?.trim();
+        if (!arg) return {type: 'claim'};
+        if (arg === '全部') return {type: 'claim', claimAll: true};
+        return {type: 'claim', taskId: parsePositiveInt(arg)};
+    }
 
     if (text === '修仙成就') return {type: 'achievement'};
 

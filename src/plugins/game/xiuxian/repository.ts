@@ -185,6 +185,10 @@ function changedRows(result: D1Result<unknown>): number {
     return Number(meta.changes ?? 0);
 }
 
+function chinaDayKey(now: number): string {
+    return new Date(now + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 function buildBagWhere(filter?: XiuxianBagQuery): {sql: string; args: unknown[]} {
     const clauses: string[] = [];
     const args: unknown[] = [];
@@ -375,7 +379,7 @@ export class XiuxianRepository {
     }
 
     async setCooldown(playerId: number, action: string, nextAt: number, now: number): Promise<void> {
-        const dayKey = new Date(now).toISOString().slice(0, 10);
+        const dayKey = chinaDayKey(now);
         await this.db
             .prepare(
                 `INSERT INTO xiuxian_cooldowns (player_id, action, next_at, day_key, day_count, updated_at)
@@ -392,6 +396,18 @@ export class XiuxianRepository {
             )
             .bind(playerId, action, nextAt, dayKey, now)
             .run();
+    }
+
+    async countBattleWins(playerId: number): Promise<number> {
+        const row = await this.db
+            .prepare(
+                `SELECT COUNT(1) AS cnt
+                 FROM xiuxian_battles
+                 WHERE player_id = ?1 AND result = 'win'`,
+            )
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return Number(row?.cnt ?? 0);
     }
 
     async getCooldown(playerId: number, action: string): Promise<CooldownState | null> {
