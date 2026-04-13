@@ -308,6 +308,33 @@ CREATE TABLE IF NOT EXISTS xiuxian_npc_encounters (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_bonds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  requester_id INTEGER NOT NULL,
+  target_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  intimacy INTEGER NOT NULL DEFAULT 0,
+  level INTEGER NOT NULL DEFAULT 1,
+  last_travel_day TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(requester_id, target_id),
+  FOREIGN KEY(requester_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(target_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_bond_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bond_id INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  delta_intimacy INTEGER NOT NULL DEFAULT 0,
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(bond_id) REFERENCES xiuxian_bonds(id),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -326,4 +353,7 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_claims_player ON xiuxian_tow
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pets_level ON xiuxian_pets(level DESC, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_milestone_player ON xiuxian_pet_milestone_claims(player_id, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_npc_encounters_player_time ON xiuxian_npc_encounters(player_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_requester ON xiuxian_bonds(requester_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_target ON xiuxian_bonds(target_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_logs_bond_time ON xiuxian_bond_logs(bond_id, created_at DESC);
 

@@ -48,6 +48,12 @@ import {
     bagText,
     battleDetailText,
     battleLogText,
+    bondActivatedText,
+    bondBreakText,
+    bondLogText,
+    bondRequestText,
+    bondStatusText,
+    bondTravelText,
     bossDetailText,
     bossLogText,
     bossRaidText,
@@ -613,6 +619,141 @@ export async function handleXiuxianCommand(
 
         const player = await mustPlayer(repo, identity);
         if (!player) return asText('🌱 你还没有角色，先发送：修仙创建 [名字]');
+
+        if (cmd.type === 'bond') {
+            const targetUserId = cmd.targetUserId?.trim();
+            if (!targetUserId) return asText('💡 用法：修仙结缘 对方wxid');
+            if (targetUserId === player.userId) return asText('😅 不能和自己结缘哦。');
+
+            const target = await repo.findPlayerByPlatformUserId('wechat', targetUserId);
+            if (!target) return asText('🔎 未找到该道友，请确认对方已创建角色且wxid正确。');
+
+            const existed = await repo.findBondBetween(player.id, target.id);
+            if (!existed) {
+                const selfBond = await repo.findLatestBondByPlayer(player.id);
+                if (selfBond) {
+                    const selfPartnerId = selfBond.requesterId === player.id ? selfBond.targetId : selfBond.requesterId;
+                    const selfPartner = await repo.findPlayerById(selfPartnerId);
+                    return asText(
+                        `💗 你当前已存在${selfBond.status === 'active' ? '已激活' : '待确认'}情缘：${selfPartner?.userName ?? `道友#${selfPartnerId}`}，暂不可发起新的结缘。`,
+                    );
+                }
+
+                const targetBond = await repo.findLatestBondByPlayer(target.id);
+                if (targetBond) {
+                    const targetPartnerId = targetBond.requesterId === target.id ? targetBond.targetId : targetBond.requesterId;
+                    const targetPartner = await repo.findPlayerById(targetPartnerId);
+                    return asText(
+                        `💌 对方当前已存在${targetBond.status === 'active' ? '已激活' : '待确认'}情缘：${targetPartner?.userName ?? `道友#${targetPartnerId}`}，暂不可结缘。`,
+                    );
+                }
+
+                await repo.createBondRequest(player.id, target.id, now);
+                return asText(bondRequestText(targetUserId));
+            }
+
+            if (existed.status === 'ended') {
+                await repo.reopenBondRequest(existed.id, player.id, target.id, now);
+                return asText(bondRequestText(targetUserId));
+            }
+
+            if (existed.status === 'active') {
+                return asText(`💞 你与 ${target.userName} 已是情缘关系。`);
+            }
+
+            if (existed.requesterId === target.id && existed.targetId === player.id) {
+                await repo.activateBond(existed.id, now);
+                await repo.addBondLog(existed.id, player.id, '结缘成功', 0, '{}', now);
+                return asText(bondActivatedText(target.userName));
+            }
+
+            return asText(`💌 你已向 ${target.userName} 发起结缘请求，等待对方确认。`);
+        }
+
+        if (cmd.type === 'bondBreak') {
+            const bond = await repo.findLatestBondByPlayer(player.id);
+            if (!bond) return asText('💗 你当前暂无可解除的情缘关系。');
+            const partnerId = bond.requesterId === player.id ? bond.targetId : bond.requesterId;
+            const partner = await repo.findPlayerById(partnerId);
+            await repo.endBond(bond.id, now);
+            await repo.addBondLog(bond.id, player.id, '解缘', 0, '{}', now);
+            return asText(bondBreakText(partner?.userName ?? `道友#${partnerId}`));
+        }
+
+        if (cmd.type === 'bondStatus') {
+            const bond = await repo.findLatestBondByPlayer(player.id);
+            if (!bond) {
+                return asText('💗 你当前暂无情缘，发送「修仙结缘 对方wxid」发起关系。');
+            }
+            const partnerId = bond.requesterId === player.id ? bond.targetId : bond.requesterId;
+            const partner = await repo.findPlayerById(partnerId);
+            const canTravel = bond.status === 'active' && bond.lastTravelDay !== dayKeyOf(now);
+            return asText(
+                bondStatusText({
+                    partnerName: partner?.userName ?? `道友#${partnerId}`,
+                    status: bond.status,
+                    intimacy: bond.intimacy,
+                    level: bond.level,
+                    canTravel,
+                }),
+            );
+        }
+
+        if (cmd.type === 'bondTravel') {
+            const bond = await repo.findLatestBondByPlayer(player.id);
+            if (!bond || bond.status !== 'active') return asText('💗 你当前暂无已确认情缘，先完成「修仙结缘」。');
+
+            const dayKey = dayKeyOf(now);
+            if (bond.lastTravelDay === dayKey) {
+                return asText('🌸 今日已同游，明日再来吧。');
+            }
+
+            const reward = {spiritStone: 22, exp: 16, cultivation: 14};
+            const progress = applyExpProgress(player, reward.exp);
+            player.level = progress.level;
+            player.exp = progress.exp;
+            player.maxHp = progress.maxHp;
+            player.attack = progress.attack;
+            player.defense = progress.defense;
+            player.hp = progress.maxHp;
+            player.spiritStone += reward.spiritStone;
+            player.cultivation += reward.cultivation;
+            await repo.updatePlayer(player, now);
+
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'reward',
+                deltaSpiritStone: reward.spiritStone,
+                balanceAfter: player.spiritStone,
+                refType: 'bond_travel',
+                refId: bond.id,
+                idempotencyKey: `${player.id}:bond-travel:${dayKey}`,
+                extraJson: JSON.stringify({exp: reward.exp, cultivation: reward.cultivation}),
+                now,
+            });
+            const newIntimacy = bond.intimacy + 20;
+            const newLevel = Math.max(1, Math.floor(newIntimacy / 100) + 1);
+            await repo.updateBondTravel(bond.id, newIntimacy, newLevel, dayKey, now);
+            await repo.addBondLog(bond.id, player.id, '同游', 20, JSON.stringify(reward), now);
+
+            const partnerId = bond.requesterId === player.id ? bond.targetId : bond.requesterId;
+            const partner = await repo.findPlayerById(partnerId);
+
+            return asText(
+                bondTravelText({
+                    partnerName: partner?.userName ?? `道友#${partnerId}`,
+                    gainedIntimacy: 20,
+                    level: newLevel,
+                    reward,
+                }),
+            );
+        }
+
+        if (cmd.type === 'bondLog') {
+            const page = Math.max(1, cmd.page ?? 1);
+            const logs = await repo.listBondLogs(player.id, page, XIUXIAN_PAGE_SIZE);
+            return asText(bondLogText(logs, page, XIUXIAN_PAGE_SIZE));
+        }
 
         if (cmd.type === 'status') {
             const equipped = await repo.getEquippedItems(player);

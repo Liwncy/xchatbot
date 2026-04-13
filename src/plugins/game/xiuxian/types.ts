@@ -44,6 +44,11 @@ export type XiuxianCommand =
     | {type: 'petRest'}
     | {type: 'npcEncounter'}
     | {type: 'npcEncounterLog'; page?: number}
+    | {type: 'bond'; targetUserId?: string}
+    | {type: 'bondBreak'}
+    | {type: 'bondTravel'}
+    | {type: 'bondStatus'}
+    | {type: 'bondLog'; page?: number}
     | {type: 'help'; topic?: string};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -303,6 +308,28 @@ export interface XiuxianNpcEncounterRecord {
     eventCode: string;
     eventTitle: string;
     eventTier: string;
+    rewardJson: string;
+    createdAt: number;
+}
+
+export interface XiuxianBond {
+    id: number;
+    requesterId: number;
+    targetId: number;
+    status: 'pending' | 'active' | 'ended';
+    intimacy: number;
+    level: number;
+    lastTravelDay: string | null;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianBondLog {
+    id: number;
+    bondId: number;
+    playerId: number;
+    action: string;
+    deltaIntimacy: number;
     rewardJson: string;
     createdAt: number;
 }

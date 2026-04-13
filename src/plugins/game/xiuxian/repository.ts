@@ -13,6 +13,8 @@ import type {
     XiuxianEconomyLog,
     XiuxianIdentity,
     XiuxianItem,
+    XiuxianBond,
+    XiuxianBondLog,
     XiuxianNpcEncounterRecord,
     XiuxianPlayerAchievement,
     XiuxianPlayer,
@@ -318,6 +320,32 @@ function toNpcEncounter(row: Record<string, unknown>): XiuxianNpcEncounterRecord
         eventCode: String(row.event_code),
         eventTitle: String(row.event_title),
         eventTier: String(row.event_tier),
+        rewardJson: String(row.reward_json ?? '{}'),
+        createdAt: Number(row.created_at),
+    };
+}
+
+function toBond(row: Record<string, unknown>): XiuxianBond {
+    return {
+        id: Number(row.id),
+        requesterId: Number(row.requester_id),
+        targetId: Number(row.target_id),
+        status: String(row.status) as XiuxianBond['status'],
+        intimacy: Number(row.intimacy),
+        level: Number(row.level),
+        lastTravelDay: row.last_travel_day == null ? null : String(row.last_travel_day),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toBondLog(row: Record<string, unknown>): XiuxianBondLog {
+    return {
+        id: Number(row.id),
+        bondId: Number(row.bond_id),
+        playerId: Number(row.player_id),
+        action: String(row.action),
+        deltaIntimacy: Number(row.delta_intimacy),
         rewardJson: String(row.reward_json ?? '{}'),
         createdAt: Number(row.created_at),
     };
@@ -1653,6 +1681,141 @@ export class XiuxianRepository {
             .bind(playerId, pageSize, offset)
             .all<Record<string, unknown>>();
         return (rows.results ?? []).map(toNpcEncounter);
+    }
+
+    async findPlayerByPlatformUserId(platform: string, userId: string): Promise<XiuxianPlayer | null> {
+        const row = await this.db
+            .prepare('SELECT * FROM xiuxian_players WHERE platform = ?1 AND user_id = ?2 LIMIT 1')
+            .bind(platform, userId)
+            .first<Record<string, unknown>>();
+        return row ? toPlayer(row) : null;
+    }
+
+    async findBondBetween(a: number, b: number): Promise<XiuxianBond | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_bonds
+                 WHERE (requester_id = ?1 AND target_id = ?2)
+                    OR (requester_id = ?2 AND target_id = ?1)
+                 LIMIT 1`,
+            )
+            .bind(a, b)
+            .first<Record<string, unknown>>();
+        return row ? toBond(row) : null;
+    }
+
+    async findLatestBondByPlayer(playerId: number): Promise<XiuxianBond | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_bonds
+                 WHERE (requester_id = ?1 OR target_id = ?1)
+                   AND status IN ('pending', 'active')
+                 ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, updated_at DESC, id DESC
+                 LIMIT 1`,
+            )
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return row ? toBond(row) : null;
+    }
+
+    async findBondById(bondId: number): Promise<XiuxianBond | null> {
+        const row = await this.db
+            .prepare('SELECT * FROM xiuxian_bonds WHERE id = ?1 LIMIT 1')
+            .bind(bondId)
+            .first<Record<string, unknown>>();
+        return row ? toBond(row) : null;
+    }
+
+    async createBondRequest(requesterId: number, targetId: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_bonds (
+                    requester_id, target_id, status, intimacy, level, last_travel_day, created_at, updated_at
+                ) VALUES (?1, ?2, 'pending', 0, 1, NULL, ?3, ?3)`,
+            )
+            .bind(requesterId, targetId, now)
+            .run();
+    }
+
+    async reopenBondRequest(bondId: number, requesterId: number, targetId: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_bonds
+                 SET requester_id = ?2,
+                     target_id = ?3,
+                     status = 'pending',
+                     intimacy = 0,
+                     level = 1,
+                     last_travel_day = NULL,
+                     updated_at = ?4
+                 WHERE id = ?1`,
+            )
+            .bind(bondId, requesterId, targetId, now)
+            .run();
+    }
+
+    async activateBond(bondId: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_bonds
+                 SET status = 'active', updated_at = ?2
+                 WHERE id = ?1`,
+            )
+            .bind(bondId, now)
+            .run();
+    }
+
+    async endBond(bondId: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_bonds
+                 SET status = 'ended',
+                     updated_at = ?2
+                 WHERE id = ?1`,
+            )
+            .bind(bondId, now)
+            .run();
+    }
+
+    async updateBondTravel(bondId: number, intimacy: number, level: number, dayKey: string, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_bonds
+                 SET intimacy = ?2,
+                     level = ?3,
+                     last_travel_day = ?4,
+                     updated_at = ?5
+                 WHERE id = ?1`,
+            )
+            .bind(bondId, intimacy, level, dayKey, now)
+            .run();
+    }
+
+    async addBondLog(bondId: number, playerId: number, action: string, deltaIntimacy: number, rewardJson: string, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_bond_logs (
+                    bond_id, player_id, action, delta_intimacy, reward_json, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+            )
+            .bind(bondId, playerId, action, deltaIntimacy, rewardJson, now)
+            .run();
+    }
+
+    async listBondLogs(playerId: number, page: number, pageSize: number): Promise<XiuxianBondLog[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT l.*
+                 FROM xiuxian_bond_logs l
+                 JOIN xiuxian_bonds b ON b.id = l.bond_id
+                 WHERE b.requester_id = ?1 OR b.target_id = ?1
+                 ORDER BY l.id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(playerId, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toBondLog);
     }
 }
 

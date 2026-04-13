@@ -145,6 +145,18 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const encounterLogMatch = text.match(/^修仙奇录(?:\s+(\d+))?$/);
     if (encounterLogMatch) return {type: 'npcEncounterLog', page: parsePositiveInt(encounterLogMatch[1])};
 
+    const bondMatch = text.match(/^修仙结缘(?:\s+(.+))?$/);
+    if (bondMatch) return {type: 'bond', targetUserId: bondMatch[1]?.trim() || undefined};
+
+    if (text === '修仙解缘') return {type: 'bondBreak'};
+
+    if (text === '修仙同游') return {type: 'bondTravel'};
+
+    if (text === '修仙情缘') return {type: 'bondStatus'};
+
+    const bondLogMatch = text.match(/^修仙情录(?:\s+(\d+))?$/);
+    if (bondLogMatch) return {type: 'bondLog', page: parsePositiveInt(bondLogMatch[1])};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 

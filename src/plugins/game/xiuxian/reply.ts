@@ -41,7 +41,7 @@ export function helpText(topic?: string): string {
     const map: Record<string, string[]> = {
         基础: ['🌱 修仙创建 [名字]', '🧾 修仙状态', '🧘 修仙修炼 [次数]', '🧭 修仙探索', '🎒 修仙背包 [页码] [筛选/排序]', '🗡️ 修仙装备 [编号]', '🧤 修仙卸装 [武器|护甲|灵宝|法器]'],
         经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID]', '📒 修仙流水 [条数]'],
-        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]'],
+        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [对方wxid]', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
         灵宠: ['🐾 修仙领宠', '🐶 修仙宠物', '🍼 修仙喂宠', '⚔️ 修仙出宠', '🛌 修仙休宠'],
@@ -638,6 +638,54 @@ export function npcEncounterLogText(
         return `#${it.id} ${it.eventTitle}（${it.eventTier}） | ${it.dayKey} | ${dt}`;
     });
     return [`📜 奇遇记录第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines].join('\n');
+}
+
+export function bondRequestText(targetUserId: string): string {
+    return `💌 你已向 ${targetUserId} 发起结缘请求，对方输入「修仙结缘 你的wxid」即可确认。`;
+}
+
+export function bondActivatedText(targetName: string): string {
+    return `💞 结缘成功！你与 ${targetName} 已缔结情缘。`;
+}
+
+export function bondBreakText(targetName: string): string {
+    return `💔 你与 ${targetName} 已解除情缘。愿各自安好，仙路再会。`;
+}
+
+export function bondStatusText(params: {partnerName: string; status: 'pending' | 'active' | 'ended'; intimacy: number; level: number; canTravel: boolean}): string {
+    return [
+        `💗 情缘对象：${params.partnerName}`,
+        '━━━━━━━━━━━━',
+        `📌 关系状态：${params.status === 'active' ? '已结缘' : params.status === 'pending' ? '待确认' : '已解除'}`,
+        `💞 亲密度：${params.intimacy}`,
+        `💠 情缘等级：${params.level}`,
+        `🌸 今日同游：${params.canTravel ? '可进行' : '已完成'}`,
+    ].join('\n');
+}
+
+export function bondTravelText(params: {partnerName: string; gainedIntimacy: number; level: number; reward: {spiritStone: number; exp: number; cultivation: number}}): string {
+    return [
+        `🌸 今日与 ${params.partnerName} 同游完成`,
+        '━━━━━━━━━━━━',
+        `💞 亲密度 +${params.gainedIntimacy}`,
+        `💠 当前情缘等级：${params.level}`,
+        `💎 灵石 +${params.reward.spiritStone}`,
+        `📈 经验 +${params.reward.exp}`,
+        `✨ 修为 +${params.reward.cultivation}`,
+    ].join('\n');
+}
+
+export function bondLogText(
+    logs: Array<{id: number; action: string; deltaIntimacy: number; createdAt: number}>,
+    page: number,
+    pageSize: number,
+): string {
+    if (!logs.length) return '📖 暂无情缘记录，先发送「修仙结缘」吧。';
+    const lines = logs.map((it) => {
+        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        return `#${it.id} ${it.action} | 亲密+${it.deltaIntimacy} | ${dt}`;
+    });
+    return [`📖 情录第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines].join('\n');
 }
 
 export function towerLogText(
