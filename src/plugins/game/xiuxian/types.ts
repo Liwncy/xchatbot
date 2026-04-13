@@ -53,6 +53,8 @@ export type XiuxianCommand =
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
 
+export type XiuxianItemQuality = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+
 export interface XiuxianPlayer {
     id: number;
     platform: string;
@@ -84,7 +86,7 @@ export interface XiuxianItem {
     itemType: EquipmentSlot;
     itemName: string;
     itemLevel: number;
-    quality: string;
+    quality: XiuxianItemQuality;
     attack: number;
     defense: number;
     hp: number;
@@ -336,7 +338,7 @@ export interface XiuxianBondLog {
 
 export interface XiuxianBagQuery {
     itemType?: EquipmentSlot;
-    quality?: 'common' | 'rare' | 'epic';
+    quality?: XiuxianItemQuality;
     sort?: XiuxianBagSort;
 }
 

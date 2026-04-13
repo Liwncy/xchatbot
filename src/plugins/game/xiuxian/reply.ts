@@ -17,8 +17,11 @@ import type {
 } from './types.js';
 
 function qualityLabel(raw: string): string {
+    if (raw === 'mythic') return '神话(红)';
+    if (raw === 'legendary') return '传说(金)';
     if (raw === 'epic') return '史诗';
     if (raw === 'rare') return '稀有';
+    if (raw === 'uncommon') return '优秀(绿)';
     return '普通';
 }
 
@@ -39,7 +42,17 @@ function slotLabel(slot: EquipmentSlot): string {
 
 export function helpText(topic?: string): string {
     const map: Record<string, string[]> = {
-        基础: ['🌱 修仙创建 [名字]', '🧾 修仙状态', '🧘 修仙修炼 [次数]', '🧭 修仙探索', '🎒 修仙背包 [页码] [筛选/排序]', '🗡️ 修仙装备 [编号]', '🧤 修仙卸装 [武器|护甲|灵宝|法器]'],
+        基础: [
+            '🌱 修仙创建 [名字]',
+            '🧾 修仙状态',
+            '🧘 修仙修炼 [次数]',
+            '🧭 修仙探索',
+            '🎒 修仙背包 [页码] [类型/品质/排序]',
+            '🧪 背包示例：修仙背包 1 神话 评分降序',
+            '🧪 品质可选：普通(白)/优秀(绿)/稀有(蓝)/史诗(紫)/传说(金)/神话(红)',
+            '🗡️ 修仙装备 [编号]',
+            '🧤 修仙卸装 [武器|护甲|灵宝|法器]',
+        ],
         经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID]', '📒 修仙流水 [条数]'],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [对方wxid]', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
@@ -94,7 +107,13 @@ export function helpText(topic?: string): string {
 
     if (key === '全部') {
         const blocks = categoryOrder.flatMap((name) => renderSection(name));
-        return ['📜 修仙帮助（全部）', '━━━━━━━━━━━━', ...blocks, '💡 指令格式统一为「修仙 + 双字动作」'].join('\n');
+        return [
+            '📜 修仙帮助（全部）',
+            '━━━━━━━━━━━━',
+            ...blocks,
+            '💡 指令格式统一为「修仙 + 双字动作」',
+            '💡 背包筛选示例：修仙背包 1 神话 评分降序',
+        ].join('\n');
     }
 
     const lines = map[key];

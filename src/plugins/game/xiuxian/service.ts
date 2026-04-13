@@ -28,6 +28,7 @@ import type {
     XiuxianShopOffer,
     XiuxianTaskDef,
     XiuxianWorldBossState,
+    XiuxianItemQuality,
 } from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {
@@ -40,6 +41,7 @@ import {
     challengeEnemy,
     cultivateReward,
     exploreStoneReward,
+    exploreDropHintText,
     generateShopItems,
     rollExploreLoot,
     runBossBattle,
@@ -149,19 +151,34 @@ function resolveBagFilter(raw: string | undefined): {query?: XiuxianBagQuery; la
             continue;
         }
 
-        if (key === '普通' || key === 'common') {
+        if (key === '普通' || key === '白' || key === 'common') {
             query.quality = 'common';
-            labels.push('普通');
+            labels.push('普通(白)');
             continue;
         }
-        if (key === '稀有' || key === 'rare') {
+        if (key === '优秀' || key === '精良' || key === '绿' || key === 'uncommon') {
+            query.quality = 'uncommon';
+            labels.push('优秀(绿)');
+            continue;
+        }
+        if (key === '稀有' || key === '蓝' || key === 'rare') {
             query.quality = 'rare';
-            labels.push('稀有');
+            labels.push('稀有(蓝)');
             continue;
         }
-        if (key === '史诗' || key === 'epic') {
+        if (key === '史诗' || key === '紫' || key === 'epic') {
             query.quality = 'epic';
-            labels.push('史诗');
+            labels.push('史诗(紫)');
+            continue;
+        }
+        if (key === '传说' || key === '金' || key === 'legendary') {
+            query.quality = 'legendary';
+            labels.push('传说(金)');
+            continue;
+        }
+        if (key === '神话' || key === '红' || key === 'mythic') {
+            query.quality = 'mythic';
+            labels.push('神话(红)');
             continue;
         }
 
@@ -181,7 +198,7 @@ function resolveBagFilter(raw: string | undefined): {query?: XiuxianBagQuery; la
             continue;
         }
 
-        return {error: '⚠️ 背包参数仅支持：神兵/护甲/灵宝/法器/普通/稀有/史诗/评分降序/评分升序/最新'};
+        return {error: '⚠️ 背包参数仅支持：神兵/护甲/灵宝/法器/普通(白)/优秀(绿)/稀有(蓝)/史诗(紫)/传说(金)/神话(红)/评分降序/评分升序/最新'};
     }
 
     return {query, label: labels.join(' + ')};
@@ -194,7 +211,7 @@ function parseOfferItem(offer: XiuxianShopOffer): Omit<XiuxianItem, 'id' | 'play
             itemType: String(data.itemType) as XiuxianItem['itemType'],
             itemName: String(data.itemName),
             itemLevel: Number(data.itemLevel),
-            quality: String(data.quality),
+            quality: String(data.quality) as XiuxianItemQuality,
             attack: Number(data.attack),
             defense: Number(data.defense),
             hp: Number(data.hp),
@@ -206,6 +223,15 @@ function parseOfferItem(offer: XiuxianShopOffer): Omit<XiuxianItem, 'id' | 'play
     } catch {
         return null;
     }
+}
+
+function qualityLabel(quality: XiuxianItemQuality): string {
+    if (quality === 'mythic') return '神话(红)';
+    if (quality === 'legendary') return '传说(金)';
+    if (quality === 'epic') return '史诗(紫)';
+    if (quality === 'rare') return '稀有(蓝)';
+    if (quality === 'uncommon') return '优秀(绿)';
+    return '普通(白)';
 }
 
 async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, now: number): Promise<XiuxianShopOffer[]> {
@@ -1042,6 +1068,7 @@ export async function handleXiuxianCommand(
         }
 
         if (cmd.type === 'explore') {
+            const dropHint = exploreDropHintText();
             const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.explore, now);
             if (left > 0) return asText(cooldownText('探索', left));
 
@@ -1051,7 +1078,7 @@ export async function handleXiuxianCommand(
                 player.spiritStone += stone;
                 await repo.updatePlayer(player, now);
                 await repo.setCooldown(player.id, XIUXIAN_ACTIONS.explore, now + XIUXIAN_COOLDOWN_MS.explore, now);
-                return asText(`🎒 背包已满，本次探索改为获得灵石 ${stone}。`);
+                return asText(`🎒 背包已满，本次探索改为获得灵石 ${stone}。\n${dropHint}`);
             }
 
             const loot = rollExploreLoot(player.level);
@@ -1061,16 +1088,18 @@ export async function handleXiuxianCommand(
                 const stone = exploreStoneReward(player.level);
                 player.spiritStone += stone;
                 await repo.updatePlayer(player, now);
-                return asText(`🧭 本次探索没有发现装备，获得灵石 ${stone}。`);
+                return asText(`🧭 本次探索没有发现装备，获得灵石 ${stone}。\n${dropHint}`);
             }
 
             await repo.addItem(player.id, loot, now);
             return asText(
                 [
-                    `🎁 探索成功：获得 ${loot.itemName}（${loot.quality}）`,
+                    `🎁 探索成功：获得 ${loot.itemName}（${qualityLabel(loot.quality)}）`,
                     '━━━━━━━━━━━━',
                     `🧩 类型：${loot.itemType}`,
                     `🗡️ 攻击 +${loot.attack}  🛡️ 防御 +${loot.defense}  ❤️ 气血 +${loot.hp}`,
+                    `🏷️ 品质：${qualityLabel(loot.quality)}`,
+                    dropHint,
                 ].join('\n'),
             );
         }
