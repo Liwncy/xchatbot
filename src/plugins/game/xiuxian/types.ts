@@ -18,6 +18,10 @@ export type XiuxianCommand =
     | {type: 'buy'; offerId: number}
     | {type: 'sell'; itemId: number}
     | {type: 'ledger'; limit?: number}
+    | {type: 'checkin'}
+    | {type: 'task'}
+    | {type: 'claim'; taskId?: number}
+    | {type: 'achievement'}
     | {type: 'help'};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -101,6 +105,71 @@ export interface XiuxianEconomyLog {
     idempotencyKey: string | null;
     extraJson: string;
     createdAt: number;
+}
+
+export interface XiuxianCheckin {
+    id: number;
+    playerId: number;
+    dayKey: string;
+    rewardSpiritStone: number;
+    rewardExp: number;
+    rewardCultivation: number;
+    createdAt: number;
+}
+
+export type XiuxianTaskType = 'daily';
+
+export interface XiuxianTaskDef {
+    id: number;
+    code: string;
+    title: string;
+    description: string;
+    taskType: XiuxianTaskType;
+    targetValue: number;
+    requirementJson: string;
+    rewardJson: string;
+    sortOrder: number;
+    isActive: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianPlayerTask {
+    id: number;
+    playerId: number;
+    taskId: number;
+    dayKey: string;
+    progressValue: number;
+    targetValue: number;
+    status: 'in_progress' | 'claimable' | 'claimed';
+    claimedAt: number | null;
+    updatedAt: number;
+}
+
+export interface XiuxianAchievementDef {
+    id: number;
+    code: string;
+    title: string;
+    description: string;
+    targetValue: number;
+    requirementJson: string;
+    rewardJson: string;
+    sortOrder: number;
+    isActive: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianPlayerAchievement {
+    id: number;
+    playerId: number;
+    achievementId: number;
+    progressValue: number;
+    targetValue: number;
+    status: 'in_progress' | 'claimable' | 'claimed';
+    unlockedAt: number | null;
+    claimedAt: number | null;
+    updatedAt: number;
 }
 
 export interface XiuxianBagQuery {

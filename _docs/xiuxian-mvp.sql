@@ -99,9 +99,83 @@ CREATE TABLE IF NOT EXISTS xiuxian_economy_logs (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_checkins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  day_key TEXT NOT NULL,
+  reward_spirit_stone INTEGER NOT NULL DEFAULT 0,
+  reward_exp INTEGER NOT NULL DEFAULT 0,
+  reward_cultivation INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  UNIQUE(player_id, day_key),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  task_type TEXT NOT NULL DEFAULT 'daily',
+  target_value INTEGER NOT NULL DEFAULT 1,
+  requirement_json TEXT NOT NULL DEFAULT '{}',
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_player_tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  task_id INTEGER NOT NULL,
+  day_key TEXT NOT NULL,
+  progress_value INTEGER NOT NULL DEFAULT 0,
+  target_value INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'in_progress',
+  claimed_at INTEGER,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(player_id, task_id, day_key),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(task_id) REFERENCES xiuxian_tasks(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_achievements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  target_value INTEGER NOT NULL DEFAULT 1,
+  requirement_json TEXT NOT NULL DEFAULT '{}',
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_player_achievements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  achievement_id INTEGER NOT NULL,
+  progress_value INTEGER NOT NULL DEFAULT 0,
+  target_value INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'in_progress',
+  unlocked_at INTEGER,
+  claimed_at INTEGER,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(player_id, achievement_id),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(achievement_id) REFERENCES xiuxian_achievements(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_economy_player_time ON xiuxian_economy_logs(player_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_economy_idem ON xiuxian_economy_logs(player_id, idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_checkins_player_day ON xiuxian_checkins(player_id, day_key);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_player_tasks_player_day ON xiuxian_player_tasks(player_id, day_key);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_player_achievements_player ON xiuxian_player_achievements(player_id);
 

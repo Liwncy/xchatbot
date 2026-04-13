@@ -1,4 +1,15 @@
-import type {EquipmentSlot, XiuxianBattle, XiuxianEconomyLog, XiuxianItem, XiuxianPlayer, XiuxianShopOffer} from './types.js';
+import type {
+    EquipmentSlot,
+    XiuxianAchievementDef,
+    XiuxianBattle,
+    XiuxianEconomyLog,
+    XiuxianItem,
+    XiuxianPlayer,
+    XiuxianPlayerAchievement,
+    XiuxianPlayerTask,
+    XiuxianShopOffer,
+    XiuxianTaskDef,
+} from './types.js';
 
 function qualityLabel(raw: string): string {
     if (raw === 'epic') return '史诗';
@@ -37,6 +48,10 @@ export function helpText(): string {
         '🛍️ 修仙购买 [商品ID]',
         '💰 修仙出售 [装备ID]',
         '📒 修仙流水 [条数]',
+        '📅 修仙签到',
+        '📝 修仙任务',
+        '🎁 修仙领奖 [任务ID]',
+        '🏅 修仙成就',
         '📚 修仙战报 [页码]',
         '🔎 修仙战详 [战报ID]',
         '',
@@ -180,5 +195,69 @@ export function economyLogText(logs: XiuxianEconomyLog[], limit: number): string
         return `#${it.id} ${action} ${sign}${it.deltaSpiritStone} | 余额:${it.balanceAfter} | ${dt}`;
     });
     return [`📒 最近 ${Math.min(limit, logs.length)} 条流水`, '━━━━━━━━━━━━', ...lines].join('\n');
+}
+
+export function checkinText(
+    reward: {spiritStone: number; exp: number; cultivation: number},
+    level: number,
+    spiritStone: number,
+): string {
+    return [
+        '📅 今日签到成功',
+        '━━━━━━━━━━━━',
+        `💎 灵石 +${reward.spiritStone}`,
+        `📈 经验 +${reward.exp}`,
+        `✨ 修为 +${reward.cultivation}`,
+        `🪪 当前境界：${level} 级`,
+        `💼 当前灵石：${spiritStone}`,
+    ].join('\n');
+}
+
+export function taskText(defs: XiuxianTaskDef[], states: XiuxianPlayerTask[], dayKey: string): string {
+    if (!defs.length) return '📝 暂无任务配置。';
+    const stateMap = new Map<number, XiuxianPlayerTask>();
+    for (const row of states) stateMap.set(row.taskId, row);
+    const lines = defs.map((def) => {
+        const st = stateMap.get(def.id);
+        const progress = st?.progressValue ?? 0;
+        const target = st?.targetValue ?? def.targetValue;
+        const flag = st?.status === 'claimed' ? '✅ 已领' : st?.status === 'claimable' ? '🎁 可领' : '⏳ 进行中';
+        return `#${def.id} ${def.title} | ${progress}/${target} | ${flag}`;
+    });
+    return [`📝 每日任务（${dayKey}）`, '━━━━━━━━━━━━', ...lines, '💡 领取：修仙领奖 [任务ID]'].join('\n');
+}
+
+export function claimTaskText(
+    taskTitle: string,
+    reward: {spiritStone: number; exp: number; cultivation: number},
+    balanceAfter: number,
+): string {
+    return [
+        `🎁 任务奖励已领取：${taskTitle}`,
+        '━━━━━━━━━━━━',
+        `💎 灵石 +${reward.spiritStone}`,
+        `📈 经验 +${reward.exp}`,
+        `✨ 修为 +${reward.cultivation}`,
+        `💼 当前灵石：${balanceAfter}`,
+    ].join('\n');
+}
+
+export function achievementText(
+    defs: XiuxianAchievementDef[],
+    states: XiuxianPlayerAchievement[],
+    justClaimedTitles: string[],
+): string {
+    if (!defs.length) return '🏅 暂无成就配置。';
+    const stateMap = new Map<number, XiuxianPlayerAchievement>();
+    for (const row of states) stateMap.set(row.achievementId, row);
+    const lines = defs.map((def) => {
+        const st = stateMap.get(def.id);
+        const progress = st?.progressValue ?? 0;
+        const target = st?.targetValue ?? def.targetValue;
+        const flag = st?.status === 'claimed' ? '✅ 已达成' : st?.status === 'claimable' ? '🎉 可领取' : '⏳ 未完成';
+        return `${def.title} | ${progress}/${target} | ${flag}`;
+    });
+    const auto = justClaimedTitles.length ? [`🎊 本次自动领取：${justClaimedTitles.join('、')}`, '━━━━━━━━━━━━'] : [];
+    return ['🏅 成就进度', ...auto, ...lines].join('\n');
 }
 

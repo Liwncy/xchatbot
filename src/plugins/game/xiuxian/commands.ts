@@ -63,6 +63,15 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const ledgerMatch = text.match(/^修仙流水(?:\s+(\d+))?$/);
     if (ledgerMatch) return {type: 'ledger', limit: parsePositiveInt(ledgerMatch[1])};
 
+    if (text === '修仙签到') return {type: 'checkin'};
+
+    if (text === '修仙任务') return {type: 'task'};
+
+    const claimMatch = text.match(/^修仙领奖(?:\s+(\d+))?$/);
+    if (claimMatch) return {type: 'claim', taskId: parsePositiveInt(claimMatch[1])};
+
+    if (text === '修仙成就') return {type: 'achievement'};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 

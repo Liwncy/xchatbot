@@ -1,5 +1,7 @@
 import type {
+    XiuxianAchievementDef,
     CooldownState,
+    XiuxianCheckin,
     EquipmentSlot,
     XiuxianBagQuery,
     XiuxianBagSort,
@@ -7,8 +9,11 @@ import type {
     XiuxianEconomyLog,
     XiuxianIdentity,
     XiuxianItem,
+    XiuxianPlayerAchievement,
     XiuxianPlayer,
+    XiuxianPlayerTask,
     XiuxianShopOffer,
+    XiuxianTaskDef,
 } from './types.js';
 
 function toPlayer(row: Record<string, unknown>): XiuxianPlayer {
@@ -99,6 +104,79 @@ function toEconomyLog(row: Record<string, unknown>): XiuxianEconomyLog {
         idempotencyKey: row.idempotency_key == null ? null : String(row.idempotency_key),
         extraJson: String(row.extra_json ?? '{}'),
         createdAt: Number(row.created_at),
+    };
+}
+
+function toCheckin(row: Record<string, unknown>): XiuxianCheckin {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        dayKey: String(row.day_key),
+        rewardSpiritStone: Number(row.reward_spirit_stone),
+        rewardExp: Number(row.reward_exp),
+        rewardCultivation: Number(row.reward_cultivation),
+        createdAt: Number(row.created_at),
+    };
+}
+
+function toTaskDef(row: Record<string, unknown>): XiuxianTaskDef {
+    return {
+        id: Number(row.id),
+        code: String(row.code),
+        title: String(row.title),
+        description: String(row.description),
+        taskType: String(row.task_type) as XiuxianTaskDef['taskType'],
+        targetValue: Number(row.target_value),
+        requirementJson: String(row.requirement_json ?? '{}'),
+        rewardJson: String(row.reward_json ?? '{}'),
+        sortOrder: Number(row.sort_order),
+        isActive: Number(row.is_active),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toPlayerTask(row: Record<string, unknown>): XiuxianPlayerTask {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        taskId: Number(row.task_id),
+        dayKey: String(row.day_key),
+        progressValue: Number(row.progress_value),
+        targetValue: Number(row.target_value),
+        status: String(row.status) as XiuxianPlayerTask['status'],
+        claimedAt: row.claimed_at == null ? null : Number(row.claimed_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toAchievementDef(row: Record<string, unknown>): XiuxianAchievementDef {
+    return {
+        id: Number(row.id),
+        code: String(row.code),
+        title: String(row.title),
+        description: String(row.description),
+        targetValue: Number(row.target_value),
+        requirementJson: String(row.requirement_json ?? '{}'),
+        rewardJson: String(row.reward_json ?? '{}'),
+        sortOrder: Number(row.sort_order),
+        isActive: Number(row.is_active),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toPlayerAchievement(row: Record<string, unknown>): XiuxianPlayerAchievement {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        achievementId: Number(row.achievement_id),
+        progressValue: Number(row.progress_value),
+        targetValue: Number(row.target_value),
+        status: String(row.status) as XiuxianPlayerAchievement['status'],
+        unlockedAt: row.unlocked_at == null ? null : Number(row.unlocked_at),
+        claimedAt: row.claimed_at == null ? null : Number(row.claimed_at),
+        updatedAt: Number(row.updated_at),
     };
 }
 
@@ -547,6 +625,259 @@ export class XiuxianRepository {
             .bind(playerId, limit)
             .all<Record<string, unknown>>();
         return (rows.results ?? []).map(toEconomyLog);
+    }
+
+    async findCheckin(playerId: number, dayKey: string): Promise<XiuxianCheckin | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_checkins
+                 WHERE player_id = ?1 AND day_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, dayKey)
+            .first<Record<string, unknown>>();
+        return row ? toCheckin(row) : null;
+    }
+
+    async addCheckin(
+        playerId: number,
+        dayKey: string,
+        reward: {spiritStone: number; exp: number; cultivation: number},
+        now: number,
+    ): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `INSERT OR IGNORE INTO xiuxian_checkins (
+                    player_id, day_key, reward_spirit_stone, reward_exp, reward_cultivation, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+            )
+            .bind(playerId, dayKey, reward.spiritStone, reward.exp, reward.cultivation, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async countCheckins(playerId: number): Promise<number> {
+        const row = await this.db
+            .prepare('SELECT COUNT(1) AS cnt FROM xiuxian_checkins WHERE player_id = ?1')
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return Number(row?.cnt ?? 0);
+    }
+
+    async upsertTaskDef(def: {
+        code: string;
+        title: string;
+        description: string;
+        taskType: string;
+        targetValue: number;
+        requirementJson: string;
+        rewardJson: string;
+        sortOrder: number;
+        now: number;
+    }): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_tasks (
+                    code, title, description, task_type, target_value,
+                    requirement_json, reward_json, sort_order, is_active, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, ?9, ?9)
+                ON CONFLICT(code) DO UPDATE SET
+                    title = excluded.title,
+                    description = excluded.description,
+                    task_type = excluded.task_type,
+                    target_value = excluded.target_value,
+                    requirement_json = excluded.requirement_json,
+                    reward_json = excluded.reward_json,
+                    sort_order = excluded.sort_order,
+                    is_active = 1,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(
+                def.code,
+                def.title,
+                def.description,
+                def.taskType,
+                def.targetValue,
+                def.requirementJson,
+                def.rewardJson,
+                def.sortOrder,
+                def.now,
+            )
+            .run();
+    }
+
+    async listTaskDefs(): Promise<XiuxianTaskDef[]> {
+        const rows = await this.db
+            .prepare('SELECT * FROM xiuxian_tasks WHERE is_active = 1 ORDER BY sort_order ASC, id ASC')
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toTaskDef);
+    }
+
+    async listPlayerTasks(playerId: number, dayKey: string): Promise<XiuxianPlayerTask[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_player_tasks
+                 WHERE player_id = ?1 AND day_key = ?2`,
+            )
+            .bind(playerId, dayKey)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toPlayerTask);
+    }
+
+    async upsertPlayerTaskProgress(
+        playerId: number,
+        taskId: number,
+        dayKey: string,
+        progressValue: number,
+        targetValue: number,
+        status: XiuxianPlayerTask['status'],
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_player_tasks (
+                    player_id, task_id, day_key, progress_value, target_value, status, claimed_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7)
+                ON CONFLICT(player_id, task_id, day_key)
+                DO UPDATE SET
+                    progress_value = excluded.progress_value,
+                    target_value = excluded.target_value,
+                    status = CASE
+                        WHEN xiuxian_player_tasks.status = 'claimed' THEN 'claimed'
+                        ELSE excluded.status
+                    END,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(playerId, taskId, dayKey, progressValue, targetValue, status, now)
+            .run();
+    }
+
+    async markTaskClaimed(playerId: number, taskId: number, dayKey: string, now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_player_tasks
+                 SET status = 'claimed',
+                     claimed_at = ?4,
+                     updated_at = ?4
+                 WHERE player_id = ?1 AND task_id = ?2 AND day_key = ?3
+                   AND status = 'claimable'`,
+            )
+            .bind(playerId, taskId, dayKey, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async findPlayerTask(playerId: number, taskId: number, dayKey: string): Promise<XiuxianPlayerTask | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_player_tasks
+                 WHERE player_id = ?1 AND task_id = ?2 AND day_key = ?3
+                 LIMIT 1`,
+            )
+            .bind(playerId, taskId, dayKey)
+            .first<Record<string, unknown>>();
+        return row ? toPlayerTask(row) : null;
+    }
+
+    async upsertAchievementDef(def: {
+        code: string;
+        title: string;
+        description: string;
+        targetValue: number;
+        requirementJson: string;
+        rewardJson: string;
+        sortOrder: number;
+        now: number;
+    }): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_achievements (
+                    code, title, description, target_value,
+                    requirement_json, reward_json, sort_order, is_active, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?8)
+                ON CONFLICT(code) DO UPDATE SET
+                    title = excluded.title,
+                    description = excluded.description,
+                    target_value = excluded.target_value,
+                    requirement_json = excluded.requirement_json,
+                    reward_json = excluded.reward_json,
+                    sort_order = excluded.sort_order,
+                    is_active = 1,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(
+                def.code,
+                def.title,
+                def.description,
+                def.targetValue,
+                def.requirementJson,
+                def.rewardJson,
+                def.sortOrder,
+                def.now,
+            )
+            .run();
+    }
+
+    async listAchievementDefs(): Promise<XiuxianAchievementDef[]> {
+        const rows = await this.db
+            .prepare('SELECT * FROM xiuxian_achievements WHERE is_active = 1 ORDER BY sort_order ASC, id ASC')
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toAchievementDef);
+    }
+
+    async listPlayerAchievements(playerId: number): Promise<XiuxianPlayerAchievement[]> {
+        const rows = await this.db
+            .prepare('SELECT * FROM xiuxian_player_achievements WHERE player_id = ?1')
+            .bind(playerId)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toPlayerAchievement);
+    }
+
+    async upsertPlayerAchievementProgress(
+        playerId: number,
+        achievementId: number,
+        progressValue: number,
+        targetValue: number,
+        status: XiuxianPlayerAchievement['status'],
+        unlockedAt: number | null,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_player_achievements (
+                    player_id, achievement_id, progress_value, target_value, status, unlocked_at, claimed_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7)
+                ON CONFLICT(player_id, achievement_id)
+                DO UPDATE SET
+                    progress_value = excluded.progress_value,
+                    target_value = excluded.target_value,
+                    status = CASE
+                        WHEN xiuxian_player_achievements.status = 'claimed' THEN 'claimed'
+                        ELSE excluded.status
+                    END,
+                    unlocked_at = CASE
+                        WHEN xiuxian_player_achievements.unlocked_at IS NULL THEN excluded.unlocked_at
+                        ELSE xiuxian_player_achievements.unlocked_at
+                    END,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(playerId, achievementId, progressValue, targetValue, status, unlockedAt, now)
+            .run();
+    }
+
+    async markAchievementClaimed(playerId: number, achievementId: number, now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_player_achievements
+                 SET status = 'claimed',
+                     claimed_at = ?3,
+                     updated_at = ?3
+                 WHERE player_id = ?1 AND achievement_id = ?2
+                   AND status = 'claimable'`,
+            )
+            .bind(playerId, achievementId, now)
+            .run();
+        return changedRows(result) > 0;
     }
 }
 

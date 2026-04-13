@@ -2,6 +2,7 @@ import type {IncomingMessage, HandlerResponse} from '../../../types/message.js';
 import {logger} from '../../../utils/logger.js';
 import {
     XIUXIAN_ACTIONS,
+    XIUXIAN_CHECKIN_REWARD,
     XIUXIAN_COOLDOWN_MS,
     XIUXIAN_DEFAULTS,
     XIUXIAN_LEDGER_DEFAULT_LIMIT,
@@ -9,8 +10,18 @@ import {
     XIUXIAN_PAGE_SIZE,
     XIUXIAN_SHOP_OFFER_COUNT,
     XIUXIAN_SHOP_REFRESH_MS,
+    XIUXIAN_TASK_DEFAULT_LIMIT,
 } from './constants.js';
-import type {XiuxianBagQuery, XiuxianCommand, XiuxianIdentity, XiuxianItem, XiuxianPlayer, XiuxianShopOffer} from './types.js';
+import type {
+    XiuxianAchievementDef,
+    XiuxianBagQuery,
+    XiuxianCommand,
+    XiuxianIdentity,
+    XiuxianItem,
+    XiuxianPlayer,
+    XiuxianShopOffer,
+    XiuxianTaskDef,
+} from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {
     applyExpProgress,
@@ -29,14 +40,18 @@ import {
     battleDetailText,
     battleLogText,
     buyResultText,
+    checkinText,
+    claimTaskText,
     cooldownText,
     createdText,
     economyLogText,
     equipText,
     helpText,
+    achievementText,
     sellResultText,
     shopText,
     statusText,
+    taskText,
     unequipText,
 } from './reply.js';
 
@@ -175,6 +190,131 @@ async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, 
         );
     }
     return repo.listShopOffers(player.id, now);
+}
+
+function dayKeyOf(now: number): string {
+    return new Date(now).toISOString().slice(0, 10);
+}
+
+function parseJsonRecord(raw: string): Record<string, unknown> {
+    try {
+        const value = JSON.parse(raw) as unknown;
+        if (!value || typeof value !== 'object') return {};
+        return value as Record<string, unknown>;
+    } catch {
+        return {};
+    }
+}
+
+async function ensureTaskDefs(repo: XiuxianRepository, now: number): Promise<void> {
+    await repo.upsertTaskDef({
+        code: 'daily_checkin_1',
+        title: '晨修签到',
+        description: '完成一次修仙签到。',
+        taskType: 'daily',
+        targetValue: 1,
+        requirementJson: JSON.stringify({type: 'checkin_count_daily'}),
+        rewardJson: JSON.stringify({spiritStone: 20, exp: 10, cultivation: 10}),
+        sortOrder: 10,
+        now,
+    });
+    await repo.upsertTaskDef({
+        code: 'daily_cultivate_3',
+        title: '勤修不辍',
+        description: '当日累计修炼 3 次。',
+        taskType: 'daily',
+        targetValue: 3,
+        requirementJson: JSON.stringify({type: 'cooldown_day_count', action: XIUXIAN_ACTIONS.cultivate}),
+        rewardJson: JSON.stringify({spiritStone: 35, exp: 30, cultivation: 25}),
+        sortOrder: 20,
+        now,
+    });
+    await repo.upsertTaskDef({
+        code: 'daily_explore_2',
+        title: '洞天寻宝',
+        description: '当日累计探索 2 次。',
+        taskType: 'daily',
+        targetValue: 2,
+        requirementJson: JSON.stringify({type: 'cooldown_day_count', action: XIUXIAN_ACTIONS.explore}),
+        rewardJson: JSON.stringify({spiritStone: 30, exp: 20, cultivation: 15}),
+        sortOrder: 30,
+        now,
+    });
+}
+
+async function ensureAchievementDefs(repo: XiuxianRepository, now: number): Promise<void> {
+    await repo.upsertAchievementDef({
+        code: 'ach_checkin_3',
+        title: '初入仙门',
+        description: '累计签到 3 天。',
+        targetValue: 3,
+        requirementJson: JSON.stringify({type: 'checkin_total'}),
+        rewardJson: JSON.stringify({spiritStone: 120, exp: 80, cultivation: 60}),
+        sortOrder: 10,
+        now,
+    });
+    await repo.upsertAchievementDef({
+        code: 'ach_battle_win_5',
+        title: '锋芒初现',
+        description: '累计挑战胜利 5 次。',
+        targetValue: 5,
+        requirementJson: JSON.stringify({type: 'battle_win_total'}),
+        rewardJson: JSON.stringify({spiritStone: 150, exp: 100, cultivation: 80}),
+        sortOrder: 20,
+        now,
+    });
+}
+
+async function resolveTaskProgress(repo: XiuxianRepository, player: XiuxianPlayer, task: XiuxianTaskDef, todayKey: string): Promise<number> {
+    const rule = parseJsonRecord(task.requirementJson);
+    const type = String(rule.type ?? '');
+    if (type === 'checkin_count_daily') {
+        const checkin = await repo.findCheckin(player.id, todayKey);
+        return checkin ? 1 : 0;
+    }
+    if (type === 'cooldown_day_count') {
+        const action = String(rule.action ?? '');
+        const cooldown = await repo.getCooldown(player.id, action);
+        if (!cooldown || cooldown.dayKey !== todayKey) return 0;
+        return cooldown.dayCount;
+    }
+    return 0;
+}
+
+async function syncDailyTasks(repo: XiuxianRepository, player: XiuxianPlayer, now: number): Promise<void> {
+    await ensureTaskDefs(repo, now);
+    const todayKey = dayKeyOf(now);
+    const defs = await repo.listTaskDefs();
+    for (const def of defs) {
+        const progress = await resolveTaskProgress(repo, player, def, todayKey);
+        const capped = Math.min(progress, def.targetValue);
+        const status = capped >= def.targetValue ? 'claimable' : 'in_progress';
+        await repo.upsertPlayerTaskProgress(player.id, def.id, todayKey, capped, def.targetValue, status, now);
+    }
+}
+
+async function computeAchievementProgress(repo: XiuxianRepository, player: XiuxianPlayer, def: XiuxianAchievementDef): Promise<number> {
+    const rule = parseJsonRecord(def.requirementJson);
+    const type = String(rule.type ?? '');
+    if (type === 'checkin_total') {
+        return repo.countCheckins(player.id);
+    }
+    if (type === 'battle_win_total') {
+        const logs = await repo.listBattles(player.id, 1, 500);
+        return logs.filter((v) => v.result === 'win').length;
+    }
+    return 0;
+}
+
+async function syncAchievements(repo: XiuxianRepository, player: XiuxianPlayer, now: number): Promise<void> {
+    await ensureAchievementDefs(repo, now);
+    const defs = await repo.listAchievementDefs();
+    for (const def of defs) {
+        const progress = await computeAchievementProgress(repo, player, def);
+        const capped = Math.min(progress, def.targetValue);
+        const status = capped >= def.targetValue ? 'claimable' : 'in_progress';
+        await repo.upsertPlayerAchievementProgress(player.id, def.id, capped, def.targetValue, status, status === 'claimable' ? now : null, now);
+    }
 }
 
 export async function handleXiuxianCommand(
@@ -442,6 +582,151 @@ export async function handleXiuxianCommand(
             const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_LEDGER_DEFAULT_LIMIT, 1), XIUXIAN_LEDGER_MAX_LIMIT);
             const logs = await repo.listEconomyLogs(player.id, limit);
             return asText(economyLogText(logs, limit));
+        }
+
+        if (cmd.type === 'checkin') {
+            const todayKey = dayKeyOf(now);
+            const inserted = await repo.addCheckin(player.id, todayKey, XIUXIAN_CHECKIN_REWARD, now);
+            if (!inserted) return asText('📅 今日已签到，明日再来领取修炼补给吧。');
+
+            const progress = applyExpProgress(player, XIUXIAN_CHECKIN_REWARD.exp);
+            player.level = progress.level;
+            player.exp = progress.exp;
+            player.maxHp = progress.maxHp;
+            player.attack = progress.attack;
+            player.defense = progress.defense;
+            player.hp = progress.maxHp;
+            player.spiritStone += XIUXIAN_CHECKIN_REWARD.spiritStone;
+            player.cultivation += XIUXIAN_CHECKIN_REWARD.cultivation;
+            await repo.updatePlayer(player, now);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'reward',
+                deltaSpiritStone: XIUXIAN_CHECKIN_REWARD.spiritStone,
+                balanceAfter: player.spiritStone,
+                refType: 'checkin',
+                refId: null,
+                idempotencyKey: `${player.id}:checkin:${todayKey}`,
+                extraJson: JSON.stringify({exp: XIUXIAN_CHECKIN_REWARD.exp, cultivation: XIUXIAN_CHECKIN_REWARD.cultivation}),
+                now,
+            });
+            return asText(checkinText(XIUXIAN_CHECKIN_REWARD, player.level, player.spiritStone));
+        }
+
+        if (cmd.type === 'task') {
+            const todayKey = dayKeyOf(now);
+            await syncDailyTasks(repo, player, now);
+            const defs = (await repo.listTaskDefs()).slice(0, XIUXIAN_TASK_DEFAULT_LIMIT);
+            const states = await repo.listPlayerTasks(player.id, todayKey);
+            return asText(taskText(defs, states, todayKey));
+        }
+
+        if (cmd.type === 'claim') {
+            const todayKey = dayKeyOf(now);
+            await syncDailyTasks(repo, player, now);
+            const defs = await repo.listTaskDefs();
+            const states = await repo.listPlayerTasks(player.id, todayKey);
+            const stateMap = new Map<number, (typeof states)[number]>();
+            for (const row of states) stateMap.set(row.taskId, row);
+
+            let targetTaskId = cmd.taskId;
+            if (!targetTaskId) {
+                const first = defs.find((d) => stateMap.get(d.id)?.status === 'claimable');
+                targetTaskId = first?.id;
+            }
+            if (!targetTaskId) return asText('📭 当前没有可领取任务奖励，可发送「修仙任务」查看进度。');
+
+            const def = defs.find((v) => v.id === targetTaskId);
+            const state = stateMap.get(targetTaskId);
+            if (!def || !state) return asText('🔎 未找到该任务，请先发送「修仙任务」。');
+            if (state.status === 'claimed') return asText('🧾 该任务奖励已领取。');
+            if (state.status !== 'claimable') return asText('⏳ 该任务尚未完成，先继续努力吧。');
+
+            const locked = await repo.markTaskClaimed(player.id, targetTaskId, todayKey, now);
+            if (!locked) return asText('⚠️ 奖励状态已变化，请刷新任务列表后重试。');
+
+            const reward = parseJsonRecord(def.rewardJson);
+            const gainStone = Number(reward.spiritStone ?? 0);
+            const gainExp = Number(reward.exp ?? 0);
+            const gainCultivation = Number(reward.cultivation ?? 0);
+            const progress = applyExpProgress(player, gainExp);
+            player.level = progress.level;
+            player.exp = progress.exp;
+            player.maxHp = progress.maxHp;
+            player.attack = progress.attack;
+            player.defense = progress.defense;
+            player.hp = progress.maxHp;
+            player.spiritStone += gainStone;
+            player.cultivation += gainCultivation;
+            await repo.updatePlayer(player, now);
+            if (gainStone > 0) {
+                await repo.createEconomyLog({
+                    playerId: player.id,
+                    bizType: 'reward',
+                    deltaSpiritStone: gainStone,
+                    balanceAfter: player.spiritStone,
+                    refType: 'task',
+                    refId: targetTaskId,
+                    idempotencyKey: `${player.id}:task-claim:${todayKey}:${targetTaskId}`,
+                    extraJson: JSON.stringify({task: def.code, exp: gainExp, cultivation: gainCultivation}),
+                    now,
+                });
+            }
+            return asText(claimTaskText(def.title, {spiritStone: gainStone, exp: gainExp, cultivation: gainCultivation}, player.spiritStone));
+        }
+
+        if (cmd.type === 'achievement') {
+            await syncAchievements(repo, player, now);
+            const defs = await repo.listAchievementDefs();
+            const states = await repo.listPlayerAchievements(player.id);
+
+            const stateMap = new Map<number, (typeof states)[number]>();
+            for (const row of states) stateMap.set(row.achievementId, row);
+
+            let autoGainStone = 0;
+            let autoGainExp = 0;
+            let autoGainCultivation = 0;
+            const claimedTitles: string[] = [];
+            for (const def of defs) {
+                const st = stateMap.get(def.id);
+                if (!st || st.status !== 'claimable') continue;
+                const marked = await repo.markAchievementClaimed(player.id, def.id, now);
+                if (!marked) continue;
+                const reward = parseJsonRecord(def.rewardJson);
+                autoGainStone += Number(reward.spiritStone ?? 0);
+                autoGainExp += Number(reward.exp ?? 0);
+                autoGainCultivation += Number(reward.cultivation ?? 0);
+                claimedTitles.push(def.title);
+            }
+            if (autoGainStone > 0 || autoGainExp > 0 || autoGainCultivation > 0) {
+                const progress = applyExpProgress(player, autoGainExp);
+                player.level = progress.level;
+                player.exp = progress.exp;
+                player.maxHp = progress.maxHp;
+                player.attack = progress.attack;
+                player.defense = progress.defense;
+                player.hp = progress.maxHp;
+                player.spiritStone += autoGainStone;
+                player.cultivation += autoGainCultivation;
+                await repo.updatePlayer(player, now);
+                if (autoGainStone > 0) {
+                    await repo.createEconomyLog({
+                        playerId: player.id,
+                        bizType: 'reward',
+                        deltaSpiritStone: autoGainStone,
+                        balanceAfter: player.spiritStone,
+                        refType: 'achievement',
+                        refId: null,
+                        idempotencyKey: `${player.id}:achievement:${dayKeyOf(now)}:${claimedTitles.join('|')}`,
+                        extraJson: JSON.stringify({titles: claimedTitles, exp: autoGainExp, cultivation: autoGainCultivation}),
+                        now,
+                    });
+                }
+                await syncAchievements(repo, player, now);
+            }
+
+            const refreshed = await repo.listPlayerAchievements(player.id);
+            return asText(achievementText(defs, refreshed, claimedTitles));
         }
 
         if (cmd.type === 'battleLog') {
