@@ -42,6 +42,12 @@ export const XIUXIAN_NPC_ENCOUNTER_POOL = [
     {code: 'elder_bless', title: '前辈赐福', tier: 'legend', weight: 10, spiritStone: 60, exp: 45, cultivation: 36},
 ] as const;
 
+export const XIUXIAN_BOND_MILESTONE_REWARDS = [
+    {intimacy: 100, spiritStone: 50, exp: 35, cultivation: 30},
+    {intimacy: 300, spiritStone: 120, exp: 85, cultivation: 70},
+    {intimacy: 600, spiritStone: 260, exp: 180, cultivation: 140},
+] as const;
+
 export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
     explore: 60_000,

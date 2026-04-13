@@ -43,7 +43,7 @@ export function helpText(topic?: string): string {
         经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID]', '📒 修仙流水 [条数]'],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [对方wxid]', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
-        爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
+        爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
         灵宠: ['🐾 修仙领宠', '🐶 修仙宠物', '🍼 修仙喂宠', '⚔️ 修仙出宠', '🛌 修仙休宠'],
         战报: ['📚 修仙战报 [页码]', '🔎 修仙战详 [战报ID]'],
     };
@@ -453,13 +453,26 @@ export function towerStatusText(progress: {highestFloor: number; lastResult: 'wi
     ].join('\n');
 }
 
-export function towerRankText(rows: XiuxianTowerRankRow[], self?: XiuxianTowerRankRow | null, limit?: number): string {
+export function towerRankText(
+    rows: XiuxianTowerRankRow[],
+    self?: XiuxianTowerRankRow | null,
+    limit?: number,
+    ahead?: XiuxianTowerRankRow | null,
+    scopeLabel?: string,
+): string {
     if (!rows.length) return '🏔️ 当前暂无塔榜记录，快发送「修仙爬塔」抢首榜！';
     const lines = rows.map((v, i) => `#${i + 1} ${v.userName?.trim() || `道友${v.playerId}`} | 最高层:${v.highestFloor}`);
     const selfLine = self
         ? `🙋 你当前第 ${self.rank ?? '-'} 名 | 最高层:${self.highestFloor}`
         : '🙋 你暂未上榜，发送「修仙爬塔」参与挑战';
-    return [`🏔️ 爬塔榜（Top ${limit ?? rows.length}）`, '━━━━━━━━━━━━', ...lines, '━━━━━━━━━━━━', selfLine].join('\n');
+    const gapLine = self
+        ? self.rank === 1
+            ? '🥇 你已位列榜首'
+            : ahead
+                ? `📏 距离上一名：${ahead.userName?.trim() || `道友${ahead.playerId}`}，还差 ${Math.max(0, ahead.highestFloor - self.highestFloor)} 层`
+                : '📏 暂无上一名数据'
+        : '📏 上榜后可查看与上一名差距';
+    return [`🏔️ ${scopeLabel ?? '总榜'}爬塔榜（Top ${limit ?? rows.length}）`, '━━━━━━━━━━━━', ...lines, '━━━━━━━━━━━━', selfLine, gapLine].join('\n');
 }
 
 export function towerSelfRankText(self: XiuxianTowerRankRow | null): string {
@@ -497,14 +510,27 @@ export function towerSeasonStatusText(params: {
     ].join('\n');
 }
 
-export function towerSeasonRankText(rows: XiuxianTowerSeasonRankRow[], self?: XiuxianTowerSeasonRankRow | null, limit?: number): string {
-    if (!rows.length) return '🌄 本赛季暂无塔榜记录，快发送「修仙爬塔」冲榜吧！';
-    const seasonKey = rows[0]?.seasonKey ?? self?.seasonKey ?? '未知赛季';
+export function towerSeasonRankText(
+    rows: XiuxianTowerSeasonRankRow[],
+    self?: XiuxianTowerSeasonRankRow | null,
+    limit?: number,
+    ahead?: XiuxianTowerSeasonRankRow | null,
+    seasonKeyHint?: string,
+): string {
+    const seasonKey = rows[0]?.seasonKey ?? self?.seasonKey ?? seasonKeyHint ?? '未知赛季';
+    if (!rows.length) return `🌄 赛季 ${seasonKey} 暂无塔榜记录，快发送「修仙爬塔」冲榜吧！`;
     const lines = rows.map((v, i) => `#${i + 1} ${v.userName?.trim() || `道友${v.playerId}`} | 最高层:${v.highestFloor}`);
     const selfLine = self
         ? `🙋 你当前第 ${self.rank ?? '-'} 名 | 最高层:${self.highestFloor}`
         : '🙋 你暂未上榜，发送「修仙爬塔」参与挑战';
-    return [`🌄 赛季塔榜 ${seasonKey}（Top ${limit ?? rows.length}）`, '━━━━━━━━━━━━', ...lines, '━━━━━━━━━━━━', selfLine].join('\n');
+    const gapLine = self
+        ? self.rank === 1
+            ? '🥇 你已位列赛季榜首'
+            : ahead
+                ? `📏 距离上一名：${ahead.userName?.trim() || `道友${ahead.playerId}`}，还差 ${Math.max(0, ahead.highestFloor - self.highestFloor)} 层`
+                : '📏 暂无上一名数据'
+        : '📏 上榜后可查看与上一名差距';
+    return [`🌄 赛季塔榜 ${seasonKey}（Top ${limit ?? rows.length}）`, '━━━━━━━━━━━━', ...lines, '━━━━━━━━━━━━', selfLine, gapLine].join('\n');
 }
 
 export function towerSeasonSelfRankText(self: XiuxianTowerSeasonRankRow | null, seasonKey: string): string {

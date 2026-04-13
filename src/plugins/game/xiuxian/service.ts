@@ -12,6 +12,7 @@ import {
     XIUXIAN_SHOP_REFRESH_MS,
     XIUXIAN_TASK_DEFAULT_LIMIT,
     XIUXIAN_PET_MILESTONE_REWARDS,
+    XIUXIAN_BOND_MILESTONE_REWARDS,
     XIUXIAN_NPC_ENCOUNTER_POOL,
     XIUXIAN_TOWER,
     XIUXIAN_TOWER_SEASON_REWARDS,
@@ -305,6 +306,17 @@ function formatCountdown(ms: number): string {
     const s = sec % 60;
     if (d > 0) return `${d}天${h}时${m}分${s}秒`;
     return `${h}时${m}分${s}秒`;
+}
+
+function weekStartOf(now: number): number {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const bjNowMs = now + 8 * 60 * 60 * 1000;
+    const bj = new Date(bjNowMs);
+    const weekDay = bj.getUTCDay() === 0 ? 7 : bj.getUTCDay();
+    const midnight = new Date(bj);
+    midnight.setUTCHours(0, 0, 0, 0);
+    const weekStartBj = midnight.getTime() - (weekDay - 1) * dayMs;
+    return weekStartBj - 8 * 60 * 60 * 1000;
 }
 
 function seasonRewardByRank(rank: number): {spiritStone: number; exp: number; cultivation: number} | null {
@@ -736,17 +748,74 @@ export async function handleXiuxianCommand(
             await repo.updateBondTravel(bond.id, newIntimacy, newLevel, dayKey, now);
             await repo.addBondLog(bond.id, player.id, '同游', 20, JSON.stringify(reward), now);
 
+            let milestoneStone = 0;
+            let milestoneExp = 0;
+            let milestoneCultivation = 0;
+            const milestoneReached: number[] = [];
+            for (const tier of XIUXIAN_BOND_MILESTONE_REWARDS) {
+                if (bond.intimacy >= tier.intimacy || newIntimacy < tier.intimacy) continue;
+                const claimed = await repo.findBondMilestoneClaim(bond.id, tier.intimacy);
+                if (claimed) continue;
+
+                milestoneStone += tier.spiritStone;
+                milestoneExp += tier.exp;
+                milestoneCultivation += tier.cultivation;
+                milestoneReached.push(tier.intimacy);
+                await repo.addBondMilestoneClaim(
+                    bond.id,
+                    player.id,
+                    tier.intimacy,
+                    JSON.stringify({
+                        intimacy: tier.intimacy,
+                        spiritStone: tier.spiritStone,
+                        exp: tier.exp,
+                        cultivation: tier.cultivation,
+                    }),
+                    now,
+                );
+            }
+
+            const milestoneLines: string[] = [];
+            if (milestoneStone > 0 || milestoneExp > 0 || milestoneCultivation > 0) {
+                const bonus = applyExpProgress(player, milestoneExp);
+                player.level = bonus.level;
+                player.exp = bonus.exp;
+                player.maxHp = bonus.maxHp;
+                player.attack = bonus.attack;
+                player.defense = bonus.defense;
+                player.hp = bonus.maxHp;
+                player.spiritStone += milestoneStone;
+                player.cultivation += milestoneCultivation;
+                await repo.updatePlayer(player, now);
+                await repo.createEconomyLog({
+                    playerId: player.id,
+                    bizType: 'reward',
+                    deltaSpiritStone: milestoneStone,
+                    balanceAfter: player.spiritStone,
+                    refType: 'bond_milestone',
+                    refId: bond.id,
+                    idempotencyKey: `${player.id}:bond-milestone:${bond.id}:${milestoneReached.join('-')}`,
+                    extraJson: JSON.stringify({milestones: milestoneReached, exp: milestoneExp, cultivation: milestoneCultivation}),
+                    now,
+                });
+                milestoneLines.push(
+                    ...milestoneReached.map((m) => {
+                        const tier = XIUXIAN_BOND_MILESTONE_REWARDS.find((v) => v.intimacy === m)!;
+                        return `🎉 达成情缘里程碑 ${m}：💎+${tier.spiritStone} 📈+${tier.exp} ✨+${tier.cultivation}`;
+                    }),
+                );
+            }
+
             const partnerId = bond.requesterId === player.id ? bond.targetId : bond.requesterId;
             const partner = await repo.findPlayerById(partnerId);
-
-            return asText(
-                bondTravelText({
-                    partnerName: partner?.userName ?? `道友#${partnerId}`,
-                    gainedIntimacy: 20,
-                    level: newLevel,
-                    reward,
-                }),
-            );
+            const travel = bondTravelText({
+                partnerName: partner?.userName ?? `道友#${partnerId}`,
+                gainedIntimacy: 20,
+                level: newLevel,
+                reward,
+            });
+            if (!milestoneLines.length) return asText(travel);
+            return asText([travel, '━━━━━━━━━━━━', ...milestoneLines].join('\n'));
         }
 
         if (cmd.type === 'bondLog') {
@@ -1563,11 +1632,22 @@ export async function handleXiuxianCommand(
         }
 
         if (cmd.type === 'towerRank') {
-            const self = await repo.findTowerRank(player.id);
+            const scope = cmd.scope ?? 'all';
+            const weekStart = weekStartOf(now);
+            const self = scope === 'weekly'
+                ? await repo.findTowerWeeklyRank(player.id, weekStart)
+                : await repo.findTowerRank(player.id);
             if (cmd.selfOnly) return asText(towerSelfRankText(self));
             const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_TOWER.rankSize, 1), XIUXIAN_TOWER.rankMax);
-            const rows = await repo.listTowerTop(limit);
-            return asText(towerRankText(rows, self, limit));
+            const rows = scope === 'weekly'
+                ? await repo.listTowerWeeklyTop(limit, weekStart)
+                : await repo.listTowerTop(limit);
+            const ahead = self
+                ? scope === 'weekly'
+                    ? await repo.findTowerWeeklyAheadNeighbor(player.id, weekStart)
+                    : await repo.findTowerAheadNeighbor(player.id)
+                : null;
+            return asText(towerRankText(rows, self, limit, ahead, scope === 'weekly' ? '周榜' : '总榜'));
         }
 
         if (cmd.type === 'towerSeasonKey') {
@@ -1603,7 +1683,11 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'towerSeasonRank') {
             const autoSeason = await tryAutoClaimPreviousSeasonReward(repo, player, now);
-            const seasonKey = towerSeasonKey(now);
+            const seasonKeyRaw = cmd.seasonKey === '__prev__' ? previousTowerSeasonKey(now) : cmd.seasonKey ?? towerSeasonKey(now);
+            if (!/^\d{4}-W\d{2}$/.test(seasonKeyRaw)) {
+                return asText('❌ 赛季键格式错误，应为 YYYY-Www，例如：2026-W15');
+            }
+            const seasonKey = seasonKeyRaw;
             const self = await repo.findTowerSeasonRank(seasonKey, player.id);
             if (cmd.selfOnly) {
                 const selfText = towerSeasonSelfRankText(self, seasonKey);
@@ -1621,7 +1705,8 @@ export async function handleXiuxianCommand(
             }
             const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_TOWER.rankSize, 1), XIUXIAN_TOWER.rankMax);
             const rows = await repo.listTowerSeasonTop(seasonKey, limit);
-            const listText = towerSeasonRankText(rows, self, limit);
+            const ahead = self ? await repo.findTowerSeasonAheadNeighbor(seasonKey, player.id) : null;
+            const listText = towerSeasonRankText(rows, self, limit, ahead, seasonKey);
             if (!autoSeason) return asText(listText);
             return asText(
                 [

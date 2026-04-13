@@ -29,11 +29,11 @@ export type XiuxianCommand =
     | {type: 'bossDetail'; logId: number}
     | {type: 'towerClimb'}
     | {type: 'towerStatus'}
-    | {type: 'towerRank'; limit?: number; selfOnly?: boolean}
+    | {type: 'towerRank'; limit?: number; selfOnly?: boolean; scope?: 'all' | 'weekly'}
     | {type: 'towerLog'; page?: number}
     | {type: 'towerDetail'; logId: number}
     | {type: 'towerSeasonKey'}
-    | {type: 'towerSeasonRank'; limit?: number; selfOnly?: boolean}
+    | {type: 'towerSeasonRank'; limit?: number; selfOnly?: boolean; seasonKey?: string}
     | {type: 'towerSeasonStatus'}
     | {type: 'towerSeasonReward'}
     | {type: 'towerSeasonClaim'}

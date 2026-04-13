@@ -17,6 +17,71 @@ function parseSlot(raw: string | undefined): EquipmentSlot | null {
     return null;
 }
 
+function parseTowerRankArgs(raw: string | undefined): {limit?: number; selfOnly?: boolean; scope?: 'all' | 'weekly'} {
+    if (!raw) return {};
+    const parts = raw
+        .split(/\s+/)
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+    const out: {limit?: number; selfOnly?: boolean; scope?: 'all' | 'weekly'} = {};
+    for (const part of parts) {
+        const lower = part.toLowerCase();
+        if (part === '我' || lower === 'me') {
+            out.selfOnly = true;
+            continue;
+        }
+        if (part === '周榜' || part === '周' || lower === 'weekly') {
+            out.scope = 'weekly';
+            continue;
+        }
+        if (part === '总榜' || part === '总' || lower === 'all') {
+            out.scope = 'all';
+            continue;
+        }
+        const n = parsePositiveInt(part);
+        if (n) out.limit = n;
+    }
+    return out;
+}
+
+function parseTowerSeasonRankArgs(raw: string | undefined): {limit?: number; selfOnly?: boolean; seasonKey?: string} {
+    if (!raw) return {};
+    const parts = raw
+        .split(/\s+/)
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+    const out: {limit?: number; selfOnly?: boolean; seasonKey?: string} = {};
+    for (let i = 0; i < parts.length; i += 1) {
+        const part = parts[i];
+        const lower = part.toLowerCase();
+        if (part === '我' || lower === 'me') {
+            out.selfOnly = true;
+            continue;
+        }
+        if (part === '上季' || part === '上个赛季') {
+            out.seasonKey = '__prev__';
+            continue;
+        }
+        if (part === '历史') {
+            const key = parts[i + 1];
+            if (key) {
+                out.seasonKey = key.toUpperCase();
+                i += 1;
+            }
+            continue;
+        }
+        if (/^\d{4}-W\d{2}$/i.test(part)) {
+            out.seasonKey = part.toUpperCase();
+            continue;
+        }
+        const n = parsePositiveInt(part);
+        if (n) out.limit = n;
+    }
+    return out;
+}
+
 export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const text = content.trim();
     if (!text) return null;
@@ -103,9 +168,8 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const towerRankMatch = text.match(/^修仙塔榜(?:\s+(.+))?$/);
     if (towerRankMatch) {
         const arg = towerRankMatch[1]?.trim();
-        if (!arg) return {type: 'towerRank'};
-        if (arg === '我' || arg.toLowerCase() === 'me') return {type: 'towerRank', selfOnly: true};
-        return {type: 'towerRank', limit: parsePositiveInt(arg)};
+        const parsed = parseTowerRankArgs(arg);
+        return {type: 'towerRank', ...parsed};
     }
 
     const towerLogMatch = text.match(/^修仙塔报(?:\s+(\d+))?$/);
@@ -121,9 +185,8 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const towerSeasonRankMatch = text.match(/^修仙季榜(?:\s+(.+))?$/);
     if (towerSeasonRankMatch) {
         const arg = towerSeasonRankMatch[1]?.trim();
-        if (!arg) return {type: 'towerSeasonRank'};
-        if (arg === '我' || arg.toLowerCase() === 'me') return {type: 'towerSeasonRank', selfOnly: true};
-        return {type: 'towerSeasonRank', limit: parsePositiveInt(arg)};
+        const parsed = parseTowerSeasonRankArgs(arg);
+        return {type: 'towerSeasonRank', ...parsed};
     }
 
     if (text === '修仙季奖') return {type: 'towerSeasonReward'};

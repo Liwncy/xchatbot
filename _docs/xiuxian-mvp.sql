@@ -335,6 +335,18 @@ CREATE TABLE IF NOT EXISTS xiuxian_bond_logs (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_bond_milestone_claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bond_id INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+  intimacy_milestone INTEGER NOT NULL,
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  claimed_at INTEGER NOT NULL,
+  UNIQUE(bond_id, intimacy_milestone),
+  FOREIGN KEY(bond_id) REFERENCES xiuxian_bonds(id),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -356,4 +368,5 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_npc_encounters_player_time ON xiuxian_npc
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_requester ON xiuxian_bonds(requester_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_target ON xiuxian_bonds(target_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_logs_bond_time ON xiuxian_bond_logs(bond_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_milestone_claims_bond ON xiuxian_bond_milestone_claims(bond_id, claimed_at DESC);
 
