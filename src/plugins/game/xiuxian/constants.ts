@@ -82,3 +82,22 @@ export const XIUXIAN_ACTIONS = {
     sell: 'sell',
 } as const;
 
+export const XIUXIAN_TERMS = {
+    realm: {
+        label: '境界',
+        currentLabel: '当前境界',
+        mortalName: '凡人',
+        maxName: '九天玄仙九阶',
+        stageUnit: '阶',
+        numericPrefix: '第',
+        numericSuffix: '级',
+    },
+    pet: {
+        levelLabel: '灵宠等级',
+        currentLevelLabel: '当前灵宠等级',
+    },
+    item: {
+        levelLabel: '装备等级',
+    },
+} as const;
+

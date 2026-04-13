@@ -15,6 +15,7 @@ import type {
     XiuxianTowerRankRow,
     XiuxianTowerSeasonRankRow,
 } from './types.js';
+import {XIUXIAN_TERMS} from './constants.js';
 import {formatRealm, realmName} from './realm.js';
 
 function qualityLabel(raw: string): string {
@@ -139,7 +140,7 @@ export function createdText(player: XiuxianPlayer): string {
     return [
         `🎉 创建成功：${player.userName}`,
         '━━━━━━━━━━━━',
-        `🪪 境界：${formatRealm(player.level)}`,
+        `🪪 ${XIUXIAN_TERMS.realm.label}：${formatRealm(player.level)}`,
         `❤️ 气血：${player.hp}/${player.maxHp}`,
         `🗡️ 攻击：${player.attack}`,
         `🛡️ 防御：${player.defense}`,
@@ -163,7 +164,7 @@ export function statusText(
     return [
         `🧾 ${player.userName} 的修仙面板`,
         '━━━━━━━━━━━━',
-        `🪪 境界：${formatRealm(player.level)}`,
+        `🪪 ${XIUXIAN_TERMS.realm.label}：${formatRealm(player.level)}`,
         `✨ 修为：${player.cultivation}`,
         `📈 经验：${player.exp}`,
         `❤️ 气血：${player.hp}/${power.maxHp}`,
@@ -185,7 +186,7 @@ export function bagText(items: XiuxianItem[], page: number, total: number, pageS
     if (!items.length) return '🎒 背包为空，快去探索碰碰运气吧！';
     const lines = items.map(
         (item) =>
-            `#${item.id} ${slotLabel(item.itemType)} | ${item.itemName} Lv.${item.itemLevel} | ${qualityLabel(item.quality)} | 评分:${item.score}`,
+            `#${item.id} ${slotLabel(item.itemType)} | ${item.itemName} ${XIUXIAN_TERMS.item.levelLabel}${item.itemLevel} | ${qualityLabel(item.quality)} | 评分:${item.score}`,
     );
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const title = filterLabel ? `🎒 背包第 ${page}/${pages} 页（共 ${total} 件，筛选：${filterLabel}）` : `🎒 背包第 ${page}/${pages} 页（共 ${total} 件）`;
@@ -280,7 +281,7 @@ export function checkinText(
         `💎 灵石 +${reward.spiritStone}`,
         `📈 经验 +${reward.exp}`,
         `✨ 修为 +${reward.cultivation}`,
-        `🪪 当前境界：${formatRealm(level)}`,
+        `🪪 ${XIUXIAN_TERMS.realm.currentLabel}：${formatRealm(level)}`,
         `💼 当前灵石：${spiritStone}`,
     ].join('\n');
 }
@@ -392,7 +393,7 @@ export function worldBossStatusText(
         `📢 世界BOSS：${state.bossName}`,
         '━━━━━━━━━━━━',
         `🔁 轮次：第 ${extra?.cycleNo ?? state.cycleNo} 轮`,
-        `🪪 境界：${formatRealm(state.bossLevel)}`,
+        `🪪 ${XIUXIAN_TERMS.realm.label}：${formatRealm(state.bossLevel)}`,
         `❤️ 血量：${state.currentHp}/${state.maxHp}`,
         `📌 状态：${state.status === 'alive' ? '存活' : '已击败，等待重生'}`,
         ...(state.status === 'defeated' ? [`⌛ 重生倒计时：${extra?.respawnLeftSec ?? 0}s`] : []),
@@ -616,7 +617,7 @@ export function petAdoptText(pet: {petName: string; petType: string; level: numb
     return [
         `🐾 领宠成功：${pet.petName}（${pet.petType}）`,
         '━━━━━━━━━━━━',
-        `📶 灵宠等级：${pet.level}`,
+        `📶 ${XIUXIAN_TERMS.pet.levelLabel}：${pet.level}`,
         '💡 发送「修仙宠物」查看灵宠状态',
     ].join('\n');
 }
@@ -630,13 +631,13 @@ export function petStatusText(
         `🐶 灵宠面板：${pet.petName}`,
         '━━━━━━━━━━━━',
         `🧬 类型：${pet.petType}`,
-        `📶 等级：${pet.level}`,
+        `📶 ${XIUXIAN_TERMS.pet.levelLabel}：${pet.level}`,
         `💖 亲密：${pet.affection}/100`,
         `🍼 喂养次数：${pet.feedCount}`,
         `🚩 当前状态：${pet.inBattle === 0 ? '休战' : '出战'}`,
         `✨ 修炼加成：灵石 +${bonusStone}/次`,
         ...(combat ? [`⚔️ 战斗加成：攻+${combat.attack} 防+${combat.defense} 血+${combat.hp}`] : []),
-        '💡 发送「修仙喂宠」可提升灵宠等级；发送「修仙出宠/修仙休宠」切换战斗状态',
+        `💡 发送「修仙喂宠」可提升${XIUXIAN_TERMS.pet.levelLabel}；发送「修仙出宠/修仙休宠」切换战斗状态`,
     ].join('\n');
 }
 
@@ -654,7 +655,7 @@ export function petFeedText(
         `🍼 喂宠成功：${pet.petName}`,
         '━━━━━━━━━━━━',
         `💎 消耗灵石：${cost}`,
-        `📶 当前等级：${pet.level}`,
+        `📶 ${XIUXIAN_TERMS.pet.currentLevelLabel}：${pet.level}`,
         `💖 当前亲密：${pet.affection}/100`,
         `💼 当前灵石：${balanceAfter}`,
         ...(milestoneLines?.length ? ['━━━━━━━━━━━━', ...milestoneLines] : []),

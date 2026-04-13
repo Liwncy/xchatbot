@@ -1,3 +1,5 @@
+import {XIUXIAN_TERMS} from './constants.js';
+
 const MAX_REALM_LEVEL = 144;
 const LEVELS_PER_STAGE = 9;
 
@@ -33,14 +35,14 @@ const STAGE_NAME = [
 ];
 
 export function realmName(level: number): string {
-    if (level <= 0) return '凡人';
-    if (level >= MAX_REALM_LEVEL) return '九天玄仙九层';
+    if (level <= 0) return XIUXIAN_TERMS.realm.mortalName;
+    if (level >= MAX_REALM_LEVEL) return XIUXIAN_TERMS.realm.maxName;
     const stageIndex = Math.floor((level - 1) / LEVELS_PER_STAGE);
     const stageLevel = ((level - 1) % LEVELS_PER_STAGE) + 1;
-    return `${STAGE_NAME[stageIndex]}${NUMBER_NAME[stageLevel]}层`;
+    return `${STAGE_NAME[stageIndex]}${NUMBER_NAME[stageLevel]}${XIUXIAN_TERMS.realm.stageUnit}`;
 }
 
 export function formatRealm(level: number): string {
-    return `${realmName(level)}（Lv.${level}）`;
+    return `${realmName(level)}（${XIUXIAN_TERMS.realm.numericPrefix}${level}${XIUXIAN_TERMS.realm.numericSuffix}）`;
 }
 

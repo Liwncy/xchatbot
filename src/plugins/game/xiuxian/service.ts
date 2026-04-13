@@ -16,6 +16,7 @@ import {
     XIUXIAN_NPC_ENCOUNTER_POOL,
     XIUXIAN_TOWER,
     XIUXIAN_TOWER_SEASON_REWARDS,
+    XIUXIAN_TERMS,
     XIUXIAN_WORLD_BOSS,
 } from './constants.js';
 import type {
@@ -859,7 +860,7 @@ export async function handleXiuxianCommand(
             const inventoryCount = await repo.countInventory(player.id);
             const panel = statusText(player, power, equipped, inventoryCount);
             if (!pet) return asText(panel);
-            return asText(`${panel}\n━━━━━━━━━━━━\n🐶 灵宠：${pet.petName} Lv.${pet.level}（亲密 ${pet.affection}/100）\n⚔️ 灵宠战斗加成：攻+${petBonus.attack} 防+${petBonus.defense} 血+${petBonus.maxHp}`);
+            return asText(`${panel}\n━━━━━━━━━━━━\n🐶 灵宠：${pet.petName}（${XIUXIAN_TERMS.pet.levelLabel}${pet.level}，亲密 ${pet.affection}/100）\n⚔️ 灵宠战斗加成：攻+${petBonus.attack} 防+${petBonus.defense} 血+${petBonus.maxHp}`);
         }
 
         if (cmd.type === 'cultivate') {
@@ -891,7 +892,7 @@ export async function handleXiuxianCommand(
                     `✨ 修为 +${reward.gainedCultivation}`,
                     `📈 经验 +${reward.gainedExp}`,
                     `💎 灵石 +${reward.gainedStone}${petBonus > 0 ? `（灵宠加成 +${petBonus}）` : ''}`,
-                    `🪪 当前境界：${formatRealm(player.level)}`,
+                    `🪪 ${XIUXIAN_TERMS.realm.currentLabel}：${formatRealm(player.level)}`,
                 ].join('\n'),
             );
         }
