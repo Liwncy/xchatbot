@@ -84,29 +84,58 @@ export function helpText(topic?: string): string {
         战报: '战报',
     };
 
+    const categoryOrder = ['基础', '经济', '成长', '讨伐', '爬塔', '灵宠', '战报'];
+    const categoryHint: Record<string, string> = {
+        基础: '创建/状态/修炼/探索/背包',
+        经济: '商店/购买/出售/流水',
+        成长: '签到/任务/领奖/成就/奇遇/情缘',
+        讨伐: '世界BOSS挑战/榜单/战报',
+        爬塔: '爬塔挑战/赛季/奖励',
+        灵宠: '领宠/喂养/出战切换',
+        战报: '通用战斗记录查询',
+    };
+
+    const renderCmdLines = (lines: string[]): string[] => lines.map((line, idx) => `${String(idx + 1).padStart(2, '0')}. ${line}`);
+    const renderSection = (name: string): string[] => [`【${name}】`, ...renderCmdLines(map[name] ?? []), ''];
+
     const rawKey = topic?.trim();
     const key = rawKey ? aliasMap[rawKey] ?? rawKey : undefined;
     if (!key) {
-        const sections = Object.entries(map).map(([name, cmds]) => `【${name}】\n${cmds.join('  |  ')}`);
+        const nav = categoryOrder.map((name, idx) => `${idx + 1}. ${name}  -  ${categoryHint[name] ?? '...'}`);
         return [
-            '📜 修仙帮助（模块总览）',
+            '📜 修仙帮助',
             '━━━━━━━━━━━━',
-            ...sections,
+            '🧭 分类导航',
+            ...nav,
             '',
-            '💡 细看某模块：修仙帮助 基础/经济/成长/讨伐/爬塔/灵宠/战报',
+            '✨ 快速开始',
+            '1) 修仙创建 [名字]',
+            '2) 修仙状态',
+            '3) 修仙修炼 [次数]',
+            '4) 修仙探索',
+            '',
+            '💡 查看分类：修仙帮助 基础/经济/成长/讨伐/爬塔/灵宠/战报',
+            '💡 查看全部：修仙帮助 全部',
         ].join('\n');
     }
 
     if (key === '全部') {
-        const all = Object.values(map).flat();
-        return ['📜 修仙帮助（全部）', '━━━━━━━━━━━━', ...all].join('\n');
+        const blocks = categoryOrder.flatMap((name) => renderSection(name));
+        return ['📜 修仙帮助（全部）', '━━━━━━━━━━━━', ...blocks, '💡 指令格式统一为「修仙 + 双字动作」'].join('\n');
     }
 
     const lines = map[key];
     if (!lines) {
         return ['❓ 未识别的帮助分类', '💡 可用分类：基础/经济/成长/讨伐/爬塔/灵宠/战报/全部', '💡 常见别名：商店→经济，赛季/塔榜→爬塔，宠物→灵宠'].join('\n');
     }
-    return [`📜 修仙帮助（${key}）`, '━━━━━━━━━━━━', ...lines].join('\n');
+    return [
+        `📜 修仙帮助（${key}）`,
+        '━━━━━━━━━━━━',
+        ...renderCmdLines(lines),
+        '━━━━━━━━━━━━',
+        '💡 返回总览：修仙帮助',
+        '💡 查看全部：修仙帮助 全部',
+    ].join('\n');
 }
 
 export function unknownCommandText(): string {
