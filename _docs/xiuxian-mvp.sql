@@ -199,6 +199,35 @@ CREATE TABLE IF NOT EXISTS xiuxian_boss_logs (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_world_boss_states (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  scope_key TEXT NOT NULL UNIQUE,
+  cycle_no INTEGER NOT NULL DEFAULT 1,
+  boss_name TEXT NOT NULL,
+  boss_level INTEGER NOT NULL,
+  max_hp INTEGER NOT NULL,
+  current_hp INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'alive',
+  version INTEGER NOT NULL DEFAULT 0,
+  last_hit_user_id TEXT,
+  started_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  defeated_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_world_boss_contributions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  scope_key TEXT NOT NULL,
+  cycle_no INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+  total_damage INTEGER NOT NULL DEFAULT 0,
+  attacks INTEGER NOT NULL DEFAULT 0,
+  kill_count INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(scope_key, cycle_no, player_id),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -208,4 +237,6 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_checkins_player_day ON xiuxian_checkins(p
 CREATE INDEX IF NOT EXISTS idx_xiuxian_player_tasks_player_day ON xiuxian_player_tasks(player_id, day_key);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_player_achievements_player ON xiuxian_player_achievements(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_boss_logs_player_time ON xiuxian_boss_logs(player_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_world_boss_scope ON xiuxian_world_boss_states(scope_key);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_world_boss_rank ON xiuxian_world_boss_contributions(scope_key, cycle_no, total_damage DESC);
 

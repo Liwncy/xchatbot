@@ -11,6 +11,7 @@ import {
     XIUXIAN_SHOP_OFFER_COUNT,
     XIUXIAN_SHOP_REFRESH_MS,
     XIUXIAN_TASK_DEFAULT_LIMIT,
+    XIUXIAN_WORLD_BOSS,
 } from './constants.js';
 import type {
     XiuxianAchievementDef,
@@ -21,6 +22,7 @@ import type {
     XiuxianPlayer,
     XiuxianShopOffer,
     XiuxianTaskDef,
+    XiuxianWorldBossState,
 } from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {
@@ -60,6 +62,9 @@ import {
     statusText,
     taskText,
     unequipText,
+    worldBossRankText,
+    worldBossSelfRankText,
+    worldBossStatusText,
 } from './reply.js';
 
 function identityFromMessage(message: IncomingMessage): XiuxianIdentity {
@@ -197,6 +202,45 @@ async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, 
         );
     }
     return repo.listShopOffers(player.id, now);
+}
+
+function bossScopeKeyOfMessage(message: IncomingMessage): string {
+    void message;
+    return 'world:global';
+}
+
+function worldBossHp(level: number): number {
+    return 500 + level * 120;
+}
+
+async function ensureWorldBossState(
+    repo: XiuxianRepository,
+    scopeKey: string,
+    level: number,
+    now: number,
+): Promise<XiuxianWorldBossState> {
+    const existed = await repo.findWorldBossState(scopeKey);
+    if (existed && existed.status === 'alive') return existed;
+    if (existed && existed.status === 'defeated') {
+        const baseTime = existed.defeatedAt ?? existed.updatedAt;
+        if (now - baseTime < XIUXIAN_WORLD_BOSS.respawnMs) return existed;
+    }
+
+    const nextCycle = (existed?.cycleNo ?? 0) + 1;
+    const boss = bossEnemy(level);
+    const maxHp = worldBossHp(Math.max(level, boss.level));
+    await repo.createWorldBossState({
+        scopeKey,
+        cycleNo: nextCycle,
+        bossName: boss.name,
+        bossLevel: boss.level,
+        maxHp,
+        startedAt: now,
+        now,
+    });
+    const created = await repo.findWorldBossState(scopeKey);
+    if (!created) throw new Error('创建世界BOSS状态失败');
+    return created;
 }
 
 function dayKeyOf(now: number): string {
@@ -770,15 +814,61 @@ export async function handleXiuxianCommand(
 
             const equipped = await repo.getEquippedItems(player);
             const power = calcCombatPower(player, equipped);
-            const boss = bossEnemy(player.level);
-            const result = runBossBattle(power, boss);
-            const reward = bossRewards(player.level, result.win);
+            const scopeKey = bossScopeKeyOfMessage(message);
+
+            let state = await ensureWorldBossState(repo, scopeKey, player.level, now);
+            if (state.status === 'defeated') {
+                const baseTime = state.defeatedAt ?? state.updatedAt;
+                const leftMs = Math.max(0, XIUXIAN_WORLD_BOSS.respawnMs - (now - baseTime));
+                const sec = Math.ceil(leftMs / 1000);
+                return asText(`⌛ 世界BOSS正在重生中，请约 ${sec}s 后再来讨伐。`);
+            }
+            const raidBoss = {
+                name: state.bossName,
+                level: state.bossLevel,
+                attack: 16 + state.bossLevel * 4,
+                defense: 10 + state.bossLevel * 3,
+                maxHp: state.maxHp,
+                dodge: Math.min(0.28, 0.05 + state.bossLevel * 0.002),
+                crit: Math.min(0.32, 0.08 + state.bossLevel * 0.002),
+            };
+            const sim = runBossBattle(power, raidBoss);
+            const theoryDamage = Math.max(1, state.maxHp - sim.enemyHpLeft);
+
+            let updated: XiuxianWorldBossState | null = null;
+            let hpBefore = state.currentHp;
+            let actualDamage = 0;
+            for (let i = 0; i < XIUXIAN_WORLD_BOSS.maxRetry; i += 1) {
+                state = await ensureWorldBossState(repo, scopeKey, player.level, now);
+                hpBefore = state.currentHp;
+                actualDamage = Math.min(theoryDamage, hpBefore);
+                if (actualDamage <= 0) break;
+                const ok = await repo.attackWorldBoss(scopeKey, state.version, actualDamage, message.from, now);
+                if (!ok) continue;
+                updated = await repo.findWorldBossState(scopeKey);
+                break;
+            }
+
+            if (!updated) {
+                return asText('⚠️ 讨伐并发过高，请稍后再试。');
+            }
+
+            const killed = updated.status === 'defeated' && hpBefore > 0 && updated.currentHp === 0;
+            await repo.addWorldBossContribution(scopeKey, updated.cycleNo, player.id, actualDamage, killed, now);
+
+            const base = bossRewards(player.level, killed);
+            const ratio = Math.max(0.1, Math.min(1, actualDamage / Math.max(1, updated.maxHp)));
+            const reward = {
+                gainedStone: Math.max(1, Math.floor(base.gainedStone * ratio + (killed ? 40 : 0))),
+                gainedExp: Math.max(1, Math.floor(base.gainedExp * ratio + (killed ? 50 : 0))),
+                gainedCultivation: Math.max(1, Math.floor(base.gainedCultivation * ratio + (killed ? 60 : 0))),
+            };
 
             let dropName: string | undefined;
-            if (result.win) {
+            if (killed) {
                 const currentInv = await repo.countInventory(player.id);
-                if (currentInv < player.backpackCap && Math.random() < 0.55) {
-                    const drop = rollExploreLoot(player.level + 2);
+                if (currentInv < player.backpackCap && Math.random() < 0.85) {
+                    const drop = rollExploreLoot(player.level + 3);
                     if (drop) {
                         await repo.addItem(player.id, drop, now);
                         dropName = drop.itemName;
@@ -804,8 +894,14 @@ export async function handleXiuxianCommand(
                 balanceAfter: player.spiritStone,
                 refType: 'boss',
                 refId: null,
-                idempotencyKey: `${player.id}:boss:${message.messageId}`,
-                extraJson: JSON.stringify({exp: reward.gainedExp, cultivation: reward.gainedCultivation, win: result.win}),
+                idempotencyKey: `${player.id}:boss:${updated.cycleNo}:${message.messageId}`,
+                extraJson: JSON.stringify({
+                    exp: reward.gainedExp,
+                    cultivation: reward.gainedCultivation,
+                    damage: actualDamage,
+                    killed,
+                    scopeKey,
+                }),
                 now,
             });
 
@@ -814,42 +910,73 @@ export async function handleXiuxianCommand(
                 exp: reward.gainedExp,
                 cultivation: reward.gainedCultivation,
                 dropName: dropName ?? null,
-            });
-            await repo.upsertBossState(player.id, {
-                bossName: boss.name,
-                bossLevel: boss.level,
-                maxHp: boss.maxHp,
-                currentHp: result.enemyHpLeft,
-                status: result.win ? 'defeated' : 'alive',
-                rounds: result.rounds,
-                lastResult: result.win ? 'win' : 'lose',
-                rewardJson,
-                startedAt: now,
-                updatedAt: now,
+                damage: actualDamage,
+                hpAfter: updated.currentHp,
+                cycleNo: updated.cycleNo,
             });
             await repo.addBossLog(
                 player.id,
-                boss.name,
-                boss.level,
-                result.win ? 'win' : 'lose',
-                result.rounds,
+                updated.bossName,
+                updated.bossLevel,
+                killed ? 'win' : 'lose',
+                sim.rounds,
                 rewardJson,
-                result.logs.join('\n'),
+                sim.logs.join('\n'),
                 now,
             );
             await repo.setCooldown(player.id, XIUXIAN_ACTIONS.bossRaid, now + XIUXIAN_COOLDOWN_MS.bossRaid, now);
 
             return asText(
                 bossRaidText({
-                    bossName: boss.name,
-                    result: result.win ? 'win' : 'lose',
-                    rounds: result.rounds,
+                    bossName: updated.bossName,
+                    result: killed ? 'win' : 'lose',
+                    rounds: sim.rounds,
+                    damage: actualDamage,
+                    hpBefore,
+                    hpAfter: updated.currentHp,
                     reward: {
                         gainedStone: reward.gainedStone,
                         gainedExp: reward.gainedExp,
                         gainedCultivation: reward.gainedCultivation,
                     },
                     dropName,
+                }),
+            );
+        }
+
+        if (cmd.type === 'bossStatus') {
+            const scopeKey = bossScopeKeyOfMessage(message);
+            const state = await ensureWorldBossState(repo, scopeKey, player.level, now);
+            const self = await repo.findWorldBossContribution(scopeKey, state.cycleNo, player.id);
+            const baseTime = state.defeatedAt ?? state.updatedAt;
+            const respawnLeftSec =
+                state.status === 'defeated'
+                    ? Math.max(0, Math.ceil((XIUXIAN_WORLD_BOSS.respawnMs - (now - baseTime)) / 1000))
+                    : 0;
+            return asText(worldBossStatusText(state, self, {respawnLeftSec, cycleNo: state.cycleNo}));
+        }
+
+        if (cmd.type === 'bossRank') {
+            const scopeKey = bossScopeKeyOfMessage(message);
+            const state = await ensureWorldBossState(repo, scopeKey, player.level, now);
+            const self = await repo.findWorldBossRank(scopeKey, state.cycleNo, player.id);
+            if (cmd.selfOnly) {
+                return asText(worldBossSelfRankText(self, state.cycleNo));
+            }
+            const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_WORLD_BOSS.rankSize, 1), XIUXIAN_WORLD_BOSS.rankMax);
+            const rows = await repo.listWorldBossTop(scopeKey, state.cycleNo, limit);
+            const killerName = state.lastHitUserId ? (await repo.findPlayerNameByUserId(state.lastHitUserId)) ?? '神秘道友' : undefined;
+            const baseTime = state.defeatedAt ?? state.updatedAt;
+            const respawnLeftSec =
+                state.status === 'defeated'
+                    ? Math.max(0, Math.ceil((XIUXIAN_WORLD_BOSS.respawnMs - (now - baseTime)) / 1000))
+                    : 0;
+            return asText(
+                worldBossRankText(rows, self, {
+                    killerName,
+                    defeatedAt: state.defeatedAt ?? undefined,
+                    limit,
+                    respawnLeftSec,
                 }),
             );
         }

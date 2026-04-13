@@ -80,6 +80,16 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙讨伐') return {type: 'bossRaid'};
 
+    if (text === '修仙伐况') return {type: 'bossStatus'};
+
+    const bossRankMatch = text.match(/^修仙伐榜(?:\s+(.+))?$/);
+    if (bossRankMatch) {
+        const arg = bossRankMatch[1]?.trim();
+        if (!arg) return {type: 'bossRank'};
+        if (arg === '我' || arg.toLowerCase() === 'me') return {type: 'bossRank', selfOnly: true};
+        return {type: 'bossRank', limit: parsePositiveInt(arg)};
+    }
+
     const bossLogMatch = text.match(/^修仙伐报(?:\s+(\d+))?$/);
     if (bossLogMatch) return {type: 'bossLog', page: parsePositiveInt(bossLogMatch[1])};
 

@@ -3,6 +3,8 @@ import type {
     CooldownState,
     XiuxianBossLog,
     XiuxianBossState,
+    XiuxianWorldBossContribution,
+    XiuxianWorldBossState,
     XiuxianCheckin,
     EquipmentSlot,
     XiuxianBagQuery,
@@ -213,6 +215,35 @@ function toBossLog(row: Record<string, unknown>): XiuxianBossLog {
     };
 }
 
+function toWorldBossState(row: Record<string, unknown>): XiuxianWorldBossState {
+    return {
+        id: Number(row.id),
+        scopeKey: String(row.scope_key),
+        cycleNo: Number(row.cycle_no),
+        bossName: String(row.boss_name),
+        bossLevel: Number(row.boss_level),
+        maxHp: Number(row.max_hp),
+        currentHp: Number(row.current_hp),
+        status: String(row.status) as XiuxianWorldBossState['status'],
+        version: Number(row.version),
+        lastHitUserId: row.last_hit_user_id == null ? null : String(row.last_hit_user_id),
+        startedAt: Number(row.started_at),
+        updatedAt: Number(row.updated_at),
+        defeatedAt: row.defeated_at == null ? null : Number(row.defeated_at),
+    };
+}
+
+function toWorldBossContribution(row: Record<string, unknown>): XiuxianWorldBossContribution {
+    return {
+        playerId: Number(row.player_id),
+        userName: row.user_name == null ? undefined : String(row.user_name),
+        totalDamage: Number(row.total_damage),
+        attacks: Number(row.attacks),
+        killCount: Number(row.kill_count),
+        rank: row.rank == null ? undefined : Number(row.rank),
+    };
+}
+
 function changedRows(result: D1Result<unknown>): number {
     const meta = (result.meta ?? {}) as Record<string, unknown>;
     return Number(meta.changes ?? 0);
@@ -266,6 +297,20 @@ export class XiuxianRepository {
             .bind(id)
             .first<Record<string, unknown>>();
         return row ? toPlayer(row) : null;
+    }
+
+    async findPlayerNameByUserId(userId: string): Promise<string | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT user_name
+                 FROM xiuxian_players
+                 WHERE user_id = ?1
+                 LIMIT 1`,
+            )
+            .bind(userId)
+            .first<Record<string, unknown>>();
+        if (!row?.user_name) return null;
+        return String(row.user_name);
     }
 
     async createPlayer(identity: XiuxianIdentity, userName: string, now: number): Promise<XiuxianPlayer> {
@@ -1035,6 +1080,153 @@ export class XiuxianRepository {
             .bind(playerId, logId)
             .first<Record<string, unknown>>();
         return row ? toBossLog(row) : null;
+    }
+
+    async findWorldBossState(scopeKey: string): Promise<XiuxianWorldBossState | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_world_boss_states
+                 WHERE scope_key = ?1
+                 LIMIT 1`,
+            )
+            .bind(scopeKey)
+            .first<Record<string, unknown>>();
+        return row ? toWorldBossState(row) : null;
+    }
+
+    async createWorldBossState(input: {
+        scopeKey: string;
+        cycleNo: number;
+        bossName: string;
+        bossLevel: number;
+        maxHp: number;
+        startedAt: number;
+        now: number;
+    }): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_world_boss_states (
+                    scope_key, cycle_no, boss_name, boss_level,
+                    max_hp, current_hp, status, version, last_hit_user_id,
+                    started_at, updated_at, defeated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?5, 'alive', 0, NULL, ?6, ?7, NULL)
+                ON CONFLICT(scope_key)
+                DO UPDATE SET
+                    cycle_no = excluded.cycle_no,
+                    boss_name = excluded.boss_name,
+                    boss_level = excluded.boss_level,
+                    max_hp = excluded.max_hp,
+                    current_hp = excluded.current_hp,
+                    status = 'alive',
+                    version = 0,
+                    last_hit_user_id = NULL,
+                    started_at = excluded.started_at,
+                    updated_at = excluded.updated_at,
+                    defeated_at = NULL`,
+            )
+            .bind(input.scopeKey, input.cycleNo, input.bossName, input.bossLevel, input.maxHp, input.startedAt, input.now)
+            .run();
+    }
+
+    async attackWorldBoss(
+        scopeKey: string,
+        expectedVersion: number,
+        damage: number,
+        attackerUserId: string,
+        now: number,
+    ): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_world_boss_states
+                 SET current_hp = CASE WHEN current_hp - ?3 <= 0 THEN 0 ELSE current_hp - ?3 END,
+                     status = CASE WHEN current_hp - ?3 <= 0 THEN 'defeated' ELSE status END,
+                     version = version + 1,
+                     last_hit_user_id = ?4,
+                     updated_at = ?5,
+                     defeated_at = CASE WHEN current_hp - ?3 <= 0 THEN ?5 ELSE defeated_at END
+                 WHERE scope_key = ?1
+                   AND version = ?2
+                   AND status = 'alive'`,
+            )
+            .bind(scopeKey, expectedVersion, damage, attackerUserId, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async addWorldBossContribution(
+        scopeKey: string,
+        cycleNo: number,
+        playerId: number,
+        damage: number,
+        killed: boolean,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_world_boss_contributions (
+                    scope_key, cycle_no, player_id, total_damage, attacks, kill_count, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6)
+                ON CONFLICT(scope_key, cycle_no, player_id)
+                DO UPDATE SET
+                    total_damage = xiuxian_world_boss_contributions.total_damage + excluded.total_damage,
+                    attacks = xiuxian_world_boss_contributions.attacks + 1,
+                    kill_count = xiuxian_world_boss_contributions.kill_count + excluded.kill_count,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(scopeKey, cycleNo, playerId, damage, killed ? 1 : 0, now)
+            .run();
+    }
+
+    async listWorldBossTop(scopeKey: string, cycleNo: number, limit: number): Promise<XiuxianWorldBossContribution[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT c.player_id, p.user_name, c.total_damage, c.attacks, c.kill_count
+                 FROM xiuxian_world_boss_contributions c
+                 LEFT JOIN xiuxian_players p ON p.id = c.player_id
+                 WHERE c.scope_key = ?1 AND c.cycle_no = ?2
+                 ORDER BY c.total_damage DESC, c.kill_count DESC, c.attacks ASC
+                 LIMIT ?3`,
+            )
+            .bind(scopeKey, cycleNo, limit)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toWorldBossContribution);
+    }
+
+    async findWorldBossContribution(scopeKey: string, cycleNo: number, playerId: number): Promise<XiuxianWorldBossContribution | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT c.player_id, p.user_name, c.total_damage, c.attacks, c.kill_count
+                 FROM xiuxian_world_boss_contributions c
+                 LEFT JOIN xiuxian_players p ON p.id = c.player_id
+                 WHERE c.scope_key = ?1 AND c.cycle_no = ?2 AND c.player_id = ?3
+                 LIMIT 1`,
+            )
+            .bind(scopeKey, cycleNo, playerId)
+            .first<Record<string, unknown>>();
+        return row ? toWorldBossContribution(row) : null;
+    }
+
+    async findWorldBossRank(scopeKey: string, cycleNo: number, playerId: number): Promise<XiuxianWorldBossContribution | null> {
+        const self = await this.findWorldBossContribution(scopeKey, cycleNo, playerId);
+        if (!self) return null;
+        const row = await this.db
+            .prepare(
+                `SELECT COUNT(1) AS ahead
+                 FROM xiuxian_world_boss_contributions
+                 WHERE scope_key = ?1
+                   AND cycle_no = ?2
+                   AND (
+                     total_damage > ?3
+                     OR (total_damage = ?3 AND kill_count > ?4)
+                     OR (total_damage = ?3 AND kill_count = ?4 AND attacks < ?5)
+                   )`,
+            )
+            .bind(scopeKey, cycleNo, self.totalDamage, self.killCount, self.attacks)
+            .first<Record<string, unknown>>();
+        return {
+            ...self,
+            rank: Number(row?.ahead ?? 0) + 1,
+        };
     }
 }
 

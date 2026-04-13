@@ -23,6 +23,8 @@ export type XiuxianCommand =
     | {type: 'claim'; taskId?: number; claimAll?: boolean}
     | {type: 'achievement'}
     | {type: 'bossRaid'}
+    | {type: 'bossStatus'}
+    | {type: 'bossRank'; limit?: number; selfOnly?: boolean}
     | {type: 'bossLog'; page?: number}
     | {type: 'bossDetail'; logId: number}
     | {type: 'help'};
@@ -200,6 +202,31 @@ export interface XiuxianBossLog {
     rewardJson: string;
     battleLog: string;
     createdAt: number;
+}
+
+export interface XiuxianWorldBossState {
+    id: number;
+    scopeKey: string;
+    cycleNo: number;
+    bossName: string;
+    bossLevel: number;
+    maxHp: number;
+    currentHp: number;
+    status: 'alive' | 'defeated';
+    version: number;
+    lastHitUserId: string | null;
+    startedAt: number;
+    updatedAt: number;
+    defeatedAt: number | null;
+}
+
+export interface XiuxianWorldBossContribution {
+    playerId: number;
+    userName?: string;
+    totalDamage: number;
+    attacks: number;
+    killCount: number;
+    rank?: number;
 }
 
 export interface XiuxianBagQuery {

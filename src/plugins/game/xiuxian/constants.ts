@@ -11,6 +11,13 @@ export const XIUXIAN_CHECKIN_REWARD = {
     cultivation: 25,
 } as const;
 
+export const XIUXIAN_WORLD_BOSS = {
+    maxRetry: 4,
+    rankSize: 5,
+    rankMax: 20,
+    respawnMs: 5 * 60 * 1000,
+} as const;
+
 export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
     explore: 60_000,
