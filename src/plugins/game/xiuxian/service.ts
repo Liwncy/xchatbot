@@ -11,6 +11,7 @@ import {
     XIUXIAN_SHOP_OFFER_COUNT,
     XIUXIAN_SHOP_REFRESH_MS,
     XIUXIAN_TASK_DEFAULT_LIMIT,
+    XIUXIAN_PET_MILESTONE_REWARDS,
     XIUXIAN_TOWER,
     XIUXIAN_TOWER_SEASON_REWARDS,
     XIUXIAN_WORLD_BOSS,
@@ -59,6 +60,10 @@ import {
     equipText,
     helpText,
     achievementText,
+    petAdoptText,
+    petBattleStateText,
+    petFeedText,
+    petStatusText,
     sellResultText,
     shopText,
     statusText,
@@ -390,6 +395,41 @@ async function ensureWorldBossState(
     return created;
 }
 
+function petCultivateStoneBonus(petLevel: number, affection: number, times: number): number {
+    const per = Math.floor(petLevel / 5) + (affection >= 50 ? 1 : 0);
+    if (per <= 0) return 0;
+    return per * times;
+}
+
+function petCombatBonus(pet: {level: number; affection: number; inBattle?: number} | null): {
+    attack: number;
+    defense: number;
+    maxHp: number;
+    dodge: number;
+    crit: number;
+} {
+    if (!pet || pet.inBattle === 0) return {attack: 0, defense: 0, maxHp: 0, dodge: 0, crit: 0};
+    const attack = Math.floor(pet.level / 4) + (pet.affection >= 60 ? 2 : 0);
+    const defense = Math.floor(pet.level / 5) + (pet.affection >= 80 ? 2 : 0);
+    const maxHp = pet.level * 6 + pet.affection;
+    const dodge = pet.affection >= 70 ? 0.01 : 0;
+    const crit = pet.affection >= 90 ? 0.01 : 0;
+    return {attack, defense, maxHp, dodge, crit};
+}
+
+function mergeCombatPower(
+    base: {attack: number; defense: number; maxHp: number; dodge: number; crit: number},
+    bonus: {attack: number; defense: number; maxHp: number; dodge: number; crit: number},
+): {attack: number; defense: number; maxHp: number; dodge: number; crit: number} {
+    return {
+        attack: base.attack + bonus.attack,
+        defense: base.defense + bonus.defense,
+        maxHp: base.maxHp + bonus.maxHp,
+        dodge: Math.min(0.6, base.dodge + bonus.dodge),
+        crit: Math.min(0.7, base.crit + bonus.crit),
+    };
+}
+
 function dayKeyOf(now: number): string {
     return new Date(now + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
@@ -524,7 +564,7 @@ export async function handleXiuxianCommand(
     const identity = identityFromMessage(message);
 
     try {
-        if (cmd.type === 'help') return asText(helpText());
+        if (cmd.type === 'help') return asText(helpText(cmd.topic));
 
         if (cmd.type === 'create') {
             const existed = await repo.findPlayer(identity);
@@ -539,9 +579,13 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'status') {
             const equipped = await repo.getEquippedItems(player);
-            const power = calcCombatPower(player, equipped);
+            const pet = await repo.findPet(player.id);
+            const petBonus = petCombatBonus(pet);
+            const power = mergeCombatPower(calcCombatPower(player, equipped), petBonus);
             const inventoryCount = await repo.countInventory(player.id);
-            return asText(statusText(player, power, equipped, inventoryCount));
+            const panel = statusText(player, power, equipped, inventoryCount);
+            if (!pet) return asText(panel);
+            return asText(`${panel}\n━━━━━━━━━━━━\n🐶 灵宠：${pet.petName} Lv.${pet.level}（亲密 ${pet.affection}/100）\n⚔️ 灵宠战斗加成：攻+${petBonus.attack} 防+${petBonus.defense} 血+${petBonus.maxHp}`);
         }
 
         if (cmd.type === 'cultivate') {
@@ -550,6 +594,8 @@ export async function handleXiuxianCommand(
 
             const times = Math.min(Math.max(cmd.times ?? 1, 1), 20);
             const reward = cultivateReward(player.level, times);
+            const pet = await repo.findPet(player.id);
+            const petBonus = pet ? petCultivateStoneBonus(pet.level, pet.affection, times) : 0;
             const progress = applyExpProgress(player, reward.gainedExp);
 
             player.level = progress.level;
@@ -559,7 +605,7 @@ export async function handleXiuxianCommand(
             player.defense = progress.defense;
             player.hp = progress.maxHp;
             player.cultivation += reward.gainedCultivation;
-            player.spiritStone += reward.gainedStone;
+            player.spiritStone += reward.gainedStone + petBonus;
 
             await repo.updatePlayer(player, now);
             await repo.setCooldown(player.id, XIUXIAN_ACTIONS.cultivate, now + XIUXIAN_COOLDOWN_MS.cultivate, now);
@@ -570,10 +616,125 @@ export async function handleXiuxianCommand(
                     '━━━━━━━━━━━━',
                     `✨ 修为 +${reward.gainedCultivation}`,
                     `📈 经验 +${reward.gainedExp}`,
-                    `💎 灵石 +${reward.gainedStone}`,
+                    `💎 灵石 +${reward.gainedStone}${petBonus > 0 ? `（灵宠加成 +${petBonus}）` : ''}`,
                     `🪪 当前境界：${player.level} 级`,
                 ].join('\n'),
             );
+        }
+
+        if (cmd.type === 'petAdopt') {
+            const existed = await repo.findPet(player.id);
+            if (existed) return asText(`🐾 你已经拥有灵宠：${existed.petName}`);
+            const pool = [
+                {name: '灵狐', type: '灵兽'},
+                {name: '玄龟', type: '守护'},
+                {name: '青鸾', type: '飞羽'},
+                {name: '月兔', type: '瑞兽'},
+            ];
+            const roll = pool[Math.floor(Math.random() * pool.length)];
+            const pet = await repo.createPet(player.id, roll.name, roll.type, now);
+            return asText(petAdoptText(pet));
+        }
+
+        if (cmd.type === 'petStatus') {
+            const pet = await repo.findPet(player.id);
+            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            const bonus = petCombatBonus(pet);
+            return asText(petStatusText(pet, {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp}));
+        }
+
+        if (cmd.type === 'petDeploy') {
+            const pet = await repo.findPet(player.id);
+            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (pet.inBattle === 1) return asText(`⚔️ ${pet.petName} 当前已经是出战状态。`);
+            await repo.updatePetBattleState(pet.id, 1, now);
+            return asText(petBattleStateText(pet.petName, true));
+        }
+
+        if (cmd.type === 'petRest') {
+            const pet = await repo.findPet(player.id);
+            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (pet.inBattle === 0) return asText(`🛌 ${pet.petName} 当前已经是休战状态。`);
+            await repo.updatePetBattleState(pet.id, 0, now);
+            return asText(petBattleStateText(pet.petName, false));
+        }
+
+        if (cmd.type === 'petFeed') {
+            const pet = await repo.findPet(player.id);
+            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            const dayKey = dayKeyOf(now);
+            if (pet.lastFedDay === dayKey) return asText('🍼 今日已喂宠，明日再来吧。');
+
+            const cost = 20 + Math.floor(pet.level / 3) * 5;
+            if (player.spiritStone < cost) return asText(`💸 灵石不足，喂宠需要 ${cost} 灵石。`);
+
+            player.spiritStone -= cost;
+            await repo.updatePlayer(player, now);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'cost',
+                deltaSpiritStone: -cost,
+                balanceAfter: player.spiritStone,
+                refType: 'pet_feed',
+                refId: pet.id,
+                idempotencyKey: `${player.id}:pet-feed:${dayKey}`,
+                extraJson: JSON.stringify({petId: pet.id, petName: pet.petName, dayKey, cost}),
+                now,
+            });
+            await repo.updatePetFeed(pet.id, dayKey, now);
+            const latest = await repo.findPet(player.id);
+            if (!latest) return asText('⚠️ 喂宠后读取失败，请稍后再试。');
+
+            let milestoneStone = 0;
+            let milestoneExp = 0;
+            let milestoneCultivation = 0;
+            const milestoneLines: string[] = [];
+            for (const tier of XIUXIAN_PET_MILESTONE_REWARDS) {
+                if (pet.level >= tier.level || latest.level < tier.level) continue;
+                const claimed = await repo.findPetMilestoneClaim(player.id, tier.level);
+                if (claimed) continue;
+
+                milestoneStone += tier.spiritStone;
+                milestoneExp += tier.exp;
+                milestoneCultivation += tier.cultivation;
+                milestoneLines.push(`🎉 达成里程碑 Lv${tier.level}：💎+${tier.spiritStone} 📈+${tier.exp} ✨+${tier.cultivation}`);
+
+                const rewardJson = JSON.stringify({
+                    petId: latest.id,
+                    petName: latest.petName,
+                    milestoneLevel: tier.level,
+                    spiritStone: tier.spiritStone,
+                    exp: tier.exp,
+                    cultivation: tier.cultivation,
+                });
+                await repo.addPetMilestoneClaim(player.id, latest.id, tier.level, rewardJson, now);
+            }
+
+            if (milestoneStone > 0 || milestoneExp > 0 || milestoneCultivation > 0) {
+                const step = applyExpProgress(player, milestoneExp);
+                player.level = step.level;
+                player.exp = step.exp;
+                player.maxHp = step.maxHp;
+                player.attack = step.attack;
+                player.defense = step.defense;
+                player.hp = step.maxHp;
+                player.spiritStone += milestoneStone;
+                player.cultivation += milestoneCultivation;
+                await repo.updatePlayer(player, now);
+                await repo.createEconomyLog({
+                    playerId: player.id,
+                    bizType: 'reward',
+                    deltaSpiritStone: milestoneStone,
+                    balanceAfter: player.spiritStone,
+                    refType: 'pet_milestone',
+                    refId: latest.id,
+                    idempotencyKey: `${player.id}:pet-milestone:${dayKey}:${latest.level}`,
+                    extraJson: JSON.stringify({petId: latest.id, petName: latest.petName, exp: milestoneExp, cultivation: milestoneCultivation}),
+                    now,
+                });
+            }
+
+            return asText(petFeedText(latest, cost, player.spiritStone, milestoneLines));
         }
 
         if (cmd.type === 'explore') {
@@ -645,7 +806,8 @@ export async function handleXiuxianCommand(
             if (left > 0) return asText(cooldownText('挑战', left));
 
             const equipped = await repo.getEquippedItems(player);
-            const power = calcCombatPower(player, equipped);
+            const pet = await repo.findPet(player.id);
+            const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
             const enemy = challengeEnemy(player.level);
             const result = runSimpleBattle(power, enemy);
 
@@ -960,7 +1122,8 @@ export async function handleXiuxianCommand(
             if (left > 0) return asText(cooldownText('讨伐', left));
 
             const equipped = await repo.getEquippedItems(player);
-            const power = calcCombatPower(player, equipped);
+            const pet = await repo.findPet(player.id);
+            const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
             const scopeKey = bossScopeKeyOfMessage(message);
 
             let state = await ensureWorldBossState(repo, scopeKey, player.level, now);
@@ -1100,7 +1263,8 @@ export async function handleXiuxianCommand(
             const targetFloor = (progress?.highestFloor ?? 0) + 1;
             const enemy = towerEnemy(player.level, targetFloor);
             const equipped = await repo.getEquippedItems(player);
-            const power = calcCombatPower(player, equipped);
+            const pet = await repo.findPet(player.id);
+            const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
             const result = runSimpleBattle(power, enemy);
             const reward = towerRewards(player.level, targetFloor, result.win);
 

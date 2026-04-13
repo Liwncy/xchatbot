@@ -130,13 +130,25 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙季领') return {type: 'towerSeasonClaim'};
 
+    if (text === '修仙领宠') return {type: 'petAdopt'};
+
+    if (text === '修仙宠物') return {type: 'petStatus'};
+
+    if (text === '修仙喂宠') return {type: 'petFeed'};
+
+    if (text === '修仙出宠') return {type: 'petDeploy'};
+
+    if (text === '修仙休宠') return {type: 'petRest'};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 
     const battleDetailMatch = text.match(/^修仙战详\s+(\d+)$/);
     if (battleDetailMatch) return {type: 'battleDetail', battleId: Number(battleDetailMatch[1])};
 
-    if (text === '修仙帮助' || text === '修仙指令' || text === '修仙菜单') return {type: 'help'};
+    const helpMatch = text.match(/^修仙帮助(?:\s+(.+))?$/);
+    if (helpMatch) return {type: 'help', topic: helpMatch[1]?.trim() || undefined};
+    if (text === '修仙指令' || text === '修仙菜单') return {type: 'help'};
     return null;
 }
 

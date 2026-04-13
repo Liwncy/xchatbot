@@ -16,6 +16,7 @@ import type {
     XiuxianPlayerAchievement,
     XiuxianPlayer,
     XiuxianPlayerTask,
+    XiuxianPet,
     XiuxianShopOffer,
     XiuxianTaskDef,
     XiuxianTowerLog,
@@ -289,6 +290,22 @@ function toTowerSeasonRankRow(row: Record<string, unknown>): XiuxianTowerSeasonR
         highestFloor: Number(row.highest_floor),
         updatedAt: Number(row.updated_at),
         rank: row.rank == null ? undefined : Number(row.rank),
+    };
+}
+
+function toPet(row: Record<string, unknown>): XiuxianPet {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        petName: String(row.pet_name),
+        petType: String(row.pet_type),
+        level: Number(row.level),
+        affection: Number(row.affection),
+        feedCount: Number(row.feed_count),
+        lastFedDay: row.last_fed_day == null ? null : String(row.last_fed_day),
+        inBattle: Number(row.in_battle ?? 1),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
     };
 }
 
@@ -1493,6 +1510,89 @@ export class XiuxianRepository {
                 ) VALUES (?1, ?2, ?3, ?4, ?5)`,
             )
             .bind(seasonKey, playerId, rank, rewardJson, now)
+            .run();
+    }
+
+    async findPet(playerId: number): Promise<XiuxianPet | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pets
+                 WHERE player_id = ?1
+                 LIMIT 1`,
+            )
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return row ? toPet(row) : null;
+    }
+
+    async createPet(playerId: number, petName: string, petType: string, now: number): Promise<XiuxianPet> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_pets (
+                    player_id, pet_name, pet_type, level, affection, feed_count, last_fed_day, in_battle, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, 1, 0, 0, NULL, 1, ?4, ?4)`,
+            )
+            .bind(playerId, petName, petType, now)
+            .run();
+        const pet = await this.findPet(playerId);
+        if (!pet) throw new Error('创建宠物后读取失败');
+        return pet;
+    }
+
+    async updatePetFeed(petId: number, dayKey: string, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_pets
+                 SET level = level + 1,
+                     affection = CASE WHEN affection + 6 > 100 THEN 100 ELSE affection + 6 END,
+                     feed_count = feed_count + 1,
+                     last_fed_day = ?2,
+                     updated_at = ?3
+                 WHERE id = ?1`,
+            )
+            .bind(petId, dayKey, now)
+            .run();
+    }
+
+    async updatePetBattleState(petId: number, inBattle: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_pets
+                 SET in_battle = ?2,
+                     updated_at = ?3
+                 WHERE id = ?1`,
+            )
+            .bind(petId, inBattle, now)
+            .run();
+    }
+
+    async findPetMilestoneClaim(playerId: number, milestoneLevel: number): Promise<boolean> {
+        const row = await this.db
+            .prepare(
+                `SELECT 1 AS ok
+                 FROM xiuxian_pet_milestone_claims
+                 WHERE player_id = ?1 AND milestone_level = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, milestoneLevel)
+            .first<Record<string, unknown>>();
+        return Boolean(row?.ok);
+    }
+
+    async addPetMilestoneClaim(
+        playerId: number,
+        petId: number,
+        milestoneLevel: number,
+        rewardJson: string,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT OR IGNORE INTO xiuxian_pet_milestone_claims (
+                    player_id, pet_id, milestone_level, reward_json, claimed_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5)`,
+            )
+            .bind(playerId, petId, milestoneLevel, rewardJson, now)
             .run();
     }
 }

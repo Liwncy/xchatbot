@@ -37,7 +37,12 @@ export type XiuxianCommand =
     | {type: 'towerSeasonStatus'}
     | {type: 'towerSeasonReward'}
     | {type: 'towerSeasonClaim'}
-    | {type: 'help'};
+    | {type: 'petAdopt'}
+    | {type: 'petStatus'}
+    | {type: 'petFeed'}
+    | {type: 'petDeploy'}
+    | {type: 'petRest'}
+    | {type: 'help'; topic?: string};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
 
@@ -273,6 +278,20 @@ export interface XiuxianTowerSeasonRankRow {
     highestFloor: number;
     updatedAt: number;
     rank?: number;
+}
+
+export interface XiuxianPet {
+    id: number;
+    playerId: number;
+    petName: string;
+    petType: string;
+    level: number;
+    affection: number;
+    feedCount: number;
+    lastFedDay: string | null;
+    inBattle: number;
+    createdAt: number;
+    updatedAt: number;
 }
 
 export interface XiuxianBagQuery {

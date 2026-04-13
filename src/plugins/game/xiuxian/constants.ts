@@ -29,6 +29,12 @@ export const XIUXIAN_TOWER_SEASON_REWARDS = [
     {maxRank: 10, spiritStone: 120, exp: 90, cultivation: 70},
 ] as const;
 
+export const XIUXIAN_PET_MILESTONE_REWARDS = [
+    {level: 10, spiritStone: 60, exp: 40, cultivation: 35},
+    {level: 20, spiritStone: 120, exp: 85, cultivation: 70},
+    {level: 30, spiritStone: 220, exp: 150, cultivation: 120},
+] as const;
+
 export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
     explore: 60_000,

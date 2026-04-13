@@ -268,6 +268,33 @@ CREATE TABLE IF NOT EXISTS xiuxian_tower_season_claims (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_pets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL UNIQUE,
+  pet_name TEXT NOT NULL,
+  pet_type TEXT NOT NULL,
+  level INTEGER NOT NULL DEFAULT 1,
+  affection INTEGER NOT NULL DEFAULT 0,
+  feed_count INTEGER NOT NULL DEFAULT 0,
+  last_fed_day TEXT,
+  in_battle INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_pet_milestone_claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  pet_id INTEGER NOT NULL,
+  milestone_level INTEGER NOT NULL,
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  claimed_at INTEGER NOT NULL,
+  UNIQUE(player_id, milestone_level),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(pet_id) REFERENCES xiuxian_pets(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -283,4 +310,6 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_rank ON xiuxian_tower_progress(high
 CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_logs_player_time ON xiuxian_tower_logs(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_rank ON xiuxian_tower_season_progress(season_key, highest_floor DESC, updated_at ASC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_claims_player ON xiuxian_tower_season_claims(player_id, claimed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pets_level ON xiuxian_pets(level DESC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_milestone_player ON xiuxian_pet_milestone_claims(player_id, claimed_at DESC);
 

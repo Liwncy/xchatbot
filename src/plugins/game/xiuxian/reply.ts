@@ -37,47 +37,44 @@ function slotLabel(slot: EquipmentSlot): string {
     }
 }
 
-export function helpText(): string {
-    return [
-        '📜 修仙指令菜单',
-        '━━━━━━━━━━━━',
-        '🌱 修仙创建 [名字]',
-        '🧾 修仙状态',
-        '🧘 修仙修炼 [次数]',
-        '🧭 修仙探索',
-        '🎒 修仙背包 [页码] [筛选/排序]',
-        '🗡️ 修仙装备 [编号]',
-        '🧤 修仙卸装 [武器|护甲|灵宝|法器]',
-        '⚔️ 修仙挑战',
-        '🏪 修仙商店',
-        '🛍️ 修仙购买 [商品ID]',
-        '💰 修仙出售 [装备ID]',
-        '📒 修仙流水 [条数]',
-        '📅 修仙签到',
-        '📝 修仙任务 [可领]',
-        '🎁 修仙领奖 [任务ID]',
-        '🎁 修仙领奖 全部',
-        '🏅 修仙成就',
-        '👹 修仙讨伐',
-        '📢 修仙伐况',
-        '🏅 修仙伐榜 [条数|我]',
-        '📘 修仙伐报 [页码]',
-        '🔍 修仙伐详 [战报ID]',
-        '🗼 修仙爬塔',
-        '🧭 修仙塔况',
-        '🏔️ 修仙塔榜 [条数|我]',
-        '🧩 修仙季键',
-        '🕰️ 修仙季况',
-        '🌄 修仙季榜 [条数|我]',
-        '🎖️ 修仙季奖',
-        '🎁 修仙季领',
-        '📜 修仙塔报 [页码]',
-        '🔎 修仙塔详 [战报ID]',
-        '📚 修仙战报 [页码]',
-        '🔎 修仙战详 [战报ID]',
-        '',
-        '💡 示例：修仙背包 1 神兵 评分降序',
-    ].join('\n');
+export function helpText(topic?: string): string {
+    const map: Record<string, string[]> = {
+        基础: ['🌱 修仙创建 [名字]', '🧾 修仙状态', '🧘 修仙修炼 [次数]', '🧭 修仙探索', '🎒 修仙背包 [页码] [筛选/排序]', '🗡️ 修仙装备 [编号]', '🧤 修仙卸装 [武器|护甲|灵宝|法器]'],
+        经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID]', '📒 修仙流水 [条数]'],
+        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就'],
+        讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
+        爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
+        灵宠: ['🐾 修仙领宠', '🐶 修仙宠物', '🍼 修仙喂宠', '⚔️ 修仙出宠', '🛌 修仙休宠'],
+        战报: ['📚 修仙战报 [页码]', '🔎 修仙战详 [战报ID]'],
+    };
+
+    const key = topic?.trim();
+    if (!key) {
+        return [
+            '📜 修仙帮助（简版）',
+            '━━━━━━━━━━━━',
+            '基础：修仙帮助 基础',
+            '经济：修仙帮助 经济',
+            '成长：修仙帮助 成长',
+            '讨伐：修仙帮助 讨伐',
+            '爬塔：修仙帮助 爬塔',
+            '灵宠：修仙帮助 灵宠',
+            '战报：修仙帮助 战报',
+            '',
+            '💡 查看全部：修仙帮助 全部',
+        ].join('\n');
+    }
+
+    if (key === '全部') {
+        const all = Object.values(map).flat();
+        return ['📜 修仙帮助（全部）', '━━━━━━━━━━━━', ...all].join('\n');
+    }
+
+    const lines = map[key];
+    if (!lines) {
+        return ['❓ 未识别的帮助分类', '💡 可用分类：基础/经济/成长/讨伐/爬塔/灵宠/战报/全部'].join('\n');
+    }
+    return [`📜 修仙帮助（${key}）`, '━━━━━━━━━━━━', ...lines].join('\n');
 }
 
 export function unknownCommandText(): string {
@@ -530,6 +527,55 @@ export function towerSeasonAutoClaimNoticeText(params: {
         `🎁 已自动发放上赛季奖励（${params.seasonKey}）`,
         `🏅 排名：第 ${params.rank} 名`,
         `💎 +${params.reward.spiritStone}  📈 +${params.reward.exp}  ✨ +${params.reward.cultivation}`,
+    ].join('\n');
+}
+
+export function petAdoptText(pet: {petName: string; petType: string; level: number}): string {
+    return [
+        `🐾 领宠成功：${pet.petName}（${pet.petType}）`,
+        '━━━━━━━━━━━━',
+        `📶 灵宠等级：${pet.level}`,
+        '💡 发送「修仙宠物」查看灵宠状态',
+    ].join('\n');
+}
+
+export function petStatusText(
+    pet: {petName: string; petType: string; level: number; affection: number; feedCount: number; inBattle?: number},
+    combat?: {attack: number; defense: number; hp: number},
+): string {
+    const bonusStone = Math.floor(pet.level / 5) + (pet.affection >= 50 ? 1 : 0);
+    return [
+        `🐶 灵宠面板：${pet.petName}`,
+        '━━━━━━━━━━━━',
+        `🧬 类型：${pet.petType}`,
+        `📶 等级：${pet.level}`,
+        `💖 亲密：${pet.affection}/100`,
+        `🍼 喂养次数：${pet.feedCount}`,
+        `🚩 当前状态：${pet.inBattle === 0 ? '休战' : '出战'}`,
+        `✨ 修炼加成：灵石 +${bonusStone}/次`,
+        ...(combat ? [`⚔️ 战斗加成：攻+${combat.attack} 防+${combat.defense} 血+${combat.hp}`] : []),
+        '💡 发送「修仙喂宠」可提升灵宠等级；发送「修仙出宠/修仙休宠」切换战斗状态',
+    ].join('\n');
+}
+
+export function petBattleStateText(petName: string, inBattle: boolean): string {
+    return inBattle ? `⚔️ ${petName} 已切换为出战状态。` : `🛌 ${petName} 已切换为休战状态。`;
+}
+
+export function petFeedText(
+    pet: {petName: string; level: number; affection: number},
+    cost: number,
+    balanceAfter: number,
+    milestoneLines?: string[],
+): string {
+    return [
+        `🍼 喂宠成功：${pet.petName}`,
+        '━━━━━━━━━━━━',
+        `💎 消耗灵石：${cost}`,
+        `📶 当前等级：${pet.level}`,
+        `💖 当前亲密：${pet.affection}/100`,
+        `💼 当前灵石：${balanceAfter}`,
+        ...(milestoneLines?.length ? ['━━━━━━━━━━━━', ...milestoneLines] : []),
     ].join('\n');
 }
 
