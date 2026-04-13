@@ -1,4 +1,4 @@
-import type {EquipmentSlot, XiuxianBattle, XiuxianItem, XiuxianPlayer} from './types.js';
+import type {EquipmentSlot, XiuxianBattle, XiuxianEconomyLog, XiuxianItem, XiuxianPlayer, XiuxianShopOffer} from './types.js';
 
 function qualityLabel(raw: string): string {
     if (raw === 'epic') return '史诗';
@@ -33,6 +33,10 @@ export function helpText(): string {
         '🗡️ 修仙装备 [编号]',
         '🧤 修仙卸装 [武器|护甲|灵宝|法器]',
         '⚔️ 修仙挑战',
+        '🏪 修仙商店',
+        '🛍️ 修仙购买 [商品ID]',
+        '💰 修仙出售 [装备ID]',
+        '📒 修仙流水 [条数]',
         '📚 修仙战报 [页码]',
         '🔎 修仙战详 [战报ID]',
         '',
@@ -137,5 +141,44 @@ export function unequipText(slot: EquipmentSlot): string {
 export function cooldownText(actionLabel: string, leftMs: number): string {
     const sec = Math.ceil(leftMs / 1000);
     return `⏳ ${actionLabel}冷却中，请 ${sec}s 后再试。`;
+}
+
+export function shopText(offers: XiuxianShopOffer[]): string {
+    if (!offers.length) return '🏪 商店暂无商品，请稍后再试。';
+    const expiresAt = new Date(offers[0].expiresAt).toLocaleString('zh-CN', {hour12: false});
+    const lines = offers.map((offer) => {
+        let itemName = '未知法宝';
+        let score = 0;
+        let quality = '普通';
+        try {
+            const data = JSON.parse(offer.itemPayloadJson) as Record<string, unknown>;
+            itemName = String(data.itemName ?? itemName);
+            score = Number(data.score ?? 0);
+            quality = qualityLabel(String(data.quality ?? 'common'));
+        } catch {
+            // 忽略坏数据，继续展示货架。
+        }
+        return `#${offer.id} ${itemName} | ${quality} | 评分:${score} | 💎${offer.priceSpiritStone}`;
+    });
+    return ['🏪 天机商店', '━━━━━━━━━━━━', ...lines, `⏱️ 刷新时间：${expiresAt}`, '💡 购买：修仙购买 [商品ID]'].join('\n');
+}
+
+export function buyResultText(offer: XiuxianShopOffer, itemName: string, balanceAfter: number): string {
+    return ['✅ 购买成功', '━━━━━━━━━━━━', `🎁 获得：${itemName}`, `💸 花费：${offer.priceSpiritStone} 灵石`, `💎 余额：${balanceAfter}`].join('\n');
+}
+
+export function sellResultText(itemName: string, gain: number, balanceAfter: number): string {
+    return ['✅ 出售成功', '━━━━━━━━━━━━', `📦 出售：${itemName}`, `💰 获得：${gain} 灵石`, `💎 余额：${balanceAfter}`].join('\n');
+}
+
+export function economyLogText(logs: XiuxianEconomyLog[], limit: number): string {
+    if (!logs.length) return '📒 暂无经济流水。';
+    const lines = logs.map((it) => {
+        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const sign = it.deltaSpiritStone >= 0 ? '+' : '';
+        const action = it.bizType === 'buy' ? '购买' : it.bizType === 'sell' ? '出售' : it.bizType;
+        return `#${it.id} ${action} ${sign}${it.deltaSpiritStone} | 余额:${it.balanceAfter} | ${dt}`;
+    });
+    return [`📒 最近 ${Math.min(limit, logs.length)} 条流水`, '━━━━━━━━━━━━', ...lines].join('\n');
 }
 

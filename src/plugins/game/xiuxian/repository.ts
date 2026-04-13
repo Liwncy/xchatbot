@@ -4,9 +4,11 @@ import type {
     XiuxianBagQuery,
     XiuxianBagSort,
     XiuxianBattle,
+    XiuxianEconomyLog,
     XiuxianIdentity,
     XiuxianItem,
     XiuxianPlayer,
+    XiuxianShopOffer,
 } from './types.js';
 
 function toPlayer(row: Record<string, unknown>): XiuxianPlayer {
@@ -67,6 +69,42 @@ function toBattle(row: Record<string, unknown>): XiuxianBattle {
         battleLog: String(row.battle_log ?? ''),
         createdAt: Number(row.created_at),
     };
+}
+
+function toShopOffer(row: Record<string, unknown>): XiuxianShopOffer {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        offerKey: String(row.offer_key),
+        itemPayloadJson: String(row.item_payload_json),
+        priceSpiritStone: Number(row.price_spirit_stone),
+        stock: Number(row.stock),
+        status: String(row.status) as 'active' | 'sold' | 'expired',
+        refreshedAt: Number(row.refreshed_at),
+        expiresAt: Number(row.expires_at),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toEconomyLog(row: Record<string, unknown>): XiuxianEconomyLog {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        bizType: String(row.biz_type) as XiuxianEconomyLog['bizType'],
+        deltaSpiritStone: Number(row.delta_spirit_stone),
+        balanceAfter: Number(row.balance_after),
+        refType: String(row.ref_type),
+        refId: row.ref_id == null ? null : Number(row.ref_id),
+        idempotencyKey: row.idempotency_key == null ? null : String(row.idempotency_key),
+        extraJson: String(row.extra_json ?? '{}'),
+        createdAt: Number(row.created_at),
+    };
+}
+
+function changedRows(result: D1Result<unknown>): number {
+    const meta = (result.meta ?? {}) as Record<string, unknown>;
+    return Number(meta.changes ?? 0);
 }
 
 function buildBagWhere(filter?: XiuxianBagQuery): {sql: string; args: unknown[]} {
@@ -342,6 +380,173 @@ export class XiuxianRepository {
             .bind(playerId, battleId)
             .first<Record<string, unknown>>();
         return row ? toBattle(row) : null;
+    }
+
+    async listShopOffers(playerId: number, now: number): Promise<XiuxianShopOffer[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_shop_offers
+                 WHERE player_id = ?1
+                   AND status = 'active'
+                   AND expires_at > ?2
+                 ORDER BY id ASC`,
+            )
+            .bind(playerId, now)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toShopOffer);
+    }
+
+    async clearShopOffers(playerId: number): Promise<void> {
+        await this.db.prepare('DELETE FROM xiuxian_shop_offers WHERE player_id = ?1').bind(playerId).run();
+    }
+
+    async createShopOffer(
+        playerId: number,
+        offer: {offerKey: string; itemPayloadJson: string; priceSpiritStone: number; stock: number; refreshedAt: number; expiresAt: number},
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_shop_offers (
+                    player_id, offer_key, item_payload_json, price_spirit_stone,
+                    stock, status, refreshed_at, expires_at, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7, ?8, ?8)`,
+            )
+            .bind(playerId, offer.offerKey, offer.itemPayloadJson, offer.priceSpiritStone, offer.stock, offer.refreshedAt, offer.expiresAt, now)
+            .run();
+    }
+
+    async findShopOffer(playerId: number, offerId: number): Promise<XiuxianShopOffer | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_shop_offers
+                 WHERE player_id = ?1 AND id = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, offerId)
+            .first<Record<string, unknown>>();
+        return row ? toShopOffer(row) : null;
+    }
+
+    async markOfferSold(playerId: number, offerId: number, now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_shop_offers
+                 SET stock = stock - 1,
+                     status = CASE WHEN stock - 1 <= 0 THEN 'sold' ELSE status END,
+                     updated_at = ?3
+                 WHERE player_id = ?1 AND id = ?2
+                   AND status = 'active'
+                   AND stock > 0`,
+            )
+            .bind(playerId, offerId, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async restoreOfferStock(playerId: number, offerId: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_shop_offers
+                 SET stock = stock + 1,
+                     status = 'active',
+                     updated_at = ?3
+                 WHERE player_id = ?1 AND id = ?2`,
+            )
+            .bind(playerId, offerId, now)
+            .run();
+    }
+
+    async spendSpiritStone(playerId: number, amount: number, now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_players
+                 SET spirit_stone = spirit_stone - ?2,
+                     updated_at = ?3,
+                     version = version + 1
+                 WHERE id = ?1 AND spirit_stone >= ?2`,
+            )
+            .bind(playerId, amount, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async gainSpiritStone(playerId: number, amount: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_players
+                 SET spirit_stone = spirit_stone + ?2,
+                     updated_at = ?3,
+                     version = version + 1
+                 WHERE id = ?1`,
+            )
+            .bind(playerId, amount, now)
+            .run();
+    }
+
+    async removeItem(playerId: number, itemId: number): Promise<boolean> {
+        const result = await this.db
+            .prepare('DELETE FROM xiuxian_inventory WHERE player_id = ?1 AND id = ?2')
+            .bind(playerId, itemId)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async createEconomyLog(entry: {
+        playerId: number;
+        bizType: XiuxianEconomyLog['bizType'];
+        deltaSpiritStone: number;
+        balanceAfter: number;
+        refType: string;
+        refId: number | null;
+        idempotencyKey?: string;
+        extraJson?: string;
+        now: number;
+    }): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_economy_logs (
+                    player_id, biz_type, delta_spirit_stone, balance_after,
+                    ref_type, ref_id, idempotency_key, extra_json, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+            )
+            .bind(
+                entry.playerId,
+                entry.bizType,
+                entry.deltaSpiritStone,
+                entry.balanceAfter,
+                entry.refType,
+                entry.refId,
+                entry.idempotencyKey ?? null,
+                entry.extraJson ?? '{}',
+                entry.now,
+            )
+            .run();
+    }
+
+    async findEconomyLogByIdempotency(playerId: number, idempotencyKey: string): Promise<XiuxianEconomyLog | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_economy_logs
+                 WHERE player_id = ?1 AND idempotency_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, idempotencyKey)
+            .first<Record<string, unknown>>();
+        return row ? toEconomyLog(row) : null;
+    }
+
+    async listEconomyLogs(playerId: number, limit: number): Promise<XiuxianEconomyLog[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_economy_logs
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2`,
+            )
+            .bind(playerId, limit)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toEconomyLog);
     }
 }
 

@@ -22,6 +22,12 @@ export interface LootItem {
     isLocked: number;
 }
 
+function qualityFactor(quality: string): number {
+    if (quality === 'epic') return 1.5;
+    if (quality === 'rare') return 1.2;
+    return 1;
+}
+
 const ITEM_POOL: Record<EquipmentSlot, string[]> = {
     weapon: ['玄铁剑', '青锋剑', '流云刀', '赤炎枪'],
     armor: ['布衣甲', '玄鳞甲', '青铜甲', '云纹甲'],
@@ -73,12 +79,12 @@ export function rollExploreLoot(level: number): LootItem | null {
 
     const qualitySeed = Math.random();
     const quality = qualitySeed > 0.95 ? 'epic' : qualitySeed > 0.75 ? 'rare' : 'common';
-    const qualityFactor = quality === 'epic' ? 1.5 : quality === 'rare' ? 1.2 : 1;
+    const factor = qualityFactor(quality);
 
     const base = 4 + itemLevel * 2;
-    const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * qualityFactor) : 0;
-    const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * 0.8 * qualityFactor) : 0;
-    const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * 6 * qualityFactor) : 0;
+    const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * factor) : 0;
+    const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * 0.8 * factor) : 0;
+    const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * 6 * factor) : 0;
     const dodge = itemType === 'accessory' || itemType === 'sutra' ? Number((Math.random() * 0.04).toFixed(4)) : 0;
     const crit = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Number((Math.random() * 0.05).toFixed(4)) : 0;
     const score = Math.floor(attack * 1.2 + defense + hp / 8 + dodge * 100 + crit * 120);
@@ -96,6 +102,42 @@ export function rollExploreLoot(level: number): LootItem | null {
         score,
         isLocked: 0,
     };
+}
+
+export function generateShopItems(level: number, count: number): LootItem[] {
+    const items: LootItem[] = [];
+    let guard = 0;
+    while (items.length < count && guard < count * 10) {
+        guard += 1;
+        const loot = rollExploreLoot(level + 1);
+        if (loot) items.push(loot);
+    }
+    while (items.length < count) {
+        const types: EquipmentSlot[] = ['weapon', 'armor', 'accessory', 'sutra'];
+        const itemType = types[Math.floor(Math.random() * types.length)];
+        const names = ITEM_POOL[itemType];
+        const itemName = names[Math.floor(Math.random() * names.length)];
+        const itemLevel = Math.max(1, level);
+        const base = 4 + itemLevel * 2;
+        const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? base : 0;
+        const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(base * 0.8) : 0;
+        const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? base * 6 : 0;
+        const dodge = itemType === 'accessory' || itemType === 'sutra' ? 0.01 : 0;
+        const crit = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? 0.01 : 0;
+        const score = Math.floor(attack * 1.2 + defense + hp / 8 + dodge * 100 + crit * 120);
+        items.push({itemType, itemName, itemLevel, quality: 'common', attack, defense, hp, dodge, crit, score, isLocked: 0});
+    }
+    return items;
+}
+
+export function calcShopPrice(item: LootItem): number {
+    const qualityPremium = item.quality === 'epic' ? 80 : item.quality === 'rare' ? 30 : 0;
+    return Math.max(25, Math.floor(item.score * 2.1 + item.itemLevel * 8 + qualityPremium));
+}
+
+export function calcSellPrice(item: XiuxianItem): number {
+    const qualityPremium = item.quality === 'epic' ? 25 : item.quality === 'rare' ? 10 : 0;
+    return Math.max(8, Math.floor(item.score * 0.55 + item.itemLevel * 3 + qualityPremium));
 }
 
 export function calcCombatPower(player: XiuxianPlayer, equipped: XiuxianItem[]): CombatPower {

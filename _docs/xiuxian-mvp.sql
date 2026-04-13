@@ -70,6 +70,38 @@ CREATE TABLE IF NOT EXISTS xiuxian_battles (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_shop_offers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  offer_key TEXT NOT NULL,
+  item_payload_json TEXT NOT NULL,
+  price_spirit_stone INTEGER NOT NULL,
+  stock INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'active',
+  refreshed_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_economy_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  biz_type TEXT NOT NULL,
+  delta_spirit_stone INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  ref_type TEXT NOT NULL,
+  ref_id INTEGER,
+  idempotency_key TEXT,
+  extra_json TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_economy_player_time ON xiuxian_economy_logs(player_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_economy_idem ON xiuxian_economy_logs(player_id, idempotency_key);
 

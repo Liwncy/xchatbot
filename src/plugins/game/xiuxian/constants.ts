@@ -1,4 +1,8 @@
 export const XIUXIAN_PAGE_SIZE = 10;
+export const XIUXIAN_LEDGER_DEFAULT_LIMIT = 10;
+export const XIUXIAN_LEDGER_MAX_LIMIT = 50;
+export const XIUXIAN_SHOP_OFFER_COUNT = 6;
+export const XIUXIAN_SHOP_REFRESH_MS = 4 * 60 * 60 * 1000;
 
 export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
@@ -25,5 +29,8 @@ export const XIUXIAN_ACTIONS = {
     cultivate: 'cultivate',
     explore: 'explore',
     challenge: 'challenge',
+    shop: 'shop',
+    buy: 'buy',
+    sell: 'sell',
 } as const;
 

@@ -14,6 +14,10 @@ export type XiuxianCommand =
     | {type: 'challenge'}
     | {type: 'battleLog'; page?: number}
     | {type: 'battleDetail'; battleId: number}
+    | {type: 'shop'}
+    | {type: 'buy'; offerId: number}
+    | {type: 'sell'; itemId: number}
+    | {type: 'ledger'; limit?: number}
     | {type: 'help'};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -69,6 +73,33 @@ export interface XiuxianBattle {
     rounds: number;
     rewardJson: string;
     battleLog: string;
+    createdAt: number;
+}
+
+export interface XiuxianShopOffer {
+    id: number;
+    playerId: number;
+    offerKey: string;
+    itemPayloadJson: string;
+    priceSpiritStone: number;
+    stock: number;
+    status: 'active' | 'sold' | 'expired';
+    refreshedAt: number;
+    expiresAt: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianEconomyLog {
+    id: number;
+    playerId: number;
+    bizType: 'buy' | 'sell' | 'reward' | 'cost' | 'other';
+    deltaSpiritStone: number;
+    balanceAfter: number;
+    refType: string;
+    refId: number | null;
+    idempotencyKey: string | null;
+    extraJson: string;
     createdAt: number;
 }
 

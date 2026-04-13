@@ -52,6 +52,17 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙挑战') return {type: 'challenge'};
 
+    if (text === '修仙商店') return {type: 'shop'};
+
+    const buyMatch = text.match(/^修仙购买\s+(\d+)$/);
+    if (buyMatch) return {type: 'buy', offerId: Number(buyMatch[1])};
+
+    const sellMatch = text.match(/^修仙出售\s+(\d+)$/);
+    if (sellMatch) return {type: 'sell', itemId: Number(sellMatch[1])};
+
+    const ledgerMatch = text.match(/^修仙流水(?:\s+(\d+))?$/);
+    if (ledgerMatch) return {type: 'ledger', limit: parsePositiveInt(ledgerMatch[1])};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 

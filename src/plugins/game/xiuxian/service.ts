@@ -1,18 +1,44 @@
 import type {IncomingMessage, HandlerResponse} from '../../../types/message.js';
 import {logger} from '../../../utils/logger.js';
-import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_DEFAULTS, XIUXIAN_PAGE_SIZE} from './constants.js';
-import type {XiuxianBagQuery, XiuxianCommand, XiuxianIdentity, XiuxianPlayer} from './types.js';
+import {
+    XIUXIAN_ACTIONS,
+    XIUXIAN_COOLDOWN_MS,
+    XIUXIAN_DEFAULTS,
+    XIUXIAN_LEDGER_DEFAULT_LIMIT,
+    XIUXIAN_LEDGER_MAX_LIMIT,
+    XIUXIAN_PAGE_SIZE,
+    XIUXIAN_SHOP_OFFER_COUNT,
+    XIUXIAN_SHOP_REFRESH_MS,
+} from './constants.js';
+import type {XiuxianBagQuery, XiuxianCommand, XiuxianIdentity, XiuxianItem, XiuxianPlayer, XiuxianShopOffer} from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {
     applyExpProgress,
+    calcSellPrice,
     calcCombatPower,
+    calcShopPrice,
     challengeEnemy,
     cultivateReward,
     exploreStoneReward,
+    generateShopItems,
     rollExploreLoot,
     runSimpleBattle,
 } from './balance.js';
-import {bagText, battleDetailText, battleLogText, cooldownText, createdText, equipText, helpText, statusText, unequipText} from './reply.js';
+import {
+    bagText,
+    battleDetailText,
+    battleLogText,
+    buyResultText,
+    cooldownText,
+    createdText,
+    economyLogText,
+    equipText,
+    helpText,
+    sellResultText,
+    shopText,
+    statusText,
+    unequipText,
+} from './reply.js';
 
 function identityFromMessage(message: IncomingMessage): XiuxianIdentity {
     return {platform: 'wechat', userId: message.from};
@@ -102,6 +128,53 @@ function resolveBagFilter(raw: string | undefined): {query?: XiuxianBagQuery; la
     }
 
     return {query, label: labels.join(' + ')};
+}
+
+function parseOfferItem(offer: XiuxianShopOffer): Omit<XiuxianItem, 'id' | 'playerId' | 'createdAt'> | null {
+    try {
+        const data = JSON.parse(offer.itemPayloadJson) as Record<string, unknown>;
+        return {
+            itemType: String(data.itemType) as XiuxianItem['itemType'],
+            itemName: String(data.itemName),
+            itemLevel: Number(data.itemLevel),
+            quality: String(data.quality),
+            attack: Number(data.attack),
+            defense: Number(data.defense),
+            hp: Number(data.hp),
+            dodge: Number(data.dodge),
+            crit: Number(data.crit),
+            score: Number(data.score),
+            isLocked: Number(data.isLocked ?? 0),
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, now: number): Promise<XiuxianShopOffer[]> {
+    const active = await repo.listShopOffers(player.id, now);
+    if (active.length > 0) return active;
+
+    const refreshedAt = now;
+    const expiresAt = now + XIUXIAN_SHOP_REFRESH_MS;
+    const generated = generateShopItems(player.level, XIUXIAN_SHOP_OFFER_COUNT);
+    await repo.clearShopOffers(player.id);
+    for (let i = 0; i < generated.length; i += 1) {
+        const item = generated[i];
+        await repo.createShopOffer(
+            player.id,
+            {
+                offerKey: `offer-${player.id}-${refreshedAt}-${i + 1}`,
+                itemPayloadJson: JSON.stringify(item),
+                priceSpiritStone: calcShopPrice(item),
+                stock: 1,
+                refreshedAt,
+                expiresAt,
+            },
+            now,
+        );
+    }
+    return repo.listShopOffers(player.id, now);
 }
 
 export async function handleXiuxianCommand(
@@ -276,6 +349,99 @@ export async function handleXiuxianCommand(
                     ...result.logs.slice(0, 4),
                 ].join('\n'),
             );
+        }
+
+        if (cmd.type === 'shop') {
+            const offers = await ensureShopOffers(repo, player, now);
+            return asText(shopText(offers));
+        }
+
+        if (cmd.type === 'buy') {
+            const idemKey = `${player.id}:buy:${message.messageId}`;
+            const exists = await repo.findEconomyLogByIdempotency(player.id, idemKey);
+            if (exists) {
+                return asText('🧾 该购买请求已处理，请勿重复提交。');
+            }
+
+            const offer = await repo.findShopOffer(player.id, cmd.offerId);
+            if (!offer || offer.status !== 'active' || offer.stock <= 0 || offer.expiresAt <= now) {
+                return asText('🛒 该商品已失效，请先发送「修仙商店」查看最新货架。');
+            }
+
+            const itemPayload = parseOfferItem(offer);
+            if (!itemPayload) return asText('⚠️ 商品数据异常，请稍后重试。');
+
+            const inventoryCount = await repo.countInventory(player.id);
+            if (inventoryCount >= player.backpackCap) {
+                return asText('🎒 背包已满，无法购买。先整理背包后再来吧。');
+            }
+
+            const sold = await repo.markOfferSold(player.id, offer.id, now);
+            if (!sold) return asText('🛒 商品已被刷新或售罄，请重新查看「修仙商店」。');
+
+            const paid = await repo.spendSpiritStone(player.id, offer.priceSpiritStone, now);
+            if (!paid) {
+                await repo.restoreOfferStock(player.id, offer.id, now);
+                return asText(`💸 灵石不足，本商品需要 ${offer.priceSpiritStone} 灵石。`);
+            }
+
+            await repo.addItem(player.id, itemPayload, now);
+            const latest = await repo.findPlayerById(player.id);
+            const balanceAfter = latest?.spiritStone ?? Math.max(0, player.spiritStone - offer.priceSpiritStone);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'buy',
+                deltaSpiritStone: -offer.priceSpiritStone,
+                balanceAfter,
+                refType: 'shop_offer',
+                refId: offer.id,
+                idempotencyKey: idemKey,
+                extraJson: JSON.stringify({itemName: itemPayload.itemName, score: itemPayload.score}),
+                now,
+            });
+            return asText(buyResultText(offer, itemPayload.itemName, balanceAfter));
+        }
+
+        if (cmd.type === 'sell') {
+            const idemKey = `${player.id}:sell:${message.messageId}`;
+            const exists = await repo.findEconomyLogByIdempotency(player.id, idemKey);
+            if (exists) {
+                return asText('🧾 该出售请求已处理，请勿重复提交。');
+            }
+
+            const item = await repo.findItem(player.id, cmd.itemId);
+            if (!item) return asText('🔎 未找到该装备编号，请先用「修仙背包」查看。');
+
+            const equippedIds = [player.weaponItemId, player.armorItemId, player.accessoryItemId, player.sutraItemId];
+            if (equippedIds.includes(item.id)) {
+                return asText('🧷 已装备的物品无法出售，请先「修仙卸装」。');
+            }
+
+            const gain = calcSellPrice(item);
+            const removed = await repo.removeItem(player.id, item.id);
+            if (!removed) return asText('⚠️ 该装备已被处理，请刷新背包后重试。');
+
+            await repo.gainSpiritStone(player.id, gain, now);
+            const latest = await repo.findPlayerById(player.id);
+            const balanceAfter = latest?.spiritStone ?? player.spiritStone + gain;
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'sell',
+                deltaSpiritStone: gain,
+                balanceAfter,
+                refType: 'inventory_item',
+                refId: item.id,
+                idempotencyKey: idemKey,
+                extraJson: JSON.stringify({itemName: item.itemName, score: item.score}),
+                now,
+            });
+            return asText(sellResultText(item.itemName, gain, balanceAfter));
+        }
+
+        if (cmd.type === 'ledger') {
+            const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_LEDGER_DEFAULT_LIMIT, 1), XIUXIAN_LEDGER_MAX_LIMIT);
+            const logs = await repo.listEconomyLogs(player.id, limit);
+            return asText(economyLogText(logs, limit));
         }
 
         if (cmd.type === 'battleLog') {
