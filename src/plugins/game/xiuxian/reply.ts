@@ -85,39 +85,12 @@ export function helpText(topic?: string): string {
     };
 
     const categoryOrder = ['基础', '经济', '成长', '讨伐', '爬塔', '灵宠', '战报'];
-    const categoryHint: Record<string, string> = {
-        基础: '创建/状态/修炼/探索/背包',
-        经济: '商店/购买/出售/流水',
-        成长: '签到/任务/领奖/成就/奇遇/情缘',
-        讨伐: '世界BOSS挑战/榜单/战报',
-        爬塔: '爬塔挑战/赛季/奖励',
-        灵宠: '领宠/喂养/出战切换',
-        战报: '通用战斗记录查询',
-    };
 
     const renderCmdLines = (lines: string[]): string[] => lines.map((line, idx) => `${String(idx + 1).padStart(2, '0')}. ${line}`);
     const renderSection = (name: string): string[] => [`【${name}】`, ...renderCmdLines(map[name] ?? []), ''];
 
     const rawKey = topic?.trim();
-    const key = rawKey ? aliasMap[rawKey] ?? rawKey : undefined;
-    if (!key) {
-        const nav = categoryOrder.map((name, idx) => `${idx + 1}. ${name}  -  ${categoryHint[name] ?? '...'}`);
-        return [
-            '📜 修仙帮助',
-            '━━━━━━━━━━━━',
-            '🧭 分类导航',
-            ...nav,
-            '',
-            '✨ 快速开始',
-            '1) 修仙创建 [名字]',
-            '2) 修仙状态',
-            '3) 修仙修炼 [次数]',
-            '4) 修仙探索',
-            '',
-            '💡 查看分类：修仙帮助 基础/经济/成长/讨伐/爬塔/灵宠/战报',
-            '💡 查看全部：修仙帮助 全部',
-        ].join('\n');
-    }
+    const key = rawKey ? aliasMap[rawKey] ?? rawKey : '全部';
 
     if (key === '全部') {
         const blocks = categoryOrder.flatMap((name) => renderSection(name));
