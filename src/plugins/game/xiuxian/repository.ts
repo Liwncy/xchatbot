@@ -18,6 +18,10 @@ import type {
     XiuxianPlayerTask,
     XiuxianShopOffer,
     XiuxianTaskDef,
+    XiuxianTowerLog,
+    XiuxianTowerProgress,
+    XiuxianTowerRankRow,
+    XiuxianTowerSeasonRankRow,
 } from './types.js';
 
 function toPlayer(row: Record<string, unknown>): XiuxianPlayer {
@@ -240,6 +244,50 @@ function toWorldBossContribution(row: Record<string, unknown>): XiuxianWorldBoss
         totalDamage: Number(row.total_damage),
         attacks: Number(row.attacks),
         killCount: Number(row.kill_count),
+        rank: row.rank == null ? undefined : Number(row.rank),
+    };
+}
+
+function toTowerProgress(row: Record<string, unknown>): XiuxianTowerProgress {
+    return {
+        playerId: Number(row.player_id),
+        highestFloor: Number(row.highest_floor),
+        lastResult: row.last_result == null ? null : (String(row.last_result) as 'win' | 'lose'),
+        lastRewardJson: String(row.last_reward_json ?? '{}'),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toTowerLog(row: Record<string, unknown>): XiuxianTowerLog {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        floor: Number(row.floor),
+        result: String(row.result) as 'win' | 'lose',
+        rounds: Number(row.rounds),
+        rewardJson: String(row.reward_json ?? '{}'),
+        battleLog: String(row.battle_log ?? ''),
+        createdAt: Number(row.created_at),
+    };
+}
+
+function toTowerRankRow(row: Record<string, unknown>): XiuxianTowerRankRow {
+    return {
+        playerId: Number(row.player_id),
+        userName: row.user_name == null ? undefined : String(row.user_name),
+        highestFloor: Number(row.highest_floor),
+        updatedAt: Number(row.updated_at),
+        rank: row.rank == null ? undefined : Number(row.rank),
+    };
+}
+
+function toTowerSeasonRankRow(row: Record<string, unknown>): XiuxianTowerSeasonRankRow {
+    return {
+        seasonKey: String(row.season_key),
+        playerId: Number(row.player_id),
+        userName: row.user_name == null ? undefined : String(row.user_name),
+        highestFloor: Number(row.highest_floor),
+        updatedAt: Number(row.updated_at),
         rank: row.rank == null ? undefined : Number(row.rank),
     };
 }
@@ -1227,6 +1275,225 @@ export class XiuxianRepository {
             ...self,
             rank: Number(row?.ahead ?? 0) + 1,
         };
+    }
+
+    async findTowerProgress(playerId: number): Promise<XiuxianTowerProgress | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_tower_progress
+                 WHERE player_id = ?1
+                 LIMIT 1`,
+            )
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return row ? toTowerProgress(row) : null;
+    }
+
+    async upsertTowerProgress(
+        playerId: number,
+        highestFloor: number,
+        lastResult: 'win' | 'lose',
+        lastRewardJson: string,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_tower_progress (player_id, highest_floor, last_result, last_reward_json, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(player_id)
+                 DO UPDATE SET
+                    highest_floor = CASE
+                        WHEN excluded.highest_floor > xiuxian_tower_progress.highest_floor THEN excluded.highest_floor
+                        ELSE xiuxian_tower_progress.highest_floor
+                    END,
+                    last_result = excluded.last_result,
+                    last_reward_json = excluded.last_reward_json,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(playerId, highestFloor, lastResult, lastRewardJson, now)
+            .run();
+    }
+
+    async addTowerLog(
+        playerId: number,
+        floor: number,
+        result: 'win' | 'lose',
+        rounds: number,
+        rewardJson: string,
+        battleLog: string,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_tower_logs (
+                    player_id, floor, result, rounds, reward_json, battle_log, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+            )
+            .bind(playerId, floor, result, rounds, rewardJson, battleLog, now)
+            .run();
+    }
+
+    async listTowerTop(limit: number): Promise<XiuxianTowerRankRow[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT t.player_id, p.user_name, t.highest_floor, t.updated_at
+                 FROM xiuxian_tower_progress t
+                 LEFT JOIN xiuxian_players p ON p.id = t.player_id
+                 ORDER BY t.highest_floor DESC, t.updated_at ASC
+                 LIMIT ?1`,
+            )
+            .bind(limit)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toTowerRankRow);
+    }
+
+    async findTowerRank(playerId: number): Promise<XiuxianTowerRankRow | null> {
+        const self = await this.db
+            .prepare('SELECT player_id, highest_floor, updated_at FROM xiuxian_tower_progress WHERE player_id = ?1 LIMIT 1')
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        if (!self) return null;
+
+        const ahead = await this.db
+            .prepare(
+                `SELECT COUNT(1) AS ahead
+                 FROM xiuxian_tower_progress
+                 WHERE highest_floor > ?1
+                    OR (highest_floor = ?1 AND updated_at < ?2)`,
+            )
+            .bind(Number(self.highest_floor), Number(self.updated_at))
+            .first<Record<string, unknown>>();
+
+        const name = await this.findPlayerById(playerId);
+        return {
+            playerId,
+            userName: name?.userName,
+            highestFloor: Number(self.highest_floor),
+            updatedAt: Number(self.updated_at),
+            rank: Number(ahead?.ahead ?? 0) + 1,
+        };
+    }
+
+    async listTowerLogs(playerId: number, page: number, pageSize: number): Promise<XiuxianTowerLog[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_tower_logs
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(playerId, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toTowerLog);
+    }
+
+    async findTowerLog(playerId: number, logId: number): Promise<XiuxianTowerLog | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_tower_logs
+                 WHERE player_id = ?1 AND id = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, logId)
+            .first<Record<string, unknown>>();
+        return row ? toTowerLog(row) : null;
+    }
+
+    async upsertTowerSeasonProgress(playerId: number, seasonKey: string, highestFloor: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_tower_season_progress (season_key, player_id, highest_floor, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(season_key, player_id)
+                 DO UPDATE SET
+                    highest_floor = CASE
+                        WHEN excluded.highest_floor > xiuxian_tower_season_progress.highest_floor THEN excluded.highest_floor
+                        ELSE xiuxian_tower_season_progress.highest_floor
+                    END,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(seasonKey, playerId, highestFloor, now)
+            .run();
+    }
+
+    async listTowerSeasonTop(seasonKey: string, limit: number): Promise<XiuxianTowerSeasonRankRow[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT s.season_key, s.player_id, p.user_name, s.highest_floor, s.updated_at
+                 FROM xiuxian_tower_season_progress s
+                 LEFT JOIN xiuxian_players p ON p.id = s.player_id
+                 WHERE s.season_key = ?1
+                 ORDER BY s.highest_floor DESC, s.updated_at ASC
+                 LIMIT ?2`,
+            )
+            .bind(seasonKey, limit)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toTowerSeasonRankRow);
+    }
+
+    async findTowerSeasonRank(seasonKey: string, playerId: number): Promise<XiuxianTowerSeasonRankRow | null> {
+        const self = await this.db
+            .prepare(
+                `SELECT season_key, player_id, highest_floor, updated_at
+                 FROM xiuxian_tower_season_progress
+                 WHERE season_key = ?1 AND player_id = ?2
+                 LIMIT 1`,
+            )
+            .bind(seasonKey, playerId)
+            .first<Record<string, unknown>>();
+        if (!self) return null;
+
+        const ahead = await this.db
+            .prepare(
+                `SELECT COUNT(1) AS ahead
+                 FROM xiuxian_tower_season_progress
+                 WHERE season_key = ?1
+                   AND (
+                     highest_floor > ?2
+                     OR (highest_floor = ?2 AND updated_at < ?3)
+                   )`,
+            )
+            .bind(seasonKey, Number(self.highest_floor), Number(self.updated_at))
+            .first<Record<string, unknown>>();
+
+        const name = await this.findPlayerById(playerId);
+        return {
+            seasonKey,
+            playerId,
+            userName: name?.userName,
+            highestFloor: Number(self.highest_floor),
+            updatedAt: Number(self.updated_at),
+            rank: Number(ahead?.ahead ?? 0) + 1,
+        };
+    }
+
+    async findTowerSeasonClaim(playerId: number, seasonKey: string): Promise<{claimedAt: number; rewardJson: string} | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT claimed_at, reward_json
+                 FROM xiuxian_tower_season_claims
+                 WHERE player_id = ?1 AND season_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, seasonKey)
+            .first<Record<string, unknown>>();
+        if (!row) return null;
+        return {
+            claimedAt: Number(row.claimed_at),
+            rewardJson: String(row.reward_json ?? '{}'),
+        };
+    }
+
+    async addTowerSeasonClaim(playerId: number, seasonKey: string, rank: number, rewardJson: string, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT OR IGNORE INTO xiuxian_tower_season_claims (
+                    season_key, player_id, rank_value, reward_json, claimed_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5)`,
+            )
+            .bind(seasonKey, playerId, rank, rewardJson, now)
+            .run();
     }
 }
 

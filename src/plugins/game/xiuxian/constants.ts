@@ -18,11 +18,23 @@ export const XIUXIAN_WORLD_BOSS = {
     respawnMs: 5 * 60 * 1000,
 } as const;
 
+export const XIUXIAN_TOWER = {
+    rankSize: 10,
+    rankMax: 30,
+} as const;
+
+export const XIUXIAN_TOWER_SEASON_REWARDS = [
+    {maxRank: 1, spiritStone: 500, exp: 300, cultivation: 220},
+    {maxRank: 3, spiritStone: 300, exp: 200, cultivation: 150},
+    {maxRank: 10, spiritStone: 120, exp: 90, cultivation: 70},
+] as const;
+
 export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
     explore: 60_000,
     challenge: 45_000,
     bossRaid: 90_000,
+    towerClimb: 45_000,
 } as const;
 
 export const XIUXIAN_DEFAULTS = {
@@ -45,6 +57,7 @@ export const XIUXIAN_ACTIONS = {
     explore: 'explore',
     challenge: 'challenge',
     bossRaid: 'boss_raid',
+    towerClimb: 'tower_climb',
     shop: 'shop',
     buy: 'buy',
     sell: 'sell',

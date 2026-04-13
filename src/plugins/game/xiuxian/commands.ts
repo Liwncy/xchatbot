@@ -96,6 +96,40 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const bossDetailMatch = text.match(/^修仙伐详\s+(\d+)$/);
     if (bossDetailMatch) return {type: 'bossDetail', logId: Number(bossDetailMatch[1])};
 
+    if (text === '修仙爬塔') return {type: 'towerClimb'};
+
+    if (text === '修仙塔况') return {type: 'towerStatus'};
+
+    const towerRankMatch = text.match(/^修仙塔榜(?:\s+(.+))?$/);
+    if (towerRankMatch) {
+        const arg = towerRankMatch[1]?.trim();
+        if (!arg) return {type: 'towerRank'};
+        if (arg === '我' || arg.toLowerCase() === 'me') return {type: 'towerRank', selfOnly: true};
+        return {type: 'towerRank', limit: parsePositiveInt(arg)};
+    }
+
+    const towerLogMatch = text.match(/^修仙塔报(?:\s+(\d+))?$/);
+    if (towerLogMatch) return {type: 'towerLog', page: parsePositiveInt(towerLogMatch[1])};
+
+    const towerDetailMatch = text.match(/^修仙塔详\s+(\d+)$/);
+    if (towerDetailMatch) return {type: 'towerDetail', logId: Number(towerDetailMatch[1])};
+
+    if (text === '修仙季键') return {type: 'towerSeasonKey'};
+
+    if (text === '修仙季况') return {type: 'towerSeasonStatus'};
+
+    const towerSeasonRankMatch = text.match(/^修仙季榜(?:\s+(.+))?$/);
+    if (towerSeasonRankMatch) {
+        const arg = towerSeasonRankMatch[1]?.trim();
+        if (!arg) return {type: 'towerSeasonRank'};
+        if (arg === '我' || arg.toLowerCase() === 'me') return {type: 'towerSeasonRank', selfOnly: true};
+        return {type: 'towerSeasonRank', limit: parsePositiveInt(arg)};
+    }
+
+    if (text === '修仙季奖') return {type: 'towerSeasonReward'};
+
+    if (text === '修仙季领') return {type: 'towerSeasonClaim'};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 

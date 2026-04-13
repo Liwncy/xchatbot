@@ -11,6 +11,8 @@ import {
     XIUXIAN_SHOP_OFFER_COUNT,
     XIUXIAN_SHOP_REFRESH_MS,
     XIUXIAN_TASK_DEFAULT_LIMIT,
+    XIUXIAN_TOWER,
+    XIUXIAN_TOWER_SEASON_REWARDS,
     XIUXIAN_WORLD_BOSS,
 } from './constants.js';
 import type {
@@ -61,6 +63,19 @@ import {
     shopText,
     statusText,
     taskText,
+    towerClimbText,
+    towerDetailText,
+    towerLogText,
+    towerRankText,
+    towerSeasonKeyText,
+    towerSeasonRewardText,
+    towerSeasonClaimText,
+    towerSeasonAutoClaimNoticeText,
+    towerSeasonRankText,
+    towerSeasonStatusText,
+    towerSeasonSelfRankText,
+    towerSelfRankText,
+    towerStatusText,
     unequipText,
     worldBossRankText,
     worldBossSelfRankText,
@@ -211,6 +226,138 @@ function bossScopeKeyOfMessage(message: IncomingMessage): string {
 
 function worldBossHp(level: number): number {
     return 500 + level * 120;
+}
+
+function towerEnemy(level: number, floor: number): {name: string; attack: number; defense: number; maxHp: number; dodge: number; crit: number} {
+    return {
+        name: `镇塔守卫 第${floor}层`,
+        attack: 10 + level * 2 + floor * 2,
+        defense: 6 + level + floor,
+        maxHp: 100 + level * 20 + floor * 35,
+        dodge: Math.min(0.25, 0.03 + floor * 0.002),
+        crit: Math.min(0.3, 0.04 + floor * 0.002),
+    };
+}
+
+function towerRewards(level: number, floor: number, win: boolean): {spiritStone: number; exp: number; cultivation: number} {
+    if (!win) {
+        return {
+            spiritStone: 2 + Math.floor(floor / 3),
+            exp: 5 + level + floor,
+            cultivation: 6 + level + floor,
+        };
+    }
+    return {
+        spiritStone: 10 + floor * 3,
+        exp: 20 + level * 2 + floor * 6,
+        cultivation: 25 + level * 2 + floor * 5,
+    };
+}
+
+function towerSeasonKey(now: number): string {
+    const dt = new Date(now + 8 * 60 * 60 * 1000);
+    const day = dt.getUTCDay() || 7;
+    dt.setUTCDate(dt.getUTCDate() + 4 - day);
+    const year = dt.getUTCFullYear();
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const week = Math.ceil((((dt.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function previousTowerSeasonKey(now: number): string {
+    return towerSeasonKey(now - 7 * 24 * 60 * 60 * 1000);
+}
+
+function towerSeasonWindow(now: number): {seasonKey: string; settleAt: number} {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const bjNowMs = now + 8 * 60 * 60 * 1000;
+    const bj = new Date(bjNowMs);
+    const weekDay = bj.getUTCDay() === 0 ? 7 : bj.getUTCDay();
+    const midnight = new Date(bj);
+    midnight.setUTCHours(0, 0, 0, 0);
+    const weekStartBj = midnight.getTime() - (weekDay - 1) * dayMs;
+    const nextWeekStartUtc = weekStartBj + 7 * dayMs - 8 * 60 * 60 * 1000;
+    return {
+        seasonKey: towerSeasonKey(now),
+        settleAt: nextWeekStartUtc,
+    };
+}
+
+function formatCountdown(ms: number): string {
+    const sec = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (d > 0) return `${d}天${h}时${m}分${s}秒`;
+    return `${h}时${m}分${s}秒`;
+}
+
+function seasonRewardByRank(rank: number): {spiritStone: number; exp: number; cultivation: number} | null {
+    for (const tier of XIUXIAN_TOWER_SEASON_REWARDS) {
+        if (rank <= tier.maxRank) {
+            return {
+                spiritStone: tier.spiritStone,
+                exp: tier.exp,
+                cultivation: tier.cultivation,
+            };
+        }
+    }
+    return null;
+}
+
+async function tryAutoClaimPreviousSeasonReward(
+    repo: XiuxianRepository,
+    player: XiuxianPlayer,
+    now: number,
+): Promise<{seasonKey: string; rank: number; reward: {spiritStone: number; exp: number; cultivation: number}} | null> {
+    const lastSeason = previousTowerSeasonKey(now);
+    const claimed = await repo.findTowerSeasonClaim(player.id, lastSeason);
+    if (claimed) return null;
+
+    const rankRow = await repo.findTowerSeasonRank(lastSeason, player.id);
+    if (!rankRow?.rank) return null;
+
+    const reward = seasonRewardByRank(rankRow.rank);
+    if (!reward) return null;
+
+    const progress = applyExpProgress(player, reward.exp);
+    player.level = progress.level;
+    player.exp = progress.exp;
+    player.maxHp = progress.maxHp;
+    player.attack = progress.attack;
+    player.defense = progress.defense;
+    player.hp = progress.maxHp;
+    player.spiritStone += reward.spiritStone;
+    player.cultivation += reward.cultivation;
+    await repo.updatePlayer(player, now);
+
+    const rewardJson = JSON.stringify({
+        seasonKey: lastSeason,
+        rank: rankRow.rank,
+        spiritStone: reward.spiritStone,
+        exp: reward.exp,
+        cultivation: reward.cultivation,
+        source: 'auto_on_participation',
+    });
+    await repo.addTowerSeasonClaim(player.id, lastSeason, rankRow.rank, rewardJson, now);
+    await repo.createEconomyLog({
+        playerId: player.id,
+        bizType: 'reward',
+        deltaSpiritStone: reward.spiritStone,
+        balanceAfter: player.spiritStone,
+        refType: 'tower_season',
+        refId: rankRow.rank,
+        idempotencyKey: `${player.id}:tower-season-auto:${lastSeason}`,
+        extraJson: rewardJson,
+        now,
+    });
+
+    return {
+        seasonKey: lastSeason,
+        rank: rankRow.rank,
+        reward,
+    };
 }
 
 async function ensureWorldBossState(
@@ -942,6 +1089,219 @@ export async function handleXiuxianCommand(
                     dropName,
                 }),
             );
+        }
+
+        if (cmd.type === 'towerClimb') {
+            const autoSeason = await tryAutoClaimPreviousSeasonReward(repo, player, now);
+            const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.towerClimb, now);
+            if (left > 0) return asText(cooldownText('爬塔', left));
+
+            const progress = await repo.findTowerProgress(player.id);
+            const targetFloor = (progress?.highestFloor ?? 0) + 1;
+            const enemy = towerEnemy(player.level, targetFloor);
+            const equipped = await repo.getEquippedItems(player);
+            const power = calcCombatPower(player, equipped);
+            const result = runSimpleBattle(power, enemy);
+            const reward = towerRewards(player.level, targetFloor, result.win);
+
+            const step = applyExpProgress(player, reward.exp);
+            player.level = step.level;
+            player.exp = step.exp;
+            player.maxHp = step.maxHp;
+            player.attack = step.attack;
+            player.defense = step.defense;
+            player.hp = step.maxHp;
+            player.spiritStone += reward.spiritStone;
+            player.cultivation += reward.cultivation;
+            await repo.updatePlayer(player, now);
+
+            const highestFloor = result.win ? targetFloor : progress?.highestFloor ?? 0;
+            const rewardJson = JSON.stringify({
+                spiritStone: reward.spiritStone,
+                exp: reward.exp,
+                cultivation: reward.cultivation,
+                floor: targetFloor,
+            });
+            await repo.upsertTowerProgress(player.id, highestFloor, result.win ? 'win' : 'lose', rewardJson, now);
+            await repo.upsertTowerSeasonProgress(player.id, towerSeasonKey(now), highestFloor, now);
+            await repo.addTowerLog(player.id, targetFloor, result.win ? 'win' : 'lose', result.rounds, rewardJson, result.logs.join('\n'), now);
+            await repo.setCooldown(player.id, XIUXIAN_ACTIONS.towerClimb, now + XIUXIAN_COOLDOWN_MS.towerClimb, now);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'reward',
+                deltaSpiritStone: reward.spiritStone,
+                balanceAfter: player.spiritStone,
+                refType: 'tower',
+                refId: targetFloor,
+                idempotencyKey: `${player.id}:tower:${message.messageId}`,
+                extraJson: JSON.stringify({result: result.win ? 'win' : 'lose', floor: targetFloor, exp: reward.exp, cultivation: reward.cultivation}),
+                now,
+            });
+
+            const climbText = towerClimbText({
+                floor: targetFloor,
+                result: result.win ? 'win' : 'lose',
+                rounds: result.rounds,
+                reward,
+                highestFloor,
+            });
+            if (!autoSeason) return asText(climbText);
+            return asText(
+                [
+                    towerSeasonAutoClaimNoticeText({
+                        seasonKey: autoSeason.seasonKey,
+                        rank: autoSeason.rank,
+                        reward: autoSeason.reward,
+                    }),
+                    climbText,
+                ].join('\n\n'),
+            );
+        }
+
+        if (cmd.type === 'towerStatus') {
+            const progress = await repo.findTowerProgress(player.id);
+            return asText(towerStatusText(progress));
+        }
+
+        if (cmd.type === 'towerRank') {
+            const self = await repo.findTowerRank(player.id);
+            if (cmd.selfOnly) return asText(towerSelfRankText(self));
+            const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_TOWER.rankSize, 1), XIUXIAN_TOWER.rankMax);
+            const rows = await repo.listTowerTop(limit);
+            return asText(towerRankText(rows, self, limit));
+        }
+
+        if (cmd.type === 'towerSeasonKey') {
+            return asText(towerSeasonKeyText(towerSeasonKey(now)));
+        }
+
+        if (cmd.type === 'towerSeasonStatus') {
+            const autoSeason = await tryAutoClaimPreviousSeasonReward(repo, player, now);
+            const window = towerSeasonWindow(now);
+            const prevKey = previousTowerSeasonKey(now);
+            const prevRank = await repo.findTowerSeasonRank(prevKey, player.id);
+            const prevClaim = await repo.findTowerSeasonClaim(player.id, prevKey);
+            const statusText = towerSeasonStatusText({
+                seasonKey: window.seasonKey,
+                settleAt: window.settleAt,
+                countdown: formatCountdown(window.settleAt - now),
+                prevSeasonKey: prevKey,
+                prevRank: prevRank?.rank,
+                prevClaimed: Boolean(prevClaim),
+            });
+            if (!autoSeason) return asText(statusText);
+            return asText(
+                [
+                    towerSeasonAutoClaimNoticeText({
+                        seasonKey: autoSeason.seasonKey,
+                        rank: autoSeason.rank,
+                        reward: autoSeason.reward,
+                    }),
+                    statusText,
+                ].join('\n\n'),
+            );
+        }
+
+        if (cmd.type === 'towerSeasonRank') {
+            const autoSeason = await tryAutoClaimPreviousSeasonReward(repo, player, now);
+            const seasonKey = towerSeasonKey(now);
+            const self = await repo.findTowerSeasonRank(seasonKey, player.id);
+            if (cmd.selfOnly) {
+                const selfText = towerSeasonSelfRankText(self, seasonKey);
+                if (!autoSeason) return asText(selfText);
+                return asText(
+                    [
+                        towerSeasonAutoClaimNoticeText({
+                            seasonKey: autoSeason.seasonKey,
+                            rank: autoSeason.rank,
+                            reward: autoSeason.reward,
+                        }),
+                        selfText,
+                    ].join('\n\n'),
+                );
+            }
+            const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_TOWER.rankSize, 1), XIUXIAN_TOWER.rankMax);
+            const rows = await repo.listTowerSeasonTop(seasonKey, limit);
+            const listText = towerSeasonRankText(rows, self, limit);
+            if (!autoSeason) return asText(listText);
+            return asText(
+                [
+                    towerSeasonAutoClaimNoticeText({
+                        seasonKey: autoSeason.seasonKey,
+                        rank: autoSeason.rank,
+                        reward: autoSeason.reward,
+                    }),
+                    listText,
+                ].join('\n\n'),
+            );
+        }
+
+        if (cmd.type === 'towerSeasonReward') {
+            return asText(towerSeasonRewardText(towerSeasonKey(now), [...XIUXIAN_TOWER_SEASON_REWARDS]));
+        }
+
+        if (cmd.type === 'towerSeasonClaim') {
+            const lastSeason = previousTowerSeasonKey(now);
+            const claimed = await repo.findTowerSeasonClaim(player.id, lastSeason);
+            if (claimed) return asText(`🧾 赛季 ${lastSeason} 奖励已领取，请勿重复领取。`);
+
+            const rankRow = await repo.findTowerSeasonRank(lastSeason, player.id);
+            if (!rankRow?.rank) return asText(`📭 赛季 ${lastSeason} 你未上榜，暂无可领取奖励。`);
+
+            const reward = seasonRewardByRank(rankRow.rank);
+            if (!reward) return asText(`📭 赛季 ${lastSeason} 你的排名为第 ${rankRow.rank} 名，不在奖励区间。`);
+
+            const progress = applyExpProgress(player, reward.exp);
+            player.level = progress.level;
+            player.exp = progress.exp;
+            player.maxHp = progress.maxHp;
+            player.attack = progress.attack;
+            player.defense = progress.defense;
+            player.hp = progress.maxHp;
+            player.spiritStone += reward.spiritStone;
+            player.cultivation += reward.cultivation;
+            await repo.updatePlayer(player, now);
+
+            const rewardJson = JSON.stringify({
+                seasonKey: lastSeason,
+                rank: rankRow.rank,
+                spiritStone: reward.spiritStone,
+                exp: reward.exp,
+                cultivation: reward.cultivation,
+            });
+            await repo.addTowerSeasonClaim(player.id, lastSeason, rankRow.rank, rewardJson, now);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'reward',
+                deltaSpiritStone: reward.spiritStone,
+                balanceAfter: player.spiritStone,
+                refType: 'tower_season',
+                refId: rankRow.rank,
+                idempotencyKey: `${player.id}:tower-season-claim:${lastSeason}`,
+                extraJson: rewardJson,
+                now,
+            });
+
+            return asText(
+                towerSeasonClaimText({
+                    seasonKey: lastSeason,
+                    rank: rankRow.rank,
+                    reward,
+                    balanceAfter: player.spiritStone,
+                }),
+            );
+        }
+
+        if (cmd.type === 'towerLog') {
+            const page = Math.max(1, cmd.page ?? 1);
+            const logs = await repo.listTowerLogs(player.id, page, XIUXIAN_PAGE_SIZE);
+            return asText(towerLogText(logs, page, XIUXIAN_PAGE_SIZE));
+        }
+
+        if (cmd.type === 'towerDetail') {
+            const log = await repo.findTowerLog(player.id, cmd.logId);
+            if (!log) return asText('🔎 未找到该塔战报，请先发送「修仙塔报」。');
+            return asText(towerDetailText(log));
         }
 
         if (cmd.type === 'bossStatus') {

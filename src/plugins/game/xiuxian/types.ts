@@ -27,6 +27,16 @@ export type XiuxianCommand =
     | {type: 'bossRank'; limit?: number; selfOnly?: boolean}
     | {type: 'bossLog'; page?: number}
     | {type: 'bossDetail'; logId: number}
+    | {type: 'towerClimb'}
+    | {type: 'towerStatus'}
+    | {type: 'towerRank'; limit?: number; selfOnly?: boolean}
+    | {type: 'towerLog'; page?: number}
+    | {type: 'towerDetail'; logId: number}
+    | {type: 'towerSeasonKey'}
+    | {type: 'towerSeasonRank'; limit?: number; selfOnly?: boolean}
+    | {type: 'towerSeasonStatus'}
+    | {type: 'towerSeasonReward'}
+    | {type: 'towerSeasonClaim'}
     | {type: 'help'};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -226,6 +236,42 @@ export interface XiuxianWorldBossContribution {
     totalDamage: number;
     attacks: number;
     killCount: number;
+    rank?: number;
+}
+
+export interface XiuxianTowerProgress {
+    playerId: number;
+    highestFloor: number;
+    lastResult: 'win' | 'lose' | null;
+    lastRewardJson: string;
+    updatedAt: number;
+}
+
+export interface XiuxianTowerLog {
+    id: number;
+    playerId: number;
+    floor: number;
+    result: 'win' | 'lose';
+    rounds: number;
+    rewardJson: string;
+    battleLog: string;
+    createdAt: number;
+}
+
+export interface XiuxianTowerRankRow {
+    playerId: number;
+    userName?: string;
+    highestFloor: number;
+    updatedAt: number;
+    rank?: number;
+}
+
+export interface XiuxianTowerSeasonRankRow {
+    seasonKey: string;
+    playerId: number;
+    userName?: string;
+    highestFloor: number;
+    updatedAt: number;
     rank?: number;
 }
 
