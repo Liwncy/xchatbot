@@ -42,6 +42,8 @@ export type XiuxianCommand =
     | {type: 'petFeed'}
     | {type: 'petDeploy'}
     | {type: 'petRest'}
+    | {type: 'npcEncounter'}
+    | {type: 'npcEncounterLog'; page?: number}
     | {type: 'help'; topic?: string};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -292,6 +294,17 @@ export interface XiuxianPet {
     inBattle: number;
     createdAt: number;
     updatedAt: number;
+}
+
+export interface XiuxianNpcEncounterRecord {
+    id: number;
+    playerId: number;
+    dayKey: string;
+    eventCode: string;
+    eventTitle: string;
+    eventTier: string;
+    rewardJson: string;
+    createdAt: number;
 }
 
 export interface XiuxianBagQuery {

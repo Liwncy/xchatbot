@@ -295,6 +295,19 @@ CREATE TABLE IF NOT EXISTS xiuxian_pet_milestone_claims (
   FOREIGN KEY(pet_id) REFERENCES xiuxian_pets(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_npc_encounters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  day_key TEXT NOT NULL,
+  event_code TEXT NOT NULL,
+  event_title TEXT NOT NULL,
+  event_tier TEXT NOT NULL,
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL,
+  UNIQUE(player_id, day_key),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -312,4 +325,5 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_rank ON xiuxian_tower_season
 CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_claims_player ON xiuxian_tower_season_claims(player_id, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pets_level ON xiuxian_pets(level DESC, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_milestone_player ON xiuxian_pet_milestone_claims(player_id, claimed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_npc_encounters_player_time ON xiuxian_npc_encounters(player_id, created_at DESC);
 

@@ -35,6 +35,13 @@ export const XIUXIAN_PET_MILESTONE_REWARDS = [
     {level: 30, spiritStone: 220, exp: 150, cultivation: 120},
 ] as const;
 
+export const XIUXIAN_NPC_ENCOUNTER_POOL = [
+    {code: 'warm_tea', title: '山路茶摊', tier: 'common', weight: 40, spiritStone: 18, exp: 12, cultivation: 10},
+    {code: 'traveler_tip', title: '旅者点拨', tier: 'rare', weight: 30, spiritStone: 28, exp: 20, cultivation: 16},
+    {code: 'cave_cache', title: '洞窟秘藏', tier: 'epic', weight: 20, spiritStone: 42, exp: 30, cultivation: 24},
+    {code: 'elder_bless', title: '前辈赐福', tier: 'legend', weight: 10, spiritStone: 60, exp: 45, cultivation: 36},
+] as const;
+
 export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
     explore: 60_000,

@@ -12,6 +12,7 @@ import {
     XIUXIAN_SHOP_REFRESH_MS,
     XIUXIAN_TASK_DEFAULT_LIMIT,
     XIUXIAN_PET_MILESTONE_REWARDS,
+    XIUXIAN_NPC_ENCOUNTER_POOL,
     XIUXIAN_TOWER,
     XIUXIAN_TOWER_SEASON_REWARDS,
     XIUXIAN_WORLD_BOSS,
@@ -60,6 +61,8 @@ import {
     equipText,
     helpText,
     achievementText,
+    npcEncounterLogText,
+    npcEncounterText,
     petAdoptText,
     petBattleStateText,
     petFeedText,
@@ -309,6 +312,40 @@ function seasonRewardByRank(rank: number): {spiritStone: number; exp: number; cu
         }
     }
     return null;
+}
+
+function pickNpcEncounter(): {
+    code: string;
+    title: string;
+    tier: string;
+    spiritStone: number;
+    exp: number;
+    cultivation: number;
+} {
+    const total = XIUXIAN_NPC_ENCOUNTER_POOL.reduce((sum, it) => sum + it.weight, 0);
+    let point = Math.random() * total;
+    for (const it of XIUXIAN_NPC_ENCOUNTER_POOL) {
+        point -= it.weight;
+        if (point <= 0) {
+            return {
+                code: it.code,
+                title: it.title,
+                tier: it.tier,
+                spiritStone: it.spiritStone,
+                exp: it.exp,
+                cultivation: it.cultivation,
+            };
+        }
+    }
+    const tail = XIUXIAN_NPC_ENCOUNTER_POOL[XIUXIAN_NPC_ENCOUNTER_POOL.length - 1];
+    return {
+        code: tail.code,
+        title: tail.title,
+        tier: tail.tier,
+        spiritStone: tail.spiritStone,
+        exp: tail.exp,
+        cultivation: tail.cultivation,
+    };
 }
 
 async function tryAutoClaimPreviousSeasonReward(
@@ -735,6 +772,63 @@ export async function handleXiuxianCommand(
             }
 
             return asText(petFeedText(latest, cost, player.spiritStone, milestoneLines));
+        }
+
+        if (cmd.type === 'npcEncounter') {
+            const dayKey = dayKeyOf(now);
+            const existed = await repo.findNpcEncounterByDay(player.id, dayKey);
+            if (existed) return asText(`🎲 今日奇遇已触发：${existed.eventTitle}，明日再来。`);
+
+            const event = pickNpcEncounter();
+            const progress = applyExpProgress(player, event.exp);
+            player.level = progress.level;
+            player.exp = progress.exp;
+            player.maxHp = progress.maxHp;
+            player.attack = progress.attack;
+            player.defense = progress.defense;
+            player.hp = progress.maxHp;
+            player.spiritStone += event.spiritStone;
+            player.cultivation += event.cultivation;
+            await repo.updatePlayer(player, now);
+
+            const rewardJson = JSON.stringify({
+                spiritStone: event.spiritStone,
+                exp: event.exp,
+                cultivation: event.cultivation,
+                code: event.code,
+                title: event.title,
+                tier: event.tier,
+            });
+            await repo.addNpcEncounter(player.id, dayKey, event.code, event.title, event.tier, rewardJson, now);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'reward',
+                deltaSpiritStone: event.spiritStone,
+                balanceAfter: player.spiritStone,
+                refType: 'npc_encounter',
+                refId: null,
+                idempotencyKey: `${player.id}:npc-encounter:${dayKey}`,
+                extraJson: rewardJson,
+                now,
+            });
+
+            return asText(
+                npcEncounterText({
+                    title: event.title,
+                    tier: event.tier,
+                    reward: {
+                        spiritStone: event.spiritStone,
+                        exp: event.exp,
+                        cultivation: event.cultivation,
+                    },
+                }),
+            );
+        }
+
+        if (cmd.type === 'npcEncounterLog') {
+            const page = Math.max(1, cmd.page ?? 1);
+            const logs = await repo.listNpcEncounters(player.id, page, XIUXIAN_PAGE_SIZE);
+            return asText(npcEncounterLogText(logs, page, XIUXIAN_PAGE_SIZE));
         }
 
         if (cmd.type === 'explore') {

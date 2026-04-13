@@ -13,6 +13,7 @@ import type {
     XiuxianEconomyLog,
     XiuxianIdentity,
     XiuxianItem,
+    XiuxianNpcEncounterRecord,
     XiuxianPlayerAchievement,
     XiuxianPlayer,
     XiuxianPlayerTask,
@@ -306,6 +307,19 @@ function toPet(row: Record<string, unknown>): XiuxianPet {
         inBattle: Number(row.in_battle ?? 1),
         createdAt: Number(row.created_at),
         updatedAt: Number(row.updated_at),
+    };
+}
+
+function toNpcEncounter(row: Record<string, unknown>): XiuxianNpcEncounterRecord {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        dayKey: String(row.day_key),
+        eventCode: String(row.event_code),
+        eventTitle: String(row.event_title),
+        eventTier: String(row.event_tier),
+        rewardJson: String(row.reward_json ?? '{}'),
+        createdAt: Number(row.created_at),
     };
 }
 
@@ -1594,6 +1608,51 @@ export class XiuxianRepository {
             )
             .bind(playerId, petId, milestoneLevel, rewardJson, now)
             .run();
+    }
+
+    async findNpcEncounterByDay(playerId: number, dayKey: string): Promise<XiuxianNpcEncounterRecord | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_npc_encounters
+                 WHERE player_id = ?1 AND day_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, dayKey)
+            .first<Record<string, unknown>>();
+        return row ? toNpcEncounter(row) : null;
+    }
+
+    async addNpcEncounter(
+        playerId: number,
+        dayKey: string,
+        eventCode: string,
+        eventTitle: string,
+        eventTier: string,
+        rewardJson: string,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT OR IGNORE INTO xiuxian_npc_encounters (
+                    player_id, day_key, event_code, event_title, event_tier, reward_json, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+            )
+            .bind(playerId, dayKey, eventCode, eventTitle, eventTier, rewardJson, now)
+            .run();
+    }
+
+    async listNpcEncounters(playerId: number, page: number, pageSize: number): Promise<XiuxianNpcEncounterRecord[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_npc_encounters
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(playerId, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toNpcEncounter);
     }
 }
 

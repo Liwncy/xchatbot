@@ -41,7 +41,7 @@ export function helpText(topic?: string): string {
     const map: Record<string, string[]> = {
         基础: ['🌱 修仙创建 [名字]', '🧾 修仙状态', '🧘 修仙修炼 [次数]', '🧭 修仙探索', '🎒 修仙背包 [页码] [筛选/排序]', '🗡️ 修仙装备 [编号]', '🧤 修仙卸装 [武器|护甲|灵宝|法器]'],
         经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID]', '📒 修仙流水 [条数]'],
-        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就'],
+        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
         灵宠: ['🐾 修仙领宠', '🐶 修仙宠物', '🍼 修仙喂宠', '⚔️ 修仙出宠', '🛌 修仙休宠'],
@@ -609,6 +609,35 @@ export function petFeedText(
         `💼 当前灵石：${balanceAfter}`,
         ...(milestoneLines?.length ? ['━━━━━━━━━━━━', ...milestoneLines] : []),
     ].join('\n');
+}
+
+export function npcEncounterText(params: {
+    title: string;
+    tier: string;
+    reward: {spiritStone: number; exp: number; cultivation: number};
+}): string {
+    const tierLabel = params.tier === 'legend' ? '传说' : params.tier === 'epic' ? '稀有' : params.tier === 'rare' ? '奇异' : '普通';
+    return [
+        `🎲 今日奇遇：${params.title}`,
+        '━━━━━━━━━━━━',
+        `🏷️ 奇遇品质：${tierLabel}`,
+        `💎 灵石 +${params.reward.spiritStone}`,
+        `📈 经验 +${params.reward.exp}`,
+        `✨ 修为 +${params.reward.cultivation}`,
+    ].join('\n');
+}
+
+export function npcEncounterLogText(
+    logs: Array<{id: number; dayKey: string; eventTitle: string; eventTier: string; createdAt: number}>,
+    page: number,
+    pageSize: number,
+): string {
+    if (!logs.length) return '📜 暂无奇遇记录，先发送「修仙奇遇」吧。';
+    const lines = logs.map((it) => {
+        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        return `#${it.id} ${it.eventTitle}（${it.eventTier}） | ${it.dayKey} | ${dt}`;
+    });
+    return [`📜 奇遇记录第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines].join('\n');
 }
 
 export function towerLogText(

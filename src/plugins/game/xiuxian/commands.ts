@@ -140,6 +140,11 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙休宠') return {type: 'petRest'};
 
+    if (text === '修仙奇遇') return {type: 'npcEncounter'};
+
+    const encounterLogMatch = text.match(/^修仙奇录(?:\s+(\d+))?$/);
+    if (encounterLogMatch) return {type: 'npcEncounterLog', page: parsePositiveInt(encounterLogMatch[1])};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 
