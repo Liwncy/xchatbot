@@ -2,6 +2,7 @@ import type {
     EquipmentSlot,
     XiuxianAchievementDef,
     XiuxianBattle,
+    XiuxianBossLog,
     XiuxianEconomyLog,
     XiuxianItem,
     XiuxianPlayer,
@@ -53,6 +54,9 @@ export function helpText(): string {
         '🎁 修仙领奖 [任务ID]',
         '🎁 修仙领奖 全部',
         '🏅 修仙成就',
+        '👹 修仙讨伐',
+        '📘 修仙伐报 [页码]',
+        '🔍 修仙伐详 [战报ID]',
         '📚 修仙战报 [页码]',
         '🔎 修仙战详 [战报ID]',
         '',
@@ -286,5 +290,49 @@ export function achievementText(
     const claimableCount = states.filter((v) => v.status === 'claimable').length;
     const claimedCount = states.filter((v) => v.status === 'claimed').length;
     return ['🏅 成就进度', ...auto, ...lines, '━━━━━━━━━━━━', `🎯 可领取：${claimableCount}  |  ✅ 已完成：${claimedCount}`].join('\n');
+}
+
+export function bossRaidText(params: {
+    bossName: string;
+    result: 'win' | 'lose';
+    rounds: number;
+    reward: {gainedStone: number; gainedExp: number; gainedCultivation: number};
+    dropName?: string;
+}): string {
+    return [
+        `${params.result === 'win' ? '🏆 讨伐成功' : '💥 讨伐失利'}：${params.bossName}`,
+        '━━━━━━━━━━━━',
+        `🕒 回合：${params.rounds}`,
+        `💎 灵石 +${params.reward.gainedStone}`,
+        `📈 经验 +${params.reward.gainedExp}`,
+        `✨ 修为 +${params.reward.gainedCultivation}`,
+        ...(params.dropName ? [`🎁 掉落：${params.dropName}`] : []),
+        '💡 战报：修仙伐报 / 修仙伐详 [战报ID]',
+    ].join('\n');
+}
+
+export function bossLogText(logs: XiuxianBossLog[], page: number, pageSize: number): string {
+    if (!logs.length) return '📘 暂无BOSS战报，先发送「修仙讨伐」吧。';
+    const lines = logs.map((it) => {
+        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} ${it.bossName} | ${it.rounds}回合 | ${dt}`;
+    });
+    return [`📘 BOSS战报第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 详情：修仙伐详 [战报ID]'].join('\n');
+}
+
+export function bossDetailText(log: XiuxianBossLog): string {
+    const detail = log.battleLog
+        .split('\n')
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .slice(0, 14);
+    return [
+        `🔍 BOSS战报 #${log.id}`,
+        '━━━━━━━━━━━━',
+        `👹 对手：${log.bossName}`,
+        `📌 结果：${log.result === 'win' ? '胜利' : '失败'}`,
+        `🕒 回合：${log.rounds}`,
+        ...detail,
+    ].join('\n');
 }
 

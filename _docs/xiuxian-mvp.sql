@@ -170,6 +170,35 @@ CREATE TABLE IF NOT EXISTS xiuxian_player_achievements (
   FOREIGN KEY(achievement_id) REFERENCES xiuxian_achievements(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_boss_states (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL UNIQUE,
+  boss_name TEXT NOT NULL,
+  boss_level INTEGER NOT NULL,
+  max_hp INTEGER NOT NULL,
+  current_hp INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'alive',
+  rounds INTEGER NOT NULL DEFAULT 0,
+  last_result TEXT NOT NULL DEFAULT 'lose',
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  started_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_boss_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  boss_name TEXT NOT NULL,
+  boss_level INTEGER NOT NULL,
+  result TEXT NOT NULL,
+  rounds INTEGER NOT NULL,
+  reward_json TEXT NOT NULL DEFAULT '{}',
+  battle_log TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -178,4 +207,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_economy_idem ON xiuxian_economy_lo
 CREATE INDEX IF NOT EXISTS idx_xiuxian_checkins_player_day ON xiuxian_checkins(player_id, day_key);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_player_tasks_player_day ON xiuxian_player_tasks(player_id, day_key);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_player_achievements_player ON xiuxian_player_achievements(player_id);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_boss_logs_player_time ON xiuxian_boss_logs(player_id, created_at DESC);
 

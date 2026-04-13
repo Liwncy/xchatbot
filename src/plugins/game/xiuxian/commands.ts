@@ -78,6 +78,14 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙成就') return {type: 'achievement'};
 
+    if (text === '修仙讨伐') return {type: 'bossRaid'};
+
+    const bossLogMatch = text.match(/^修仙伐报(?:\s+(\d+))?$/);
+    if (bossLogMatch) return {type: 'bossLog', page: parsePositiveInt(bossLogMatch[1])};
+
+    const bossDetailMatch = text.match(/^修仙伐详\s+(\d+)$/);
+    if (bossDetailMatch) return {type: 'bossDetail', logId: Number(bossDetailMatch[1])};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 

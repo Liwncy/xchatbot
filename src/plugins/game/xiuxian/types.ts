@@ -22,6 +22,9 @@ export type XiuxianCommand =
     | {type: 'task'; onlyClaimable?: boolean}
     | {type: 'claim'; taskId?: number; claimAll?: boolean}
     | {type: 'achievement'}
+    | {type: 'bossRaid'}
+    | {type: 'bossLog'; page?: number}
+    | {type: 'bossDetail'; logId: number}
     | {type: 'help'};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
@@ -170,6 +173,33 @@ export interface XiuxianPlayerAchievement {
     unlockedAt: number | null;
     claimedAt: number | null;
     updatedAt: number;
+}
+
+export interface XiuxianBossState {
+    id: number;
+    playerId: number;
+    bossName: string;
+    bossLevel: number;
+    maxHp: number;
+    currentHp: number;
+    status: 'alive' | 'defeated';
+    rounds: number;
+    lastResult: 'win' | 'lose';
+    rewardJson: string;
+    startedAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianBossLog {
+    id: number;
+    playerId: number;
+    bossName: string;
+    bossLevel: number;
+    result: 'win' | 'lose';
+    rounds: number;
+    rewardJson: string;
+    battleLog: string;
+    createdAt: number;
 }
 
 export interface XiuxianBagQuery {

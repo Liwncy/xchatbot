@@ -25,6 +25,8 @@ import type {
 import {XiuxianRepository} from './repository.js';
 import {
     applyExpProgress,
+    bossEnemy,
+    bossRewards,
     calcSellPrice,
     calcCombatPower,
     calcShopPrice,
@@ -33,12 +35,16 @@ import {
     exploreStoneReward,
     generateShopItems,
     rollExploreLoot,
+    runBossBattle,
     runSimpleBattle,
 } from './balance.js';
 import {
     bagText,
     battleDetailText,
     battleLogText,
+    bossDetailText,
+    bossLogText,
+    bossRaidText,
     buyResultText,
     checkinText,
     claimTaskBatchText,
@@ -756,6 +762,108 @@ export async function handleXiuxianCommand(
 
             const refreshed = await repo.listPlayerAchievements(player.id);
             return asText(achievementText(defs, refreshed, claimedTitles));
+        }
+
+        if (cmd.type === 'bossRaid') {
+            const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.bossRaid, now);
+            if (left > 0) return asText(cooldownText('讨伐', left));
+
+            const equipped = await repo.getEquippedItems(player);
+            const power = calcCombatPower(player, equipped);
+            const boss = bossEnemy(player.level);
+            const result = runBossBattle(power, boss);
+            const reward = bossRewards(player.level, result.win);
+
+            let dropName: string | undefined;
+            if (result.win) {
+                const currentInv = await repo.countInventory(player.id);
+                if (currentInv < player.backpackCap && Math.random() < 0.55) {
+                    const drop = rollExploreLoot(player.level + 2);
+                    if (drop) {
+                        await repo.addItem(player.id, drop, now);
+                        dropName = drop.itemName;
+                    }
+                }
+            }
+
+            const progress = applyExpProgress(player, reward.gainedExp);
+            player.level = progress.level;
+            player.exp = progress.exp;
+            player.maxHp = progress.maxHp;
+            player.attack = progress.attack;
+            player.defense = progress.defense;
+            player.hp = progress.maxHp;
+            player.spiritStone += reward.gainedStone;
+            player.cultivation += reward.gainedCultivation;
+            await repo.updatePlayer(player, now);
+
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'reward',
+                deltaSpiritStone: reward.gainedStone,
+                balanceAfter: player.spiritStone,
+                refType: 'boss',
+                refId: null,
+                idempotencyKey: `${player.id}:boss:${message.messageId}`,
+                extraJson: JSON.stringify({exp: reward.gainedExp, cultivation: reward.gainedCultivation, win: result.win}),
+                now,
+            });
+
+            const rewardJson = JSON.stringify({
+                stone: reward.gainedStone,
+                exp: reward.gainedExp,
+                cultivation: reward.gainedCultivation,
+                dropName: dropName ?? null,
+            });
+            await repo.upsertBossState(player.id, {
+                bossName: boss.name,
+                bossLevel: boss.level,
+                maxHp: boss.maxHp,
+                currentHp: result.enemyHpLeft,
+                status: result.win ? 'defeated' : 'alive',
+                rounds: result.rounds,
+                lastResult: result.win ? 'win' : 'lose',
+                rewardJson,
+                startedAt: now,
+                updatedAt: now,
+            });
+            await repo.addBossLog(
+                player.id,
+                boss.name,
+                boss.level,
+                result.win ? 'win' : 'lose',
+                result.rounds,
+                rewardJson,
+                result.logs.join('\n'),
+                now,
+            );
+            await repo.setCooldown(player.id, XIUXIAN_ACTIONS.bossRaid, now + XIUXIAN_COOLDOWN_MS.bossRaid, now);
+
+            return asText(
+                bossRaidText({
+                    bossName: boss.name,
+                    result: result.win ? 'win' : 'lose',
+                    rounds: result.rounds,
+                    reward: {
+                        gainedStone: reward.gainedStone,
+                        gainedExp: reward.gainedExp,
+                        gainedCultivation: reward.gainedCultivation,
+                    },
+                    dropName,
+                }),
+            );
+        }
+
+        if (cmd.type === 'bossLog') {
+            const page = Math.max(1, cmd.page ?? 1);
+            const logs = await repo.listBossLogs(player.id, page, XIUXIAN_PAGE_SIZE);
+            return asText(bossLogText(logs, page, XIUXIAN_PAGE_SIZE));
+        }
+
+        if (cmd.type === 'bossDetail') {
+            const log = await repo.findBossLog(player.id, cmd.logId);
+            if (!log) return asText('🔎 未找到该BOSS战报，请先发送「修仙伐报」。');
+            return asText(bossDetailText(log));
         }
 
         if (cmd.type === 'battleLog') {

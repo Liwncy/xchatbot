@@ -15,6 +15,7 @@ export const XIUXIAN_COOLDOWN_MS = {
     cultivate: 30_000,
     explore: 60_000,
     challenge: 45_000,
+    bossRaid: 90_000,
 } as const;
 
 export const XIUXIAN_DEFAULTS = {
@@ -36,6 +37,7 @@ export const XIUXIAN_ACTIONS = {
     cultivate: 'cultivate',
     explore: 'explore',
     challenge: 'challenge',
+    bossRaid: 'boss_raid',
     shop: 'shop',
     buy: 'buy',
     sell: 'sell',

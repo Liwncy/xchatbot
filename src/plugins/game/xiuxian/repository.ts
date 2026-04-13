@@ -1,6 +1,8 @@
 import type {
     XiuxianAchievementDef,
     CooldownState,
+    XiuxianBossLog,
+    XiuxianBossState,
     XiuxianCheckin,
     EquipmentSlot,
     XiuxianBagQuery,
@@ -177,6 +179,37 @@ function toPlayerAchievement(row: Record<string, unknown>): XiuxianPlayerAchieve
         unlockedAt: row.unlocked_at == null ? null : Number(row.unlocked_at),
         claimedAt: row.claimed_at == null ? null : Number(row.claimed_at),
         updatedAt: Number(row.updated_at),
+    };
+}
+
+function toBossState(row: Record<string, unknown>): XiuxianBossState {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        bossName: String(row.boss_name),
+        bossLevel: Number(row.boss_level),
+        maxHp: Number(row.max_hp),
+        currentHp: Number(row.current_hp),
+        status: String(row.status) as XiuxianBossState['status'],
+        rounds: Number(row.rounds),
+        lastResult: String(row.last_result) as XiuxianBossState['lastResult'],
+        rewardJson: String(row.reward_json ?? '{}'),
+        startedAt: Number(row.started_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toBossLog(row: Record<string, unknown>): XiuxianBossLog {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        bossName: String(row.boss_name),
+        bossLevel: Number(row.boss_level),
+        result: String(row.result) as XiuxianBossLog['result'],
+        rounds: Number(row.rounds),
+        rewardJson: String(row.reward_json ?? '{}'),
+        battleLog: String(row.battle_log ?? ''),
+        createdAt: Number(row.created_at),
     };
 }
 
@@ -894,6 +927,114 @@ export class XiuxianRepository {
             .bind(playerId, achievementId, now)
             .run();
         return changedRows(result) > 0;
+    }
+
+    async findBossState(playerId: number): Promise<XiuxianBossState | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_boss_states
+                 WHERE player_id = ?1
+                 LIMIT 1`,
+            )
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return row ? toBossState(row) : null;
+    }
+
+    async upsertBossState(
+        playerId: number,
+        input: {
+            bossName: string;
+            bossLevel: number;
+            maxHp: number;
+            currentHp: number;
+            status: XiuxianBossState['status'];
+            rounds: number;
+            lastResult: XiuxianBossState['lastResult'];
+            rewardJson: string;
+            startedAt: number;
+            updatedAt: number;
+        },
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_boss_states (
+                    player_id, boss_name, boss_level, max_hp, current_hp,
+                    status, rounds, last_result, reward_json, started_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                ON CONFLICT(player_id)
+                DO UPDATE SET
+                    boss_name = excluded.boss_name,
+                    boss_level = excluded.boss_level,
+                    max_hp = excluded.max_hp,
+                    current_hp = excluded.current_hp,
+                    status = excluded.status,
+                    rounds = excluded.rounds,
+                    last_result = excluded.last_result,
+                    reward_json = excluded.reward_json,
+                    started_at = excluded.started_at,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(
+                playerId,
+                input.bossName,
+                input.bossLevel,
+                input.maxHp,
+                input.currentHp,
+                input.status,
+                input.rounds,
+                input.lastResult,
+                input.rewardJson,
+                input.startedAt,
+                input.updatedAt,
+            )
+            .run();
+    }
+
+    async addBossLog(
+        playerId: number,
+        bossName: string,
+        bossLevel: number,
+        result: 'win' | 'lose',
+        rounds: number,
+        rewardJson: string,
+        battleLog: string,
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_boss_logs (
+                    player_id, boss_name, boss_level, result, rounds, reward_json, battle_log, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+            )
+            .bind(playerId, bossName, bossLevel, result, rounds, rewardJson, battleLog, now)
+            .run();
+    }
+
+    async listBossLogs(playerId: number, page: number, pageSize: number): Promise<XiuxianBossLog[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_boss_logs
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(playerId, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toBossLog);
+    }
+
+    async findBossLog(playerId: number, logId: number): Promise<XiuxianBossLog | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_boss_logs
+                 WHERE player_id = ?1 AND id = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, logId)
+            .first<Record<string, unknown>>();
+        return row ? toBossLog(row) : null;
     }
 }
 
