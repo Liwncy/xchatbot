@@ -61,7 +61,7 @@ export function helpText(topic?: string): string {
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
-        灵宠: ['🐾 修仙领宠', '🎴 修仙卡池', '🎲 修仙抽宠 [1|10|十连]', '🧿 修仙保底', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
+        灵宠: ['🐾 修仙领宠', '🎴 修仙卡池', '🎲 修仙抽宠 [1|10|十连]', '🧿 修仙保底', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID] [数量]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
         战报: ['📚 修仙战报 [页码]', '🔎 修仙战详 [战报ID]'],
     };
 
@@ -652,7 +652,7 @@ export function petBagText(items: XiuxianPetBagItem[], page: number, total: numb
     if (!items.length) return '🎒 宠物背包为空，先去领宠或参与活动获取道具吧。';
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const lines = items.map((it) => `#${it.id} ${it.itemName} x${it.quantity} | 宠物等级+${it.feedLevel} | 亲密+${it.feedAffection}`);
-    return [`🎒 宠物背包第 ${page}/${pages} 页（共 ${total} 件）`, '━━━━━━━━━━━━', ...lines, '💡 使用：修仙喂宠 [道具ID]'].join('\n');
+    return [`🎒 宠物背包第 ${page}/${pages} 页（共 ${total} 件）`, '━━━━━━━━━━━━', ...lines, '💡 使用：修仙喂宠 [道具ID] [数量]'].join('\n');
 }
 
 export function petBattleStateText(petName: string, inBattle: boolean): string {

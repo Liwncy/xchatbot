@@ -36,17 +36,17 @@ export const XIUXIAN_PET_MILESTONE_REWARDS = [
 ] as const;
 
 export const XIUXIAN_PET_GACHA = {
-    drawCost: 120,
+    drawCost: 160,
     hardPityUr: 90,
     hardPityUp: 180,
     baseUrRate: 0.02,
     softPityStart: 70,
     softPityStep: 0.02,
     upUrRate: 0.5,
-    duplicateCompensation: {
-        r: 20,
-        sr: 45,
-        ur: 120,
+    duplicateFeedCompensation: {
+        r: {itemKey: 'pet-snack-basic', itemName: '灵宠饲丸', feedLevel: 1, feedAffection: 8, quantity: 1},
+        sr: {itemKey: 'pet-snack-advanced', itemName: '灵宠珍饲丸', feedLevel: 2, feedAffection: 12, quantity: 1},
+        ur: {itemKey: 'pet-snack-legendary', itemName: '灵宠天饲丸', feedLevel: 3, feedAffection: 18, quantity: 1},
     },
 } as const;
 

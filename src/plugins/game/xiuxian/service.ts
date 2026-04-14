@@ -769,27 +769,31 @@ async function applyPetBagFeed(
     player: XiuxianPlayer,
     pet: {id: number; petName: string; level: number; affection: number},
     itemId: number,
+    count: number,
     now: number,
 ): Promise<HandlerResponse> {
     const bagItem = await repo.findPetBagItem(player.id, itemId);
     if (!bagItem || bagItem.quantity <= 0) return asText('🔎 未找到该宠物道具，请先发送「修仙宠包」查看。');
 
-    const consumed = await repo.consumePetBagItem(player.id, bagItem.id, now);
+    const feedCount = Math.max(1, Math.floor(count));
+    const consumeCount = Math.min(feedCount, bagItem.quantity);
+
+    const consumed = await repo.consumePetBagItem(player.id, bagItem.id, consumeCount, now);
     if (!consumed) return asText('⚠️ 该宠物道具已被使用，请刷新宠包后重试。');
 
-    const levelAfter = pet.level + Math.max(0, bagItem.feedLevel);
-    const affectionAfter = Math.min(100, pet.affection + Math.max(0, bagItem.feedAffection));
-    await repo.updatePetBagFeed(pet.id, levelAfter, affectionAfter, now);
+    const levelAfter = pet.level + Math.max(0, bagItem.feedLevel) * consumeCount;
+    const affectionAfter = Math.min(100, pet.affection + Math.max(0, bagItem.feedAffection) * consumeCount);
+    await repo.updatePetBagFeed(pet.id, levelAfter, affectionAfter, consumeCount, now);
     const latest = await repo.findPet(player.id);
     if (!latest) return asText('⚠️ 喂宠后读取失败，请稍后再试。');
 
     return asText(
         [
-            `🧪 使用道具喂宠：${bagItem.itemName}`,
+            `🧪 使用道具喂宠：${bagItem.itemName} x${consumeCount}`,
             '━━━━━━━━━━━━',
             `📶 ${XIUXIAN_TERMS.pet.currentLevelLabel}：${latest.level}`,
             `💖 当前亲密：${latest.affection}/100`,
-            `📦 道具剩余：${Math.max(0, bagItem.quantity - 1)}`,
+            `📦 道具剩余：${Math.max(0, bagItem.quantity - consumeCount)}`,
         ].join('\n'),
     );
 }
@@ -1231,7 +1235,7 @@ export async function handleXiuxianCommand(
             };
 
             const lines: string[] = [];
-            let duplicateStone = 0;
+            const duplicateFeeds: Array<{itemName: string; quantity: number}> = [];
             for (let i = 0; i < drawTimes; i += 1) {
                 const result = rollPetDrawEntry(entries, pity, banner.hardPityUr, banner.hardPityUp);
                 const rarity = result.entry.rarity;
@@ -1241,9 +1245,10 @@ export async function handleXiuxianCommand(
                 let compensationStone = 0;
                 if (existedPet) {
                     isDuplicate = 1;
-                    compensationStone = XIUXIAN_PET_GACHA.duplicateCompensation[rarity];
-                    duplicateStone += compensationStone;
-                    await repo.gainSpiritStone(player.id, compensationStone, now);
+                    const feedReward = XIUXIAN_PET_GACHA.duplicateFeedCompensation[rarity];
+                    compensationStone = feedReward.quantity;
+                    await repo.addPetBagItem(player.id, feedReward, now);
+                    duplicateFeeds.push({itemName: feedReward.itemName, quantity: feedReward.quantity});
                 } else {
                     await repo.createPet(player.id, result.entry.petName, result.entry.petType, now);
                 }
@@ -1264,14 +1269,14 @@ export async function handleXiuxianCommand(
                 });
 
                 lines.push(
-                    `${i + 1}. ${result.isUp ? '🌟' : ''}${rarityLabel(rarity)} ${result.entry.petName}（${result.entry.petType}）${isDuplicate ? ` → 重复返还💎${compensationStone}` : ''}`,
+                    `${i + 1}. ${result.isUp ? '🌟' : ''}${rarityLabel(rarity)} ${result.entry.petName}（${result.entry.petType}）${isDuplicate ? ` → 重复转化🧪x${compensationStone}` : ''}`,
                 );
             }
 
             await repo.upsertPetPityState(player.id, banner.bannerKey, pity, now);
 
             const latest = await repo.findPlayerById(player.id);
-            const balanceAfter = latest?.spiritStone ?? Math.max(0, player.spiritStone - totalCost + duplicateStone);
+            const balanceAfter = latest?.spiritStone ?? Math.max(0, player.spiritStone - totalCost);
             await repo.createEconomyLog({
                 playerId: player.id,
                 bizType: 'cost',
@@ -1280,29 +1285,22 @@ export async function handleXiuxianCommand(
                 refType: 'pet_draw',
                 refId: null,
                 idempotencyKey: idemKey,
-                extraJson: JSON.stringify({bannerKey: banner.bannerKey, draws: drawTimes, duplicateStone}),
+                extraJson: JSON.stringify({bannerKey: banner.bannerKey, draws: drawTimes, duplicateFeeds}),
                 now,
             });
 
-            if (duplicateStone > 0) {
-                await repo.createEconomyLog({
-                    playerId: player.id,
-                    bizType: 'reward',
-                    deltaSpiritStone: duplicateStone,
-                    balanceAfter,
-                    refType: 'pet_draw_duplicate',
-                    refId: null,
-                    idempotencyKey: `${idemKey}:dup`,
-                    extraJson: JSON.stringify({bannerKey: banner.bannerKey, duplicateStone}),
-                    now,
-                });
+            const feedSummaryMap = new Map<string, number>();
+            for (const feed of duplicateFeeds) {
+                feedSummaryMap.set(feed.itemName, (feedSummaryMap.get(feed.itemName) ?? 0) + feed.quantity);
             }
+            const feedSummaryLines = [...feedSummaryMap.entries()].map(([itemName, qty]) => `🧪 重复补偿：${itemName} x${qty}`);
 
             return asText(
                 [
                     `🎲 抽宠完成 x${drawTimes}`,
                     '━━━━━━━━━━━━',
                     ...lines,
+                    ...(feedSummaryLines.length ? ['━━━━━━━━━━━━', ...feedSummaryLines] : []),
                     '━━━━━━━━━━━━',
                     `🧿 当前保底进度：UR ${pity.sinceUr}/${banner.hardPityUr}，UP ${pity.sinceUp}/${banner.hardPityUp}`,
                     `💎 当前灵石：${balanceAfter}`,
@@ -1384,7 +1382,7 @@ export async function handleXiuxianCommand(
         if (cmd.type === 'petFeed') {
             const pet = await repo.findPet(player.id);
             if (!pet) return asText('🐾 你还没有灵宠，可通过活动或任务获取。');
-            if (cmd.itemId) return applyPetBagFeed(repo, player, pet, cmd.itemId, now);
+            if (cmd.itemId) return applyPetBagFeed(repo, player, pet, cmd.itemId, cmd.count ?? 1, now);
             const dayKey = dayKeyOf(now);
             if (pet.lastFedDay === dayKey) return asText('🍼 今日已喂宠，明日再来吧。');
 

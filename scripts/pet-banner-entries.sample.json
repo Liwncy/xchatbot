@@ -1,0 +1,38 @@
+[
+  {
+    "pet_name": "TaixuLeilin",
+    "pet_type": "limited",
+    "rarity": "ur",
+    "weight": 50,
+    "is_up": 1
+  },
+  {
+    "pet_name": "JiuxiaoQingluan",
+    "pet_type": "limited",
+    "rarity": "ur",
+    "weight": 50,
+    "is_up": 0
+  },
+  {
+    "pet_name": "ChiyanLinghu",
+    "pet_type": "rare",
+    "rarity": "sr",
+    "weight": 280,
+    "is_up": 0
+  },
+  {
+    "pet_name": "CanglangLinggui",
+    "pet_type": "rare",
+    "rarity": "sr",
+    "weight": 280,
+    "is_up": 0
+  },
+  {
+    "pet_name": "FengyuYuetu",
+    "pet_type": "beast",
+    "rarity": "r",
+    "weight": 620,
+    "is_up": 0
+  }
+]
+

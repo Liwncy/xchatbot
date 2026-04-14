@@ -2042,15 +2042,16 @@ export class XiuxianRepository {
         return row ? toPetBagItem(row) : null;
     }
 
-    async consumePetBagItem(playerId: number, itemId: number, now: number): Promise<boolean> {
+    async consumePetBagItem(playerId: number, itemId: number, quantity: number, now: number): Promise<boolean> {
+        const consumeQty = Math.max(1, Math.floor(quantity));
         const result = await this.db
             .prepare(
                 `UPDATE xiuxian_pet_bag
-                 SET quantity = quantity - 1,
-                     updated_at = ?3
-                 WHERE player_id = ?1 AND id = ?2 AND quantity > 0`,
+                 SET quantity = quantity - ?3,
+                     updated_at = ?4
+                 WHERE player_id = ?1 AND id = ?2 AND quantity >= ?3`,
             )
-            .bind(playerId, itemId, now)
+            .bind(playerId, itemId, consumeQty, now)
             .run();
         await this.db
             .prepare('DELETE FROM xiuxian_pet_bag WHERE player_id = ?1 AND id = ?2 AND quantity <= 0')
@@ -2074,17 +2075,18 @@ export class XiuxianRepository {
             .run();
     }
 
-    async updatePetBagFeed(petId: number, level: number, affection: number, now: number): Promise<void> {
+    async updatePetBagFeed(petId: number, level: number, affection: number, feedCountInc: number, now: number): Promise<void> {
+        const feedInc = Math.max(1, Math.floor(feedCountInc));
         await this.db
             .prepare(
                 `UPDATE xiuxian_pets
                  SET level = ?2,
                      affection = ?3,
-                     feed_count = feed_count + 1,
-                     updated_at = ?4
+                     feed_count = feed_count + ?4,
+                     updated_at = ?5
                  WHERE id = ?1`,
             )
-            .bind(petId, level, affection, now)
+            .bind(petId, level, affection, feedInc, now)
             .run();
     }
 

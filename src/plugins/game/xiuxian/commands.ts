@@ -214,8 +214,14 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const petBagMatch = text.match(/^修仙宠包(?:\s+(\d+))?$/);
     if (petBagMatch) return {type: 'petBag', page: parsePositiveInt(petBagMatch[1])};
 
-    const petFeedMatch = text.match(/^修仙喂宠(?:\s+(\d+))?$/);
-    if (petFeedMatch) return {type: 'petFeed', itemId: parsePositiveInt(petFeedMatch[1])};
+    const petFeedMatch = text.match(/^修仙喂宠(?:\s+(\d+)(?:\s+(\d+))?)?$/);
+    if (petFeedMatch) {
+        return {
+            type: 'petFeed',
+            itemId: parsePositiveInt(petFeedMatch[1]),
+            count: parsePositiveInt(petFeedMatch[2]),
+        };
+    }
 
     const petDeployMatch = text.match(/^修仙出宠(?:\s+(\d+))?$/);
     if (petDeployMatch) return {type: 'petDeploy', petId: parsePositiveInt(petDeployMatch[1])};

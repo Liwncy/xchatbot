@@ -43,7 +43,7 @@ export type XiuxianCommand =
     | {type: 'petPity'}
     | {type: 'petStatus'; petId?: number}
     | {type: 'petBag'; page?: number}
-    | {type: 'petFeed'; itemId?: number}
+    | {type: 'petFeed'; itemId?: number; count?: number}
     | {type: 'petDeploy'; petId?: number}
     | {type: 'petRest'}
     | {type: 'npcEncounter'}
