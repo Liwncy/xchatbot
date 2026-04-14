@@ -38,6 +38,9 @@ export type XiuxianCommand =
     | {type: 'towerSeasonReward'}
     | {type: 'towerSeasonClaim'}
     | {type: 'petAdopt'}
+    | {type: 'petPool'}
+    | {type: 'petDraw'; times?: number}
+    | {type: 'petPity'}
     | {type: 'petStatus'; petId?: number}
     | {type: 'petBag'; page?: number}
     | {type: 'petFeed'; itemId?: number}
@@ -303,6 +306,67 @@ export interface XiuxianPet {
     lastFedDay: string | null;
     inBattle: number;
     createdAt: number;
+    updatedAt: number;
+}
+
+export type XiuxianPetRarity = 'r' | 'sr' | 'ur';
+
+export interface XiuxianPetBanner {
+    id: number;
+    bannerKey: string;
+    title: string;
+    status: 'upcoming' | 'active' | 'closed';
+    startAt: number;
+    endAt: number;
+    drawCost: number;
+    hardPityUr: number;
+    hardPityUp: number;
+    upPetName: string | null;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianPetBannerEntry {
+    id: number;
+    bannerId: number;
+    petName: string;
+    petType: string;
+    rarity: XiuxianPetRarity;
+    weight: number;
+    isUp: number;
+}
+
+export interface XiuxianPetPityState {
+    playerId: number;
+    bannerKey: string;
+    totalDraws: number;
+    sinceUr: number;
+    sinceUp: number;
+    updatedAt: number;
+}
+
+export interface XiuxianPetDrawLog {
+    id: number;
+    playerId: number;
+    bannerKey: string;
+    drawIndex: number;
+    petName: string;
+    petType: string;
+    rarity: XiuxianPetRarity;
+    isUp: number;
+    costSpiritStone: number;
+    isDuplicate: number;
+    compensationStone: number;
+    idempotencyKey: string | null;
+    createdAt: number;
+}
+
+export interface XiuxianPetExclusiveProfile {
+    id: number;
+    petName: string;
+    exclusiveTrait: string;
+    skillName: string;
+    skillDesc: string;
     updatedAt: number;
 }
 

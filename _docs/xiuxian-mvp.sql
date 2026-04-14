@@ -309,6 +309,79 @@ CREATE TABLE IF NOT EXISTS xiuxian_pet_milestone_claims (
   FOREIGN KEY(pet_id) REFERENCES xiuxian_pets(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_pet_banners (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  banner_key TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  start_at INTEGER NOT NULL,
+  end_at INTEGER NOT NULL,
+  draw_cost INTEGER NOT NULL DEFAULT 120,
+  hard_pity_ur INTEGER NOT NULL DEFAULT 90,
+  hard_pity_up INTEGER NOT NULL DEFAULT 180,
+  up_pet_name TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_pet_banner_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  banner_id INTEGER NOT NULL,
+  pet_name TEXT NOT NULL,
+  pet_type TEXT NOT NULL,
+  rarity TEXT NOT NULL DEFAULT 'r',
+  weight INTEGER NOT NULL DEFAULT 1,
+  is_up INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(banner_id, pet_name),
+  FOREIGN KEY(banner_id) REFERENCES xiuxian_pet_banners(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_pet_draw_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  banner_key TEXT NOT NULL,
+  draw_index INTEGER NOT NULL,
+  pet_name TEXT NOT NULL,
+  pet_type TEXT NOT NULL,
+  rarity TEXT NOT NULL,
+  is_up INTEGER NOT NULL DEFAULT 0,
+  cost_spirit_stone INTEGER NOT NULL DEFAULT 0,
+  is_duplicate INTEGER NOT NULL DEFAULT 0,
+  compensation_stone INTEGER NOT NULL DEFAULT 0,
+  idempotency_key TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_pet_pity_states (
+  player_id INTEGER NOT NULL,
+  banner_key TEXT NOT NULL,
+  total_draws INTEGER NOT NULL DEFAULT 0,
+  since_ur INTEGER NOT NULL DEFAULT 0,
+  since_up INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY(player_id, banner_key),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_pet_exclusive_profiles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pet_name TEXT NOT NULL UNIQUE,
+  exclusive_trait TEXT NOT NULL DEFAULT '',
+  skill_name TEXT NOT NULL DEFAULT '',
+  skill_desc TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL
+);
+
+INSERT OR IGNORE INTO xiuxian_pet_exclusive_profiles (
+  pet_name, exclusive_trait, skill_name, skill_desc, updated_at
+) VALUES
+  ('九霄青鸾', '天风庇佑：最终伤害小幅提升', '九霄风域', '每 5 次修炼额外获得 1 次灵石结算', CAST(strftime('%s','now') AS INTEGER) * 1000),
+  ('玄冥白泽', '玄冥守意：防御与气血成长更高', '白泽灵护', '出战时额外提升防御与气血加成', CAST(strftime('%s','now') AS INTEGER) * 1000),
+  ('赤焰灵狐', '炎脉活化：暴击成长增强', '赤炎追击', '亲密度达到 90 时提升额外暴击收益', CAST(strftime('%s','now') AS INTEGER) * 1000),
+  ('沧浪灵龟', '潮息共鸣：修炼收益稳定提升', '沧浪稳息', '修炼时灵石加成更平滑，波动更小', CAST(strftime('%s','now') AS INTEGER) * 1000),
+  ('风语月兔', '风语轻盈：闪避判定略有提升', '月影步', '高亲密时更容易触发闪避收益', CAST(strftime('%s','now') AS INTEGER) * 1000);
+
 CREATE TABLE IF NOT EXISTS xiuxian_npc_encounters (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   player_id INTEGER NOT NULL,
@@ -381,6 +454,11 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_pets_player ON xiuxian_pets(player_id, up
 CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_pets_active_unique ON xiuxian_pets(player_id) WHERE in_battle = 1;
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_bag_player ON xiuxian_pet_bag(player_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_milestone_player ON xiuxian_pet_milestone_claims(player_id, claimed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_banners_active ON xiuxian_pet_banners(status, start_at, end_at);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_banner_entries_banner ON xiuxian_pet_banner_entries(banner_id, rarity, weight DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_draw_logs_player_time ON xiuxian_pet_draw_logs(player_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_pet_draw_logs_idem ON xiuxian_pet_draw_logs(player_id, idempotency_key, draw_index);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_exclusive_name ON xiuxian_pet_exclusive_profiles(pet_name);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_npc_encounters_player_time ON xiuxian_npc_encounters(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_requester ON xiuxian_bonds(requester_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_target ON xiuxian_bonds(target_id, status, updated_at DESC);

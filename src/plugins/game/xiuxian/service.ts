@@ -13,6 +13,7 @@ import {
     XIUXIAN_TASK_DEFAULT_LIMIT,
     XIUXIAN_PET_MILESTONE_REWARDS,
     XIUXIAN_BOND_MILESTONE_REWARDS,
+    XIUXIAN_PET_GACHA,
     XIUXIAN_NPC_ENCOUNTER_POOL,
     XIUXIAN_TOWER,
     XIUXIAN_TOWER_SEASON_REWARDS,
@@ -30,9 +31,11 @@ import type {
     XiuxianTaskDef,
     XiuxianWorldBossState,
     XiuxianItemQuality,
+    XiuxianPetBannerEntry,
 } from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {formatRealm, realmName} from './realm.js';
+import {formatBeijingTime} from './time.js';
 import {
     applyExpProgress,
     bossEnemy,
@@ -109,6 +112,87 @@ const XIUXIAN_PET_STARTER_ITEM = {
     feedAffection: 8,
     quantity: 3,
 };
+
+const XIUXIAN_LIMITED_PET_POOL = [
+    {
+        petName: '九霄青鸾',
+        petType: '限定',
+        rarity: 'ur',
+        weight: 50,
+        isUp: 1,
+        exclusiveTrait: '天风庇佑：最终伤害小幅提升',
+        skillName: '九霄风域',
+        skillDesc: '每 5 次修炼额外获得 1 次灵石结算',
+    },
+    {
+        petName: '玄冥白泽',
+        petType: '限定',
+        rarity: 'ur',
+        weight: 50,
+        isUp: 0,
+        exclusiveTrait: '玄冥守意：防御与气血成长更高',
+        skillName: '白泽灵护',
+        skillDesc: '出战时额外提升防御与气血加成',
+    },
+    {
+        petName: '赤焰灵狐',
+        petType: '珍稀',
+        rarity: 'sr',
+        weight: 280,
+        isUp: 0,
+        exclusiveTrait: '炎脉活化：暴击成长增强',
+        skillName: '赤炎追击',
+        skillDesc: '亲密度达到 90 时提升额外暴击收益',
+    },
+    {
+        petName: '沧浪灵龟',
+        petType: '珍稀',
+        rarity: 'sr',
+        weight: 280,
+        isUp: 0,
+        exclusiveTrait: '潮息共鸣：修炼收益稳定提升',
+        skillName: '沧浪稳息',
+        skillDesc: '修炼时灵石加成更平滑，波动更小',
+    },
+    {
+        petName: '风语月兔',
+        petType: '灵兽',
+        rarity: 'r',
+        weight: 620,
+        isUp: 0,
+        exclusiveTrait: '风语轻盈：闪避判定略有提升',
+        skillName: '月影步',
+        skillDesc: '高亲密时更容易触发闪避收益',
+    },
+] as const;
+
+async function limitedPetProfileOf(
+    repo: XiuxianRepository,
+    petName: string,
+): Promise<{trait: string; skillName: string; skillDesc: string} | null> {
+    const fromDb = await repo.findPetExclusiveProfileByName(petName);
+    if (fromDb) {
+        return {
+            trait: fromDb.exclusiveTrait,
+            skillName: fromDb.skillName,
+            skillDesc: fromDb.skillDesc,
+        };
+    }
+
+    const item = XIUXIAN_LIMITED_PET_POOL.find((it) => it.petName === petName);
+    if (!item) return null;
+    return {
+        trait: item.exclusiveTrait,
+        skillName: item.skillName,
+        skillDesc: item.skillDesc,
+    };
+}
+
+function rarityLabel(rarity: string): string {
+    if (rarity === 'ur') return 'UR';
+    if (rarity === 'sr') return 'SR';
+    return 'R';
+}
 
 function identityFromMessage(message: IncomingMessage): XiuxianIdentity {
     return {platform: 'wechat', userId: message.from};
@@ -487,13 +571,21 @@ async function ensureWorldBossState(
     return created;
 }
 
-function petCultivateStoneBonus(petLevel: number, affection: number, times: number): number {
-    const per = Math.floor(petLevel / 5) + (affection >= 50 ? 1 : 0);
-    if (per <= 0) return 0;
-    return per * times;
+function petPowerRate(petType: string): {combat: number; cultivateStone: number} {
+    if (petType.includes('限定')) return {combat: 1.35, cultivateStone: 1.5};
+    if (petType.includes('珍稀')) return {combat: 1.15, cultivateStone: 1.2};
+    return {combat: 1, cultivateStone: 1};
 }
 
-function petCombatBonus(pet: {level: number; affection: number; inBattle?: number} | null): {
+function petCultivateStoneBonus(pet: {level: number; affection: number; petType: string} | null, times: number): number {
+    if (!pet) return 0;
+    const per = Math.floor(pet.level / 5) + (pet.affection >= 50 ? 1 : 0);
+    if (per <= 0) return 0;
+    const rate = petPowerRate(pet.petType).cultivateStone;
+    return Math.floor(per * times * rate);
+}
+
+function petCombatBonus(pet: {level: number; affection: number; petType?: string; inBattle?: number} | null): {
     attack: number;
     defense: number;
     maxHp: number;
@@ -501,12 +593,101 @@ function petCombatBonus(pet: {level: number; affection: number; inBattle?: numbe
     crit: number;
 } {
     if (!pet || pet.inBattle === 0) return {attack: 0, defense: 0, maxHp: 0, dodge: 0, crit: 0};
-    const attack = Math.floor(pet.level / 4) + (pet.affection >= 60 ? 2 : 0);
-    const defense = Math.floor(pet.level / 5) + (pet.affection >= 80 ? 2 : 0);
-    const maxHp = pet.level * 6 + pet.affection;
+    const rate = petPowerRate(pet.petType ?? '灵兽').combat;
+    const attack = Math.floor((Math.floor(pet.level / 4) + (pet.affection >= 60 ? 2 : 0)) * rate);
+    const defense = Math.floor((Math.floor(pet.level / 5) + (pet.affection >= 80 ? 2 : 0)) * rate);
+    const maxHp = Math.floor((pet.level * 6 + pet.affection) * rate);
     const dodge = pet.affection >= 70 ? 0.01 : 0;
     const crit = pet.affection >= 90 ? 0.01 : 0;
     return {attack, defense, maxHp, dodge, crit};
+}
+
+async function ensureWeeklyPetBanner(repo: XiuxianRepository, now: number) {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const season = towerSeasonKey(now);
+    const bannerKey = `pet-weekly-${season}`;
+    const startAt = weekStartOf(now);
+    const endAt = startAt + 7 * dayMs;
+    const upPet = XIUXIAN_LIMITED_PET_POOL.find((it) => it.rarity === 'ur' && it.isUp === 1)?.petName ?? null;
+
+    await repo.upsertPetBanner(
+        {
+            bannerKey,
+            title: `${season} 限定灵宠卡池`,
+            status: 'active',
+            startAt,
+            endAt,
+            drawCost: XIUXIAN_PET_GACHA.drawCost,
+            hardPityUr: XIUXIAN_PET_GACHA.hardPityUr,
+            hardPityUp: XIUXIAN_PET_GACHA.hardPityUp,
+            upPetName: upPet,
+        },
+        now,
+    );
+    const banner = await repo.findPetBannerByKey(bannerKey);
+    if (!banner) throw new Error('限定卡池初始化失败');
+    const entries = await repo.listPetBannerEntries(banner.id);
+    if (!entries.length) {
+        await repo.replacePetBannerEntries(banner.id, [...XIUXIAN_LIMITED_PET_POOL]);
+    }
+
+    const active = await repo.findActivePetBanner(now);
+    if (active) {
+        const activeEntries = await repo.listPetBannerEntries(active.id);
+        return {banner: active, entries: activeEntries};
+    }
+    return {banner, entries: await repo.listPetBannerEntries(banner.id)};
+}
+
+function pickByWeight(entries: XiuxianPetBannerEntry[]): XiuxianPetBannerEntry {
+    const safe = entries.filter((it) => it.weight > 0);
+    if (!safe.length) throw new Error('卡池权重配置为空');
+    const total = safe.reduce((sum, it) => sum + it.weight, 0);
+    let point = Math.random() * total;
+    for (const it of safe) {
+        point -= it.weight;
+        if (point <= 0) return it;
+    }
+    return safe[safe.length - 1];
+}
+
+function urRateByPity(sinceUr: number): number {
+    if (sinceUr < XIUXIAN_PET_GACHA.softPityStart) return XIUXIAN_PET_GACHA.baseUrRate;
+    const extra = (sinceUr - XIUXIAN_PET_GACHA.softPityStart + 1) * XIUXIAN_PET_GACHA.softPityStep;
+    return Math.min(1, XIUXIAN_PET_GACHA.baseUrRate + extra);
+}
+
+function rollPetDrawEntry(
+    entries: XiuxianPetBannerEntry[],
+    pity: {totalDraws: number; sinceUr: number; sinceUp: number},
+    hardPityUr: number,
+    hardPityUp: number,
+): {entry: XiuxianPetBannerEntry; isUr: boolean; isUp: boolean} {
+    const urEntries = entries.filter((it) => it.rarity === 'ur');
+    const upUrEntries = urEntries.filter((it) => it.isUp === 1);
+    const fallbackEntries = entries.filter((it) => it.rarity !== 'ur');
+
+    const mustUr = pity.sinceUr + 1 >= hardPityUr;
+    const hitUr = mustUr || Math.random() < urRateByPity(pity.sinceUr);
+
+    if (hitUr) {
+        const mustUp = pity.sinceUp + 1 >= hardPityUp;
+        const wantUp = mustUp || Math.random() < XIUXIAN_PET_GACHA.upUrRate;
+        const entry = wantUp && upUrEntries.length > 0
+            ? pickByWeight(upUrEntries)
+            : (urEntries.length > 0 ? pickByWeight(urEntries) : pickByWeight(entries));
+        const isUp = entry.isUp === 1;
+        pity.totalDraws += 1;
+        pity.sinceUr = 0;
+        pity.sinceUp = isUp ? 0 : pity.sinceUp + 1;
+        return {entry, isUr: true, isUp};
+    }
+
+    const entry = fallbackEntries.length > 0 ? pickByWeight(fallbackEntries) : pickByWeight(entries);
+    pity.totalDraws += 1;
+    pity.sinceUr += 1;
+    pity.sinceUp += 1;
+    return {entry, isUr: false, isUp: false};
 }
 
 function mergeCombatPower(
@@ -976,7 +1157,7 @@ export async function handleXiuxianCommand(
             const times = Math.min(Math.max(cmd.times ?? 1, 1), 20);
             const reward = cultivateReward(player.level, times);
             const pet = await repo.findPet(player.id);
-            const petBonus = pet ? petCultivateStoneBonus(pet.level, pet.affection, times) : 0;
+            const petBonus = petCultivateStoneBonus(pet, times);
             const progress = applyExpProgress(player, reward.gainedExp);
 
             player.level = progress.level;
@@ -1003,7 +1184,154 @@ export async function handleXiuxianCommand(
             );
         }
 
+        if (cmd.type === 'petPool') {
+            const {banner, entries} = await ensureWeeklyPetBanner(repo, now);
+            const lines = entries
+                .slice()
+                .sort((a, b) => b.weight - a.weight)
+                .map((it) => `${it.isUp === 1 ? '🌟UP ' : ''}${rarityLabel(it.rarity)} ${it.petName}（${it.petType}） 权重:${it.weight}`);
+            return asText(
+                [
+                    `🎴 当前卡池：${banner.title}`,
+                    '━━━━━━━━━━━━',
+                    `🕰️ 开放：${formatBeijingTime(banner.startAt)} ~ ${formatBeijingTime(banner.endAt)}`,
+                    `⌛ 剩余：${formatCountdown(banner.endAt - now)}`,
+                    `💎 单抽消耗：${banner.drawCost}`,
+                    `🧿 保底：${banner.hardPityUr} 抽必出 UR，${banner.hardPityUp} 抽必出 UP`,
+                    '━━━━━━━━━━━━',
+                    ...lines,
+                    '💡 抽宠：修仙抽宠 [1|10|十连]',
+                ].join('\n'),
+            );
+        }
+
+        if (cmd.type === 'petDraw') {
+            const drawTimes = Math.min(Math.max(cmd.times ?? 1, 1), 10);
+            const {banner, entries} = await ensureWeeklyPetBanner(repo, now);
+            if (!entries.length) return asText('⚠️ 卡池配置为空，请稍后再试。');
+            if (now < banner.startAt || now >= banner.endAt) return asText('⌛ 当前限定卡池未开放，请稍后再来。');
+
+            const idemKey = `${player.id}:pet-draw:${message.messageId}`;
+            const exists = await repo.findEconomyLogByIdempotency(player.id, idemKey);
+            if (exists) return asText('🧾 该抽宠请求已处理，请勿重复提交。');
+
+            const totalCost = drawTimes * banner.drawCost;
+            if (player.spiritStone < totalCost) {
+                return asText(`💸 灵石不足，${drawTimes} 抽需要 ${totalCost} 灵石。`);
+            }
+
+            const paid = await repo.spendSpiritStone(player.id, totalCost, now);
+            if (!paid) return asText(`💸 灵石不足，${drawTimes} 抽需要 ${totalCost} 灵石。`);
+
+            const pityState = await repo.findPetPityState(player.id, banner.bannerKey);
+            const pity = {
+                totalDraws: pityState?.totalDraws ?? 0,
+                sinceUr: pityState?.sinceUr ?? 0,
+                sinceUp: pityState?.sinceUp ?? 0,
+            };
+
+            const lines: string[] = [];
+            let duplicateStone = 0;
+            for (let i = 0; i < drawTimes; i += 1) {
+                const result = rollPetDrawEntry(entries, pity, banner.hardPityUr, banner.hardPityUp);
+                const rarity = result.entry.rarity;
+                const existedPet = await repo.findPetByName(player.id, result.entry.petName);
+
+                let isDuplicate = 0;
+                let compensationStone = 0;
+                if (existedPet) {
+                    isDuplicate = 1;
+                    compensationStone = XIUXIAN_PET_GACHA.duplicateCompensation[rarity];
+                    duplicateStone += compensationStone;
+                    await repo.gainSpiritStone(player.id, compensationStone, now);
+                } else {
+                    await repo.createPet(player.id, result.entry.petName, result.entry.petType, now);
+                }
+
+                await repo.addPetDrawLog({
+                    playerId: player.id,
+                    bannerKey: banner.bannerKey,
+                    drawIndex: i + 1,
+                    petName: result.entry.petName,
+                    petType: result.entry.petType,
+                    rarity,
+                    isUp: result.isUp ? 1 : 0,
+                    costSpiritStone: banner.drawCost,
+                    isDuplicate,
+                    compensationStone,
+                    idempotencyKey: idemKey,
+                    now,
+                });
+
+                lines.push(
+                    `${i + 1}. ${result.isUp ? '🌟' : ''}${rarityLabel(rarity)} ${result.entry.petName}（${result.entry.petType}）${isDuplicate ? ` → 重复返还💎${compensationStone}` : ''}`,
+                );
+            }
+
+            await repo.upsertPetPityState(player.id, banner.bannerKey, pity, now);
+
+            const latest = await repo.findPlayerById(player.id);
+            const balanceAfter = latest?.spiritStone ?? Math.max(0, player.spiritStone - totalCost + duplicateStone);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'cost',
+                deltaSpiritStone: -totalCost,
+                balanceAfter,
+                refType: 'pet_draw',
+                refId: null,
+                idempotencyKey: idemKey,
+                extraJson: JSON.stringify({bannerKey: banner.bannerKey, draws: drawTimes, duplicateStone}),
+                now,
+            });
+
+            if (duplicateStone > 0) {
+                await repo.createEconomyLog({
+                    playerId: player.id,
+                    bizType: 'reward',
+                    deltaSpiritStone: duplicateStone,
+                    balanceAfter,
+                    refType: 'pet_draw_duplicate',
+                    refId: null,
+                    idempotencyKey: `${idemKey}:dup`,
+                    extraJson: JSON.stringify({bannerKey: banner.bannerKey, duplicateStone}),
+                    now,
+                });
+            }
+
+            return asText(
+                [
+                    `🎲 抽宠完成 x${drawTimes}`,
+                    '━━━━━━━━━━━━',
+                    ...lines,
+                    '━━━━━━━━━━━━',
+                    `🧿 当前保底进度：UR ${pity.sinceUr}/${banner.hardPityUr}，UP ${pity.sinceUp}/${banner.hardPityUp}`,
+                    `💎 当前灵石：${balanceAfter}`,
+                ].join('\n'),
+            );
+        }
+
+        if (cmd.type === 'petPity') {
+            const {banner} = await ensureWeeklyPetBanner(repo, now);
+            const pity = await repo.findPetPityState(player.id, banner.bannerKey);
+            const sinceUr = pity?.sinceUr ?? 0;
+            const sinceUp = pity?.sinceUp ?? 0;
+            return asText(
+                [
+                    `🧿 保底进度（${banner.title}）`,
+                    '━━━━━━━━━━━━',
+                    `UR 保底：${sinceUr}/${banner.hardPityUr}`,
+                    `UP 保底：${sinceUp}/${banner.hardPityUp}`,
+                    `💡 距离 UR 还差：${Math.max(0, banner.hardPityUr - sinceUr)} 抽`,
+                    `💡 距离 UP 还差：${Math.max(0, banner.hardPityUp - sinceUp)} 抽`,
+                ].join('\n'),
+            );
+        }
+
         if (cmd.type === 'petAdopt') {
+            const existedPet = await repo.findPet(player.id);
+            if (existedPet) {
+                return asText('🐾 每位道友仅可「领宠」一次，后续请通过活动或任务获取新的灵宠。');
+            }
             const pool = [
                 {name: '灵狐', type: '灵兽'},
                 {name: '玄龟', type: '守护'},
@@ -1018,14 +1346,15 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'petStatus') {
             const pet = cmd.petId ? await repo.findPetById(player.id, cmd.petId) : await repo.findPet(player.id);
-            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (!pet) return asText('🐾 你还没有灵宠，可通过活动或任务获取。');
             const bonus = petCombatBonus(pet);
             const allPets = await repo.listPets(player.id);
+            const exclusive = await limitedPetProfileOf(repo, pet.petName);
             const summary = allPets
                 .slice(0, 5)
                 .map((p) => `#${p.id} ${p.petName}${p.inBattle === 1 ? '（出战）' : ''}`)
                 .join('，');
-            const panel = petStatusText(pet, {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp});
+            const panel = petStatusText(pet, {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp}, exclusive ?? undefined);
             return asText(`${panel}\n━━━━━━━━━━━━\n📚 灵宠列表：${summary || '暂无'}\n💡 查看指定宠物：修仙宠物 [编号]`);
         }
 
@@ -1038,7 +1367,7 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'petDeploy') {
             const pet = cmd.petId ? await repo.findPetById(player.id, cmd.petId) : await repo.findPet(player.id);
-            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (!pet) return asText('🐾 你还没有灵宠，可通过活动或任务获取。');
             if (pet.inBattle === 1) return asText(`⚔️ ${pet.petName} 当前已经是出战状态。`);
             await repo.deployPetById(player.id, pet.id, now);
             return asText(petBattleStateText(pet.petName, true));
@@ -1046,7 +1375,7 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'petRest') {
             const pet = await repo.findPet(player.id);
-            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (!pet) return asText('🐾 你还没有灵宠，可通过活动或任务获取。');
             if (pet.inBattle === 0) return asText(`🛌 ${pet.petName} 当前已经是休战状态。`);
             await repo.updatePetBattleState(pet.id, 0, now);
             return asText(petBattleStateText(pet.petName, false));
@@ -1054,7 +1383,7 @@ export async function handleXiuxianCommand(
 
         if (cmd.type === 'petFeed') {
             const pet = await repo.findPet(player.id);
-            if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (!pet) return asText('🐾 你还没有灵宠，可通过活动或任务获取。');
             if (cmd.itemId) return applyPetBagFeed(repo, player, pet, cmd.itemId, now);
             const dayKey = dayKeyOf(now);
             if (pet.lastFedDay === dayKey) return asText('🍼 今日已喂宠，明日再来吧。');

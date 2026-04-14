@@ -21,7 +21,12 @@ import type {
     XiuxianPlayer,
     XiuxianPlayerTask,
     XiuxianPet,
+    XiuxianPetBanner,
+    XiuxianPetBannerEntry,
     XiuxianPetBagItem,
+    XiuxianPetDrawLog,
+    XiuxianPetExclusiveProfile,
+    XiuxianPetPityState,
     XiuxianShopOffer,
     XiuxianTaskDef,
     XiuxianTowerLog,
@@ -325,6 +330,57 @@ function toPetBagItem(row: Record<string, unknown>): XiuxianPetBagItem {
         quantity: Number(row.quantity),
         createdAt: Number(row.created_at),
         updatedAt: Number(row.updated_at),
+    };
+}
+
+function toPetBanner(row: Record<string, unknown>): XiuxianPetBanner {
+    return {
+        id: Number(row.id),
+        bannerKey: String(row.banner_key),
+        title: String(row.title),
+        status: String(row.status) as XiuxianPetBanner['status'],
+        startAt: Number(row.start_at),
+        endAt: Number(row.end_at),
+        drawCost: Number(row.draw_cost),
+        hardPityUr: Number(row.hard_pity_ur),
+        hardPityUp: Number(row.hard_pity_up),
+        upPetName: row.up_pet_name == null ? null : String(row.up_pet_name),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toPetBannerEntry(row: Record<string, unknown>): XiuxianPetBannerEntry {
+    return {
+        id: Number(row.id),
+        bannerId: Number(row.banner_id),
+        petName: String(row.pet_name),
+        petType: String(row.pet_type),
+        rarity: String(row.rarity) as XiuxianPetBannerEntry['rarity'],
+        weight: Number(row.weight),
+        isUp: Number(row.is_up),
+    };
+}
+
+function toPetPityState(row: Record<string, unknown>): XiuxianPetPityState {
+    return {
+        playerId: Number(row.player_id),
+        bannerKey: String(row.banner_key),
+        totalDraws: Number(row.total_draws),
+        sinceUr: Number(row.since_ur),
+        sinceUp: Number(row.since_up),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toPetExclusiveProfile(row: Record<string, unknown>): XiuxianPetExclusiveProfile {
+    return {
+        id: Number(row.id),
+        petName: String(row.pet_name),
+        exclusiveTrait: String(row.exclusive_trait ?? ''),
+        skillName: String(row.skill_name ?? ''),
+        skillDesc: String(row.skill_desc ?? ''),
+        updatedAt: Number(row.updated_at ?? 0),
     };
 }
 
@@ -1694,6 +1750,31 @@ export class XiuxianRepository {
         return (rows.results ?? []).map(toPet);
     }
 
+    async findPetByName(playerId: number, petName: string): Promise<XiuxianPet | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pets
+                 WHERE player_id = ?1 AND pet_name = ?2
+                 ORDER BY id DESC
+                 LIMIT 1`,
+            )
+            .bind(playerId, petName)
+            .first<Record<string, unknown>>();
+        return row ? toPet(row) : null;
+    }
+
+    async findPetExclusiveProfileByName(petName: string): Promise<XiuxianPetExclusiveProfile | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pet_exclusive_profiles
+                 WHERE pet_name = ?1
+                 LIMIT 1`,
+            )
+            .bind(petName)
+            .first<Record<string, unknown>>();
+        return row ? toPetExclusiveProfile(row) : null;
+    }
+
     async createPet(playerId: number, petName: string, petType: string, now: number): Promise<XiuxianPet> {
         const active = await this.findPet(playerId);
         const inBattle = active ? 0 : 1;
@@ -1717,6 +1798,177 @@ export class XiuxianRepository {
         const pet = row ? toPet(row) : null;
         if (!pet) throw new Error('创建宠物后读取失败');
         return pet;
+    }
+
+    async upsertPetBanner(
+        banner: {
+            bannerKey: string;
+            title: string;
+            status: XiuxianPetBanner['status'];
+            startAt: number;
+            endAt: number;
+            drawCost: number;
+            hardPityUr: number;
+            hardPityUp: number;
+            upPetName?: string | null;
+        },
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_pet_banners (
+                    banner_key, title, status, start_at, end_at, draw_cost, hard_pity_ur, hard_pity_up, up_pet_name, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
+                ON CONFLICT(banner_key)
+                DO UPDATE SET
+                    title = excluded.title,
+                    status = excluded.status,
+                    start_at = excluded.start_at,
+                    end_at = excluded.end_at,
+                    draw_cost = excluded.draw_cost,
+                    hard_pity_ur = excluded.hard_pity_ur,
+                    hard_pity_up = excluded.hard_pity_up,
+                    up_pet_name = excluded.up_pet_name,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(
+                banner.bannerKey,
+                banner.title,
+                banner.status,
+                banner.startAt,
+                banner.endAt,
+                banner.drawCost,
+                banner.hardPityUr,
+                banner.hardPityUp,
+                banner.upPetName ?? null,
+                now,
+            )
+            .run();
+    }
+
+    async findPetBannerByKey(bannerKey: string): Promise<XiuxianPetBanner | null> {
+        const row = await this.db
+            .prepare('SELECT * FROM xiuxian_pet_banners WHERE banner_key = ?1 LIMIT 1')
+            .bind(bannerKey)
+            .first<Record<string, unknown>>();
+        return row ? toPetBanner(row) : null;
+    }
+
+    async findActivePetBanner(now: number): Promise<XiuxianPetBanner | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pet_banners
+                 WHERE status = 'active' AND start_at <= ?1 AND end_at > ?1
+                 ORDER BY start_at DESC, id DESC
+                 LIMIT 1`,
+            )
+            .bind(now)
+            .first<Record<string, unknown>>();
+        return row ? toPetBanner(row) : null;
+    }
+
+    async replacePetBannerEntries(
+        bannerId: number,
+        entries: Array<{petName: string; petType: string; rarity: XiuxianPetBannerEntry['rarity']; weight: number; isUp?: number}>,
+    ): Promise<void> {
+        await this.db
+            .prepare('DELETE FROM xiuxian_pet_banner_entries WHERE banner_id = ?1')
+            .bind(bannerId)
+            .run();
+        for (const entry of entries) {
+            await this.db
+                .prepare(
+                    `INSERT INTO xiuxian_pet_banner_entries (
+                        banner_id, pet_name, pet_type, rarity, weight, is_up
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+                )
+                .bind(bannerId, entry.petName, entry.petType, entry.rarity, Math.max(1, Math.floor(entry.weight)), entry.isUp ?? 0)
+                .run();
+        }
+    }
+
+    async listPetBannerEntries(bannerId: number): Promise<XiuxianPetBannerEntry[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pet_banner_entries
+                 WHERE banner_id = ?1
+                 ORDER BY rarity DESC, is_up DESC, weight DESC, id ASC`,
+            )
+            .bind(bannerId)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toPetBannerEntry);
+    }
+
+    async findPetPityState(playerId: number, bannerKey: string): Promise<XiuxianPetPityState | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pet_pity_states
+                 WHERE player_id = ?1 AND banner_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, bannerKey)
+            .first<Record<string, unknown>>();
+        return row ? toPetPityState(row) : null;
+    }
+
+    async upsertPetPityState(
+        playerId: number,
+        bannerKey: string,
+        state: {totalDraws: number; sinceUr: number; sinceUp: number},
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_pet_pity_states (
+                    player_id, banner_key, total_draws, since_ur, since_up, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                ON CONFLICT(player_id, banner_key)
+                DO UPDATE SET
+                    total_draws = excluded.total_draws,
+                    since_ur = excluded.since_ur,
+                    since_up = excluded.since_up,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(playerId, bannerKey, state.totalDraws, state.sinceUr, state.sinceUp, now)
+            .run();
+    }
+
+    async addPetDrawLog(input: {
+        playerId: number;
+        bannerKey: string;
+        drawIndex: number;
+        petName: string;
+        petType: string;
+        rarity: XiuxianPetDrawLog['rarity'];
+        isUp: number;
+        costSpiritStone: number;
+        isDuplicate: number;
+        compensationStone: number;
+        idempotencyKey?: string | null;
+        now: number;
+    }): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_pet_draw_logs (
+                    player_id, banner_key, draw_index, pet_name, pet_type, rarity, is_up,
+                    cost_spirit_stone, is_duplicate, compensation_stone, idempotency_key, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`,
+            )
+            .bind(
+                input.playerId,
+                input.bannerKey,
+                input.drawIndex,
+                input.petName,
+                input.petType,
+                input.rarity,
+                input.isUp,
+                input.costSpiritStone,
+                input.isDuplicate,
+                input.compensationStone,
+                input.idempotencyKey ?? null,
+                input.now,
+            )
+            .run();
     }
 
     async deployPetById(playerId: number, petId: number, now: number): Promise<boolean> {

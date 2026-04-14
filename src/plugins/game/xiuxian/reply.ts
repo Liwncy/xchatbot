@@ -61,7 +61,7 @@ export function helpText(topic?: string): string {
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
-        灵宠: ['🐾 修仙领宠', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
+        灵宠: ['🐾 修仙领宠', '🎴 修仙卡池', '🎲 修仙抽宠 [1|10|十连]', '🧿 修仙保底', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
         战报: ['📚 修仙战报 [页码]', '🔎 修仙战详 [战报ID]'],
     };
 
@@ -95,6 +95,9 @@ export function helpText(topic?: string): string {
         // 灵宠
         灵宠: '灵宠',
         宠物: '灵宠',
+        卡池: '灵宠',
+        抽宠: '灵宠',
+        保底: '灵宠',
         喂宠: '灵宠',
         出宠: '灵宠',
         // 战报
@@ -627,6 +630,7 @@ export function petAdoptText(pet: {petName: string; petType: string; level: numb
 export function petStatusText(
     pet: {id?: number; petName: string; petType: string; level: number; affection: number; feedCount: number; inBattle?: number},
     combat?: {attack: number; defense: number; hp: number},
+    exclusive?: {trait: string; skillName: string; skillDesc: string},
 ): string {
     const bonusStone = Math.floor(pet.level / 5) + (pet.affection >= 50 ? 1 : 0);
     return [
@@ -639,6 +643,7 @@ export function petStatusText(
         `🚩 当前状态：${pet.inBattle === 0 ? '休战' : '出战'}`,
         `✨ 修炼加成：灵石 +${bonusStone}/次`,
         ...(combat ? [`⚔️ 战斗加成：攻+${combat.attack} 防+${combat.defense} 血+${combat.hp}`] : []),
+        ...(exclusive ? [`🌟 专属词条：${exclusive.trait}`, `🌀 专属技能：${exclusive.skillName}（${exclusive.skillDesc}）`] : []),
         `💡 发送「修仙喂宠」可提升${XIUXIAN_TERMS.pet.levelLabel}；发送「修仙出宠 [编号]」切换出战宠物`,
     ].join('\n');
 }
