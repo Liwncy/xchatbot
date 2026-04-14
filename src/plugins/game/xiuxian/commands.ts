@@ -167,6 +167,49 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
         return {type: 'sell', itemId: uniq[0], itemIds: uniq};
     }
 
+    const dismantleMatch = text.match(/^修仙分解(?:\s+(.+))?$/);
+    if (dismantleMatch) {
+        const arg = (dismantleMatch[1] ?? '').trim();
+        if (!arg) return {type: 'dismantle'};
+        if (arg === '全部') return {type: 'dismantle', dismantleAll: true};
+        const qualityArg = parseSellQualityArg(arg);
+        if (qualityArg) {
+            return {
+                type: 'dismantle',
+                dismantleQuality: qualityArg.sellQuality,
+                dismantleQualityMode: qualityArg.sellQualityMode,
+            };
+        }
+        const parts = arg.split(/\s+/).filter(Boolean);
+        const ids: number[] = [];
+        for (const part of parts) {
+            const n = parsePositiveInt(part);
+            if (!n) return {type: 'dismantle'};
+            ids.push(n);
+        }
+        const uniq = Array.from(new Set(ids));
+        return {type: 'dismantle', itemId: uniq[0], itemIds: uniq};
+    }
+
+    const refineMatch = text.match(/^修仙炼器(?:\s+(\d+)(?:\s+(\d+|无限))?)?$/);
+    if (refineMatch) {
+        const mode = (refineMatch[2] ?? '').trim();
+        return {
+            type: 'refine',
+            itemId: parsePositiveInt(refineMatch[1]),
+            times: mode === '无限' ? undefined : parsePositiveInt(refineMatch[2]),
+            infinite: mode === '无限',
+        };
+    }
+
+    const refineDetailMatch = text.match(/^修仙(?:炼器详情|炼详)(?:\s+(\d+))?$/);
+    if (refineDetailMatch) {
+        return {
+            type: 'refineDetail',
+            itemId: parsePositiveInt(refineDetailMatch[1]),
+        };
+    }
+
     const ledgerMatch = text.match(/^修仙流水(?:\s+(\d+))?$/);
     if (ledgerMatch) return {type: 'ledger', limit: parsePositiveInt(ledgerMatch[1])};
 

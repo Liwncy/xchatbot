@@ -17,6 +17,16 @@ export type XiuxianCommand =
     | {type: 'shop'}
     | {type: 'buy'; offerId: number}
     | {type: 'sell'; itemId?: number; itemIds?: number[]; sellAll?: boolean; sellQuality?: XiuxianItemQuality; sellQualityMode?: 'exact' | 'at_least' | 'at_most'}
+    | {
+          type: 'dismantle';
+          itemId?: number;
+          itemIds?: number[];
+          dismantleAll?: boolean;
+          dismantleQuality?: XiuxianItemQuality;
+          dismantleQualityMode?: 'exact' | 'at_least' | 'at_most';
+      }
+    | {type: 'refine'; itemId?: number; times?: number; infinite?: boolean}
+    | {type: 'refineDetail'; itemId?: number}
     | {type: 'ledger'; limit?: number}
     | {type: 'checkin'}
     | {type: 'task'; onlyClaimable?: boolean}
@@ -101,6 +111,20 @@ export interface XiuxianItem {
     score: number;
     isLocked: number;
     createdAt: number;
+    refineLevel?: number;
+}
+
+export interface XiuxianRefineMaterial {
+    playerId: number;
+    materialKey: string;
+    quantity: number;
+    updatedAt: number;
+}
+
+export interface XiuxianItemRefine {
+    itemId: number;
+    refineLevel: number;
+    updatedAt: number;
 }
 
 export interface XiuxianBattle {

@@ -156,12 +156,12 @@ export function rollExploreLoot(level: number): LootItem | null {
 
     const types: EquipmentSlot[] = ['weapon', 'armor', 'accessory', 'sutra'];
     const itemType = pickOne(types);
-    const itemLevel = Math.max(1, level + randomInt(-1, 2));
+    const itemLevel = 1;
     const quality = rollQuality();
     const factor = QUALITY_FACTOR[quality];
-    const baseAtk = randomInt(6, 14) + itemLevel * 2;
-    const baseDef = randomInt(5, 12) + Math.floor(itemLevel * 1.7);
-    const baseHp = randomInt(40, 110) + itemLevel * 18;
+    const baseAtk = randomInt(6, 14) + Math.floor(level * 1.8);
+    const baseDef = randomInt(5, 12) + Math.floor(level * 1.5);
+    const baseHp = randomInt(40, 110) + level * 14;
     const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseAtk * factor) : 0;
     const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseDef * factor) : 0;
     const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseHp * factor) : 0;
@@ -195,12 +195,12 @@ export function generateShopItems(level: number, count: number): LootItem[] {
     while (items.length < count) {
         const types: EquipmentSlot[] = ['weapon', 'armor', 'accessory', 'sutra'];
         const itemType = pickOne(types);
-        const itemLevel = Math.max(1, level + randomInt(0, 2));
+        const itemLevel = 1;
         const quality = rollQuality(1);
         const factor = QUALITY_FACTOR[quality];
-        const baseAtk = randomInt(8, 18) + itemLevel * 3;
-        const baseDef = randomInt(7, 16) + Math.floor(itemLevel * 2.2);
-        const baseHp = randomInt(80, 180) + itemLevel * 26;
+        const baseAtk = randomInt(8, 18) + Math.floor(level * 2.5);
+        const baseDef = randomInt(7, 16) + Math.floor(level * 2.0);
+        const baseHp = randomInt(80, 180) + level * 20;
         const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseAtk * factor) : 0;
         const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseDef * factor) : 0;
         const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseHp * factor) : 0;
@@ -214,12 +214,12 @@ export function generateShopItems(level: number, count: number): LootItem[] {
 
 export function calcShopPrice(item: LootItem): number {
     const qualityPremium = SHOP_PREMIUM[item.quality] ?? 0;
-    return Math.max(25, Math.floor(item.score * 2.3 + item.itemLevel * 10 + qualityPremium));
+    return Math.max(25, Math.floor(item.score * 2.3 + qualityPremium));
 }
 
 export function calcSellPrice(item: XiuxianItem): number {
     const qualityPremium = SELL_PREMIUM[item.quality] ?? 0;
-    return Math.max(8, Math.floor(item.score * 0.58 + item.itemLevel * 3 + qualityPremium));
+    return Math.max(8, Math.floor(item.score * 0.58 + qualityPremium));
 }
 
 export function calcCombatPower(player: XiuxianPlayer, equipped: XiuxianItem[]): CombatPower {

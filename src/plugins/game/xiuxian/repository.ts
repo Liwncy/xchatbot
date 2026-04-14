@@ -843,6 +843,105 @@ export class XiuxianRepository {
         return changedRows(result) > 0;
     }
 
+    async getRefineMaterial(playerId: number, materialKey: string): Promise<number> {
+        const row = await this.db
+            .prepare(
+                `SELECT quantity
+                 FROM xiuxian_refine_materials
+                 WHERE player_id = ?1 AND material_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, materialKey)
+            .first<Record<string, unknown>>();
+        return Number(row?.quantity ?? 0);
+    }
+
+    async addRefineMaterial(playerId: number, materialKey: string, amount: number, now: number): Promise<void> {
+        const delta = Math.max(0, Math.floor(amount));
+        if (delta <= 0) return;
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_refine_materials (player_id, material_key, quantity, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(player_id, material_key)
+                 DO UPDATE SET
+                    quantity = xiuxian_refine_materials.quantity + excluded.quantity,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(playerId, materialKey, delta, now)
+            .run();
+    }
+
+    async consumeRefineMaterial(playerId: number, materialKey: string, amount: number, now: number): Promise<boolean> {
+        const delta = Math.max(1, Math.floor(amount));
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_refine_materials
+                 SET quantity = quantity - ?3,
+                     updated_at = ?4
+                 WHERE player_id = ?1 AND material_key = ?2 AND quantity >= ?3`,
+            )
+            .bind(playerId, materialKey, delta, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async findItemRefineLevel(playerId: number, itemId: number): Promise<number | null> {
+        const item = await this.findItem(playerId, itemId);
+        if (!item) return null;
+        const row = await this.db
+            .prepare(
+                `SELECT refine_level
+                 FROM xiuxian_item_refines
+                 WHERE item_id = ?1
+                 LIMIT 1`,
+            )
+            .bind(itemId)
+            .first<Record<string, unknown>>();
+        return Number(row?.refine_level ?? 0);
+    }
+
+    async listItemRefineLevels(playerId: number, itemIds: number[]): Promise<Map<number, number>> {
+        const uniq = Array.from(new Set(itemIds.filter((v) => Number.isFinite(v) && v > 0)));
+        if (!uniq.length) return new Map<number, number>();
+        const placeholders = uniq.map(() => '?').join(',');
+        const rows = await this.db
+            .prepare(
+                `SELECT i.id AS item_id, COALESCE(r.refine_level, 0) AS refine_level
+                 FROM xiuxian_inventory i
+                 LEFT JOIN xiuxian_item_refines r ON r.item_id = i.id
+                 WHERE i.player_id = ?1 AND i.id IN (${placeholders})`,
+            )
+            .bind(playerId, ...uniq)
+            .all<Record<string, unknown>>();
+        const out = new Map<number, number>();
+        for (const row of rows.results ?? []) {
+            out.set(Number(row.item_id), Number(row.refine_level ?? 0));
+        }
+        return out;
+    }
+
+    async upsertItemRefineLevel(playerId: number, itemId: number, refineLevel: number, now: number): Promise<boolean> {
+        const item = await this.findItem(playerId, itemId);
+        if (!item) return false;
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_item_refines (item_id, refine_level, updated_at)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(item_id)
+                 DO UPDATE SET
+                    refine_level = excluded.refine_level,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(itemId, Math.max(0, Math.floor(refineLevel)), now)
+            .run();
+        return true;
+    }
+
+    async clearItemRefine(itemId: number): Promise<void> {
+        await this.db.prepare('DELETE FROM xiuxian_item_refines WHERE item_id = ?1').bind(itemId).run();
+    }
+
     async createEconomyLog(entry: {
         playerId: number;
         bizType: XiuxianEconomyLog['bizType'];

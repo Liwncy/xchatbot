@@ -71,6 +71,7 @@ import {
     claimTaskText,
     cooldownText,
     createdText,
+    dismantleResultText,
     economyLogText,
     equipText,
     helpText,
@@ -81,6 +82,9 @@ import {
     petBagText,
     petBattleStateText,
     petFeedText,
+    refineMaterialText,
+    refineDetailText,
+    refineResultText,
     sellBatchResultText,
     petStatusText,
     sellResultText,
@@ -306,7 +310,7 @@ function parseOfferItem(offer: XiuxianShopOffer): Omit<XiuxianItem, 'id' | 'play
         return {
             itemType: String(data.itemType) as XiuxianItem['itemType'],
             itemName: String(data.itemName),
-            itemLevel: Number(data.itemLevel),
+            itemLevel: Math.max(1, Number(data.itemLevel) || 1),
             quality: String(data.quality) as XiuxianItemQuality,
             attack: Number(data.attack),
             defense: Number(data.defense),
@@ -338,6 +342,58 @@ const QUALITY_RANK: Record<XiuxianItemQuality, number> = {
     legendary: 5,
     mythic: 6,
 };
+
+const XIUXIAN_REFINE_MATERIAL_KEY = 'refine_essence';
+const XIUXIAN_REFINE_MATERIAL_LABEL = '玄铁精华';
+const XIUXIAN_REFINE_SAFETY_CAP = 500;
+
+function refineMaterialGain(item: XiuxianItem, refineLevel: number): number {
+    const qualityBase = QUALITY_RANK[item.quality] * 2;
+    const scoreBase = Math.max(1, Math.floor(item.score / 22));
+    const refineBack = Math.max(0, Math.floor(refineLevel * 0.6));
+    return qualityBase + scoreBase + refineBack;
+}
+
+function refineCostForLevel(level: number): {essence: number; stone: number} {
+    return {
+        essence: 10 + Math.floor(level * 1.6),
+        stone: 5 + Math.floor(level * 1.1),
+    };
+}
+
+function refineBonusByLevel(item: XiuxianItem, level: number): {attack: number; defense: number; hp: number; dodge: number; crit: number} {
+    if (level <= 0) return {attack: 0, defense: 0, hp: 0, dodge: 0, crit: 0};
+    const attack = item.itemType === 'weapon' ? level * 2 : item.itemType === 'accessory' || item.itemType === 'sutra' ? level : 0;
+    const defense = item.itemType === 'armor' ? level * 2 : item.itemType === 'accessory' || item.itemType === 'sutra' ? level : 0;
+    const hp = item.itemType === 'armor' ? level * 18 : item.itemType === 'accessory' || item.itemType === 'sutra' ? level * 10 : 0;
+    const dodge = item.itemType === 'accessory' || item.itemType === 'sutra' ? Number((level * 0.0008).toFixed(4)) : 0;
+    const crit = item.itemType === 'weapon' || item.itemType === 'accessory' || item.itemType === 'sutra' ? Number((level * 0.001).toFixed(4)) : 0;
+    return {attack, defense, hp, dodge, crit};
+}
+
+async function enhanceItemsWithRefine(repo: XiuxianRepository, playerId: number, items: XiuxianItem[]): Promise<XiuxianItem[]> {
+    if (!items.length) return items;
+    const refineMap = await repo.listItemRefineLevels(
+        playerId,
+        items.map((v) => v.id),
+    );
+    return items.map((item) => {
+        const refineLevel = refineMap.get(item.id) ?? 0;
+        if (refineLevel <= 0) return {...item, refineLevel: 0};
+        const bonus = refineBonusByLevel(item, refineLevel);
+        return {
+            ...item,
+            itemName: `${item.itemName}·炼+${refineLevel}`,
+            attack: item.attack + bonus.attack,
+            defense: item.defense + bonus.defense,
+            hp: item.hp + bonus.hp,
+            dodge: Number((item.dodge + bonus.dodge).toFixed(4)),
+            crit: Number((item.crit + bonus.crit).toFixed(4)),
+            score: item.score + Math.floor(bonus.attack * 1.3 + bonus.defense * 1.1 + bonus.hp / 8 + bonus.dodge * 120 + bonus.crit * 130),
+            refineLevel,
+        };
+    });
+}
 
 async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, now: number): Promise<XiuxianShopOffer[]> {
     const active = await repo.listShopOffers(player.id, now);
@@ -1154,7 +1210,8 @@ export async function handleXiuxianCommand(
         }
 
         if (cmd.type === 'status') {
-            const equipped = await repo.getEquippedItems(player);
+            const equippedRaw = await repo.getEquippedItems(player);
+            const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
             const petBonus = petCombatBonus(pet);
             const power = mergeCombatPower(calcCombatPower(player, equipped), petBonus);
@@ -1567,7 +1624,8 @@ export async function handleXiuxianCommand(
             const filter = resolveBagFilter(cmd.filter);
             if (filter.error) return asText(filter.error);
             const total = await repo.countInventory(player.id, filter.query);
-            const items = await repo.listInventory(player.id, page, XIUXIAN_PAGE_SIZE, filter.query);
+            const itemsRaw = await repo.listInventory(player.id, page, XIUXIAN_PAGE_SIZE, filter.query);
+            const items = await enhanceItemsWithRefine(repo, player.id, itemsRaw);
             return asText(bagText(items, page, total, XIUXIAN_PAGE_SIZE, filter.label));
         }
 
@@ -1596,7 +1654,8 @@ export async function handleXiuxianCommand(
             const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.challenge, now);
             if (left > 0) return asText(cooldownText('挑战', left));
 
-            const equipped = await repo.getEquippedItems(player);
+            const equippedRaw = await repo.getEquippedItems(player);
+            const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
             const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
             const enemy = challengeEnemy(player.level);
@@ -1809,6 +1868,233 @@ export async function handleXiuxianCommand(
             );
         }
 
+        if (cmd.type === 'dismantle') {
+            const idemKey = `${player.id}:dismantle:${message.messageId}`;
+            const exists = await repo.findEconomyLogByIdempotency(player.id, idemKey);
+            if (exists) return asText('🧾 该分解请求已处理，请勿重复提交。');
+
+            let targetIds: number[] = [];
+            if (cmd.dismantleAll) {
+                const total = await repo.countInventory(player.id);
+                if (total <= 0) return asText('🎒 背包暂无可分解装备。');
+                const all = await repo.listInventory(player.id, 1, total);
+                targetIds = all.map((v) => v.id);
+            } else if (cmd.dismantleQuality) {
+                const total = await repo.countInventory(player.id);
+                if (total <= 0) return asText('🎒 背包暂无可分解装备。');
+                const all = await repo.listInventory(player.id, 1, total);
+                const baseRank = QUALITY_RANK[cmd.dismantleQuality];
+                const matched = all.filter((item) => {
+                    if (cmd.dismantleQualityMode === 'at_least') return QUALITY_RANK[item.quality] >= baseRank;
+                    if (cmd.dismantleQualityMode === 'at_most') return QUALITY_RANK[item.quality] <= baseRank;
+                    return item.quality === cmd.dismantleQuality;
+                });
+                if (!matched.length) {
+                    const modeLabel =
+                        cmd.dismantleQualityMode === 'at_least' ? '至少' : cmd.dismantleQualityMode === 'at_most' ? '至多' : '';
+                    return asText(`🔎 未找到品质为${modeLabel}${qualityLabel(cmd.dismantleQuality)}的可分解装备。`);
+                }
+                targetIds = matched.map((v) => v.id);
+            } else {
+                targetIds = cmd.itemIds?.length ? cmd.itemIds : cmd.itemId ? [cmd.itemId] : [];
+                if (!targetIds.length) {
+                    return asText('💡 用法：修仙分解 [装备ID...] 或 修仙分解 全部 或 修仙分解 品质 稀有以下');
+                }
+            }
+
+            const equippedIds = new Set(
+                [player.weaponItemId, player.armorItemId, player.accessoryItemId, player.sutraItemId].filter(
+                    (v): v is number => typeof v === 'number',
+                ),
+            );
+            let dismantledCount = 0;
+            let skippedEquipped = 0;
+            let skippedLocked = 0;
+            let skippedMissing = 0;
+            let gainedEssence = 0;
+            const dismantledIds: number[] = [];
+
+            for (const itemId of targetIds) {
+                const item = await repo.findItem(player.id, itemId);
+                if (!item) {
+                    skippedMissing += 1;
+                    continue;
+                }
+                if (equippedIds.has(item.id)) {
+                    skippedEquipped += 1;
+                    continue;
+                }
+                if (item.isLocked > 0) {
+                    skippedLocked += 1;
+                    continue;
+                }
+
+                const refineLevel = (await repo.findItemRefineLevel(player.id, item.id)) ?? 0;
+                const removed = await repo.removeItem(player.id, item.id);
+                if (!removed) {
+                    skippedMissing += 1;
+                    continue;
+                }
+                await repo.clearItemRefine(item.id);
+                dismantledCount += 1;
+                dismantledIds.push(item.id);
+                gainedEssence += refineMaterialGain(item, refineLevel);
+            }
+
+            if (dismantledCount <= 0) {
+                if (skippedEquipped > 0) return asText('🧷 目标装备均为已装备状态，请先「修仙卸装」。');
+                if (skippedLocked > 0) return asText('🔒 目标装备均为锁定状态，解锁后再分解。');
+                return asText('🔎 未找到可分解的装备编号，请先用「修仙背包」查看。');
+            }
+
+            await repo.addRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY, gainedEssence, now);
+            const essenceAfter = await repo.getRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'other',
+                deltaSpiritStone: 0,
+                balanceAfter: player.spiritStone,
+                refType: 'dismantle',
+                refId: dismantledCount === 1 ? dismantledIds[0] : null,
+                idempotencyKey: idemKey,
+                extraJson: JSON.stringify({
+                    materialKey: XIUXIAN_REFINE_MATERIAL_KEY,
+                    materialName: XIUXIAN_REFINE_MATERIAL_LABEL,
+                    gainedEssence,
+                    dismantledCount,
+                    dismantledIds,
+                }),
+                now,
+            });
+            return asText(
+                dismantleResultText({
+                    dismantledCount,
+                    gainedEssence,
+                    essenceAfter,
+                    skippedEquipped,
+                    skippedLocked,
+                    skippedMissing,
+                }),
+            );
+        }
+
+        if (cmd.type === 'refine') {
+            const essence = await repo.getRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY);
+            if (!cmd.itemId) return asText(refineMaterialText(essence));
+
+            const idemKey = `${player.id}:refine:${message.messageId}`;
+            const exists = await repo.findEconomyLogByIdempotency(player.id, idemKey);
+            if (exists) return asText('🧾 该炼器请求已处理，请勿重复提交。');
+
+            const item = await repo.findItem(player.id, cmd.itemId);
+            if (!item) return asText('🔎 未找到该装备编号，请先用「修仙背包」查看。');
+            if (item.isLocked > 0) return asText('🔒 该装备处于锁定状态，解锁后再炼器。');
+
+            const targetTimes = cmd.infinite ? XIUXIAN_REFINE_SAFETY_CAP : Math.min(Math.max(cmd.times ?? 1, 1), 100);
+            const currentLevel = (await repo.findItemRefineLevel(player.id, item.id)) ?? 0;
+
+            let doable = 0;
+            let needEssence = 0;
+            let needStone = 0;
+            let essenceLeft = essence;
+            let stoneLeft = player.spiritStone;
+            let hitSafetyCap = false;
+            for (let i = 0; i < targetTimes; i += 1) {
+                const level = currentLevel + i;
+                const cost = refineCostForLevel(level);
+                if (essenceLeft < cost.essence || stoneLeft < cost.stone) break;
+                essenceLeft -= cost.essence;
+                stoneLeft -= cost.stone;
+                needEssence += cost.essence;
+                needStone += cost.stone;
+                doable += 1;
+            }
+            if (cmd.infinite && doable >= XIUXIAN_REFINE_SAFETY_CAP) hitSafetyCap = true;
+
+            if (doable <= 0) {
+                const nextCost = refineCostForLevel(currentLevel);
+                return asText(
+                    `🧱 炼器材料不足：下一级需要 ${nextCost.essence} ${XIUXIAN_REFINE_MATERIAL_LABEL} + ${nextCost.stone} 灵石（当前 ${essence} / ${player.spiritStone}）。`,
+                );
+            }
+
+            const consumed = await repo.consumeRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY, needEssence, now);
+            if (!consumed) return asText('⚠️ 炼器材料扣除失败，请稍后重试。');
+            const paid = await repo.spendSpiritStone(player.id, needStone, now);
+            if (!paid) {
+                await repo.addRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY, needEssence, now);
+                return asText('💸 灵石不足，炼器已取消。');
+            }
+
+            const newLevel = currentLevel + doable;
+            const updated = await repo.upsertItemRefineLevel(player.id, item.id, newLevel, now);
+            if (!updated) {
+                await repo.addRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY, needEssence, now);
+                await repo.gainSpiritStone(player.id, needStone, now);
+                return asText('⚠️ 装备状态已变更，炼器已回滚。');
+            }
+
+            const latest = await repo.findPlayerById(player.id);
+            const balanceAfter = latest?.spiritStone ?? Math.max(0, player.spiritStone - needStone);
+            const essenceAfter = await repo.getRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'cost',
+                deltaSpiritStone: -needStone,
+                balanceAfter,
+                refType: 'refine',
+                refId: item.id,
+                idempotencyKey: idemKey,
+                extraJson: JSON.stringify({
+                    itemName: item.itemName,
+                    levelBefore: currentLevel,
+                    levelAfter: newLevel,
+                    times: doable,
+                    essenceCost: needEssence,
+                    materialKey: XIUXIAN_REFINE_MATERIAL_KEY,
+                }),
+                now,
+            });
+
+            const body = refineResultText({
+                itemName: item.itemName,
+                itemId: item.id,
+                levelBefore: currentLevel,
+                levelAfter: newLevel,
+                successTimes: doable,
+                essenceCost: needEssence,
+                essenceAfter,
+                stoneCost: needStone,
+                balanceAfter,
+            });
+            if (cmd.infinite) {
+                const tail = hitSafetyCap ? `⛔ 本次已达到单次安全上限 ${XIUXIAN_REFINE_SAFETY_CAP} 次。` : '⏹️ 材料或灵石不足，已自动停止。';
+                return asText(`${body}\n━━━━━━━━━━━━\n${tail}`);
+            }
+            return asText(body);
+        }
+
+        if (cmd.type === 'refineDetail') {
+            if (!cmd.itemId) return asText('💡 用法：修仙炼器详情 [装备ID]');
+            const item = await repo.findItem(player.id, cmd.itemId);
+            if (!item) return asText('🔎 未找到该装备编号，请先用「修仙背包」查看。');
+            const refineLevel = (await repo.findItemRefineLevel(player.id, item.id)) ?? 0;
+            const bonus = refineBonusByLevel(item, refineLevel);
+            const nextCost = refineCostForLevel(refineLevel);
+            const essence = await repo.getRefineMaterial(player.id, XIUXIAN_REFINE_MATERIAL_KEY);
+            return asText(
+                refineDetailText({
+                    itemName: item.itemName,
+                    itemId: item.id,
+                    refineLevel,
+                    bonus,
+                    nextCost,
+                    essence,
+                    spiritStone: player.spiritStone,
+                }),
+            );
+        }
+
         if (cmd.type === 'ledger') {
             const limit = Math.min(Math.max(cmd.limit ?? XIUXIAN_LEDGER_DEFAULT_LIMIT, 1), XIUXIAN_LEDGER_MAX_LIMIT);
             const logs = await repo.listEconomyLogs(player.id, limit);
@@ -1993,7 +2279,8 @@ export async function handleXiuxianCommand(
             const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.bossRaid, now);
             if (left > 0) return asText(cooldownText('讨伐', left));
 
-            const equipped = await repo.getEquippedItems(player);
+            const equippedRaw = await repo.getEquippedItems(player);
+            const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
             const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
             const scopeKey = bossScopeKeyOfMessage(message);
@@ -2134,7 +2421,8 @@ export async function handleXiuxianCommand(
             const progress = await repo.findTowerProgress(player.id);
             const targetFloor = (progress?.highestFloor ?? 0) + 1;
             const enemy = towerEnemy(player.level, targetFloor);
-            const equipped = await repo.getEquippedItems(player);
+            const equippedRaw = await repo.getEquippedItems(player);
+            const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
             const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
             const result = runSimpleBattle(power, enemy);

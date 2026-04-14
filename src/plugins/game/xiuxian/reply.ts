@@ -57,7 +57,15 @@ export function helpText(topic?: string): string {
             '🗡️ 修仙装备 [编号]',
             '🧤 修仙卸装 [武器|护甲|灵宝|法器]',
         ],
-        经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID...] / 修仙出售 全部 / 修仙出售 品质 稀有以上/稀有以下', '📒 修仙流水 [条数]'],
+        经济: [
+            '🏪 修仙商店',
+            '🛍️ 修仙购买 [商品ID]',
+            '💰 修仙出售 [装备ID...] / 修仙出售 全部 / 修仙出售 品质 稀有以上/稀有以下',
+            '🧱 修仙分解 [装备ID...] / 修仙分解 全部 / 修仙分解 品质 稀有以下',
+            '🔥 修仙炼器 [装备ID] [次数|无限]',
+            '🧮 修仙炼器详情 [装备ID]',
+            '📒 修仙流水 [条数]',
+        ],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
@@ -191,7 +199,7 @@ export function bagText(items: XiuxianItem[], page: number, total: number, pageS
     if (!items.length) return '🎒 背包为空，快去探索碰碰运气吧！';
     const lines = items.map(
         (item) =>
-            `#${item.id} ${slotLabel(item.itemType)} | ${item.itemName} ${XIUXIAN_TERMS.item.levelLabel}${item.itemLevel} | ${qualityLabel(item.quality)} | 评分:${item.score}`,
+            `#${item.id} ${slotLabel(item.itemType)} | ${item.itemName} | ${qualityLabel(item.quality)}${item.refineLevel && item.refineLevel > 0 ? ` | 炼器+${item.refineLevel}` : ''} | 评分:${item.score}`,
     );
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const title = filterLabel ? `🎒 背包第 ${page}/${pages} 页（共 ${total} 件，筛选：${filterLabel}）` : `🎒 背包第 ${page}/${pages} 页（共 ${total} 件）`;
@@ -282,6 +290,70 @@ export function sellBatchResultText(params: {
         ...(skipped > 0
             ? [`⏭️ 跳过：${skipped} 件（已装备 ${params.skippedEquipped}，已锁定 ${skippedLocked}，不存在/已处理 ${params.skippedMissing}）`]
             : []),
+    ].join('\n');
+}
+
+export function dismantleResultText(params: {
+    dismantledCount: number;
+    gainedEssence: number;
+    essenceAfter: number;
+    skippedEquipped: number;
+    skippedLocked: number;
+    skippedMissing: number;
+}): string {
+    const skipped = params.skippedEquipped + params.skippedLocked + params.skippedMissing;
+    return [
+        `✅ 分解完成（成功 ${params.dismantledCount} 件）`,
+        '━━━━━━━━━━━━',
+        `🧱 获得玄铁精华：+${params.gainedEssence}`,
+        `🎒 当前玄铁精华：${params.essenceAfter}`,
+        ...(skipped > 0
+            ? [`⏭️ 跳过：${skipped} 件（已装备 ${params.skippedEquipped}，已锁定 ${params.skippedLocked}，不存在/已处理 ${params.skippedMissing}）`]
+            : []),
+    ].join('\n');
+}
+
+export function refineMaterialText(essence: number): string {
+    return ['🔥 炼器材料', '━━━━━━━━━━━━', `🧱 玄铁精华：${essence}`, '💡 炼器：修仙炼器 [装备ID] [次数|无限]'].join('\n');
+}
+
+export function refineResultText(params: {
+    itemName: string;
+    itemId: number;
+    levelBefore: number;
+    levelAfter: number;
+    successTimes: number;
+    essenceCost: number;
+    essenceAfter: number;
+    stoneCost: number;
+    balanceAfter: number;
+}): string {
+    return [
+        `🔥 炼器成功：${params.itemName}(#${params.itemId})`,
+        '━━━━━━━━━━━━',
+        `📈 炼器等级：+${params.successTimes}（${params.levelBefore} -> ${params.levelAfter}）`,
+        `🧱 消耗玄铁精华：${params.essenceCost}（剩余 ${params.essenceAfter}）`,
+        `💎 消耗灵石：${params.stoneCost}（余额 ${params.balanceAfter}）`,
+    ].join('\n');
+}
+
+export function refineDetailText(params: {
+    itemName: string;
+    itemId: number;
+    refineLevel: number;
+    bonus: {attack: number; defense: number; hp: number; dodge: number; crit: number};
+    nextCost: {essence: number; stone: number};
+    essence: number;
+    spiritStone: number;
+}): string {
+    return [
+        `🧮 炼器详情：${params.itemName}(#${params.itemId})`,
+        '━━━━━━━━━━━━',
+        `📈 当前炼器等级：+${params.refineLevel}`,
+        `⚔️ 当前加成：攻+${params.bonus.attack} 防+${params.bonus.defense} 血+${params.bonus.hp} 闪+${(params.bonus.dodge * 100).toFixed(2)}% 暴+${(params.bonus.crit * 100).toFixed(2)}%`,
+        `⬆️ 下一级消耗：🧱${params.nextCost.essence}  💎${params.nextCost.stone}`,
+        `🎒 材料/灵石：🧱${params.essence}  💎${params.spiritStone}`,
+        '💡 炼器：修仙炼器 [装备ID] [次数]',
     ].join('\n');
 }
 
