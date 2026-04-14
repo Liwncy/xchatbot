@@ -75,6 +75,7 @@ import {
     npcEncounterLogText,
     npcEncounterText,
     petAdoptText,
+    petBagText,
     petBattleStateText,
     petFeedText,
     petStatusText,
@@ -100,6 +101,14 @@ import {
     worldBossSelfRankText,
     worldBossStatusText,
 } from './reply.js';
+
+const XIUXIAN_PET_STARTER_ITEM = {
+    itemKey: 'pet-snack-basic',
+    itemName: '灵宠饲丸',
+    feedLevel: 1,
+    feedAffection: 8,
+    quantity: 3,
+};
 
 function identityFromMessage(message: IncomingMessage): XiuxianIdentity {
     return {platform: 'wechat', userId: message.from};
@@ -574,6 +583,36 @@ async function findIncomingPendingBond(repo: XiuxianRepository, playerId: number
     return bond;
 }
 
+async function applyPetBagFeed(
+    repo: XiuxianRepository,
+    player: XiuxianPlayer,
+    pet: {id: number; petName: string; level: number; affection: number},
+    itemId: number,
+    now: number,
+): Promise<HandlerResponse> {
+    const bagItem = await repo.findPetBagItem(player.id, itemId);
+    if (!bagItem || bagItem.quantity <= 0) return asText('🔎 未找到该宠物道具，请先发送「修仙宠包」查看。');
+
+    const consumed = await repo.consumePetBagItem(player.id, bagItem.id, now);
+    if (!consumed) return asText('⚠️ 该宠物道具已被使用，请刷新宠包后重试。');
+
+    const levelAfter = pet.level + Math.max(0, bagItem.feedLevel);
+    const affectionAfter = Math.min(100, pet.affection + Math.max(0, bagItem.feedAffection));
+    await repo.updatePetBagFeed(pet.id, levelAfter, affectionAfter, now);
+    const latest = await repo.findPet(player.id);
+    if (!latest) return asText('⚠️ 喂宠后读取失败，请稍后再试。');
+
+    return asText(
+        [
+            `🧪 使用道具喂宠：${bagItem.itemName}`,
+            '━━━━━━━━━━━━',
+            `📶 ${XIUXIAN_TERMS.pet.currentLevelLabel}：${latest.level}`,
+            `💖 当前亲密：${latest.affection}/100`,
+            `📦 道具剩余：${Math.max(0, bagItem.quantity - 1)}`,
+        ].join('\n'),
+    );
+}
+
 async function ensureTaskDefs(repo: XiuxianRepository, now: number): Promise<void> {
     await repo.upsertTaskDef({
         code: 'daily_checkin_1',
@@ -965,8 +1004,6 @@ export async function handleXiuxianCommand(
         }
 
         if (cmd.type === 'petAdopt') {
-            const existed = await repo.findPet(player.id);
-            if (existed) return asText(`🐾 你已经拥有灵宠：${existed.petName}`);
             const pool = [
                 {name: '灵狐', type: '灵兽'},
                 {name: '玄龟', type: '守护'},
@@ -975,21 +1012,35 @@ export async function handleXiuxianCommand(
             ];
             const roll = pool[Math.floor(Math.random() * pool.length)];
             const pet = await repo.createPet(player.id, roll.name, roll.type, now);
+            await repo.addPetBagItem(player.id, XIUXIAN_PET_STARTER_ITEM, now);
             return asText(petAdoptText(pet));
         }
 
         if (cmd.type === 'petStatus') {
-            const pet = await repo.findPet(player.id);
+            const pet = cmd.petId ? await repo.findPetById(player.id, cmd.petId) : await repo.findPet(player.id);
             if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
             const bonus = petCombatBonus(pet);
-            return asText(petStatusText(pet, {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp}));
+            const allPets = await repo.listPets(player.id);
+            const summary = allPets
+                .slice(0, 5)
+                .map((p) => `#${p.id} ${p.petName}${p.inBattle === 1 ? '（出战）' : ''}`)
+                .join('，');
+            const panel = petStatusText(pet, {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp});
+            return asText(`${panel}\n━━━━━━━━━━━━\n📚 灵宠列表：${summary || '暂无'}\n💡 查看指定宠物：修仙宠物 [编号]`);
+        }
+
+        if (cmd.type === 'petBag') {
+            const page = Math.max(1, cmd.page ?? 1);
+            const total = await repo.countPetBag(player.id);
+            const items = await repo.listPetBag(player.id, page, XIUXIAN_PAGE_SIZE);
+            return asText(petBagText(items, page, total, XIUXIAN_PAGE_SIZE));
         }
 
         if (cmd.type === 'petDeploy') {
-            const pet = await repo.findPet(player.id);
+            const pet = cmd.petId ? await repo.findPetById(player.id, cmd.petId) : await repo.findPet(player.id);
             if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
             if (pet.inBattle === 1) return asText(`⚔️ ${pet.petName} 当前已经是出战状态。`);
-            await repo.updatePetBattleState(pet.id, 1, now);
+            await repo.deployPetById(player.id, pet.id, now);
             return asText(petBattleStateText(pet.petName, true));
         }
 
@@ -1004,6 +1055,7 @@ export async function handleXiuxianCommand(
         if (cmd.type === 'petFeed') {
             const pet = await repo.findPet(player.id);
             if (!pet) return asText('🐾 你还没有灵宠，发送「修仙领宠」即可获得首只灵宠。');
+            if (cmd.itemId) return applyPetBagFeed(repo, player, pet, cmd.itemId, now);
             const dayKey = dayKeyOf(now);
             if (pet.lastFedDay === dayKey) return asText('🍼 今日已喂宠，明日再来吧。');
 

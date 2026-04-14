@@ -195,11 +195,17 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙领宠') return {type: 'petAdopt'};
 
-    if (text === '修仙宠物') return {type: 'petStatus'};
+    const petStatusMatch = text.match(/^修仙宠物(?:\s+(\d+))?$/);
+    if (petStatusMatch) return {type: 'petStatus', petId: parsePositiveInt(petStatusMatch[1])};
 
-    if (text === '修仙喂宠') return {type: 'petFeed'};
+    const petBagMatch = text.match(/^修仙宠包(?:\s+(\d+))?$/);
+    if (petBagMatch) return {type: 'petBag', page: parsePositiveInt(petBagMatch[1])};
 
-    if (text === '修仙出宠') return {type: 'petDeploy'};
+    const petFeedMatch = text.match(/^修仙喂宠(?:\s+(\d+))?$/);
+    if (petFeedMatch) return {type: 'petFeed', itemId: parsePositiveInt(petFeedMatch[1])};
+
+    const petDeployMatch = text.match(/^修仙出宠(?:\s+(\d+))?$/);
+    if (petDeployMatch) return {type: 'petDeploy', petId: parsePositiveInt(petDeployMatch[1])};
 
     if (text === '修仙休宠') return {type: 'petRest'};
 

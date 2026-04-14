@@ -38,9 +38,10 @@ export type XiuxianCommand =
     | {type: 'towerSeasonReward'}
     | {type: 'towerSeasonClaim'}
     | {type: 'petAdopt'}
-    | {type: 'petStatus'}
-    | {type: 'petFeed'}
-    | {type: 'petDeploy'}
+    | {type: 'petStatus'; petId?: number}
+    | {type: 'petBag'; page?: number}
+    | {type: 'petFeed'; itemId?: number}
+    | {type: 'petDeploy'; petId?: number}
     | {type: 'petRest'}
     | {type: 'npcEncounter'}
     | {type: 'npcEncounterLog'; page?: number}
@@ -301,6 +302,18 @@ export interface XiuxianPet {
     feedCount: number;
     lastFedDay: string | null;
     inBattle: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianPetBagItem {
+    id: number;
+    playerId: number;
+    itemKey: string;
+    itemName: string;
+    feedLevel: number;
+    feedAffection: number;
+    quantity: number;
     createdAt: number;
     updatedAt: number;
 }

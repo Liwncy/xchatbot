@@ -10,6 +10,7 @@ import type {
     XiuxianPlayer,
     XiuxianPlayerAchievement,
     XiuxianPlayerTask,
+    XiuxianPetBagItem,
     XiuxianShopOffer,
     XiuxianTaskDef,
     XiuxianTowerRankRow,
@@ -60,7 +61,7 @@ export function helpText(topic?: string): string {
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
-        灵宠: ['🐾 修仙领宠', '🐶 修仙宠物', '🍼 修仙喂宠', '⚔️ 修仙出宠', '🛌 修仙休宠'],
+        灵宠: ['🐾 修仙领宠', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
         战报: ['📚 修仙战报 [页码]', '🔎 修仙战详 [战报ID]'],
     };
 
@@ -624,12 +625,12 @@ export function petAdoptText(pet: {petName: string; petType: string; level: numb
 }
 
 export function petStatusText(
-    pet: {petName: string; petType: string; level: number; affection: number; feedCount: number; inBattle?: number},
+    pet: {id?: number; petName: string; petType: string; level: number; affection: number; feedCount: number; inBattle?: number},
     combat?: {attack: number; defense: number; hp: number},
 ): string {
     const bonusStone = Math.floor(pet.level / 5) + (pet.affection >= 50 ? 1 : 0);
     return [
-        `🐶 灵宠面板：${pet.petName}`,
+        `🐶 灵宠面板：${pet.petName}${pet.id ? `（#${pet.id}）` : ''}`,
         '━━━━━━━━━━━━',
         `🧬 类型：${pet.petType}`,
         `📶 ${XIUXIAN_TERMS.pet.levelLabel}：${pet.level}`,
@@ -638,8 +639,15 @@ export function petStatusText(
         `🚩 当前状态：${pet.inBattle === 0 ? '休战' : '出战'}`,
         `✨ 修炼加成：灵石 +${bonusStone}/次`,
         ...(combat ? [`⚔️ 战斗加成：攻+${combat.attack} 防+${combat.defense} 血+${combat.hp}`] : []),
-        `💡 发送「修仙喂宠」可提升${XIUXIAN_TERMS.pet.levelLabel}；发送「修仙出宠/修仙休宠」切换战斗状态`,
+        `💡 发送「修仙喂宠」可提升${XIUXIAN_TERMS.pet.levelLabel}；发送「修仙出宠 [编号]」切换出战宠物`,
     ].join('\n');
+}
+
+export function petBagText(items: XiuxianPetBagItem[], page: number, total: number, pageSize: number): string {
+    if (!items.length) return '🎒 宠物背包为空，先去领宠或参与活动获取道具吧。';
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    const lines = items.map((it) => `#${it.id} ${it.itemName} x${it.quantity} | 宠物等级+${it.feedLevel} | 亲密+${it.feedAffection}`);
+    return [`🎒 宠物背包第 ${page}/${pages} 页（共 ${total} 件）`, '━━━━━━━━━━━━', ...lines, '💡 使用：修仙喂宠 [道具ID]'].join('\n');
 }
 
 export function petBattleStateText(petName: string, inBattle: boolean): string {

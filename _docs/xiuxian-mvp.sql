@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS xiuxian_tower_season_claims (
 
 CREATE TABLE IF NOT EXISTS xiuxian_pets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  player_id INTEGER NOT NULL UNIQUE,
+  player_id INTEGER NOT NULL,
   pet_name TEXT NOT NULL,
   pet_type TEXT NOT NULL,
   level INTEGER NOT NULL DEFAULT 1,
@@ -280,6 +280,20 @@ CREATE TABLE IF NOT EXISTS xiuxian_pets (
   in_battle INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_pet_bag (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  item_key TEXT NOT NULL,
+  item_name TEXT NOT NULL,
+  feed_level INTEGER NOT NULL DEFAULT 0,
+  feed_affection INTEGER NOT NULL DEFAULT 0,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(player_id, item_key),
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
@@ -363,6 +377,9 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_logs_player_time ON xiuxian_tower_l
 CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_rank ON xiuxian_tower_season_progress(season_key, highest_floor DESC, updated_at ASC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_tower_season_claims_player ON xiuxian_tower_season_claims(player_id, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pets_level ON xiuxian_pets(level DESC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pets_player ON xiuxian_pets(player_id, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_pets_active_unique ON xiuxian_pets(player_id) WHERE in_battle = 1;
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_bag_player ON xiuxian_pet_bag(player_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_pet_milestone_player ON xiuxian_pet_milestone_claims(player_id, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_npc_encounters_player_time ON xiuxian_npc_encounters(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_requester ON xiuxian_bonds(requester_id, status, updated_at DESC);

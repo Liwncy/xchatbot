@@ -21,6 +21,7 @@ import type {
     XiuxianPlayer,
     XiuxianPlayerTask,
     XiuxianPet,
+    XiuxianPetBagItem,
     XiuxianShopOffer,
     XiuxianTaskDef,
     XiuxianTowerLog,
@@ -308,6 +309,20 @@ function toPet(row: Record<string, unknown>): XiuxianPet {
         feedCount: Number(row.feed_count),
         lastFedDay: row.last_fed_day == null ? null : String(row.last_fed_day),
         inBattle: Number(row.in_battle ?? 1),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toPetBagItem(row: Record<string, unknown>): XiuxianPetBagItem {
+    return {
+        id: Number(row.id),
+        playerId: Number(row.player_id),
+        itemKey: String(row.item_key),
+        itemName: String(row.item_name),
+        feedLevel: Number(row.feed_level),
+        feedAffection: Number(row.feed_affection),
+        quantity: Number(row.quantity),
         createdAt: Number(row.created_at),
         updatedAt: Number(row.updated_at),
     };
@@ -1647,6 +1662,7 @@ export class XiuxianRepository {
             .prepare(
                 `SELECT * FROM xiuxian_pets
                  WHERE player_id = ?1
+                 ORDER BY in_battle DESC, updated_at DESC, id DESC
                  LIMIT 1`,
             )
             .bind(playerId)
@@ -1654,18 +1670,141 @@ export class XiuxianRepository {
         return row ? toPet(row) : null;
     }
 
+    async findPetById(playerId: number, petId: number): Promise<XiuxianPet | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pets
+                 WHERE player_id = ?1 AND id = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, petId)
+            .first<Record<string, unknown>>();
+        return row ? toPet(row) : null;
+    }
+
+    async listPets(playerId: number): Promise<XiuxianPet[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pets
+                 WHERE player_id = ?1
+                 ORDER BY in_battle DESC, updated_at DESC, id DESC`,
+            )
+            .bind(playerId)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toPet);
+    }
+
     async createPet(playerId: number, petName: string, petType: string, now: number): Promise<XiuxianPet> {
+        const active = await this.findPet(playerId);
+        const inBattle = active ? 0 : 1;
         await this.db
             .prepare(
                 `INSERT INTO xiuxian_pets (
                     player_id, pet_name, pet_type, level, affection, feed_count, last_fed_day, in_battle, created_at, updated_at
-                ) VALUES (?1, ?2, ?3, 1, 0, 0, NULL, 1, ?4, ?4)`,
+                ) VALUES (?1, ?2, ?3, 1, 0, 0, NULL, ?4, ?5, ?5)`,
             )
-            .bind(playerId, petName, petType, now)
+            .bind(playerId, petName, petType, inBattle, now)
             .run();
-        const pet = await this.findPet(playerId);
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pets
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT 1`,
+            )
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        const pet = row ? toPet(row) : null;
         if (!pet) throw new Error('创建宠物后读取失败');
         return pet;
+    }
+
+    async deployPetById(playerId: number, petId: number, now: number): Promise<boolean> {
+        const target = await this.findPetById(playerId, petId);
+        if (!target) return false;
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_pets
+                 SET in_battle = CASE WHEN id = ?2 THEN 1 ELSE 0 END,
+                     updated_at = ?3
+                 WHERE player_id = ?1`,
+            )
+            .bind(playerId, petId, now)
+            .run();
+        return true;
+    }
+
+    async addPetBagItem(
+        playerId: number,
+        item: {itemKey: string; itemName: string; feedLevel: number; feedAffection: number; quantity: number},
+        now: number,
+    ): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_pet_bag (
+                    player_id, item_key, item_name, feed_level, feed_affection, quantity, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+                ON CONFLICT(player_id, item_key)
+                DO UPDATE SET
+                    item_name = excluded.item_name,
+                    feed_level = excluded.feed_level,
+                    feed_affection = excluded.feed_affection,
+                    quantity = xiuxian_pet_bag.quantity + excluded.quantity,
+                    updated_at = excluded.updated_at`,
+            )
+            .bind(playerId, item.itemKey, item.itemName, item.feedLevel, item.feedAffection, item.quantity, now)
+            .run();
+    }
+
+    async listPetBag(playerId: number, page: number, pageSize: number): Promise<XiuxianPetBagItem[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pet_bag
+                 WHERE player_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(playerId, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toPetBagItem);
+    }
+
+    async countPetBag(playerId: number): Promise<number> {
+        const row = await this.db
+            .prepare('SELECT COUNT(1) AS cnt FROM xiuxian_pet_bag WHERE player_id = ?1 AND quantity > 0')
+            .bind(playerId)
+            .first<Record<string, unknown>>();
+        return Number(row?.cnt ?? 0);
+    }
+
+    async findPetBagItem(playerId: number, itemId: number): Promise<XiuxianPetBagItem | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pet_bag
+                 WHERE player_id = ?1 AND id = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, itemId)
+            .first<Record<string, unknown>>();
+        return row ? toPetBagItem(row) : null;
+    }
+
+    async consumePetBagItem(playerId: number, itemId: number, now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_pet_bag
+                 SET quantity = quantity - 1,
+                     updated_at = ?3
+                 WHERE player_id = ?1 AND id = ?2 AND quantity > 0`,
+            )
+            .bind(playerId, itemId, now)
+            .run();
+        await this.db
+            .prepare('DELETE FROM xiuxian_pet_bag WHERE player_id = ?1 AND id = ?2 AND quantity <= 0')
+            .bind(playerId, itemId)
+            .run();
+        return changedRows(result) > 0;
     }
 
     async updatePetFeed(petId: number, dayKey: string, now: number): Promise<void> {
@@ -1680,6 +1819,20 @@ export class XiuxianRepository {
                  WHERE id = ?1`,
             )
             .bind(petId, dayKey, now)
+            .run();
+    }
+
+    async updatePetBagFeed(petId: number, level: number, affection: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_pets
+                 SET level = ?2,
+                     affection = ?3,
+                     feed_count = feed_count + 1,
+                     updated_at = ?4
+                 WHERE id = ?1`,
+            )
+            .bind(petId, level, affection, now)
             .run();
     }
 
