@@ -17,6 +17,7 @@ import type {
 } from './types.js';
 import {XIUXIAN_TERMS} from './constants.js';
 import {formatRealm, realmName} from './realm.js';
+import {formatBeijingTime} from './time.js';
 
 function qualityLabel(raw: string): string {
     if (raw === 'mythic') return '神话(红)';
@@ -196,7 +197,7 @@ export function bagText(items: XiuxianItem[], page: number, total: number, pageS
 export function battleLogText(logs: XiuxianBattle[], page: number, pageSize: number): string {
     if (!logs.length) return '📚 暂无战报，先去「修仙挑战」试试身手吧。';
     const lines = logs.map((it) => {
-        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const dt = formatBeijingTime(it.createdAt);
         return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} ${it.enemyName}（${realmName(it.enemyLevel)}） | ${it.rounds}回合 | ${dt}`;
     });
     return [`📚 战报第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 查看详情：修仙战详 [战报ID]'].join('\n');
@@ -233,7 +234,7 @@ export function cooldownText(actionLabel: string, leftMs: number): string {
 
 export function shopText(offers: XiuxianShopOffer[]): string {
     if (!offers.length) return '🏪 商店暂无商品，请稍后再试。';
-    const expiresAt = new Date(offers[0].expiresAt).toLocaleString('zh-CN', {hour12: false});
+    const expiresAt = formatBeijingTime(offers[0].expiresAt);
     const lines = offers.map((offer) => {
         let itemName = '未知法宝';
         let score = 0;
@@ -262,7 +263,7 @@ export function sellResultText(itemName: string, gain: number, balanceAfter: num
 export function economyLogText(logs: XiuxianEconomyLog[], limit: number): string {
     if (!logs.length) return '📒 暂无经济流水。';
     const lines = logs.map((it) => {
-        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const dt = formatBeijingTime(it.createdAt);
         const sign = it.deltaSpiritStone >= 0 ? '+' : '';
         const action = it.bizType === 'buy' ? '购买' : it.bizType === 'sell' ? '出售' : it.bizType;
         return `#${it.id} ${action} ${sign}${it.deltaSpiritStone} | 余额:${it.balanceAfter} | ${dt}`;
@@ -418,7 +419,7 @@ export function worldBossRankText(
         : '🙋 你尚未上榜，发送「修仙讨伐」参与本轮挑战';
     const killInfo =
         extra?.killerName && extra.defeatedAt
-            ? `☠️ 尾刀：${extra.killerName} | 🕒 击杀时间：${new Date(extra.defeatedAt).toLocaleString('zh-CN', {hour12: false})} | ⌛ 重生：${extra.respawnLeftSec ?? 0}s`
+            ? `☠️ 尾刀：${extra.killerName} | 🕒 击杀时间：${formatBeijingTime(extra.defeatedAt)} | ⌛ 重生：${extra.respawnLeftSec ?? 0}s`
             : '☠️ 本轮BOSS尚未被击杀';
     return [
         `🏅 世界BOSS贡献榜（Top ${extra?.limit ?? rows.length}）`,
@@ -526,7 +527,7 @@ export function towerSeasonStatusText(params: {
     return [
         `🕰️ 赛季状态：${params.seasonKey}`,
         '━━━━━━━━━━━━',
-        `📅 结算时间：${new Date(params.settleAt).toLocaleString('zh-CN', {hour12: false})}`,
+        `📅 结算时间：${formatBeijingTime(params.settleAt)}`,
         `⌛ 剩余时间：${params.countdown}`,
         `📦 上赛季：${params.prevSeasonKey}`,
         `🏅 上赛季排名：${params.prevRank ? `第 ${params.prevRank} 名` : '未上榜'}`,
@@ -685,7 +686,7 @@ export function npcEncounterLogText(
 ): string {
     if (!logs.length) return '📜 暂无奇遇记录，先发送「修仙奇遇」吧。';
     const lines = logs.map((it) => {
-        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const dt = formatBeijingTime(it.createdAt);
         return `#${it.id} ${it.eventTitle}（${it.eventTier}） | ${it.dayKey} | ${dt}`;
     });
     return [`📜 奇遇记录第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines].join('\n');
@@ -733,7 +734,7 @@ export function bondLogText(
 ): string {
     if (!logs.length) return '📖 暂无情缘记录，先发送「修仙结缘」吧。';
     const lines = logs.map((it) => {
-        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const dt = formatBeijingTime(it.createdAt);
         return `#${it.id} ${it.action} | 亲密+${it.deltaIntimacy} | ${dt}`;
     });
     return [`📖 情录第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines].join('\n');
@@ -746,7 +747,7 @@ export function towerLogText(
 ): string {
     if (!logs.length) return '📜 暂无爬塔战报，先发送「修仙爬塔」挑战吧。';
     const lines = logs.map((it) => {
-        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const dt = formatBeijingTime(it.createdAt);
         return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} 第${it.floor}层 | ${it.rounds}回合 | ${dt}`;
     });
     return [`📜 塔战报第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 详情：修仙塔详 [战报ID]'].join('\n');
@@ -771,7 +772,7 @@ export function towerDetailText(log: {id: number; floor: number; result: 'win' |
 export function bossLogText(logs: XiuxianBossLog[], page: number, pageSize: number): string {
     if (!logs.length) return '📘 暂无BOSS战报，先发送「修仙讨伐」吧。';
     const lines = logs.map((it) => {
-        const dt = new Date(it.createdAt).toLocaleString('zh-CN', {hour12: false});
+        const dt = formatBeijingTime(it.createdAt);
         return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} ${it.bossName} | ${it.rounds}回合 | ${dt}`;
     });
     return [`📘 BOSS战报第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 详情：修仙伐详 [战报ID]'].join('\n');
