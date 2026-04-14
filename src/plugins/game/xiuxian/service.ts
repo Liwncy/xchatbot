@@ -527,6 +527,46 @@ function parseJsonRecord(raw: string): Record<string, unknown> {
     }
 }
 
+function extractGroupMentionedUserIds(message: IncomingMessage): string[] {
+    if (message.source !== 'group') return [];
+    const raw = message.raw as {new_messages?: Array<{msg_id?: number; new_msg_id?: number; msg_source?: string}>} | null;
+    const items = Array.isArray(raw?.new_messages) ? raw.new_messages : [];
+    if (!items.length) return [];
+
+    const target = items.find(
+        (it) => String(it?.msg_id ?? '') === message.messageId || String(it?.new_msg_id ?? '') === message.messageId,
+    ) ?? items[0];
+    const source = String(target?.msg_source ?? '');
+    if (!source) return [];
+
+    const match = source.match(/<atuserlist>([\s\S]*?)<\/atuserlist>/i);
+    if (!match?.[1]) return [];
+    return match[1]
+        .split(',')
+        .map((v) => v.trim())
+        .filter((v) => Boolean(v) && v !== 'notify@all');
+}
+
+function resolveBondTarget(message: IncomingMessage, rawInput?: string): {targetUserId?: string; error?: string} {
+    const input = (rawInput ?? '').trim();
+    const mentioned = extractGroupMentionedUserIds(message);
+
+    if (mentioned.length > 1) {
+        return {error: '⚠️ 结缘一次仅支持 @1 位道友，请重新发送。'};
+    }
+    if (mentioned.length === 1) {
+        return {targetUserId: mentioned[0]};
+    }
+
+    if (!input) {
+        return {error: '💡 用法：修仙结缘 @对方（群聊） 或 修仙结缘 对方wxid'};
+    }
+    if (input.startsWith('@')) {
+        return {error: '⚠️ 未解析到被 @ 的道友，请在群里使用 @ 选择成员后重试。'};
+    }
+    return {targetUserId: input};
+}
+
 async function ensureTaskDefs(repo: XiuxianRepository, now: number): Promise<void> {
     await repo.upsertTaskDef({
         code: 'daily_checkin_1',
@@ -661,8 +701,10 @@ export async function handleXiuxianCommand(
         if (!player) return asText('🌱 你还没有角色，先发送：修仙创建 [名字]');
 
         if (cmd.type === 'bond') {
-            const targetUserId = cmd.targetUserId?.trim();
-            if (!targetUserId) return asText('💡 用法：修仙结缘 对方wxid');
+            const resolved = resolveBondTarget(message, cmd.targetUserId);
+            if (resolved.error) return asText(resolved.error);
+            const targetUserId = resolved.targetUserId;
+            if (!targetUserId) return asText('💡 用法：修仙结缘 @对方（群聊） 或 修仙结缘 对方wxid');
             if (targetUserId === player.userId) return asText('😅 不能和自己结缘哦。');
 
             const target = await repo.findPlayerByPlatformUserId('wechat', targetUserId);

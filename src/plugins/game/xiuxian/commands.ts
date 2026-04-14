@@ -208,7 +208,7 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const encounterLogMatch = text.match(/^修仙奇录(?:\s+(\d+))?$/);
     if (encounterLogMatch) return {type: 'npcEncounterLog', page: parsePositiveInt(encounterLogMatch[1])};
 
-    const bondMatch = text.match(/^修仙结缘(?:\s+(.+))?$/);
+    const bondMatch = text.match(/^修仙结缘(?:\s*(.+))?$/);
     if (bondMatch) return {type: 'bond', targetUserId: bondMatch[1]?.trim() || undefined};
 
     if (text === '修仙解缘') return {type: 'bondBreak'};
