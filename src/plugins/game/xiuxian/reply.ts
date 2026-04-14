@@ -57,7 +57,7 @@ export function helpText(topic?: string): string {
             '🗡️ 修仙装备 [编号]',
             '🧤 修仙卸装 [武器|护甲|灵宝|法器]',
         ],
-        经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID]', '📒 修仙流水 [条数]'],
+        经济: ['🏪 修仙商店', '🛍️ 修仙购买 [商品ID]', '💰 修仙出售 [装备ID...] / 修仙出售 全部 / 修仙出售 品质 稀有以上/稀有以下', '📒 修仙流水 [条数]'],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
@@ -262,6 +262,27 @@ export function buyResultText(offer: XiuxianShopOffer, itemName: string, balance
 
 export function sellResultText(itemName: string, gain: number, balanceAfter: number): string {
     return ['✅ 出售成功', '━━━━━━━━━━━━', `📦 出售：${itemName}`, `💰 获得：${gain} 灵石`, `💎 余额：${balanceAfter}`].join('\n');
+}
+
+export function sellBatchResultText(params: {
+    soldCount: number;
+    gain: number;
+    balanceAfter: number;
+    skippedEquipped: number;
+    skippedMissing: number;
+    skippedLocked?: number;
+}): string {
+    const skippedLocked = params.skippedLocked ?? 0;
+    const skipped = params.skippedEquipped + params.skippedMissing + skippedLocked;
+    return [
+        `✅ 批量出售完成（成功 ${params.soldCount} 件）`,
+        '━━━━━━━━━━━━',
+        `💰 合计获得：${params.gain} 灵石`,
+        `💎 当前余额：${params.balanceAfter}`,
+        ...(skipped > 0
+            ? [`⏭️ 跳过：${skipped} 件（已装备 ${params.skippedEquipped}，已锁定 ${skippedLocked}，不存在/已处理 ${params.skippedMissing}）`]
+            : []),
+    ].join('\n');
 }
 
 export function economyLogText(logs: XiuxianEconomyLog[], limit: number): string {

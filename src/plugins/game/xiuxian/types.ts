@@ -16,7 +16,7 @@ export type XiuxianCommand =
     | {type: 'battleDetail'; battleId: number}
     | {type: 'shop'}
     | {type: 'buy'; offerId: number}
-    | {type: 'sell'; itemId: number}
+    | {type: 'sell'; itemId?: number; itemIds?: number[]; sellAll?: boolean; sellQuality?: XiuxianItemQuality; sellQualityMode?: 'exact' | 'at_least' | 'at_most'}
     | {type: 'ledger'; limit?: number}
     | {type: 'checkin'}
     | {type: 'task'; onlyClaimable?: boolean}

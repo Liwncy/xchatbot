@@ -81,7 +81,7 @@ export function exploreDropHintText(): string {
     const total = QUALITY_ORDER.reduce((acc, key) => acc + QUALITY_WEIGHT[key], 0);
     const highTier = QUALITY_WEIGHT.epic + QUALITY_WEIGHT.legendary + QUALITY_WEIGHT.mythic;
     const highTierRate = ((highTier / total) * 100).toFixed(1);
-    return `💡 掉装率约 65%，其中高品质（紫/金/红）约 ${highTierRate}%；当前版本暂未开放保底。`;
+    return `💡 掉装率约 65%，其中高品质（紫/金/红）约 ${highTierRate}%。`;
 }
 
 function randomInt(min: number, max: number): number {

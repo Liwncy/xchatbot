@@ -81,6 +81,7 @@ import {
     petBagText,
     petBattleStateText,
     petFeedText,
+    sellBatchResultText,
     petStatusText,
     sellResultText,
     shopText,
@@ -328,6 +329,15 @@ function qualityLabel(quality: XiuxianItemQuality): string {
     if (quality === 'uncommon') return '优秀(绿)';
     return '普通(白)';
 }
+
+const QUALITY_RANK: Record<XiuxianItemQuality, number> = {
+    common: 1,
+    uncommon: 2,
+    rare: 3,
+    epic: 4,
+    legendary: 5,
+    mythic: 6,
+};
 
 async function ensureShopOffers(repo: XiuxianRepository, player: XiuxianPlayer, now: number): Promise<XiuxianShopOffer[]> {
     const active = await repo.listShopOffers(player.id, now);
@@ -1689,33 +1699,114 @@ export async function handleXiuxianCommand(
                 return asText('🧾 该出售请求已处理，请勿重复提交。');
             }
 
-            const item = await repo.findItem(player.id, cmd.itemId);
-            if (!item) return asText('🔎 未找到该装备编号，请先用「修仙背包」查看。');
-
-            const equippedIds = [player.weaponItemId, player.armorItemId, player.accessoryItemId, player.sutraItemId];
-            if (equippedIds.includes(item.id)) {
-                return asText('🧷 已装备的物品无法出售，请先「修仙卸装」。');
+            let targetIds: number[] = [];
+            if (cmd.sellAll) {
+                const total = await repo.countInventory(player.id);
+                if (total <= 0) return asText('🎒 背包暂无可出售装备。');
+                const all = await repo.listInventory(player.id, 1, total);
+                targetIds = all.map((v) => v.id);
+            } else if (cmd.sellQuality) {
+                const total = await repo.countInventory(player.id);
+                if (total <= 0) return asText('🎒 背包暂无可出售装备。');
+                const all = await repo.listInventory(player.id, 1, total);
+                const baseRank = QUALITY_RANK[cmd.sellQuality];
+                const matched = all.filter((item) => {
+                    if (cmd.sellQualityMode === 'at_least') return QUALITY_RANK[item.quality] >= baseRank;
+                    if (cmd.sellQualityMode === 'at_most') return QUALITY_RANK[item.quality] <= baseRank;
+                    return item.quality === cmd.sellQuality;
+                });
+                if (!matched.length) {
+                    const modeLabel = cmd.sellQualityMode === 'at_least' ? '至少' : cmd.sellQualityMode === 'at_most' ? '至多' : '';
+                    return asText(
+                        `🔎 未找到品质为${modeLabel}${qualityLabel(cmd.sellQuality)}的可出售装备。`,
+                    );
+                }
+                targetIds = matched.map((v) => v.id);
+            } else {
+                targetIds = cmd.itemIds?.length ? cmd.itemIds : cmd.itemId ? [cmd.itemId] : [];
+                if (!targetIds.length) {
+                    return asText('💡 用法：修仙出售 [装备ID...] 或 修仙出售 全部 或 修仙出售 品质 稀有以上/稀有以下');
+                }
             }
 
-            const gain = calcSellPrice(item);
-            const removed = await repo.removeItem(player.id, item.id);
-            if (!removed) return asText('⚠️ 该装备已被处理，请刷新背包后重试。');
+            const equippedIds = new Set([player.weaponItemId, player.armorItemId, player.accessoryItemId, player.sutraItemId].filter((v): v is number => typeof v === 'number'));
+            let soldCount = 0;
+            let skippedEquipped = 0;
+            let skippedLocked = 0;
+            let skippedMissing = 0;
+            let gainTotal = 0;
+            const soldItems: Array<{id: number; itemName: string; score: number}> = [];
 
-            await repo.gainSpiritStone(player.id, gain, now);
+            for (const itemId of targetIds) {
+                const item = await repo.findItem(player.id, itemId);
+                if (!item) {
+                    skippedMissing += 1;
+                    continue;
+                }
+                if (equippedIds.has(item.id)) {
+                    skippedEquipped += 1;
+                    continue;
+                }
+                if (item.isLocked > 0) {
+                    skippedLocked += 1;
+                    continue;
+                }
+
+                const removed = await repo.removeItem(player.id, item.id);
+                if (!removed) {
+                    skippedMissing += 1;
+                    continue;
+                }
+
+                const gain = calcSellPrice(item);
+                gainTotal += gain;
+                soldCount += 1;
+                soldItems.push({id: item.id, itemName: item.itemName, score: item.score});
+            }
+
+            if (soldCount <= 0) {
+                if (skippedEquipped > 0) return asText('🧷 目标装备均为已装备状态，请先「修仙卸装」。');
+                if (skippedLocked > 0) return asText('🔒 目标装备均为锁定状态，解锁后再出售。');
+                return asText('🔎 未找到可出售的装备编号，请先用「修仙背包」查看。');
+            }
+
+            await repo.gainSpiritStone(player.id, gainTotal, now);
             const latest = await repo.findPlayerById(player.id);
-            const balanceAfter = latest?.spiritStone ?? player.spiritStone + gain;
+            const balanceAfter = latest?.spiritStone ?? player.spiritStone + gainTotal;
+            const primary = soldItems[0];
             await repo.createEconomyLog({
                 playerId: player.id,
                 bizType: 'sell',
-                deltaSpiritStone: gain,
+                deltaSpiritStone: gainTotal,
                 balanceAfter,
-                refType: 'inventory_item',
-                refId: item.id,
+                refType: soldCount > 1 ? 'inventory_item_batch' : 'inventory_item',
+                refId: soldCount > 1 ? null : primary.id,
                 idempotencyKey: idemKey,
-                extraJson: JSON.stringify({itemName: item.itemName, score: item.score}),
+                extraJson: JSON.stringify(
+                    soldCount > 1
+                        ? {
+                              soldCount,
+                              soldItemIds: soldItems.map((v) => v.id),
+                              soldItemNames: soldItems.map((v) => v.itemName),
+                          }
+                        : {itemName: primary.itemName, score: primary.score},
+                ),
                 now,
             });
-            return asText(sellResultText(item.itemName, gain, balanceAfter));
+
+            if (soldCount === 1 && !cmd.sellAll && targetIds.length === 1) {
+                return asText(sellResultText(primary.itemName, gainTotal, balanceAfter));
+            }
+            return asText(
+                sellBatchResultText({
+                    soldCount,
+                    gain: gainTotal,
+                    balanceAfter,
+                    skippedEquipped,
+                    skippedLocked,
+                    skippedMissing,
+                }),
+            );
         }
 
         if (cmd.type === 'ledger') {

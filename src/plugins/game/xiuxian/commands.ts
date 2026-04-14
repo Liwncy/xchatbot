@@ -1,4 +1,4 @@
-import type {EquipmentSlot, XiuxianCommand} from './types.js';
+import type {EquipmentSlot, XiuxianCommand, XiuxianItemQuality} from './types.js';
 
 function parsePositiveInt(raw: string | undefined): number | undefined {
     if (!raw) return undefined;
@@ -82,6 +82,33 @@ function parseTowerSeasonRankArgs(raw: string | undefined): {limit?: number; sel
     return out;
 }
 
+function parseQualityKeyword(raw: string): XiuxianItemQuality | null {
+    const key = raw.trim().toLowerCase();
+    if (key === '普通' || key === '白' || key === 'common') return 'common';
+    if (key === '优秀' || key === '精良' || key === '绿' || key === 'uncommon') return 'uncommon';
+    if (key === '稀有' || key === '蓝' || key === 'rare') return 'rare';
+    if (key === '史诗' || key === '紫' || key === 'epic') return 'epic';
+    if (key === '传说' || key === '金' || key === 'legendary') return 'legendary';
+    if (key === '神话' || key === '红' || key === 'mythic') return 'mythic';
+    return null;
+}
+
+function parseSellQualityArg(raw: string): {sellQuality?: XiuxianItemQuality; sellQualityMode?: 'exact' | 'at_least' | 'at_most'} | null {
+    const plain = raw.trim().replace(/\s+/g, '');
+    if (!plain) return null;
+    const withPrefix = plain.startsWith('品质') ? plain.slice(2) : plain;
+    if (!withPrefix) return null;
+
+    const atLeast = withPrefix.endsWith('以上') || withPrefix.endsWith('及以上');
+    const atMost = withPrefix.endsWith('以下') || withPrefix.endsWith('及以下');
+    const qualityRaw = atLeast ? withPrefix.replace(/(及)?以上$/, '') : atMost ? withPrefix.replace(/(及)?以下$/, '') : withPrefix;
+    const quality = parseQualityKeyword(qualityRaw);
+    if (!quality) return null;
+    if (atLeast) return {sellQuality: quality, sellQualityMode: 'at_least'};
+    if (atMost) return {sellQuality: quality, sellQualityMode: 'at_most'};
+    return {sellQuality: quality, sellQualityMode: 'exact'};
+}
+
 export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const text = content.trim();
     if (!text) return null;
@@ -122,8 +149,23 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const buyMatch = text.match(/^修仙购买\s+(\d+)$/);
     if (buyMatch) return {type: 'buy', offerId: Number(buyMatch[1])};
 
-    const sellMatch = text.match(/^修仙出售\s+(\d+)$/);
-    if (sellMatch) return {type: 'sell', itemId: Number(sellMatch[1])};
+    const sellMatch = text.match(/^修仙出售(?:\s+(.+))?$/);
+    if (sellMatch) {
+        const arg = (sellMatch[1] ?? '').trim();
+        if (!arg) return {type: 'sell'};
+        if (arg === '全部') return {type: 'sell', sellAll: true};
+        const qualityArg = parseSellQualityArg(arg);
+        if (qualityArg) return {type: 'sell', ...qualityArg};
+        const parts = arg.split(/\s+/).filter(Boolean);
+        const ids: number[] = [];
+        for (const part of parts) {
+            const n = parsePositiveInt(part);
+            if (!n) return {type: 'sell'};
+            ids.push(n);
+        }
+        const uniq = Array.from(new Set(ids));
+        return {type: 'sell', itemId: uniq[0], itemIds: uniq};
+    }
 
     const ledgerMatch = text.match(/^修仙流水(?:\s+(\d+))?$/);
     if (ledgerMatch) return {type: 'ledger', limit: parsePositiveInt(ledgerMatch[1])};
