@@ -567,6 +567,13 @@ function resolveBondTarget(message: IncomingMessage, rawInput?: string): {target
     return {targetUserId: input};
 }
 
+async function findIncomingPendingBond(repo: XiuxianRepository, playerId: number) {
+    const bond = await repo.findLatestBondByPlayer(playerId);
+    if (!bond || bond.status !== 'pending') return null;
+    if (bond.targetId !== playerId) return null;
+    return bond;
+}
+
 async function ensureTaskDefs(repo: XiuxianRepository, now: number): Promise<void> {
     await repo.upsertTaskDef({
         code: 'daily_checkin_1',
@@ -752,6 +759,24 @@ export async function handleXiuxianCommand(
             return asText(`💌 你已向 ${target.userName} 发起结缘请求，等待对方确认。`);
         }
 
+        if (cmd.type === 'bondAccept') {
+            const pending = await findIncomingPendingBond(repo, player.id);
+            if (!pending) return asText('📭 当前没有待你确认的结缘请求。');
+            const requester = await repo.findPlayerById(pending.requesterId);
+            await repo.activateBond(pending.id, now);
+            await repo.addBondLog(pending.id, player.id, '结缘成功', 0, '{}', now);
+            return asText(bondActivatedText(requester?.userName ?? `道友#${pending.requesterId}`));
+        }
+
+        if (cmd.type === 'bondReject') {
+            const pending = await findIncomingPendingBond(repo, player.id);
+            if (!pending) return asText('📭 当前没有待你处理的结缘请求。');
+            const requester = await repo.findPlayerById(pending.requesterId);
+            await repo.endBond(pending.id, now);
+            await repo.addBondLog(pending.id, player.id, '拒绝结缘', 0, '{}', now);
+            return asText(`🛑 已拒绝来自 ${requester?.userName ?? `道友#${pending.requesterId}`} 的结缘请求。`);
+        }
+
         if (cmd.type === 'bondBreak') {
             const bond = await repo.findLatestBondByPlayer(player.id);
             if (!bond) return asText('💗 你当前暂无可解除的情缘关系。');
@@ -765,7 +790,7 @@ export async function handleXiuxianCommand(
         if (cmd.type === 'bondStatus') {
             const bond = await repo.findLatestBondByPlayer(player.id);
             if (!bond) {
-                return asText('💗 你当前暂无情缘，发送「修仙结缘 对方wxid」发起关系。');
+                return asText('💗 你当前暂无情缘，发送「修仙结缘 @对方」发起关系。');
             }
             const partnerId = bond.requesterId === player.id ? bond.targetId : bond.requesterId;
             const partner = await repo.findPlayerById(partnerId);

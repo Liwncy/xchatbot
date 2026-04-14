@@ -211,6 +211,10 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const bondMatch = text.match(/^修仙结缘(?:\s*(.+))?$/);
     if (bondMatch) return {type: 'bond', targetUserId: bondMatch[1]?.trim() || undefined};
 
+    if (text === '修仙允缘') return {type: 'bondAccept'};
+
+    if (text === '修仙拒缘') return {type: 'bondReject'};
+
     if (text === '修仙解缘') return {type: 'bondBreak'};
 
     if (text === '修仙同游') return {type: 'bondTravel'};

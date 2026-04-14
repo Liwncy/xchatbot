@@ -45,6 +45,8 @@ export type XiuxianCommand =
     | {type: 'npcEncounter'}
     | {type: 'npcEncounterLog'; page?: number}
     | {type: 'bond'; targetUserId?: string}
+    | {type: 'bondAccept'}
+    | {type: 'bondReject'}
     | {type: 'bondBreak'}
     | {type: 'bondTravel'}
     | {type: 'bondStatus'}
