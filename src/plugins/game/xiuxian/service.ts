@@ -39,6 +39,7 @@ import {formatRealm, realmName} from './realm.js';
 import {formatBeijingTime} from './time.js';
 import {
     applyExpProgress,
+    calcSetBonusSummary,
     bossEnemy,
     bossRewards,
     calcSellPrice,
@@ -320,6 +321,8 @@ function parseOfferItem(offer: XiuxianShopOffer): Omit<XiuxianItem, 'id' | 'play
             dodge: Number(data.dodge),
             crit: Number(data.crit),
             score: Number(data.score),
+            setKey: data.setKey == null ? undefined : String(data.setKey),
+            setName: data.setName == null ? undefined : String(data.setName),
             isLocked: Number(data.isLocked ?? 0),
         };
     } catch {
@@ -1248,11 +1251,12 @@ export async function handleXiuxianCommand(
         if (cmd.type === 'status') {
             const equippedRaw = await repo.getEquippedItems(player);
             const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
+            const setBonus = calcSetBonusSummary(equipped);
             const pet = await repo.findPet(player.id);
             const petBonus = petCombatBonus(pet);
             const power = mergeCombatPower(calcCombatPower(player, equipped), petBonus);
             const inventoryCount = await repo.countInventory(player.id);
-            const panel = statusText(player, power, equipped, inventoryCount);
+            const panel = statusText(player, power, equipped, inventoryCount, setBonus.lines);
             if (!pet) return asText(panel);
             return asText(`${panel}\n━━━━━━━━━━━━\n🐶 灵宠：${pet.petName}（${XIUXIAN_TERMS.pet.levelLabel}${pet.level}，亲密 ${pet.affection}/100）\n⚔️ 灵宠战斗加成：攻+${petBonus.attack} 防+${petBonus.defense} 血+${petBonus.maxHp}`);
         }

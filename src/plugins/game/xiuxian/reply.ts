@@ -167,12 +167,15 @@ export function statusText(
     power: {attack: number; defense: number; maxHp: number; dodge: number; crit: number},
     equipped: XiuxianItem[],
     inventoryCount: number,
+    setBonusLines?: string[],
 ): string {
     const equippedMap = new Map<EquipmentSlot, XiuxianItem>();
     for (const item of equipped) equippedMap.set(item.itemType, item);
     const eq = (slot: EquipmentSlot): string => {
         const item = equippedMap.get(slot);
-        return item ? `${item.itemName}(#${item.id})` : '未装备';
+        if (!item) return '未装备';
+        const setLabel = item.setName ? `【${item.setName}】` : '';
+        return `${item.itemName}${setLabel}(#${item.id})`;
     };
     return [
         `🧾 ${player.userName} 的修仙面板`,
@@ -192,6 +195,7 @@ export function statusText(
         `🛡️ 护甲：${eq('armor')}`,
         `💍 灵宝：${eq('accessory')}`,
         `📿 法器：${eq('sutra')}`,
+        ...(setBonusLines && setBonusLines.length ? ['━━━━━━━━━━━━', '🧩 套装效果：', ...setBonusLines] : []),
     ].join('\n');
 }
 
@@ -232,7 +236,7 @@ export function battleDetailText(battle: XiuxianBattle): string {
 }
 
 export function equipText(item: XiuxianItem): string {
-    return `✅ 装备成功：#${item.id} ${item.itemName}（${slotLabel(item.itemType)}）`;
+    return `✅ 装备成功：#${item.id} ${item.itemName}${item.setName ? `【${item.setName}】` : ''}（${slotLabel(item.itemType)}）`;
 }
 
 export function unequipText(slot: EquipmentSlot): string {

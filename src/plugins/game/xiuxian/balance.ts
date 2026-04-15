@@ -20,7 +20,45 @@ export interface LootItem {
     dodge: number;
     crit: number;
     score: number;
+    setKey?: string;
+    setName?: string;
     isLocked: number;
+}
+
+export interface SetBonusSummary {
+    attack: number;
+    defense: number;
+    maxHp: number;
+    dodge: number;
+    crit: number;
+    attackPct: number;
+    defensePct: number;
+    maxHpPct: number;
+    dodgePct: number;
+    critPct: number;
+    lines: string[];
+}
+
+interface SetStatMod {
+    attack?: number;
+    defense?: number;
+    maxHp?: number;
+    dodge?: number;
+    crit?: number;
+    attackPct?: number;
+    defensePct?: number;
+    maxHpPct?: number;
+    dodgePct?: number;
+    critPct?: number;
+}
+
+interface PrefixSetConfig {
+    prefix: string;
+    setKey: string;
+    setName: string;
+    single?: SetStatMod;
+    bonus2?: SetStatMod;
+    bonus4?: SetStatMod;
 }
 
 const QUALITY_ORDER: XiuxianItemQuality[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
@@ -84,6 +122,45 @@ const SELL_PREMIUM: Record<XiuxianItemQuality, number> = {
     mythic: 130,
 };
 
+// Prefix-driven set config entry point: tune flat/percent by prefix here.
+const PREFIX_SET_CONFIG: PrefixSetConfig[] = [
+    {
+        prefix: '焚天',
+        setKey: 'fentian',
+        setName: '焚天套',
+        single: {attack: 14, crit: 0.006},
+        bonus2: {attack: 24, crit: 0.01},
+        bonus4: {attack: 36, attackPct: 0.08, crit: 0.012},
+    },
+    {
+        prefix: '赤霄',
+        setKey: 'chixiao',
+        setName: '赤霄套',
+        single: {attack: 8, defense: 8},
+        bonus2: {attack: 14, defense: 14, maxHp: 120},
+        bonus4: {attack: 22, defense: 22, maxHp: 220, defensePct: 0.06},
+    },
+    {
+        prefix: '红莲',
+        setKey: 'honglian',
+        setName: '红莲套',
+        single: {maxHp: 90, crit: 0.004},
+        bonus2: {maxHp: 180, defense: 10},
+        bonus4: {maxHp: 320, maxHpPct: 0.08, crit: 0.012},
+    },
+    {
+        prefix: '神凰',
+        setKey: 'shenhuang',
+        setName: '神凰套',
+        single: {dodge: 0.004, crit: 0.004},
+        bonus2: {dodge: 0.008, crit: 0.008, attack: 10},
+        bonus4: {dodge: 0.012, crit: 0.012, attack: 18, critPct: 0.06},
+    },
+];
+
+const PREFIX_SET_CONFIG_BY_PREFIX = new Map(PREFIX_SET_CONFIG.map((cfg) => [cfg.prefix, cfg]));
+const PREFIX_SET_CONFIG_BY_KEY = new Map(PREFIX_SET_CONFIG.map((cfg) => [cfg.setKey, cfg]));
+
 // Small affix roll range around the center value (same slot+quality now has slight variance).
 const ITEM_ROLL_VARIANCE = 0.08;
 
@@ -112,8 +189,15 @@ function rollQuality(boost = 0): XiuxianItemQuality {
     return 'common';
 }
 
-function buildItemName(type: EquipmentSlot, quality: XiuxianItemQuality): string {
-    return `${pickOne(QUALITY_PREFIX[quality])}${pickOne(ITEM_CORE_POOL[type])}`;
+function buildItemMeta(type: EquipmentSlot, quality: XiuxianItemQuality): {itemName: string; setKey?: string; setName?: string} {
+    const prefix = pickOne(QUALITY_PREFIX[quality]);
+    const core = pickOne(ITEM_CORE_POOL[type]);
+    const cfg = PREFIX_SET_CONFIG_BY_PREFIX.get(prefix);
+    return {
+        itemName: `${prefix}${core}`,
+        setKey: cfg?.setKey,
+        setName: cfg?.setName,
+    };
 }
 
 function scoreOf(attack: number, defense: number, hp: number, dodge: number, crit: number): number {
@@ -197,10 +281,11 @@ export function rollExploreLoot(_level: number): LootItem | null {
     const itemLevel = 1;
     const quality = rollQuality();
     const {attack, defense, hp, dodge, crit, score} = rolledLootStats(itemType, quality);
+    const itemMeta = buildItemMeta(itemType, quality);
 
     return {
         itemType,
-        itemName: buildItemName(itemType, quality),
+        itemName: itemMeta.itemName,
         itemLevel,
         quality,
         attack,
@@ -209,6 +294,8 @@ export function rollExploreLoot(_level: number): LootItem | null {
         dodge,
         crit,
         score,
+        setKey: itemMeta.setKey,
+        setName: itemMeta.setName,
         isLocked: 0,
     };
 }
@@ -228,9 +315,96 @@ export function generateShopItems(level: number, count: number): LootItem[] {
         const itemLevel = 1;
         const quality = rollQuality(1);
         const {attack, defense, hp, dodge, crit, score} = rolledLootStats(itemType, quality);
-        items.push({itemType, itemName: buildItemName(itemType, quality), itemLevel, quality, attack, defense, hp, dodge, crit, score, isLocked: 0});
+        const itemMeta = buildItemMeta(itemType, quality);
+        items.push({
+            itemType,
+            itemName: itemMeta.itemName,
+            itemLevel,
+            quality,
+            attack,
+            defense,
+            hp,
+            dodge,
+            crit,
+            score,
+            setKey: itemMeta.setKey,
+            setName: itemMeta.setName,
+            isLocked: 0,
+        });
     }
     return items;
+}
+
+function addScaledMod(summary: SetBonusSummary, mod: SetStatMod | undefined, scale = 1): void {
+    if (!mod) return;
+    summary.attack += (mod.attack ?? 0) * scale;
+    summary.defense += (mod.defense ?? 0) * scale;
+    summary.maxHp += (mod.maxHp ?? 0) * scale;
+    summary.dodge += (mod.dodge ?? 0) * scale;
+    summary.crit += (mod.crit ?? 0) * scale;
+    summary.attackPct += (mod.attackPct ?? 0) * scale;
+    summary.defensePct += (mod.defensePct ?? 0) * scale;
+    summary.maxHpPct += (mod.maxHpPct ?? 0) * scale;
+    summary.dodgePct += (mod.dodgePct ?? 0) * scale;
+    summary.critPct += (mod.critPct ?? 0) * scale;
+}
+
+function formatModLine(mod: SetStatMod | undefined): string {
+    if (!mod) return '无';
+    const fields: string[] = [];
+    if (mod.attack) fields.push(`攻+${mod.attack}`);
+    if (mod.defense) fields.push(`防+${mod.defense}`);
+    if (mod.maxHp) fields.push(`血+${mod.maxHp}`);
+    if (mod.dodge) fields.push(`闪+${(mod.dodge * 100).toFixed(2)}%`);
+    if (mod.crit) fields.push(`暴+${(mod.crit * 100).toFixed(2)}%`);
+    if (mod.attackPct) fields.push(`攻+${(mod.attackPct * 100).toFixed(1)}%`);
+    if (mod.defensePct) fields.push(`防+${(mod.defensePct * 100).toFixed(1)}%`);
+    if (mod.maxHpPct) fields.push(`血+${(mod.maxHpPct * 100).toFixed(1)}%`);
+    if (mod.dodgePct) fields.push(`闪+${(mod.dodgePct * 100).toFixed(1)}%`);
+    if (mod.critPct) fields.push(`暴+${(mod.critPct * 100).toFixed(1)}%`);
+    return fields.join(' ');
+}
+
+export function calcSetBonusSummary(equipped: XiuxianItem[]): SetBonusSummary {
+    const grouped = new Map<string, {name: string; pieces: number; cfg?: PrefixSetConfig}>();
+    for (const item of equipped) {
+        if (!item.setKey || !item.setName) continue;
+        const prev = grouped.get(item.setKey);
+        if (prev) {
+            prev.pieces += 1;
+            continue;
+        }
+        grouped.set(item.setKey, {name: item.setName, pieces: 1, cfg: PREFIX_SET_CONFIG_BY_KEY.get(item.setKey)});
+    }
+
+    const summary: SetBonusSummary = {
+        attack: 0,
+        defense: 0,
+        maxHp: 0,
+        dodge: 0,
+        crit: 0,
+        attackPct: 0,
+        defensePct: 0,
+        maxHpPct: 0,
+        dodgePct: 0,
+        critPct: 0,
+        lines: [],
+    };
+    for (const stat of grouped.values()) {
+        addScaledMod(summary, stat.cfg?.single, stat.pieces);
+        if (stat.cfg?.single) {
+            summary.lines.push(`🔹 ${stat.name} 词缀x${stat.pieces}：${formatModLine(stat.cfg.single)}`);
+        }
+        if (stat.pieces >= 2) {
+            addScaledMod(summary, stat.cfg?.bonus2);
+            if (stat.cfg?.bonus2) summary.lines.push(`✨ ${stat.name} 2件：${formatModLine(stat.cfg.bonus2)}`);
+        }
+        if (stat.pieces >= 4) {
+            addScaledMod(summary, stat.cfg?.bonus4);
+            if (stat.cfg?.bonus4) summary.lines.push(`🌟 ${stat.name} 4件：${formatModLine(stat.cfg.bonus4)}`);
+        }
+    }
+    return summary;
 }
 
 export function calcShopPrice(item: LootItem): number {
@@ -256,12 +430,18 @@ export function calcCombatPower(player: XiuxianPlayer, equipped: XiuxianItem[]):
         {attack: 0, defense: 0, maxHp: 0, dodge: 0, crit: 0},
     );
 
+    const setBonus = calcSetBonusSummary(equipped);
+    const attackBase = player.attack + sum.attack + setBonus.attack;
+    const defenseBase = player.defense + sum.defense + setBonus.defense;
+    const maxHpBase = player.maxHp + sum.maxHp + setBonus.maxHp;
+    const dodgeBase = player.dodge + sum.dodge + setBonus.dodge;
+    const critBase = player.crit + sum.crit + setBonus.crit;
     return {
-        attack: player.attack + sum.attack,
-        defense: player.defense + sum.defense,
-        maxHp: player.maxHp + sum.maxHp,
-        dodge: Math.min(0.6, player.dodge + sum.dodge),
-        crit: Math.min(0.7, player.crit + sum.crit),
+        attack: Math.floor(attackBase * (1 + setBonus.attackPct)),
+        defense: Math.floor(defenseBase * (1 + setBonus.defensePct)),
+        maxHp: Math.floor(maxHpBase * (1 + setBonus.maxHpPct)),
+        dodge: Math.min(0.6, Number((dodgeBase * (1 + setBonus.dodgePct)).toFixed(4))),
+        crit: Math.min(0.7, Number((critBase * (1 + setBonus.critPct)).toFixed(4))),
     };
 }
 

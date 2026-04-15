@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS xiuxian_inventory (
   dodge REAL NOT NULL DEFAULT 0,
   crit REAL NOT NULL DEFAULT 0,
   score INTEGER NOT NULL DEFAULT 0,
+  set_key TEXT,
+  set_name TEXT,
   is_locked INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)

@@ -76,6 +76,8 @@ function toItem(row: Record<string, unknown>): XiuxianItem {
         dodge: Number(row.dodge),
         crit: Number(row.crit),
         score: Number(row.score),
+        setKey: row.set_key == null ? undefined : String(row.set_key),
+        setName: row.set_name == null ? undefined : String(row.set_name),
         isLocked: Number(row.is_locked),
         createdAt: Number(row.created_at),
     };
@@ -601,8 +603,8 @@ export class XiuxianRepository {
             .prepare(
                 `INSERT INTO xiuxian_inventory (
                     player_id, item_type, item_name, item_level, quality,
-                    attack, defense, hp, dodge, crit, score, is_locked, created_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
+                    attack, defense, hp, dodge, crit, score, set_key, set_name, is_locked, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`,
             )
             .bind(
                 playerId,
@@ -616,6 +618,8 @@ export class XiuxianRepository {
                 item.dodge,
                 item.crit,
                 item.score,
+                item.setKey ?? null,
+                item.setName ?? null,
                 item.isLocked,
                 now,
             )

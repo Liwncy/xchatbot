@@ -109,6 +109,8 @@ export interface XiuxianItem {
     dodge: number;
     crit: number;
     score: number;
+    setKey?: string;
+    setName?: string;
     isLocked: number;
     createdAt: number;
     refineLevel?: number;
