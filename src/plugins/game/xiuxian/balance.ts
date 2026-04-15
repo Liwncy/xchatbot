@@ -39,7 +39,7 @@ export interface SetBonusSummary {
     lines: string[];
 }
 
-interface SetStatMod {
+export interface SetStatMod {
     attack?: number;
     defense?: number;
     maxHp?: number;
@@ -52,7 +52,7 @@ interface SetStatMod {
     critPct?: number;
 }
 
-interface PrefixSetConfig {
+export interface PrefixSetConfig {
     prefix: string;
     setKey: string;
     setName: string;
@@ -123,7 +123,7 @@ const SELL_PREMIUM: Record<XiuxianItemQuality, number> = {
 };
 
 // Prefix-driven set config entry point: tune flat/percent by prefix here.
-const PREFIX_SET_CONFIG: PrefixSetConfig[] = [
+const DEFAULT_PREFIX_SET_CONFIG: PrefixSetConfig[] = [
     {
         prefix: '焚天',
         setKey: 'fentian',
@@ -158,8 +158,42 @@ const PREFIX_SET_CONFIG: PrefixSetConfig[] = [
     },
 ];
 
-const PREFIX_SET_CONFIG_BY_PREFIX = new Map(PREFIX_SET_CONFIG.map((cfg) => [cfg.prefix, cfg]));
-const PREFIX_SET_CONFIG_BY_KEY = new Map(PREFIX_SET_CONFIG.map((cfg) => [cfg.setKey, cfg]));
+let activePrefixSetConfig: PrefixSetConfig[] = DEFAULT_PREFIX_SET_CONFIG;
+let PREFIX_SET_CONFIG_BY_PREFIX = new Map(activePrefixSetConfig.map((cfg) => [cfg.prefix, cfg]));
+let PREFIX_SET_CONFIG_BY_KEY = new Map(activePrefixSetConfig.map((cfg) => [cfg.setKey, cfg]));
+
+function rebuildPrefixSetIndexes(configs: PrefixSetConfig[]): void {
+    PREFIX_SET_CONFIG_BY_PREFIX = new Map(configs.map((cfg) => [cfg.prefix, cfg]));
+    PREFIX_SET_CONFIG_BY_KEY = new Map(configs.map((cfg) => [cfg.setKey, cfg]));
+}
+
+function normalizePrefixSetConfig(raw: PrefixSetConfig[]): PrefixSetConfig[] {
+    return raw
+        .map((cfg) => ({
+            prefix: String(cfg.prefix ?? '').trim(),
+            setKey: String(cfg.setKey ?? '').trim(),
+            setName: String(cfg.setName ?? '').trim(),
+            single: cfg.single,
+            bonus2: cfg.bonus2,
+            bonus4: cfg.bonus4,
+        }))
+        .filter((cfg) => cfg.prefix && cfg.setKey && cfg.setName);
+}
+
+export function getDefaultPrefixSetConfig(): PrefixSetConfig[] {
+    return DEFAULT_PREFIX_SET_CONFIG.map((cfg) => ({...cfg}));
+}
+
+export function setPrefixSetConfig(configs: PrefixSetConfig[] | null | undefined): void {
+    const normalized = normalizePrefixSetConfig(configs ?? []);
+    if (!normalized.length) {
+        activePrefixSetConfig = DEFAULT_PREFIX_SET_CONFIG;
+        rebuildPrefixSetIndexes(activePrefixSetConfig);
+        return;
+    }
+    activePrefixSetConfig = normalized;
+    rebuildPrefixSetIndexes(activePrefixSetConfig);
+}
 
 // Small affix roll range around the center value (same slot+quality now has slight variance).
 const ITEM_ROLL_VARIANCE = 0.08;

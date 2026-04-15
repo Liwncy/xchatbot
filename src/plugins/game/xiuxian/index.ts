@@ -14,7 +14,7 @@ export const xiuxianPlugin: TextMessage = {
     handle: async (message, env) => {
         const cmd = parseXiuxianCommand((message.content ?? '').trim());
         if (!cmd) return {type: 'text', content: unknownCommandText()};
-        return handleXiuxianCommand(env.XBOT_DB, message, cmd);
+        return handleXiuxianCommand(env.XBOT_DB, env.XBOT_KV, message, cmd);
     },
 };
 

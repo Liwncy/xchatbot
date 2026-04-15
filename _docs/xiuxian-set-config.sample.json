@@ -1,0 +1,38 @@
+{
+  "version": "2026-04-15-v1",
+  "prefixSets": [
+    {
+      "prefix": "焚天",
+      "setKey": "fentian",
+      "setName": "焚天套",
+      "single": { "attack": 14, "crit": 0.006 },
+      "bonus2": { "attack": 24, "crit": 0.01 },
+      "bonus4": { "attack": 36, "attackPct": 0.08, "crit": 0.012 }
+    },
+    {
+      "prefix": "赤霄",
+      "setKey": "chixiao",
+      "setName": "赤霄套",
+      "single": { "attack": 8, "defense": 8 },
+      "bonus2": { "attack": 14, "defense": 14, "maxHp": 120 },
+      "bonus4": { "attack": 22, "defense": 22, "maxHp": 220, "defensePct": 0.06 }
+    },
+    {
+      "prefix": "红莲",
+      "setKey": "honglian",
+      "setName": "红莲套",
+      "single": { "maxHp": 90, "crit": 0.004 },
+      "bonus2": { "maxHp": 180, "defense": 10 },
+      "bonus4": { "maxHp": 320, "maxHpPct": 0.08, "crit": 0.012 }
+    },
+    {
+      "prefix": "神凰",
+      "setKey": "shenhuang",
+      "setName": "神凰套",
+      "single": { "dodge": 0.004, "crit": 0.004 },
+      "bonus2": { "dodge": 0.008, "crit": 0.008, "attack": 10 },
+      "bonus4": { "dodge": 0.012, "crit": 0.012, "attack": 18, "critPct": 0.06 }
+    }
+  ]
+}
+

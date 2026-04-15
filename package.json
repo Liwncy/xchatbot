@@ -17,9 +17,13 @@
         "kv:get:local:common": "wrangler kv key get --binding XBOT_KV \"plugins:common:mapping\" --local",
         "kv:get:local:dynamic": "wrangler kv key get --binding XBOT_KV \"plugins:parameterized:mapping\" --local",
         "kv:get:local:workflow": "wrangler kv key get --binding XBOT_KV \"plugins:workflow:mapping\" --local",
+        "kv:set:local:xiuxian:set-config": "wrangler kv key put --binding XBOT_KV \"xiuxian:equipment:set-config\" --path \"./_docs/xiuxian-set-config.sample.json\" --local",
+        "kv:get:local:xiuxian:set-config": "wrangler kv key get --binding XBOT_KV \"xiuxian:equipment:set-config\" --local",
         "kv:get:remote:common": "wrangler kv key get --binding XBOT_KV \"plugins:common:mapping\" --remote",
         "kv:get:remote:dynamic": "wrangler kv key get --binding XBOT_KV \"plugins:parameterized:mapping\" --remote",
         "kv:get:remote:workflow": "wrangler kv key get --binding XBOT_KV \"plugins:workflow:mapping\" --remote",
+        "kv:set:remote:xiuxian:set-config": "wrangler kv key put --binding XBOT_KV \"xiuxian:equipment:set-config\" --path \"./_docs/xiuxian-set-config.sample.json\" --remote",
+        "kv:get:remote:xiuxian:set-config": "wrangler kv key get --binding XBOT_KV \"xiuxian:equipment:set-config\" --remote",
         "dev:seed": "npm run kv:seed:local && npm run dev"
     },
     "devDependencies": {
