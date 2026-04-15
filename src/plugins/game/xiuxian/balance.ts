@@ -84,6 +84,9 @@ const SELL_PREMIUM: Record<XiuxianItemQuality, number> = {
     mythic: 130,
 };
 
+// Small affix roll range around the center value (same slot+quality now has slight variance).
+const ITEM_ROLL_VARIANCE = 0.08;
+
 export function exploreDropHintText(): string {
     const total = QUALITY_ORDER.reduce((acc, key) => acc + QUALITY_WEIGHT[key], 0);
     const highTier = QUALITY_WEIGHT.epic + QUALITY_WEIGHT.legendary + QUALITY_WEIGHT.mythic;
@@ -117,7 +120,24 @@ function scoreOf(attack: number, defense: number, hp: number, dodge: number, cri
     return Math.floor(attack * 1.3 + defense * 1.1 + hp / 8 + dodge * 120 + crit * 130);
 }
 
-function fixedLootStats(itemType: EquipmentSlot, quality: XiuxianItemQuality): {
+function centeredRollMultiplier(): number {
+    // Triangular-like distribution: most rolls stay near center, edge rolls are rarer.
+    const centered = (Math.random() + Math.random()) / 2;
+    const span = ITEM_ROLL_VARIANCE * 2;
+    return 1 - ITEM_ROLL_VARIANCE + centered * span;
+}
+
+function rollIntStat(baseValue: number): number {
+    if (baseValue <= 0) return 0;
+    return Math.max(1, Math.floor(baseValue * centeredRollMultiplier()));
+}
+
+function rollRateStat(baseValue: number): number {
+    if (baseValue <= 0) return 0;
+    return Number((baseValue * centeredRollMultiplier()).toFixed(4));
+}
+
+function rolledLootStats(itemType: EquipmentSlot, quality: XiuxianItemQuality): {
     attack: number;
     defense: number;
     hp: number;
@@ -127,11 +147,11 @@ function fixedLootStats(itemType: EquipmentSlot, quality: XiuxianItemQuality): {
 } {
     const factor = QUALITY_FACTOR[quality];
     const base = EQUIPMENT_BASE_STATS[itemType];
-    const attack = Math.floor(base.attack * factor);
-    const defense = Math.floor(base.defense * factor);
-    const hp = Math.floor(base.hp * factor);
-    const dodge = Number((base.dodge * factor).toFixed(4));
-    const crit = Number((base.crit * factor).toFixed(4));
+    const attack = rollIntStat(base.attack * factor);
+    const defense = rollIntStat(base.defense * factor);
+    const hp = rollIntStat(base.hp * factor);
+    const dodge = rollRateStat(base.dodge * factor);
+    const crit = rollRateStat(base.crit * factor);
     const score = scoreOf(attack, defense, hp, dodge, crit);
     return {attack, defense, hp, dodge, crit, score};
 }
@@ -176,7 +196,7 @@ export function rollExploreLoot(_level: number): LootItem | null {
     const itemType = pickOne(types);
     const itemLevel = 1;
     const quality = rollQuality();
-    const {attack, defense, hp, dodge, crit, score} = fixedLootStats(itemType, quality);
+    const {attack, defense, hp, dodge, crit, score} = rolledLootStats(itemType, quality);
 
     return {
         itemType,
@@ -207,7 +227,7 @@ export function generateShopItems(level: number, count: number): LootItem[] {
         const itemType = pickOne(types);
         const itemLevel = 1;
         const quality = rollQuality(1);
-        const {attack, defense, hp, dodge, crit, score} = fixedLootStats(itemType, quality);
+        const {attack, defense, hp, dodge, crit, score} = rolledLootStats(itemType, quality);
         items.push({itemType, itemName: buildItemName(itemType, quality), itemLevel, quality, attack, defense, hp, dodge, crit, score, isLocked: 0});
     }
     return items;
