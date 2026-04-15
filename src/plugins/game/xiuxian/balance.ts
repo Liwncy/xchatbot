@@ -197,12 +197,14 @@ export function setPrefixSetConfig(configs: PrefixSetConfig[] | null | undefined
 
 // Small affix roll range around the center value (same slot+quality now has slight variance).
 const ITEM_ROLL_VARIANCE = 0.08;
+const EXPLORE_NO_DROP_RATE = 0.25;
 
 export function exploreDropHintText(): string {
     const total = QUALITY_ORDER.reduce((acc, key) => acc + QUALITY_WEIGHT[key], 0);
     const highTier = QUALITY_WEIGHT.epic + QUALITY_WEIGHT.legendary + QUALITY_WEIGHT.mythic;
     const highTierRate = ((highTier / total) * 100).toFixed(1);
-    return `💡 掉装率约 65%，其中高品质（紫/金/红）约 ${highTierRate}%。`;
+    const dropRate = ((1 - EXPLORE_NO_DROP_RATE) * 100).toFixed(0);
+    return `💡 掉装率约 ${dropRate}%，其中高品质（紫/金/红）约 ${highTierRate}%。`;
 }
 
 function pickOne<T>(list: T[]): T {
@@ -308,7 +310,7 @@ export function exploreStoneReward(level: number): number {
 }
 
 export function rollExploreLoot(_level: number): LootItem | null {
-    if (Math.random() < 0.35) return null;
+    if (Math.random() < EXPLORE_NO_DROP_RATE) return null;
 
     const types: EquipmentSlot[] = ['weapon', 'armor', 'accessory', 'sutra'];
     const itemType = pickOne(types);
