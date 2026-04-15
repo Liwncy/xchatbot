@@ -325,6 +325,7 @@ export interface XiuxianPet {
     petName: string;
     petType: string;
     level: number;
+    exp: number;
     affection: number;
     feedCount: number;
     lastFedDay: string | null;

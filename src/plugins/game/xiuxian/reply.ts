@@ -721,7 +721,8 @@ export function petAdoptText(pet: {petName: string; petType: string; level: numb
 }
 
 export function petStatusText(
-    pet: {id?: number; petName: string; petType: string; level: number; affection: number; feedCount: number; inBattle?: number},
+    pet: {id?: number; petName: string; petType: string; level: number; exp: number; affection: number; feedCount: number; inBattle?: number},
+    growth?: {expNeed: number},
     combat?: {attack: number; defense: number; hp: number},
     exclusive?: {trait: string; skillName: string; skillDesc: string},
 ): string {
@@ -731,20 +732,21 @@ export function petStatusText(
         '━━━━━━━━━━━━',
         `🧬 类型：${pet.petType}`,
         `📶 ${XIUXIAN_TERMS.pet.levelLabel}：${pet.level}`,
+        ...(growth ? [`📈 升级进度：${pet.exp}/${growth.expNeed}`] : []),
         `💖 亲密：${pet.affection}/100`,
         `🍼 喂养次数：${pet.feedCount}`,
         `🚩 当前状态：${pet.inBattle === 0 ? '休战' : '出战'}`,
         `✨ 修炼加成：灵石 +${bonusStone}/次`,
         ...(combat ? [`⚔️ 战斗加成：攻+${combat.attack} 防+${combat.defense} 血+${combat.hp}`] : []),
         ...(exclusive ? [`🌟 专属词条：${exclusive.trait}`, `🌀 专属技能：${exclusive.skillName}（${exclusive.skillDesc}）`] : []),
-        `💡 发送「修仙喂宠」可提升${XIUXIAN_TERMS.pet.levelLabel}；发送「修仙出宠 [编号]」切换出战宠物`,
+        `💡 喂宠可获得宠物经验并升级；发送「修仙出宠 [编号]」切换出战宠物`,
     ].join('\n');
 }
 
 export function petBagText(items: XiuxianPetBagItem[], page: number, total: number, pageSize: number): string {
     if (!items.length) return '🎒 宠物背包为空，先去领宠或参与活动获取道具吧。';
     const pages = Math.max(1, Math.ceil(total / pageSize));
-    const lines = items.map((it) => `#${it.id} ${it.itemName} x${it.quantity} | 宠物等级+${it.feedLevel} | 亲密+${it.feedAffection}`);
+    const lines = items.map((it) => `#${it.id} ${it.itemName} x${it.quantity} | 宠物经验系数+${it.feedLevel} | 亲密+${it.feedAffection}`);
     return [`🎒 宠物背包第 ${page}/${pages} 页（共 ${total} 件）`, '━━━━━━━━━━━━', ...lines, '💡 使用：修仙喂宠 [道具ID] [数量]'].join('\n');
 }
 
@@ -753,16 +755,20 @@ export function petBattleStateText(petName: string, inBattle: boolean): string {
 }
 
 export function petFeedText(
-    pet: {petName: string; level: number; affection: number},
+    pet: {petName: string; level: number; exp: number; affection: number},
     cost: number,
     balanceAfter: number,
+    gainedExp: number,
+    expNeed: number,
     milestoneLines?: string[],
 ): string {
     return [
         `🍼 喂宠成功：${pet.petName}`,
         '━━━━━━━━━━━━',
         `💎 消耗灵石：${cost}`,
+        `🌟 宠物经验 +${gainedExp}`,
         `📶 ${XIUXIAN_TERMS.pet.currentLevelLabel}：${pet.level}`,
+        `📈 升级进度：${pet.exp}/${expNeed}`,
         `💖 当前亲密：${pet.affection}/100`,
         `💼 当前灵石：${balanceAfter}`,
         ...(milestoneLines?.length ? ['━━━━━━━━━━━━', ...milestoneLines] : []),

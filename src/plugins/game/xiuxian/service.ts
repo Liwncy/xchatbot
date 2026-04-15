@@ -12,6 +12,7 @@ import {
     XIUXIAN_SHOP_REFRESH_MS,
     XIUXIAN_TASK_DEFAULT_LIMIT,
     XIUXIAN_PET_MILESTONE_REWARDS,
+    XIUXIAN_PET_GROWTH,
     XIUXIAN_BOND_MILESTONE_REWARDS,
     XIUXIAN_PET_GACHA,
     XIUXIAN_NPC_ENCOUNTER_POOL,
@@ -833,7 +834,7 @@ async function findIncomingPendingBond(repo: XiuxianRepository, playerId: number
 async function applyPetBagFeed(
     repo: XiuxianRepository,
     player: XiuxianPlayer,
-    pet: {id: number; petName: string; level: number; affection: number},
+    pet: {id: number; petName: string; level: number; exp: number; affection: number},
     itemId: number,
     count: number,
     now: number,
@@ -847,21 +848,55 @@ async function applyPetBagFeed(
     const consumed = await repo.consumePetBagItem(player.id, bagItem.id, consumeCount, now);
     if (!consumed) return asText('⚠️ 该宠物道具已被使用，请刷新宠包后重试。');
 
-    const levelAfter = pet.level + Math.max(0, bagItem.feedLevel) * consumeCount;
+    const gainedExp = Math.max(0, bagItem.feedLevel) * XIUXIAN_PET_GROWTH.feedExpUnit * consumeCount;
+    const growth = applyPetExpProgress(pet, gainedExp);
     const affectionAfter = Math.min(100, pet.affection + Math.max(0, bagItem.feedAffection) * consumeCount);
-    await repo.updatePetBagFeed(pet.id, levelAfter, affectionAfter, consumeCount, now);
+    await repo.updatePetBagFeed(
+        pet.id,
+        {
+            level: growth.level,
+            exp: growth.exp,
+            affection: affectionAfter,
+            feedCountInc: consumeCount,
+        },
+        now,
+    );
     const latest = await repo.findPet(player.id);
     if (!latest) return asText('⚠️ 喂宠后读取失败，请稍后再试。');
+
+    const expNeed = petExpNeed(latest.level);
 
     return asText(
         [
             `🧪 使用道具喂宠：${bagItem.itemName} x${consumeCount}`,
             '━━━━━━━━━━━━',
+            `🌟 宠物经验 +${gainedExp}`,
             `📶 ${XIUXIAN_TERMS.pet.currentLevelLabel}：${latest.level}`,
+            `📈 升级进度：${latest.exp}/${expNeed}`,
             `💖 当前亲密：${latest.affection}/100`,
             `📦 道具剩余：${Math.max(0, bagItem.quantity - consumeCount)}`,
         ].join('\n'),
     );
+}
+
+function petExpNeed(level: number): number {
+    return Math.floor(
+        XIUXIAN_PET_GROWTH.expNeedBase
+            + level * XIUXIAN_PET_GROWTH.expNeedLinear
+            + level * level * XIUXIAN_PET_GROWTH.expNeedQuadratic,
+    );
+}
+
+function applyPetExpProgress(pet: {level: number; exp: number}, gainedExp: number): {level: number; exp: number; gainedLevel: number} {
+    let level = Math.max(1, Math.floor(pet.level));
+    let exp = Math.max(0, Math.floor(pet.exp)) + Math.max(0, Math.floor(gainedExp));
+    let gainedLevel = 0;
+    while (exp >= petExpNeed(level)) {
+        exp -= petExpNeed(level);
+        level += 1;
+        gainedLevel += 1;
+    }
+    return {level, exp, gainedLevel};
 }
 
 async function ensureTaskDefs(repo: XiuxianRepository, now: number): Promise<void> {
@@ -1419,7 +1454,12 @@ export async function handleXiuxianCommand(
                 .slice(0, 5)
                 .map((p) => `#${p.id} ${p.petName}${p.inBattle === 1 ? '（出战）' : ''}`)
                 .join('，');
-            const panel = petStatusText(pet, {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp}, exclusive ?? undefined);
+            const panel = petStatusText(
+                pet,
+                {expNeed: petExpNeed(pet.level)},
+                {attack: bonus.attack, defense: bonus.defense, hp: bonus.maxHp},
+                exclusive ?? undefined,
+            );
             return asText(`${panel}\n━━━━━━━━━━━━\n📚 灵宠列表：${summary || '暂无'}\n💡 查看指定宠物：修仙宠物 [编号]`);
         }
 
@@ -1469,7 +1509,20 @@ export async function handleXiuxianCommand(
                 extraJson: JSON.stringify({petId: pet.id, petName: pet.petName, dayKey, cost}),
                 now,
             });
-            await repo.updatePetFeed(pet.id, dayKey, now);
+            const gainedPetExp = XIUXIAN_PET_GROWTH.dailyFeedExp;
+            const growth = applyPetExpProgress(pet, gainedPetExp);
+            const affectionAfter = Math.min(100, pet.affection + 6);
+            await repo.updatePetFeed(
+                pet.id,
+                {
+                    level: growth.level,
+                    exp: growth.exp,
+                    affection: affectionAfter,
+                    feedCountInc: 1,
+                },
+                dayKey,
+                now,
+            );
             const latest = await repo.findPet(player.id);
             if (!latest) return asText('⚠️ 喂宠后读取失败，请稍后再试。');
 
@@ -1522,7 +1575,7 @@ export async function handleXiuxianCommand(
                 });
             }
 
-            return asText(petFeedText(latest, cost, player.spiritStone, milestoneLines));
+            return asText(petFeedText(latest, cost, player.spiritStone, gainedPetExp, petExpNeed(latest.level), milestoneLines));
         }
 
         if (cmd.type === 'npcEncounter') {

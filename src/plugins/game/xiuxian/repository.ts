@@ -310,6 +310,7 @@ function toPet(row: Record<string, unknown>): XiuxianPet {
         petName: String(row.pet_name),
         petType: String(row.pet_type),
         level: Number(row.level),
+        exp: Number(row.exp ?? 0),
         affection: Number(row.affection),
         feedCount: Number(row.feed_count),
         lastFedDay: row.last_fed_day == null ? null : String(row.last_fed_day),
@@ -1880,8 +1881,8 @@ export class XiuxianRepository {
         await this.db
             .prepare(
                 `INSERT INTO xiuxian_pets (
-                    player_id, pet_name, pet_type, level, affection, feed_count, last_fed_day, in_battle, created_at, updated_at
-                ) VALUES (?1, ?2, ?3, 1, 0, 0, NULL, ?4, ?5, ?5)`,
+                    player_id, pet_name, pet_type, level, exp, affection, feed_count, last_fed_day, in_battle, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, 1, 0, 0, 0, NULL, ?4, ?5, ?5)`,
             )
             .bind(playerId, petName, petType, inBattle, now)
             .run();
@@ -2159,33 +2160,45 @@ export class XiuxianRepository {
         return changedRows(result) > 0;
     }
 
-    async updatePetFeed(petId: number, dayKey: string, now: number): Promise<void> {
-        await this.db
-            .prepare(
-                `UPDATE xiuxian_pets
-                 SET level = level + 1,
-                     affection = CASE WHEN affection + 6 > 100 THEN 100 ELSE affection + 6 END,
-                     feed_count = feed_count + 1,
-                     last_fed_day = ?2,
-                     updated_at = ?3
-                 WHERE id = ?1`,
-            )
-            .bind(petId, dayKey, now)
-            .run();
-    }
-
-    async updatePetBagFeed(petId: number, level: number, affection: number, feedCountInc: number, now: number): Promise<void> {
-        const feedInc = Math.max(1, Math.floor(feedCountInc));
+    async updatePetFeed(
+        petId: number,
+        next: {level: number; exp: number; affection: number; feedCountInc: number},
+        dayKey: string,
+        now: number,
+    ): Promise<void> {
+        const feedInc = Math.max(1, Math.floor(next.feedCountInc));
         await this.db
             .prepare(
                 `UPDATE xiuxian_pets
                  SET level = ?2,
-                     affection = ?3,
-                     feed_count = feed_count + ?4,
-                     updated_at = ?5
+                     exp = ?3,
+                     affection = ?4,
+                     feed_count = feed_count + ?5,
+                     last_fed_day = ?6,
+                     updated_at = ?7
                  WHERE id = ?1`,
             )
-            .bind(petId, level, affection, feedInc, now)
+            .bind(petId, next.level, next.exp, next.affection, feedInc, dayKey, now)
+            .run();
+    }
+
+    async updatePetBagFeed(
+        petId: number,
+        next: {level: number; exp: number; affection: number; feedCountInc: number},
+        now: number,
+    ): Promise<void> {
+        const feedInc = Math.max(1, Math.floor(next.feedCountInc));
+        await this.db
+            .prepare(
+                `UPDATE xiuxian_pets
+                 SET level = ?2,
+                     exp = ?3,
+                     affection = ?4,
+                     feed_count = feed_count + ?5,
+                     updated_at = ?6
+                 WHERE id = ?1`,
+            )
+            .bind(petId, next.level, next.exp, next.affection, feedInc, now)
             .run();
     }
 

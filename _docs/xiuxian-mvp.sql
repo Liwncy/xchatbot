@@ -274,6 +274,7 @@ CREATE TABLE IF NOT EXISTS xiuxian_pets (
   pet_name TEXT NOT NULL,
   pet_type TEXT NOT NULL,
   level INTEGER NOT NULL DEFAULT 1,
+  exp INTEGER NOT NULL DEFAULT 0,
   affection INTEGER NOT NULL DEFAULT 0,
   feed_count INTEGER NOT NULL DEFAULT 0,
   last_fed_day TEXT,
