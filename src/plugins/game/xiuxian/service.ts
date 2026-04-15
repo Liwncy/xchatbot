@@ -2,6 +2,7 @@ import type {IncomingMessage, HandlerResponse} from '../../../types/message.js';
 import {logger} from '../../../utils/logger.js';
 import {
     XIUXIAN_ACTIONS,
+    XIUXIAN_AUCTION,
     XIUXIAN_CHECKIN_REWARD,
     XIUXIAN_COOLDOWN_MS,
     XIUXIAN_DEFAULTS,
@@ -33,6 +34,7 @@ import type {
     XiuxianWorldBossState,
     XiuxianItemQuality,
     XiuxianPetBannerEntry,
+    XiuxianAuction,
 } from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {formatRealm, realmName} from './realm.js';
@@ -90,6 +92,12 @@ async function tryLoadSetConfigFromKv(kv: KVNamespace | undefined, now: number):
 }
 import {
     bagText,
+    auctionBidText,
+    auctionCancelText,
+    auctionCreatedText,
+    auctionListText,
+    auctionSettleNoBidText,
+    auctionSettleText,
     battleDetailText,
     battleLogText,
     bondActivatedText,
@@ -362,6 +370,159 @@ function parseOfferItem(offer: XiuxianShopOffer): Omit<XiuxianItem, 'id' | 'play
     } catch {
         return null;
     }
+}
+
+function parseAuctionItemPayload(itemPayloadJson: string): Omit<XiuxianItem, 'id' | 'playerId' | 'createdAt'> | null {
+    try {
+        const data = JSON.parse(itemPayloadJson) as Record<string, unknown>;
+        return {
+            itemType: String(data.itemType) as XiuxianItem['itemType'],
+            itemName: String(data.itemName),
+            itemLevel: Math.max(1, Number(data.itemLevel) || 1),
+            quality: String(data.quality) as XiuxianItemQuality,
+            attack: Number(data.attack),
+            defense: Number(data.defense),
+            hp: Number(data.hp),
+            dodge: Number(data.dodge),
+            crit: Number(data.crit),
+            score: Number(data.score),
+            setKey: data.setKey == null ? undefined : String(data.setKey),
+            setName: data.setName == null ? undefined : String(data.setName),
+            isLocked: Number(data.isLocked ?? 0),
+        };
+    } catch {
+        return null;
+    }
+}
+
+function parseAuctionBuyoutPrice(itemPayloadJson: string): number | null {
+    try {
+        const data = JSON.parse(itemPayloadJson) as Record<string, unknown>;
+        const buyoutPrice = Number(data.buyoutPrice ?? 0);
+        if (!Number.isFinite(buyoutPrice) || buyoutPrice <= 0) return null;
+        return Math.floor(buyoutPrice);
+    } catch {
+        return null;
+    }
+}
+
+async function settleSingleAuction(repo: XiuxianRepository, auction: XiuxianAuction, now: number): Promise<{ok: boolean; text: string}> {
+    const item = parseAuctionItemPayload(auction.itemPayloadJson);
+    const itemName = item?.itemName ?? '未知装备';
+
+    if (!auction.currentBidderId) {
+        const locked = await repo.settleAuctionByVersion(auction.id, auction.version, 'expired', now);
+        if (!locked) return {ok: false, text: '⚠️ 拍卖状态已更新，请刷新后重试。'};
+        if (item) {
+            await repo.addItem(auction.sellerId, item, now);
+        }
+        await repo.addAuctionSettlement({
+            auctionId: auction.id,
+            sellerId: auction.sellerId,
+            winnerId: null,
+            finalPrice: 0,
+            feeAmount: 0,
+            sellerReceive: 0,
+            result: 'expired',
+            detailJson: JSON.stringify({reason: 'no_bid'}),
+            now,
+        });
+        return {ok: true, text: auctionSettleNoBidText(auction.id, itemName)};
+    }
+
+    const paid = await repo.spendSpiritStone(auction.currentBidderId, auction.currentPrice, now);
+    if (!paid) {
+        const expired = await repo.settleAuctionByVersion(auction.id, auction.version, 'expired', now);
+        if (!expired) return {ok: false, text: '⚠️ 拍卖状态已更新，请刷新后重试。'};
+        if (item) {
+            await repo.addItem(auction.sellerId, item, now);
+        }
+        await repo.addAuctionSettlement({
+            auctionId: auction.id,
+            sellerId: auction.sellerId,
+            winnerId: auction.currentBidderId,
+            finalPrice: auction.currentPrice,
+            feeAmount: 0,
+            sellerReceive: 0,
+            result: 'expired',
+            detailJson: JSON.stringify({reason: 'winner_insufficient_stone'}),
+            now,
+        });
+        return {ok: true, text: `⚠️ 拍卖 #${auction.id} 赢家灵石不足，已按流拍处理并返还拍品。`};
+    }
+
+    const settled = await repo.settleAuctionByVersion(auction.id, auction.version, 'settled', now);
+    if (!settled) {
+        await repo.gainSpiritStone(auction.currentBidderId, auction.currentPrice, now);
+        return {ok: false, text: '⚠️ 拍卖状态已更新，请刷新后重试。'};
+    }
+
+    const feeAmount = Math.floor((auction.currentPrice * auction.feeRateBp) / 10_000);
+    const sellerReceive = Math.max(0, auction.currentPrice - feeAmount);
+    if (sellerReceive > 0) {
+        await repo.gainSpiritStone(auction.sellerId, sellerReceive, now);
+    }
+    if (item) {
+        await repo.addItem(auction.currentBidderId, item, now);
+    }
+
+    const winner = await repo.findPlayerById(auction.currentBidderId);
+    const seller = await repo.findPlayerById(auction.sellerId);
+    await repo.createEconomyLog({
+        playerId: auction.currentBidderId,
+        bizType: 'cost',
+        deltaSpiritStone: -auction.currentPrice,
+        balanceAfter: winner?.spiritStone ?? 0,
+        refType: 'auction_bid_win',
+        refId: auction.id,
+        idempotencyKey: `${auction.currentBidderId}:auction-win:${auction.id}`,
+        extraJson: JSON.stringify({sellerId: auction.sellerId, price: auction.currentPrice, feeAmount}),
+        now,
+    });
+    await repo.createEconomyLog({
+        playerId: auction.sellerId,
+        bizType: 'sell',
+        deltaSpiritStone: sellerReceive,
+        balanceAfter: seller?.spiritStone ?? 0,
+        refType: 'auction_sell',
+        refId: auction.id,
+        idempotencyKey: `${auction.sellerId}:auction-sell:${auction.id}`,
+        extraJson: JSON.stringify({winnerId: auction.currentBidderId, price: auction.currentPrice, feeAmount}),
+        now,
+    });
+    await repo.addAuctionSettlement({
+        auctionId: auction.id,
+        sellerId: auction.sellerId,
+        winnerId: auction.currentBidderId,
+        finalPrice: auction.currentPrice,
+        feeAmount,
+        sellerReceive,
+        result: 'sold',
+        detailJson: JSON.stringify({winnerId: auction.currentBidderId}),
+        now,
+    });
+
+    return {
+        ok: true,
+        text: auctionSettleText({
+            auctionId: auction.id,
+            itemName,
+            finalPrice: auction.currentPrice,
+            feeAmount,
+            sellerReceive,
+            winnerName: winner?.userName ?? `道友${auction.currentBidderId}`,
+        }),
+    };
+}
+
+async function settleDueAuctions(repo: XiuxianRepository, now: number): Promise<string[]> {
+    const due = await repo.listDueActiveAuctions(now, XIUXIAN_AUCTION.settleBatchSize);
+    const notices: string[] = [];
+    for (const auction of due) {
+        const settled = await settleSingleAuction(repo, auction, now);
+        if (settled.ok) notices.push(settled.text);
+    }
+    return notices;
 }
 
 function qualityLabel(quality: XiuxianItemQuality): string {
@@ -2018,6 +2179,207 @@ export async function handleXiuxianCommand(
                     skippedMissing,
                 }),
             );
+        }
+
+        if (cmd.type === 'auctionCreate') {
+            if (!cmd.itemId || !cmd.startPrice) {
+                return asText('💡 用法：修仙上架 [装备ID] [起拍价] [时长分钟] [一口价可选]');
+            }
+            const durationMinutes = Math.min(
+                Math.max(cmd.durationMinutes ?? XIUXIAN_AUCTION.defaultDurationMinutes, XIUXIAN_AUCTION.minDurationMinutes),
+                XIUXIAN_AUCTION.maxDurationMinutes,
+            );
+            const startPrice = Math.max(cmd.startPrice, XIUXIAN_AUCTION.minStartPrice);
+            const buyoutPriceRaw = cmd.buyoutPrice ? Math.max(1, Math.floor(cmd.buyoutPrice)) : undefined;
+            if (buyoutPriceRaw && buyoutPriceRaw <= startPrice) {
+                return asText(`⚠️ 一口价需高于起拍价（当前起拍价 ${startPrice}）。`);
+            }
+            const item = await repo.findItem(player.id, cmd.itemId);
+            if (!item) return asText('🔎 未找到该装备编号，请先用「修仙背包」查看。');
+            if (item.isLocked > 0) return asText('🔒 锁定装备不可上架，请先解锁。');
+            const equippedIds = new Set([player.weaponItemId, player.armorItemId, player.accessoryItemId, player.sutraItemId].filter((v): v is number => typeof v === 'number'));
+            if (equippedIds.has(item.id)) return asText('🧷 已装备中的法宝不可上架，请先卸装。');
+
+            const removed = await repo.removeItem(player.id, item.id);
+            if (!removed) return asText('⚠️ 装备状态已变更，请刷新背包后重试。');
+
+            const auctionId = await repo.createAuction({
+                sellerId: player.id,
+                itemPayloadJson: JSON.stringify({
+                    itemType: item.itemType,
+                    itemName: item.itemName,
+                    itemLevel: item.itemLevel,
+                    quality: item.quality,
+                    attack: item.attack,
+                    defense: item.defense,
+                    hp: item.hp,
+                    dodge: item.dodge,
+                    crit: item.crit,
+                    score: item.score,
+                    setKey: item.setKey ?? null,
+                    setName: item.setName ?? null,
+                    isLocked: 0,
+                    buyoutPrice: buyoutPriceRaw ?? null,
+                }),
+                startPrice,
+                minIncrement: XIUXIAN_AUCTION.minIncrement,
+                feeRateBp: XIUXIAN_AUCTION.feeRateBp,
+                endAt: now + durationMinutes * 60_000,
+                now,
+            });
+            return asText(
+                auctionCreatedText({
+                    auctionId,
+                    itemName: item.itemName,
+                    startPrice,
+                    minIncrement: XIUXIAN_AUCTION.minIncrement,
+                    buyoutPrice: buyoutPriceRaw,
+                    endAt: now + durationMinutes * 60_000,
+                }),
+            );
+        }
+
+        if (cmd.type === 'auctionList') {
+            const page = Math.max(1, cmd.page ?? 1);
+            const notices = await settleDueAuctions(repo, now);
+            const rows = await repo.listActiveAuctions(page, XIUXIAN_AUCTION.listSize, now);
+            const panel = auctionListText(rows, page, XIUXIAN_AUCTION.listSize);
+            if (!notices.length) return asText(panel);
+            return asText([`⚖️ 已自动结算 ${notices.length} 笔到期拍卖`, panel].join('\n\n'));
+        }
+
+        if (cmd.type === 'auctionBid') {
+            if (!cmd.auctionId || !cmd.bidPrice) {
+                return asText('💡 用法：修仙竞拍 [拍卖ID] [出价]');
+            }
+
+            const auction = await repo.findAuctionById(cmd.auctionId);
+            if (!auction) return asText('🔎 未找到该拍卖编号，请先发送「修仙拍卖」。');
+            if (auction.status !== 'active') return asText('📦 该拍卖已结束。');
+
+            if (auction.endAt <= now) {
+                const settled = await settleSingleAuction(repo, auction, now);
+                return asText(settled.text);
+            }
+            if (auction.sellerId === player.id) return asText('😅 不能给自己的拍品出价。');
+
+            const buyoutPrice = parseAuctionBuyoutPrice(auction.itemPayloadJson);
+            const minBid = Math.max(auction.startPrice, auction.currentPrice + Math.max(1, auction.minIncrement));
+            if (cmd.bidPrice < minBid) {
+                return asText(`📌 当前最低可出价：${minBid}。`);
+            }
+            const hitBuyout = Boolean(buyoutPrice && cmd.bidPrice >= buyoutPrice);
+            const finalBidPrice = hitBuyout && buyoutPrice ? buyoutPrice : cmd.bidPrice;
+            if (player.spiritStone < finalBidPrice) {
+                return asText(`💸 灵石不足，本次出价需要 ${finalBidPrice} 灵石。`);
+            }
+
+            const idemKey = `${player.id}:auction-bid:${message.messageId}`;
+            const existed = await repo.findAuctionBidByIdempotency(auction.id, idemKey);
+            if (existed) return asText('🧾 该竞拍请求已处理，请勿重复提交。');
+
+            const placed = await repo.placeAuctionBid({
+                auctionId: auction.id,
+                bidderId: player.id,
+                bidPrice: finalBidPrice,
+                expectedVersion: auction.version,
+                idempotencyKey: idemKey,
+                now,
+            });
+            if (!placed) return asText('⚠️ 竞拍并发较高，你的出价已落后，请刷新拍卖列表后再试。');
+
+            const latest = await repo.findAuctionById(auction.id);
+            if (!latest) return asText('⚠️ 出价已提交，但读取拍卖状态失败，请稍后查看。');
+            if (hitBuyout) {
+                const settled = await settleSingleAuction(repo, latest, now);
+                if (!settled.ok) return asText(settled.text);
+                return asText([`⚡ 已触发拍卖 #${auction.id} 一口价 ${finalBidPrice}，即时成交。`, settled.text].join('\n\n'));
+            }
+            return asText(
+                auctionBidText({
+                    auction: latest,
+                    bidPrice: finalBidPrice,
+                    minNextBid: latest.currentPrice + Math.max(1, latest.minIncrement),
+                }),
+            );
+        }
+
+        if (cmd.type === 'auctionBuyout') {
+            if (!cmd.auctionId) return asText('💡 用法：修仙秒拍 [拍卖ID]（兼容：修仙一口价 [拍卖ID]）');
+            const auction = await repo.findAuctionById(cmd.auctionId);
+            if (!auction) return asText('🔎 未找到该拍卖编号，请先发送「修仙拍卖」。');
+            if (auction.status !== 'active') return asText('📦 该拍卖已结束。');
+            if (auction.sellerId === player.id) return asText('😅 不能秒拍自己的拍品。');
+
+            const buyoutPrice = parseAuctionBuyoutPrice(auction.itemPayloadJson);
+            if (!buyoutPrice) return asText('📌 该拍卖未设置一口价。');
+            if (auction.endAt <= now) {
+                const settled = await settleSingleAuction(repo, auction, now);
+                return asText(settled.text);
+            }
+            if (player.spiritStone < buyoutPrice) return asText(`💸 灵石不足，秒拍需要 ${buyoutPrice} 灵石。`);
+
+            const idemKey = `${player.id}:auction-buyout:${message.messageId}`;
+            const existed = await repo.findAuctionBidByIdempotency(auction.id, idemKey);
+            if (existed) return asText('🧾 该秒拍请求已处理，请勿重复提交。');
+
+            const placed = await repo.placeAuctionBid({
+                auctionId: auction.id,
+                bidderId: player.id,
+                bidPrice: buyoutPrice,
+                expectedVersion: auction.version,
+                idempotencyKey: idemKey,
+                now,
+            });
+            if (!placed) return asText('⚠️ 竞拍并发较高，拍卖状态已变化，请刷新后重试。');
+
+            const latest = await repo.findAuctionById(auction.id);
+            if (!latest) return asText('⚠️ 秒拍已提交，但读取拍卖状态失败，请稍后查看。');
+            const settled = await settleSingleAuction(repo, latest, now);
+            if (!settled.ok) return asText(settled.text);
+            return asText([`⚡ 你已以秒拍价 ${buyoutPrice} 拍下拍卖 #${auction.id}。`, settled.text].join('\n\n'));
+        }
+
+        if (cmd.type === 'auctionCancel') {
+            if (!cmd.auctionId) return asText('💡 用法：修仙撤拍 [拍卖ID]');
+            const auction = await repo.findAuctionById(cmd.auctionId);
+            if (!auction) return asText('🔎 未找到该拍卖编号。');
+            if (auction.sellerId !== player.id) return asText('🚫 仅卖家本人可撤拍。');
+            if (auction.status !== 'active') return asText('📦 该拍卖已结束，无法撤拍。');
+            if (auction.endAt <= now) return asText('⌛ 拍卖已到期，请使用「修仙拍结」进行结算。');
+
+            const cancelled = await repo.cancelAuctionNoBid(auction.id, player.id, now);
+            if (!cancelled) return asText('⚠️ 当前拍卖已有出价或状态已变化，撤拍失败。');
+            const item = parseAuctionItemPayload(auction.itemPayloadJson);
+            if (item) {
+                await repo.addItem(player.id, item, now);
+            }
+            await repo.addAuctionSettlement({
+                auctionId: auction.id,
+                sellerId: auction.sellerId,
+                winnerId: null,
+                finalPrice: 0,
+                feeAmount: 0,
+                sellerReceive: 0,
+                result: 'cancelled',
+                detailJson: JSON.stringify({reason: 'seller_cancel'}),
+                now,
+            });
+            return asText(auctionCancelText(auction.id, item?.itemName ?? '未知装备'));
+        }
+
+        if (cmd.type === 'auctionSettle') {
+            if (!cmd.auctionId) {
+                const notices = await settleDueAuctions(repo, now);
+                if (!notices.length) return asText('📭 当前没有可结算的到期拍卖。');
+                return asText(`⚖️ 已完成 ${notices.length} 笔拍卖结算。`);
+            }
+            const auction = await repo.findAuctionById(cmd.auctionId);
+            if (!auction) return asText('🔎 未找到该拍卖编号。');
+            if (auction.status !== 'active') return asText('🧾 该拍卖已结算。');
+            if (auction.endAt > now) return asText(`⌛ 该拍卖尚未结束（截止 ${formatBeijingTime(auction.endAt)}）。`);
+            const settled = await settleSingleAuction(repo, auction, now);
+            return asText(settled.text);
         }
 
         if (cmd.type === 'dismantle') {

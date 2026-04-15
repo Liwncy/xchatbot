@@ -29,6 +29,8 @@ import type {
     XiuxianPetPityState,
     XiuxianShopOffer,
     XiuxianTaskDef,
+    XiuxianAuction,
+    XiuxianAuctionBid,
     XiuxianTowerLog,
     XiuxianTowerProgress,
     XiuxianTowerRankRow,
@@ -124,6 +126,39 @@ function toEconomyLog(row: Record<string, unknown>): XiuxianEconomyLog {
         refId: row.ref_id == null ? null : Number(row.ref_id),
         idempotencyKey: row.idempotency_key == null ? null : String(row.idempotency_key),
         extraJson: String(row.extra_json ?? '{}'),
+        createdAt: Number(row.created_at),
+    };
+}
+
+function toAuction(row: Record<string, unknown>): XiuxianAuction {
+    return {
+        id: Number(row.id),
+        sellerId: Number(row.seller_id),
+        sellerName: row.seller_name == null ? undefined : String(row.seller_name),
+        itemPayloadJson: String(row.item_payload_json ?? '{}'),
+        startPrice: Number(row.start_price),
+        currentPrice: Number(row.current_price),
+        currentBidderId: row.current_bidder_id == null ? null : Number(row.current_bidder_id),
+        currentBidderName: row.current_bidder_name == null ? undefined : String(row.current_bidder_name),
+        minIncrement: Number(row.min_increment),
+        feeRateBp: Number(row.fee_rate_bp),
+        status: String(row.status) as XiuxianAuction['status'],
+        endAt: Number(row.end_at),
+        settledAt: row.settled_at == null ? null : Number(row.settled_at),
+        version: Number(row.version),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+    };
+}
+
+function toAuctionBid(row: Record<string, unknown>): XiuxianAuctionBid {
+    return {
+        id: Number(row.id),
+        auctionId: Number(row.auction_id),
+        bidderId: Number(row.bidder_id),
+        bidderName: row.bidder_name == null ? undefined : String(row.bidder_name),
+        bidPrice: Number(row.bid_price),
+        idempotencyKey: row.idempotency_key == null ? null : String(row.idempotency_key),
         createdAt: Number(row.created_at),
     };
 }
@@ -769,6 +804,209 @@ export class XiuxianRepository {
                 ) VALUES (?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7, ?8, ?8)`,
             )
             .bind(playerId, offer.offerKey, offer.itemPayloadJson, offer.priceSpiritStone, offer.stock, offer.refreshedAt, offer.expiresAt, now)
+            .run();
+    }
+
+    async createAuction(input: {
+        sellerId: number;
+        itemPayloadJson: string;
+        startPrice: number;
+        minIncrement: number;
+        feeRateBp: number;
+        endAt: number;
+        now: number;
+    }): Promise<number> {
+        const result = await this.db
+            .prepare(
+                `INSERT INTO xiuxian_auctions (
+                    seller_id, item_payload_json, start_price, current_price, current_bidder_id,
+                    min_increment, fee_rate_bp, status, end_at, settled_at, version, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?3, NULL, ?4, ?5, 'active', ?6, NULL, 0, ?7, ?7)`,
+            )
+            .bind(input.sellerId, input.itemPayloadJson, input.startPrice, input.minIncrement, input.feeRateBp, input.endAt, input.now)
+            .run();
+        const inserted = Number((result.meta as Record<string, unknown> | undefined)?.last_row_id ?? 0);
+        if (inserted > 0) return inserted;
+        const row = await this.db
+            .prepare('SELECT id FROM xiuxian_auctions WHERE seller_id = ?1 ORDER BY id DESC LIMIT 1')
+            .bind(input.sellerId)
+            .first<Record<string, unknown>>();
+        return Number(row?.id ?? 0);
+    }
+
+    async findAuctionById(auctionId: number): Promise<XiuxianAuction | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT a.*, sp.user_name AS seller_name, bp.user_name AS current_bidder_name
+                 FROM xiuxian_auctions a
+                 LEFT JOIN xiuxian_players sp ON sp.id = a.seller_id
+                 LEFT JOIN xiuxian_players bp ON bp.id = a.current_bidder_id
+                 WHERE a.id = ?1
+                 LIMIT 1`,
+            )
+            .bind(auctionId)
+            .first<Record<string, unknown>>();
+        return row ? toAuction(row) : null;
+    }
+
+    async listActiveAuctions(page: number, pageSize: number, now: number): Promise<XiuxianAuction[]> {
+        const offset = (page - 1) * pageSize;
+        const rows = await this.db
+            .prepare(
+                `SELECT a.*, sp.user_name AS seller_name, bp.user_name AS current_bidder_name
+                 FROM xiuxian_auctions a
+                 LEFT JOIN xiuxian_players sp ON sp.id = a.seller_id
+                 LEFT JOIN xiuxian_players bp ON bp.id = a.current_bidder_id
+                 WHERE a.status = 'active' AND a.end_at > ?1
+                 ORDER BY a.end_at ASC, a.id DESC
+                 LIMIT ?2 OFFSET ?3`,
+            )
+            .bind(now, pageSize, offset)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toAuction);
+    }
+
+    async listDueActiveAuctions(now: number, limit: number): Promise<XiuxianAuction[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT a.*, sp.user_name AS seller_name, bp.user_name AS current_bidder_name
+                 FROM xiuxian_auctions a
+                 LEFT JOIN xiuxian_players sp ON sp.id = a.seller_id
+                 LEFT JOIN xiuxian_players bp ON bp.id = a.current_bidder_id
+                 WHERE a.status = 'active' AND a.end_at <= ?1
+                 ORDER BY a.end_at ASC, a.id ASC
+                 LIMIT ?2`,
+            )
+            .bind(now, limit)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toAuction);
+    }
+
+    async findAuctionBidByIdempotency(auctionId: number, idempotencyKey: string): Promise<XiuxianAuctionBid | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT b.*, p.user_name AS bidder_name
+                 FROM xiuxian_auction_bids b
+                 LEFT JOIN xiuxian_players p ON p.id = b.bidder_id
+                 WHERE b.auction_id = ?1 AND b.idempotency_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(auctionId, idempotencyKey)
+            .first<Record<string, unknown>>();
+        return row ? toAuctionBid(row) : null;
+    }
+
+    async placeAuctionBid(input: {
+        auctionId: number;
+        bidderId: number;
+        bidPrice: number;
+        expectedVersion: number;
+        idempotencyKey?: string;
+        now: number;
+    }): Promise<boolean> {
+        const updateResult = await this.db
+            .prepare(
+                `UPDATE xiuxian_auctions
+                 SET current_price = ?3,
+                     current_bidder_id = ?2,
+                     version = version + 1,
+                     updated_at = ?4
+                 WHERE id = ?1
+                   AND status = 'active'
+                   AND version = ?5`,
+            )
+            .bind(input.auctionId, input.bidderId, input.bidPrice, input.now, input.expectedVersion)
+            .run();
+        if (changedRows(updateResult) <= 0) return false;
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_auction_bids (
+                    auction_id, bidder_id, bid_price, idempotency_key, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5)`,
+            )
+            .bind(input.auctionId, input.bidderId, input.bidPrice, input.idempotencyKey ?? null, input.now)
+            .run();
+        return true;
+    }
+
+    async listAuctionBids(auctionId: number, limit: number): Promise<XiuxianAuctionBid[]> {
+        const rows = await this.db
+            .prepare(
+                `SELECT b.*, p.user_name AS bidder_name
+                 FROM xiuxian_auction_bids b
+                 LEFT JOIN xiuxian_players p ON p.id = b.bidder_id
+                 WHERE b.auction_id = ?1
+                 ORDER BY b.id DESC
+                 LIMIT ?2`,
+            )
+            .bind(auctionId, limit)
+            .all<Record<string, unknown>>();
+        return (rows.results ?? []).map(toAuctionBid);
+    }
+
+    async cancelAuctionNoBid(auctionId: number, sellerId: number, now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_auctions
+                 SET status = 'cancelled',
+                     settled_at = ?3,
+                     updated_at = ?3,
+                     version = version + 1
+                 WHERE id = ?1
+                   AND seller_id = ?2
+                   AND status = 'active'
+                   AND current_bidder_id IS NULL`,
+            )
+            .bind(auctionId, sellerId, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async settleAuctionByVersion(auctionId: number, expectedVersion: number, status: 'settled' | 'expired', now: number): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_auctions
+                 SET status = ?3,
+                     settled_at = ?4,
+                     updated_at = ?4,
+                     version = version + 1
+                 WHERE id = ?1
+                   AND status = 'active'
+                   AND version = ?2`,
+            )
+            .bind(auctionId, expectedVersion, status, now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async addAuctionSettlement(input: {
+        auctionId: number;
+        sellerId: number;
+        winnerId: number | null;
+        finalPrice: number;
+        feeAmount: number;
+        sellerReceive: number;
+        result: 'sold' | 'expired' | 'cancelled';
+        detailJson: string;
+        now: number;
+    }): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_auction_settlements (
+                    auction_id, seller_id, winner_id, final_price, fee_amount, seller_receive, result, detail_json, settled_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+            )
+            .bind(
+                input.auctionId,
+                input.sellerId,
+                input.winnerId,
+                input.finalPrice,
+                input.feeAmount,
+                input.sellerReceive,
+                input.result,
+                input.detailJson,
+                input.now,
+            )
             .run();
     }
 

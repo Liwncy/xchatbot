@@ -13,6 +13,8 @@ import type {
     XiuxianPetBagItem,
     XiuxianShopOffer,
     XiuxianTaskDef,
+    XiuxianAuction,
+    XiuxianAuctionBid,
     XiuxianTowerRankRow,
     XiuxianTowerSeasonRankRow,
 } from './types.js';
@@ -66,6 +68,12 @@ export function helpText(topic?: string): string {
             '🔥 修仙炼器 [装备ID] [次数|无限]',
             '🧮 修仙炼器详情 [装备ID]',
             '📒 修仙流水 [条数]',
+            '🏷️ 修仙上架 [装备ID] [起拍价] [时长分钟]',
+            '🏛️ 修仙拍卖 [页码]',
+            '💸 修仙竞拍 [拍卖ID] [出价]',
+            '⚡ 修仙秒拍 [拍卖ID]',
+            '🛑 修仙撤拍 [拍卖ID]',
+            '⚖️ 修仙拍结 [拍卖ID]',
         ],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
@@ -87,6 +95,10 @@ export function helpText(topic?: string): string {
         上锁: '经济',
         解锁: '经济',
         流水: '经济',
+        拍卖: '经济',
+        上架: '经济',
+        竞拍: '经济',
+        一口价: '经济',
         // 成长
         签到: '成长',
         任务: '成长',
@@ -273,6 +285,106 @@ export function shopText(offers: XiuxianShopOffer[]): string {
 
 export function buyResultText(offer: XiuxianShopOffer, itemName: string, balanceAfter: number): string {
     return ['✅ 购买成功', '━━━━━━━━━━━━', `🎁 获得：${itemName}`, `💸 花费：${offer.priceSpiritStone} 灵石`, `💎 余额：${balanceAfter}`].join('\n');
+}
+
+function parseAuctionItemName(auction: XiuxianAuction): string {
+    try {
+        const data = JSON.parse(auction.itemPayloadJson) as Record<string, unknown>;
+        const name = String(data.itemName ?? '未知装备');
+        const score = Number(data.score ?? 0);
+        return `${name}（评分:${score}）`;
+    } catch {
+        return '未知装备';
+    }
+}
+
+function parseAuctionBuyoutPrice(auction: XiuxianAuction): number | null {
+    if (typeof auction.buyoutPrice === 'number' && auction.buyoutPrice > 0) return auction.buyoutPrice;
+    try {
+        const data = JSON.parse(auction.itemPayloadJson) as Record<string, unknown>;
+        const v = Number(data.buyoutPrice ?? 0);
+        return Number.isFinite(v) && v > 0 ? Math.floor(v) : null;
+    } catch {
+        return null;
+    }
+}
+
+export function auctionCreatedText(params: {
+    auctionId: number;
+    itemName: string;
+    startPrice: number;
+    minIncrement: number;
+    buyoutPrice?: number;
+    endAt: number;
+}): string {
+    return [
+        `🏷️ 上架成功：拍卖 #${params.auctionId}`,
+        '━━━━━━━━━━━━',
+        `📦 拍品：${params.itemName}`,
+        `💎 起拍价：${params.startPrice}`,
+        `📈 最小加价：${params.minIncrement}`,
+        ...(params.buyoutPrice && params.buyoutPrice > 0 ? [`⚡ 一口价：${params.buyoutPrice}`] : []),
+        `⏰ 截止时间：${formatBeijingTime(params.endAt)}`,
+        '💡 竞拍：修仙竞拍 [拍卖ID] [出价]，秒拍：修仙秒拍 [拍卖ID]，结算：修仙拍结 [拍卖ID]',
+    ].join('\n');
+}
+
+export function auctionListText(rows: XiuxianAuction[], page: number, pageSize: number): string {
+    if (!rows.length) return '🏛️ 当前没有进行中的拍卖，发送「修仙上架 [装备ID] [起拍价] [时长分钟]」开拍。';
+    const lines = rows.map((auction) => {
+        const bidder = auction.currentBidderName?.trim() || (auction.currentBidderId ? `道友${auction.currentBidderId}` : '暂无');
+        const buyout = parseAuctionBuyoutPrice(auction);
+        return `#${auction.id} ${parseAuctionItemName(auction)} | 卖家:${auction.sellerName?.trim() || `道友${auction.sellerId}`} | 当前:${auction.currentPrice} | 领先:${bidder}${buyout ? ` | 一口:${buyout}` : ''} | 截止:${formatBeijingTime(auction.endAt)}`;
+    });
+    return [`🏛️ 拍卖行第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 竞拍：修仙竞拍 [拍卖ID] [出价]  /  秒拍：修仙秒拍 [拍卖ID]'].join('\n');
+}
+
+export function auctionBidText(params: {
+    auction: XiuxianAuction;
+    bidPrice: number;
+    minNextBid: number;
+}): string {
+    return [
+        `💸 出价成功：拍卖 #${params.auction.id}`,
+        '━━━━━━━━━━━━',
+        `📦 拍品：${parseAuctionItemName(params.auction)}`,
+        `💎 当前最高价：${params.bidPrice}`,
+        `📌 下一口最低：${params.minNextBid}`,
+        `⏰ 截止时间：${formatBeijingTime(params.auction.endAt)}`,
+    ].join('\n');
+}
+
+export function auctionCancelText(auctionId: number, itemName: string): string {
+    return [`🛑 撤拍成功：#${auctionId}`, '━━━━━━━━━━━━', `📦 已返还拍品：${itemName}`].join('\n');
+}
+
+export function auctionSettleText(params: {
+    auctionId: number;
+    itemName: string;
+    finalPrice: number;
+    feeAmount: number;
+    sellerReceive: number;
+    winnerName: string;
+}): string {
+    return [
+        `⚖️ 拍卖结算完成：#${params.auctionId}`,
+        '━━━━━━━━━━━━',
+        `📦 拍品：${params.itemName}`,
+        `🏆 赢家：${params.winnerName}`,
+        `💎 成交价：${params.finalPrice}`,
+        `🏦 手续费：${params.feeAmount}`,
+        `📥 卖家到账：${params.sellerReceive}`,
+    ].join('\n');
+}
+
+export function auctionSettleNoBidText(auctionId: number, itemName: string): string {
+    return [`⚖️ 拍卖 #${auctionId} 已流拍`, '━━━━━━━━━━━━', `📦 拍品已返还：${itemName}`].join('\n');
+}
+
+export function auctionBidHistoryText(auctionId: number, bids: XiuxianAuctionBid[]): string {
+    if (!bids.length) return `📜 拍卖 #${auctionId} 暂无出价记录。`;
+    const lines = bids.map((bid, idx) => `${idx + 1}. ${bid.bidderName?.trim() || `道友${bid.bidderId}`}：${bid.bidPrice}（${formatBeijingTime(bid.createdAt)}）`);
+    return [`📜 拍卖 #${auctionId} 最近出价`, '━━━━━━━━━━━━', ...lines].join('\n');
 }
 
 export function sellResultText(itemName: string, gain: number, balanceAfter: number): string {

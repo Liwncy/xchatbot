@@ -5,6 +5,18 @@ export const XIUXIAN_SHOP_OFFER_COUNT = 6;
 export const XIUXIAN_SHOP_REFRESH_MS = 4 * 60 * 60 * 1000;
 export const XIUXIAN_TASK_DEFAULT_LIMIT = 10;
 
+export const XIUXIAN_AUCTION = {
+    minStartPrice: 10,
+    minIncrement: 5,
+    feeRateBp: 500,
+    minDurationMinutes: 10,
+    maxDurationMinutes: 24 * 60,
+    defaultDurationMinutes: 120,
+    listSize: 10,
+    listMax: 50,
+    settleBatchSize: 20,
+} as const;
+
 export const XIUXIAN_CHECKIN_REWARD = {
     spiritStone: 30,
     exp: 20,

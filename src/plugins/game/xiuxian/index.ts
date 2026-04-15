@@ -6,7 +6,7 @@ import {handleXiuxianCommand} from './service.js';
 export const xiuxianPlugin: TextMessage = {
     type: 'text',
     name: 'xiuxian-plugin',
-    description: '文本修仙 MVP 插件（创建/修炼/探索/背包/挑战）',
+    description: '文本修仙 MVP 插件（创建/修炼/探索/背包/挑战/拍卖）',
     match: (content) => {
         const text = (content ?? '').trim();
         return text.startsWith('修仙');

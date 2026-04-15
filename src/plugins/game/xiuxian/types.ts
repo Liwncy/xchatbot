@@ -19,6 +19,12 @@ export type XiuxianCommand =
     | {type: 'shop'}
     | {type: 'buy'; offerId: number}
     | {type: 'sell'; itemId?: number; itemIds?: number[]; sellAll?: boolean; sellQuality?: XiuxianItemQuality; sellQualityMode?: 'exact' | 'at_least' | 'at_most'}
+    | {type: 'auctionCreate'; itemId?: number; startPrice?: number; durationMinutes?: number; buyoutPrice?: number}
+    | {type: 'auctionList'; page?: number}
+    | {type: 'auctionBid'; auctionId?: number; bidPrice?: number}
+    | {type: 'auctionBuyout'; auctionId?: number}
+    | {type: 'auctionCancel'; auctionId?: number}
+    | {type: 'auctionSettle'; auctionId?: number}
     | {
           type: 'dismantle';
           itemId?: number;
@@ -167,6 +173,36 @@ export interface XiuxianEconomyLog {
     refId: number | null;
     idempotencyKey: string | null;
     extraJson: string;
+    createdAt: number;
+}
+
+export interface XiuxianAuction {
+    id: number;
+    sellerId: number;
+    sellerName?: string;
+    itemPayloadJson: string;
+    startPrice: number;
+    currentPrice: number;
+    currentBidderId: number | null;
+    currentBidderName?: string;
+    buyoutPrice?: number | null;
+    minIncrement: number;
+    feeRateBp: number;
+    status: 'active' | 'settled' | 'cancelled' | 'expired';
+    endAt: number;
+    settledAt: number | null;
+    version: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface XiuxianAuctionBid {
+    id: number;
+    auctionId: number;
+    bidderId: number;
+    bidderName?: string;
+    bidPrice: number;
+    idempotencyKey: string | null;
     createdAt: number;
 }
 

@@ -197,6 +197,38 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
         return {type: 'sell', itemId: uniq[0], itemIds: uniq};
     }
 
+    const auctionCreateMatch = text.match(/^修仙上架(?:\s+(\d+)(?:\s+(\d+)(?:\s+(\d+)(?:\s+(\d+))?)?)?)?$/);
+    if (auctionCreateMatch) {
+        return {
+            type: 'auctionCreate',
+            itemId: parsePositiveInt(auctionCreateMatch[1]),
+            startPrice: parsePositiveInt(auctionCreateMatch[2]),
+            durationMinutes: parsePositiveInt(auctionCreateMatch[3]),
+            buyoutPrice: parsePositiveInt(auctionCreateMatch[4]),
+        };
+    }
+
+    const auctionListMatch = text.match(/^修仙拍卖(?:\s+(\d+))?$/);
+    if (auctionListMatch) return {type: 'auctionList', page: parsePositiveInt(auctionListMatch[1])};
+
+    const auctionBidMatch = text.match(/^修仙竞拍(?:\s+(\d+)(?:\s+(\d+))?)?$/);
+    if (auctionBidMatch) {
+        return {
+            type: 'auctionBid',
+            auctionId: parsePositiveInt(auctionBidMatch[1]),
+            bidPrice: parsePositiveInt(auctionBidMatch[2]),
+        };
+    }
+
+    const auctionBuyoutMatch = text.match(/^修仙(?:秒拍|一口价)(?:\s+(\d+))?$/);
+    if (auctionBuyoutMatch) return {type: 'auctionBuyout', auctionId: parsePositiveInt(auctionBuyoutMatch[1])};
+
+    const auctionCancelMatch = text.match(/^修仙撤拍(?:\s+(\d+))?$/);
+    if (auctionCancelMatch) return {type: 'auctionCancel', auctionId: parsePositiveInt(auctionCancelMatch[1])};
+
+    const auctionSettleMatch = text.match(/^修仙拍结(?:\s+(\d+))?$/);
+    if (auctionSettleMatch) return {type: 'auctionSettle', auctionId: parsePositiveInt(auctionSettleMatch[1])};
+
     const dismantleMatch = text.match(/^修仙分解(?:\s+(.+))?$/);
     if (dismantleMatch) {
         const arg = (dismantleMatch[1] ?? '').trim();

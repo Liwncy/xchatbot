@@ -453,6 +453,52 @@ CREATE TABLE IF NOT EXISTS xiuxian_item_refines (
   FOREIGN KEY(item_id) REFERENCES xiuxian_inventory(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_auctions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  seller_id INTEGER NOT NULL,
+  item_payload_json TEXT NOT NULL,
+  start_price INTEGER NOT NULL,
+  current_price INTEGER NOT NULL,
+  current_bidder_id INTEGER,
+  min_increment INTEGER NOT NULL DEFAULT 1,
+  fee_rate_bp INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'active',
+  end_at INTEGER NOT NULL,
+  settled_at INTEGER,
+  version INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(seller_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(current_bidder_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_auction_bids (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  auction_id INTEGER NOT NULL,
+  bidder_id INTEGER NOT NULL,
+  bid_price INTEGER NOT NULL,
+  idempotency_key TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(auction_id) REFERENCES xiuxian_auctions(id),
+  FOREIGN KEY(bidder_id) REFERENCES xiuxian_players(id)
+);
+
+CREATE TABLE IF NOT EXISTS xiuxian_auction_settlements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  auction_id INTEGER NOT NULL,
+  seller_id INTEGER NOT NULL,
+  winner_id INTEGER,
+  final_price INTEGER NOT NULL DEFAULT 0,
+  fee_amount INTEGER NOT NULL DEFAULT 0,
+  seller_receive INTEGER NOT NULL DEFAULT 0,
+  result TEXT NOT NULL,
+  detail_json TEXT NOT NULL DEFAULT '{}',
+  settled_at INTEGER NOT NULL,
+  FOREIGN KEY(auction_id) REFERENCES xiuxian_auctions(id),
+  FOREIGN KEY(seller_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(winner_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_xiuxian_inventory_player ON xiuxian_inventory(player_id);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_battles_player_time ON xiuxian_battles(player_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_shop_player_status ON xiuxian_shop_offers(player_id, status, expires_at);
@@ -485,4 +531,9 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_logs_bond_time ON xiuxian_bond_logs(
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_milestone_claims_bond ON xiuxian_bond_milestone_claims(bond_id, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_refine_materials_player ON xiuxian_refine_materials(player_id, material_key);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_item_refines_level ON xiuxian_item_refines(refine_level DESC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_auctions_active ON xiuxian_auctions(status, end_at, id DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_auctions_seller ON xiuxian_auctions(seller_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_auction_bids_auction_time ON xiuxian_auction_bids(auction_id, id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_auction_bids_idem ON xiuxian_auction_bids(auction_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_auction_settle_unique ON xiuxian_auction_settlements(auction_id);
 
