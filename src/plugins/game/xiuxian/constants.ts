@@ -21,6 +21,7 @@ export const XIUXIAN_WORLD_BOSS = {
 export const XIUXIAN_TOWER = {
     rankSize: 10,
     rankMax: 30,
+    quickClimbMax: 20,
 } as const;
 
 export const XIUXIAN_TOWER_SEASON_REWARDS = [

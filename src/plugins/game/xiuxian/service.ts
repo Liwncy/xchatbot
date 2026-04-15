@@ -93,6 +93,7 @@ import {
     statusText,
     taskText,
     towerClimbText,
+    towerFastClimbText,
     towerDetailText,
     towerLogText,
     towerRankText,
@@ -2472,57 +2473,120 @@ export async function handleXiuxianCommand(
             if (left > 0) return asText(cooldownText('爬塔', left));
 
             const progress = await repo.findTowerProgress(player.id);
-            const targetFloor = (progress?.highestFloor ?? 0) + 1;
-            const enemy = towerEnemy(player.level, targetFloor);
+            const requested = Math.min(Math.max(cmd.times ?? 1, 1), XIUXIAN_TOWER.quickClimbMax);
+            let highestFloor = progress?.highestFloor ?? 0;
             const equippedRaw = await repo.getEquippedItems(player);
             const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
-            const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
-            const result = runSimpleBattle(power, enemy);
-            const reward = towerRewards(player.level, targetFloor, result.win);
+            let attempted = 0;
+            let cleared = 0;
+            let failedFloor: number | undefined;
+            let lastResult: 'win' | 'lose' = 'lose';
+            let lastRewardJson = '{}';
+            const totalReward = {spiritStone: 0, exp: 0, cultivation: 0};
+            const floorLines: string[] = [];
+            let firstRun: {
+                floor: number;
+                result: 'win' | 'lose';
+                rounds: number;
+                reward: {spiritStone: number; exp: number; cultivation: number};
+                enemyName: string;
+            } | null = null;
 
-            const step = applyExpProgress(player, reward.exp);
-            player.level = step.level;
-            player.exp = step.exp;
-            player.maxHp = step.maxHp;
-            player.attack = step.attack;
-            player.defense = step.defense;
-            player.hp = step.maxHp;
-            player.spiritStone += reward.spiritStone;
-            player.cultivation += reward.cultivation;
+            for (let i = 0; i < requested; i += 1) {
+                const targetFloor = highestFloor + 1;
+                attempted += 1;
+                const enemy = towerEnemy(player.level, targetFloor);
+                const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
+                const result = runSimpleBattle(power, enemy);
+                const reward = towerRewards(player.level, targetFloor, result.win);
+                if (!firstRun) {
+                    firstRun = {
+                        floor: targetFloor,
+                        result: result.win ? 'win' : 'lose',
+                        rounds: result.rounds,
+                        reward,
+                        enemyName: enemy.name,
+                    };
+                }
+
+                const step = applyExpProgress(player, reward.exp);
+                player.level = step.level;
+                player.exp = step.exp;
+                player.maxHp = step.maxHp;
+                player.attack = step.attack;
+                player.defense = step.defense;
+                player.hp = step.maxHp;
+                player.spiritStone += reward.spiritStone;
+                player.cultivation += reward.cultivation;
+
+                totalReward.spiritStone += reward.spiritStone;
+                totalReward.exp += reward.exp;
+                totalReward.cultivation += reward.cultivation;
+
+                lastResult = result.win ? 'win' : 'lose';
+                lastRewardJson = JSON.stringify({
+                    spiritStone: reward.spiritStone,
+                    exp: reward.exp,
+                    cultivation: reward.cultivation,
+                    floor: targetFloor,
+                });
+                await repo.addTowerLog(player.id, targetFloor, result.win ? 'win' : 'lose', result.rounds, lastRewardJson, result.logs.join('\n'), now);
+                floorLines.push(
+                    `第${targetFloor}层 ${result.win ? '✅' : '💥'} | ${result.rounds}回合 | 💎+${reward.spiritStone} 📈+${reward.exp} ✨+${reward.cultivation}`,
+                );
+
+                if (result.win) {
+                    highestFloor = targetFloor;
+                    cleared += 1;
+                    continue;
+                }
+                failedFloor = targetFloor;
+                break;
+            }
+
             await repo.updatePlayer(player, now);
-
-            const highestFloor = result.win ? targetFloor : progress?.highestFloor ?? 0;
-            const rewardJson = JSON.stringify({
-                spiritStone: reward.spiritStone,
-                exp: reward.exp,
-                cultivation: reward.cultivation,
-                floor: targetFloor,
-            });
-            await repo.upsertTowerProgress(player.id, highestFloor, result.win ? 'win' : 'lose', rewardJson, now);
+            await repo.upsertTowerProgress(player.id, highestFloor, lastResult, lastRewardJson, now);
             await repo.upsertTowerSeasonProgress(player.id, towerSeasonKey(now), highestFloor, now);
-            await repo.addTowerLog(player.id, targetFloor, result.win ? 'win' : 'lose', result.rounds, rewardJson, result.logs.join('\n'), now);
             await repo.setCooldown(player.id, XIUXIAN_ACTIONS.towerClimb, now + XIUXIAN_COOLDOWN_MS.towerClimb, now);
             await repo.createEconomyLog({
                 playerId: player.id,
                 bizType: 'reward',
-                deltaSpiritStone: reward.spiritStone,
+                deltaSpiritStone: totalReward.spiritStone,
                 balanceAfter: player.spiritStone,
                 refType: 'tower',
-                refId: targetFloor,
+                refId: highestFloor,
                 idempotencyKey: `${player.id}:tower:${message.messageId}`,
-                extraJson: JSON.stringify({result: result.win ? 'win' : 'lose', floor: targetFloor, exp: reward.exp, cultivation: reward.cultivation}),
+                extraJson: JSON.stringify({
+                    requested,
+                    attempted,
+                    cleared,
+                    failedFloor: failedFloor ?? null,
+                    highestFloor,
+                    exp: totalReward.exp,
+                    cultivation: totalReward.cultivation,
+                }),
                 now,
             });
 
-            const climbText = towerClimbText({
-                floor: targetFloor,
-                result: result.win ? 'win' : 'lose',
-                rounds: result.rounds,
-                reward,
-                highestFloor,
-                enemyName: enemy.name,
-            });
+            const climbText = requested === 1 && firstRun
+                ? towerClimbText({
+                    floor: firstRun.floor,
+                    result: firstRun.result,
+                    rounds: firstRun.rounds,
+                    reward: firstRun.reward,
+                    highestFloor,
+                    enemyName: firstRun.enemyName,
+                })
+                : towerFastClimbText({
+                    requested,
+                    attempted,
+                    cleared,
+                    highestFloor,
+                    totalReward,
+                    floorLines: floorLines.slice(0, 8),
+                    failedFloor,
+                });
             if (!autoSeason) return asText(climbText);
             return asText(
                 [

@@ -246,7 +246,16 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const bossDetailMatch = text.match(/^修仙伐详\s+(\d+)$/);
     if (bossDetailMatch) return {type: 'bossDetail', logId: Number(bossDetailMatch[1])};
 
-    if (text === '修仙爬塔') return {type: 'towerClimb'};
+    const towerClimbMatch = text.match(/^修仙爬塔(?:\s+(.+))?$/);
+    if (towerClimbMatch) {
+        const arg = (towerClimbMatch[1] ?? '').trim();
+        if (!arg) return {type: 'towerClimb'};
+        if (arg === '最大' || arg.toLowerCase() === 'max') {
+            // Service layer clamps to XIUXIAN_TOWER.quickClimbMax.
+            return {type: 'towerClimb', times: Number.MAX_SAFE_INTEGER};
+        }
+        return {type: 'towerClimb', times: parsePositiveInt(arg)};
+    }
 
     if (text === '修仙塔况') return {type: 'towerStatus'};
 

@@ -68,7 +68,7 @@ export function helpText(topic?: string): string {
         ],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
-        爬塔: ['🗼 修仙爬塔', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
+        爬塔: ['🗼 修仙爬塔 [层数|最大]', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
         灵宠: ['🐾 修仙领宠', '🎴 修仙卡池', '🎲 修仙抽宠 [1|10|十连]', '🧿 修仙保底', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID] [数量]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
         战报: ['📚 修仙战报 [页码]', '🔎 修仙战详 [战报ID]'],
     };
@@ -559,6 +559,30 @@ export function towerClimbText(params: {
         `📈 经验 +${params.reward.exp}`,
         `✨ 修为 +${params.reward.cultivation}`,
         `🗼 当前最高层：${params.highestFloor}`,
+    ].join('\n');
+}
+
+export function towerFastClimbText(params: {
+    requested: number;
+    attempted: number;
+    cleared: number;
+    highestFloor: number;
+    totalReward: {spiritStone: number; exp: number; cultivation: number};
+    floorLines: string[];
+    failedFloor?: number;
+}): string {
+    return [
+        `⚡ 快速爬塔完成（请求 ${params.requested} 层）`,
+        '━━━━━━━━━━━━',
+        `🧪 实际挑战：${params.attempted} 层`,
+        `✅ 成功通关：${params.cleared} 层`,
+        ...(params.failedFloor ? [`💥 停止于：第 ${params.failedFloor} 层`] : ['🏁 本次未遇阻，已完成请求层数']),
+        `🗼 当前最高层：${params.highestFloor}`,
+        `💎 灵石 +${params.totalReward.spiritStone}`,
+        `📈 经验 +${params.totalReward.exp}`,
+        `✨ 修为 +${params.totalReward.cultivation}`,
+        ...(params.floorLines.length ? ['━━━━━━━━━━━━', ...params.floorLines] : []),
+        '💡 查看详情：修仙塔报 / 修仙塔详 [战报ID]',
     ].join('\n');
 }
 

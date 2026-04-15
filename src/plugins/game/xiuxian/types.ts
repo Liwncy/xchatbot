@@ -37,7 +37,7 @@ export type XiuxianCommand =
     | {type: 'bossRank'; limit?: number; selfOnly?: boolean}
     | {type: 'bossLog'; page?: number}
     | {type: 'bossDetail'; logId: number}
-    | {type: 'towerClimb'}
+    | {type: 'towerClimb'; times?: number}
     | {type: 'towerStatus'}
     | {type: 'towerRank'; limit?: number; selfOnly?: boolean; scope?: 'all' | 'weekly'}
     | {type: 'towerLog'; page?: number}
