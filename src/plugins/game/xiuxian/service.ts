@@ -470,13 +470,25 @@ function worldBossHp(level: number): number {
 }
 
 function towerEnemy(level: number, floor: number): {name: string; attack: number; defense: number; maxHp: number; dodge: number; crit: number} {
+    const cfg = XIUXIAN_TOWER.enemy;
+    const spikeSteps = floor > cfg.floorSpikeStart
+        ? Math.floor((floor - cfg.floorSpikeStart - 1) / cfg.floorSpikeEvery) + 1
+        : 0;
+    const attackMul = 1 + spikeSteps * cfg.spikeAttackPct;
+    const defenseMul = 1 + spikeSteps * cfg.spikeDefensePct;
+    const hpMul = 1 + spikeSteps * cfg.spikeHpPct;
+
+    const attackRaw = cfg.baseAttack + level * cfg.levelAttack + floor * cfg.floorAttack;
+    const defenseRaw = cfg.baseDefense + level * cfg.levelDefense + floor * cfg.floorDefense;
+    const hpRaw = cfg.baseHp + level * cfg.levelHp + floor * cfg.floorHp;
+
     return {
         name: `镇塔守卫·${realmName(level)}（第${floor}层）`,
-        attack: 10 + level * 2 + floor * 2,
-        defense: 6 + level + floor,
-        maxHp: 100 + level * 20 + floor * 35,
-        dodge: Math.min(0.25, 0.03 + floor * 0.002),
-        crit: Math.min(0.3, 0.04 + floor * 0.002),
+        attack: Math.floor(attackRaw * attackMul),
+        defense: Math.floor(defenseRaw * defenseMul),
+        maxHp: Math.floor(hpRaw * hpMul),
+        dodge: Math.min(cfg.dodgeCap, cfg.dodgeBase + floor * cfg.dodgePerFloor),
+        crit: Math.min(cfg.critCap, cfg.critBase + floor * cfg.critPerFloor),
     };
 }
 

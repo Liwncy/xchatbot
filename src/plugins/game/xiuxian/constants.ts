@@ -22,6 +22,28 @@ export const XIUXIAN_TOWER = {
     rankSize: 10,
     rankMax: 30,
     quickClimbMax: 20,
+    enemy: {
+        baseAttack: 10,
+        baseDefense: 6,
+        baseHp: 100,
+        levelAttack: 2,
+        levelDefense: 1,
+        levelHp: 20,
+        floorAttack: 2.2,
+        floorDefense: 1.1,
+        floorHp: 38,
+        floorSpikeStart: 20,
+        floorSpikeEvery: 10,
+        spikeAttackPct: 0.06,
+        spikeDefensePct: 0.04,
+        spikeHpPct: 0.09,
+        dodgeBase: 0.03,
+        critBase: 0.04,
+        dodgePerFloor: 0.002,
+        critPerFloor: 0.002,
+        dodgeCap: 0.26,
+        critCap: 0.31,
+    },
 } as const;
 
 export const XIUXIAN_TOWER_SEASON_REWARDS = [
