@@ -43,6 +43,13 @@ const QUALITY_FACTOR: Record<XiuxianItemQuality, number> = {
     mythic: 2.75,
 };
 
+const EQUIPMENT_BASE_STATS: Record<EquipmentSlot, {attack: number; defense: number; hp: number; dodge: number; crit: number}> = {
+    weapon: {attack: 12, defense: 0, hp: 0, dodge: 0, crit: 0.012},
+    armor: {attack: 0, defense: 10, hp: 120, dodge: 0, crit: 0},
+    accessory: {attack: 9, defense: 8, hp: 90, dodge: 0.01, crit: 0.011},
+    sutra: {attack: 11, defense: 9, hp: 100, dodge: 0.011, crit: 0.012},
+};
+
 const QUALITY_PREFIX: Record<XiuxianItemQuality, string[]> = {
     common: ['白玉', '青木', '朴石', '素纹'],
     uncommon: ['翠玉', '流云', '灵藤', '霜杉'],
@@ -84,14 +91,6 @@ export function exploreDropHintText(): string {
     return `💡 掉装率约 65%，其中高品质（紫/金/红）约 ${highTierRate}%。`;
 }
 
-function randomInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomFloat(min: number, max: number): number {
-    return Math.random() * (max - min) + min;
-}
-
 function pickOne<T>(list: T[]): T {
     return list[Math.floor(Math.random() * list.length)];
 }
@@ -116,6 +115,25 @@ function buildItemName(type: EquipmentSlot, quality: XiuxianItemQuality): string
 
 function scoreOf(attack: number, defense: number, hp: number, dodge: number, crit: number): number {
     return Math.floor(attack * 1.3 + defense * 1.1 + hp / 8 + dodge * 120 + crit * 130);
+}
+
+function fixedLootStats(itemType: EquipmentSlot, quality: XiuxianItemQuality): {
+    attack: number;
+    defense: number;
+    hp: number;
+    dodge: number;
+    crit: number;
+    score: number;
+} {
+    const factor = QUALITY_FACTOR[quality];
+    const base = EQUIPMENT_BASE_STATS[itemType];
+    const attack = Math.floor(base.attack * factor);
+    const defense = Math.floor(base.defense * factor);
+    const hp = Math.floor(base.hp * factor);
+    const dodge = Number((base.dodge * factor).toFixed(4));
+    const crit = Number((base.crit * factor).toFixed(4));
+    const score = scoreOf(attack, defense, hp, dodge, crit);
+    return {attack, defense, hp, dodge, crit, score};
 }
 
 function expNeed(level: number): number {
@@ -151,23 +169,14 @@ export function exploreStoneReward(level: number): number {
     return 6 + Math.floor(level * 1.5) + Math.floor(Math.random() * 8);
 }
 
-export function rollExploreLoot(level: number): LootItem | null {
+export function rollExploreLoot(_level: number): LootItem | null {
     if (Math.random() < 0.35) return null;
 
     const types: EquipmentSlot[] = ['weapon', 'armor', 'accessory', 'sutra'];
     const itemType = pickOne(types);
     const itemLevel = 1;
     const quality = rollQuality();
-    const factor = QUALITY_FACTOR[quality];
-    const baseAtk = randomInt(6, 14) + Math.floor(level * 1.8);
-    const baseDef = randomInt(5, 12) + Math.floor(level * 1.5);
-    const baseHp = randomInt(40, 110) + level * 14;
-    const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseAtk * factor) : 0;
-    const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseDef * factor) : 0;
-    const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseHp * factor) : 0;
-    const dodge = itemType === 'accessory' || itemType === 'sutra' ? Number((randomFloat(0.004, 0.02) * factor).toFixed(4)) : 0;
-    const crit = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Number((randomFloat(0.005, 0.023) * factor).toFixed(4)) : 0;
-    const score = scoreOf(attack, defense, hp, dodge, crit);
+    const {attack, defense, hp, dodge, crit, score} = fixedLootStats(itemType, quality);
 
     return {
         itemType,
@@ -185,6 +194,7 @@ export function rollExploreLoot(level: number): LootItem | null {
 }
 
 export function generateShopItems(level: number, count: number): LootItem[] {
+    void level;
     const items: LootItem[] = [];
     let guard = 0;
     while (items.length < count && guard < count * 10) {
@@ -197,16 +207,7 @@ export function generateShopItems(level: number, count: number): LootItem[] {
         const itemType = pickOne(types);
         const itemLevel = 1;
         const quality = rollQuality(1);
-        const factor = QUALITY_FACTOR[quality];
-        const baseAtk = randomInt(8, 18) + Math.floor(level * 2.5);
-        const baseDef = randomInt(7, 16) + Math.floor(level * 2.0);
-        const baseHp = randomInt(80, 180) + level * 20;
-        const attack = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseAtk * factor) : 0;
-        const defense = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseDef * factor) : 0;
-        const hp = itemType === 'armor' || itemType === 'accessory' || itemType === 'sutra' ? Math.floor(baseHp * factor) : 0;
-        const dodge = itemType === 'accessory' || itemType === 'sutra' ? Number((randomFloat(0.006, 0.025) * factor).toFixed(4)) : 0;
-        const crit = itemType === 'weapon' || itemType === 'accessory' || itemType === 'sutra' ? Number((randomFloat(0.007, 0.03) * factor).toFixed(4)) : 0;
-        const score = scoreOf(attack, defense, hp, dodge, crit);
+        const {attack, defense, hp, dodge, crit, score} = fixedLootStats(itemType, quality);
         items.push({itemType, itemName: buildItemName(itemType, quality), itemLevel, quality, attack, defense, hp, dodge, crit, score, isLocked: 0});
     }
     return items;
