@@ -142,6 +142,36 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
         if (slot) return {type: 'unequip', slot};
     }
 
+    const lockMatch = text.match(/^修仙上锁(?:\s+(.+))?$/);
+    if (lockMatch) {
+        const arg = (lockMatch[1] ?? '').trim();
+        if (!arg) return {type: 'lock'};
+        const parts = arg.split(/\s+/).filter(Boolean);
+        const ids: number[] = [];
+        for (const part of parts) {
+            const n = parsePositiveInt(part);
+            if (!n) return {type: 'lock'};
+            ids.push(n);
+        }
+        const uniq = Array.from(new Set(ids));
+        return {type: 'lock', itemId: uniq[0], itemIds: uniq};
+    }
+
+    const unlockMatch = text.match(/^修仙解锁(?:\s+(.+))?$/);
+    if (unlockMatch) {
+        const arg = (unlockMatch[1] ?? '').trim();
+        if (!arg) return {type: 'unlock'};
+        const parts = arg.split(/\s+/).filter(Boolean);
+        const ids: number[] = [];
+        for (const part of parts) {
+            const n = parsePositiveInt(part);
+            if (!n) return {type: 'unlock'};
+            ids.push(n);
+        }
+        const uniq = Array.from(new Set(ids));
+        return {type: 'unlock', itemId: uniq[0], itemIds: uniq};
+    }
+
     if (text === '修仙挑战') return {type: 'challenge'};
 
     if (text === '修仙商店') return {type: 'shop'};

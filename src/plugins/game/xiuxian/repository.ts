@@ -848,6 +848,19 @@ export class XiuxianRepository {
         return changedRows(result) > 0;
     }
 
+    async setItemLock(playerId: number, itemId: number, isLocked: number): Promise<boolean> {
+        const lockValue = isLocked > 0 ? 1 : 0;
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_inventory
+                 SET is_locked = ?3
+                 WHERE player_id = ?1 AND id = ?2 AND is_locked <> ?3`,
+            )
+            .bind(playerId, itemId, lockValue)
+            .run();
+        return changedRows(result) > 0;
+    }
+
     async getRefineMaterial(playerId: number, materialKey: string): Promise<number> {
         const row = await this.db
             .prepare(

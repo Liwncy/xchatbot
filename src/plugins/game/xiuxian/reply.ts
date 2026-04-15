@@ -62,6 +62,7 @@ export function helpText(topic?: string): string {
             '🛍️ 修仙购买 [商品ID]',
             '💰 修仙出售 [装备ID...] / 修仙出售 全部 / 修仙出售 品质 稀有以上/稀有以下',
             '🧱 修仙分解 [装备ID...] / 修仙分解 全部 / 修仙分解 品质 稀有以下',
+            '🔒 修仙上锁 [装备ID...] / 修仙解锁 [装备ID...]',
             '🔥 修仙炼器 [装备ID] [次数|无限]',
             '🧮 修仙炼器详情 [装备ID]',
             '📒 修仙流水 [条数]',
@@ -83,6 +84,8 @@ export function helpText(topic?: string): string {
         商店: '经济',
         购买: '经济',
         出售: '经济',
+        上锁: '经济',
+        解锁: '经济',
         流水: '经济',
         // 成长
         签到: '成长',
@@ -203,7 +206,7 @@ export function bagText(items: XiuxianItem[], page: number, total: number, pageS
     if (!items.length) return '🎒 背包为空，快去探索碰碰运气吧！';
     const lines = items.map(
         (item) =>
-            `#${item.id} ${slotLabel(item.itemType)} | ${item.itemName} | ${qualityLabel(item.quality)}${item.refineLevel && item.refineLevel > 0 ? ` | 炼器+${item.refineLevel}` : ''} | 评分:${item.score}`,
+            `#${item.id} ${slotLabel(item.itemType)} | ${item.itemName} | ${qualityLabel(item.quality)}${item.refineLevel && item.refineLevel > 0 ? ` | 炼器+${item.refineLevel}` : ''}${item.isLocked > 0 ? ' | 🔒锁定' : ''} | 评分:${item.score}`,
     );
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const title = filterLabel ? `🎒 背包第 ${page}/${pages} 页（共 ${total} 件，筛选：${filterLabel}）` : `🎒 背包第 ${page}/${pages} 页（共 ${total} 件）`;

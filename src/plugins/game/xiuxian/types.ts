@@ -11,6 +11,8 @@ export type XiuxianCommand =
     | {type: 'bag'; page?: number; filter?: string}
     | {type: 'equip'; itemId: number}
     | {type: 'unequip'; slot: EquipmentSlot}
+    | {type: 'lock'; itemId?: number; itemIds?: number[]}
+    | {type: 'unlock'; itemId?: number; itemIds?: number[]}
     | {type: 'challenge'}
     | {type: 'battleLog'; page?: number}
     | {type: 'battleDetail'; battleId: number}

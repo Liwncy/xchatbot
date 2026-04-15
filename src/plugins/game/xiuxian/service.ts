@@ -1756,6 +1756,52 @@ export async function handleXiuxianCommand(
             return asText(unequipText(cmd.slot));
         }
 
+        if (cmd.type === 'lock' || cmd.type === 'unlock') {
+            const targetIds = cmd.itemIds?.length ? cmd.itemIds : cmd.itemId ? [cmd.itemId] : [];
+            if (!targetIds.length) {
+                return asText(cmd.type === 'lock' ? '💡 用法：修仙上锁 [装备ID...]' : '💡 用法：修仙解锁 [装备ID...]');
+            }
+
+            const lockValue = cmd.type === 'lock' ? 1 : 0;
+            let success = 0;
+            let skippedMissing = 0;
+            let skippedAlready = 0;
+
+            for (const itemId of targetIds) {
+                const item = await repo.findItem(player.id, itemId);
+                if (!item) {
+                    skippedMissing += 1;
+                    continue;
+                }
+                if ((item.isLocked > 0 ? 1 : 0) === lockValue) {
+                    skippedAlready += 1;
+                    continue;
+                }
+                const changed = await repo.setItemLock(player.id, item.id, lockValue);
+                if (changed) {
+                    success += 1;
+                } else {
+                    skippedAlready += 1;
+                }
+            }
+
+            if (success <= 0) {
+                if (skippedMissing > 0 && skippedAlready <= 0) {
+                    return asText('🔎 未找到可操作的装备编号，请先用「修仙背包」查看。');
+                }
+                return asText(cmd.type === 'lock' ? '🔒 目标装备均已锁定。' : '🔓 目标装备均已解锁。');
+            }
+
+            const actionText = cmd.type === 'lock' ? '上锁' : '解锁';
+            const skipped = skippedMissing + skippedAlready;
+            return asText(
+                [
+                    `✅ 批量${actionText}完成（成功 ${success} 件）`,
+                    ...(skipped > 0 ? [`⏭️ 跳过：${skipped} 件（状态未变化 ${skippedAlready}，不存在 ${skippedMissing}）`] : []),
+                ].join('\n'),
+            );
+        }
+
         if (cmd.type === 'challenge') {
             const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.challenge, now);
             if (left > 0) return asText(cooldownText('挑战', left));
