@@ -14,6 +14,18 @@ import {normalizeVoiceForWechat} from '../utils/silk-converter.js';
 
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 
+function getWechatItemSource(item: WechatPushItem): string {
+    return item.source ?? item.msg_source ?? '';
+}
+
+function getWechatItemId(item: WechatPushItem): number | undefined {
+    return item.id ?? item.msg_id;
+}
+
+function getWechatItemNewId(item: WechatPushItem): number | undefined {
+    return item.new_id ?? item.new_msg_id;
+}
+
 function ensureWechatApiSuccess(op: string, result: unknown): void {
     const code = (result as { code?: unknown })?.code;
     const message = (result as { message?: unknown })?.message;
@@ -60,7 +72,7 @@ function mapWechatType(type: number): MessageType {
 
 /** 根据网关字段推断消息来源。 */
 function inferWechatSource(payload: WechatPushItem): MessageSource {
-    const source = payload.msg_source?.toLowerCase() ?? '';
+    const source = getWechatItemSource(payload).toLowerCase();
     const sender = payload.sender?.value ?? '';
     const receiver = payload.receiver?.value ?? '';
 
@@ -171,8 +183,8 @@ export function parseWechatPushItem(
         senderName: parseSenderNameFromPushContent(item.push_content),
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),
-        // 优先使用 msg_id 以避免大 new_msg_id 值的精度损失。
-        messageId: String(item.msg_id ?? item.create_time),
+        // 优先使用较稳定的客户端消息 ID；兼容新旧字段名。
+        messageId: String(getWechatItemId(item) ?? getWechatItemNewId(item) ?? item.create_time),
         raw,
     };
 

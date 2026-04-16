@@ -1028,16 +1028,39 @@ function parseJsonRecord(raw: string): Record<string, unknown> {
     }
 }
 
+type RawWechatMessageItem = {
+    id?: number | string;
+    msg_id?: number | string;
+    new_id?: number | string;
+    new_msg_id?: number | string;
+    source?: string;
+    msg_source?: string;
+};
+
+function getRawWechatItems(raw: unknown): RawWechatMessageItem[] {
+    if (!raw || typeof raw !== 'object') return [];
+    const record = raw as {new_messages?: unknown} & RawWechatMessageItem;
+    if (Array.isArray(record.new_messages)) return record.new_messages as RawWechatMessageItem[];
+    if (record.source || record.msg_source || record.id || record.msg_id || record.new_id || record.new_msg_id) {
+        return [record];
+    }
+    return [];
+}
+
+function matchWechatRawItemMessageId(item: RawWechatMessageItem, messageId: string): boolean {
+    const ids = [item.id, item.msg_id, item.new_id, item.new_msg_id]
+        .map((v) => (v == null ? '' : String(v)))
+        .filter(Boolean);
+    return ids.includes(messageId);
+}
+
 function extractGroupMentionedUserIds(message: IncomingMessage): string[] {
     if (message.source !== 'group') return [];
-    const raw = message.raw as {new_messages?: Array<{msg_id?: number; new_msg_id?: number; msg_source?: string}>} | null;
-    const items = Array.isArray(raw?.new_messages) ? raw.new_messages : [];
+    const items = getRawWechatItems(message.raw);
     if (!items.length) return [];
 
-    const target = items.find(
-        (it) => String(it?.msg_id ?? '') === message.messageId || String(it?.new_msg_id ?? '') === message.messageId,
-    ) ?? items[0];
-    const source = String(target?.msg_source ?? '');
+    const target = items.find((it) => matchWechatRawItemMessageId(it, message.messageId)) ?? items[0];
+    const source = String(target?.source ?? target?.msg_source ?? '');
     if (!source) return [];
 
     const match = source.match(/<atuserlist>([\s\S]*?)<\/atuserlist>/i);

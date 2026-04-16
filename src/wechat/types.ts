@@ -16,11 +16,14 @@ export interface WechatImageBuffer {
 export interface WechatPushItem {
     content?: WechatValueField;
     create_time: number;
+    id?: number;
     image_buffer?: WechatImageBuffer;
     image_status?: number;
-    msg_id: number;
+    msg_id?: number;
     msg_seq?: number;
+    source?: string;
     msg_source?: string;
+    new_id?: number;
     new_msg_id?: number;
     push_content?: string;
     receiver: WechatValueField;
