@@ -2305,7 +2305,7 @@ export async function handleXiuxianCommand(
         }
 
         if (cmd.type === 'auctionBuyout') {
-            if (!cmd.auctionId) return asText('💡 用法：修仙秒拍 [拍卖ID]（兼容：修仙一口价 [拍卖ID]）');
+            if (!cmd.auctionId) return asText('💡 用法：修仙秒拍 [拍卖ID]');
             const auction = await repo.findAuctionById(cmd.auctionId);
             if (!auction) return asText('🔎 未找到该拍卖编号，请先发送「修仙拍卖」。');
             if (auction.status !== 'active') return asText('📦 该拍卖已结束。');

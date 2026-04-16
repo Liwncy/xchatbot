@@ -220,7 +220,7 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
         };
     }
 
-    const auctionBuyoutMatch = text.match(/^修仙(?:秒拍|一口价)(?:\s+(\d+))?$/);
+    const auctionBuyoutMatch = text.match(/^修仙秒拍(?:\s+(\d+))?$/);
     if (auctionBuyoutMatch) return {type: 'auctionBuyout', auctionId: parsePositiveInt(auctionBuyoutMatch[1])};
 
     const auctionCancelMatch = text.match(/^修仙撤拍(?:\s+(\d+))?$/);

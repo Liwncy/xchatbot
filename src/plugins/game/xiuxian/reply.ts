@@ -98,7 +98,7 @@ export function helpText(topic?: string): string {
         拍卖: '经济',
         上架: '经济',
         竞拍: '经济',
-        一口价: '经济',
+        秒拍: '经济',
         // 成长
         签到: '成长',
         任务: '成长',

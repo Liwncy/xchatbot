@@ -504,3 +504,4 @@ export interface CombatPower {
     crit: number;
 }
 
+
