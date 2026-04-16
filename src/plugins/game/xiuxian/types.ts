@@ -8,6 +8,10 @@ export type XiuxianCommand =
     | {type: 'status'}
     | {type: 'cultivate'; times?: number}
     | {type: 'explore'}
+    | {type: 'spar'; targetUserId?: string}
+    | {type: 'sparAccept'}
+    | {type: 'sparReject'}
+    | {type: 'forceFight'; targetUserId?: string}
     | {type: 'bag'; page?: number; filter?: string}
     | {type: 'equip'; itemId: number}
     | {type: 'unequip'; slot: EquipmentSlot}
@@ -76,6 +80,8 @@ export type XiuxianCommand =
     | {type: 'help'; topic?: string};
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
+
+export type XiuxianPvpMode = 'spar' | 'force';
 
 export type XiuxianItemQuality = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
 
@@ -480,6 +486,17 @@ export interface XiuxianBondLog {
     createdAt: number;
 }
 
+export interface XiuxianPvpRequest {
+    id: number;
+    requesterId: number;
+    targetId: number;
+    mode: XiuxianPvpMode;
+    status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled';
+    expiresAt: number;
+    createdAt: number;
+    updatedAt: number;
+}
+
 export interface XiuxianBagQuery {
     itemType?: EquipmentSlot;
     quality?: XiuxianItemQuality;
@@ -503,5 +520,6 @@ export interface CombatPower {
     dodge: number;
     crit: number;
 }
+
 
 

@@ -16,6 +16,8 @@ import type {
     XiuxianItemQuality,
     XiuxianBond,
     XiuxianBondLog,
+    XiuxianPvpMode,
+    XiuxianPvpRequest,
     XiuxianNpcEncounterRecord,
     XiuxianPlayerAchievement,
     XiuxianPlayer,
@@ -458,6 +460,19 @@ function toBondLog(row: Record<string, unknown>): XiuxianBondLog {
         deltaIntimacy: Number(row.delta_intimacy),
         rewardJson: String(row.reward_json ?? '{}'),
         createdAt: Number(row.created_at),
+    };
+}
+
+function toPvpRequest(row: Record<string, unknown>): XiuxianPvpRequest {
+    return {
+        id: Number(row.id),
+        requesterId: Number(row.requester_id),
+        targetId: Number(row.target_id),
+        mode: String(row.mode) as XiuxianPvpMode,
+        status: String(row.status) as XiuxianPvpRequest['status'],
+        expiresAt: Number(row.expires_at),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
     };
 }
 
@@ -2550,6 +2565,68 @@ export class XiuxianRepository {
             .bind(platform, userId)
             .first<Record<string, unknown>>();
         return row ? toPlayer(row) : null;
+    }
+
+    async findPendingPvpRequestBetween(requesterId: number, targetId: number, mode: XiuxianPvpMode, now: number): Promise<XiuxianPvpRequest | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pvp_requests
+                 WHERE requester_id = ?1
+                   AND target_id = ?2
+                   AND mode = ?3
+                   AND status = 'pending'
+                   AND expires_at > ?4
+                 ORDER BY id DESC
+                 LIMIT 1`,
+            )
+            .bind(requesterId, targetId, mode, now)
+            .first<Record<string, unknown>>();
+        return row ? toPvpRequest(row) : null;
+    }
+
+    async findLatestIncomingPvpRequest(targetId: number, mode: XiuxianPvpMode, now: number): Promise<XiuxianPvpRequest | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_pvp_requests
+                 WHERE target_id = ?1
+                   AND mode = ?2
+                   AND status = 'pending'
+                   AND expires_at > ?3
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 1`,
+            )
+            .bind(targetId, mode, now)
+            .first<Record<string, unknown>>();
+        return row ? toPvpRequest(row) : null;
+    }
+
+    async createPvpRequest(requesterId: number, targetId: number, mode: XiuxianPvpMode, expiresAt: number, now: number): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO xiuxian_pvp_requests (
+                    requester_id, target_id, mode, status, expires_at, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, 'pending', ?4, ?5, ?5)`,
+            )
+            .bind(requesterId, targetId, mode, expiresAt, now)
+            .run();
+    }
+
+    async updatePvpRequestStatus(
+        requestId: number,
+        fromStatus: XiuxianPvpRequest['status'],
+        toStatus: XiuxianPvpRequest['status'],
+        now: number,
+    ): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_pvp_requests
+                 SET status = ?3,
+                     updated_at = ?4
+                 WHERE id = ?1 AND status = ?2`,
+            )
+            .bind(requestId, fromStatus, toStatus, now)
+            .run();
+        return changedRows(result) > 0;
     }
 
     async findBondBetween(a: number, b: number): Promise<XiuxianBond | null> {

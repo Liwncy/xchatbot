@@ -437,6 +437,19 @@ CREATE TABLE IF NOT EXISTS xiuxian_bond_milestone_claims (
   FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
 );
 
+CREATE TABLE IF NOT EXISTS xiuxian_pvp_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  requester_id INTEGER NOT NULL,
+  target_id INTEGER NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'spar',
+  status TEXT NOT NULL DEFAULT 'pending',
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY(requester_id) REFERENCES xiuxian_players(id),
+  FOREIGN KEY(target_id) REFERENCES xiuxian_players(id)
+);
+
 CREATE TABLE IF NOT EXISTS xiuxian_refine_materials (
   player_id INTEGER NOT NULL,
   material_key TEXT NOT NULL,
@@ -529,6 +542,8 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_requester ON xiuxian_bonds(requeste
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bonds_target ON xiuxian_bonds(target_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_logs_bond_time ON xiuxian_bond_logs(bond_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_bond_milestone_claims_bond ON xiuxian_bond_milestone_claims(bond_id, claimed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pvp_requests_outgoing ON xiuxian_pvp_requests(requester_id, target_id, mode, status, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_pvp_requests_incoming ON xiuxian_pvp_requests(target_id, mode, status, expires_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_refine_materials_player ON xiuxian_refine_materials(player_id, material_key);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_item_refines_level ON xiuxian_item_refines(refine_level DESC, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_xiuxian_auctions_active ON xiuxian_auctions(status, end_at, id DESC);

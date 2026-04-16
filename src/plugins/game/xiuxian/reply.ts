@@ -46,6 +46,23 @@ function slotLabel(slot: EquipmentSlot): string {
     }
 }
 
+function parseBattleMeta(raw: string): Record<string, unknown> {
+    try {
+        const data = JSON.parse(raw) as unknown;
+        if (!data || typeof data !== 'object') return {};
+        return data as Record<string, unknown>;
+    } catch {
+        return {};
+    }
+}
+
+function battleModeLabel(meta: Record<string, unknown>): string {
+    if (meta.battleType === 'pvp') {
+        return meta.pvpMode === 'force' ? '☠️强斗' : '⚔️切磋';
+    }
+    return '⚔️挑战';
+}
+
 export function helpText(topic?: string): string {
     const map: Record<string, string[]> = {
         基础: [
@@ -76,6 +93,7 @@ export function helpText(topic?: string): string {
             '⚖️ 修仙拍结 [拍卖ID]',
         ],
         成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
+        斗法: ['⚔️ 修仙切磋 [@对方/对方wxid]', '✅ 修仙应战', '🛑 修仙拒战', '☠️ 修仙强斗 [@对方/对方wxid]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔 [层数|最大]', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
         灵宠: ['🐾 修仙领宠', '🎴 修仙卡池', '🎲 修仙抽宠 [1|10|十连]', '🧿 修仙保底', '🐶 修仙宠物 [编号]', '🎒 修仙宠包 [页码]', '🍼 修仙喂宠 [道具ID] [数量]', '⚔️ 修仙出宠 [编号]', '🛌 修仙休宠'],
@@ -109,6 +127,12 @@ export function helpText(topic?: string): string {
         BOSS: '讨伐',
         讨伐: '讨伐',
         伐榜: '讨伐',
+        // 斗法
+        切磋: '斗法',
+        强斗: '斗法',
+        强战: '斗法',
+        斗法: '斗法',
+        应战: '斗法',
         // 爬塔
         爬塔: '爬塔',
         塔: '爬塔',
@@ -127,7 +151,7 @@ export function helpText(topic?: string): string {
         战报: '战报',
     };
 
-    const categoryOrder = ['基础', '经济', '成长', '讨伐', '爬塔', '灵宠', '战报'];
+    const categoryOrder = ['基础', '经济', '成长', '斗法', '讨伐', '爬塔', '灵宠', '战报'];
 
     const renderCmdLines = (lines: string[]): string[] => lines.map((line, idx) => `${String(idx + 1).padStart(2, '0')}. ${line}`);
     const renderSection = (name: string): string[] => [`【${name}】`, ...renderCmdLines(map[name] ?? []), ''];
@@ -148,7 +172,7 @@ export function helpText(topic?: string): string {
 
     const lines = map[key];
     if (!lines) {
-        return ['❓ 未识别的帮助分类', '💡 可用分类：基础/经济/成长/讨伐/爬塔/灵宠/战报/全部', '💡 常见别名：商店→经济，赛季/塔榜→爬塔，宠物→灵宠'].join('\n');
+        return ['❓ 未识别的帮助分类', '💡 可用分类：基础/经济/成长/斗法/讨伐/爬塔/灵宠/战报/全部', '💡 常见别名：商店→经济，切磋/强斗→斗法，赛季/塔榜→爬塔，宠物→灵宠'].join('\n');
     }
     return [
         `📜 修仙帮助（${key}）`,
@@ -229,23 +253,33 @@ export function battleLogText(logs: XiuxianBattle[], page: number, pageSize: num
     if (!logs.length) return '📚 暂无战报，先去「修仙挑战」试试身手吧。';
     const lines = logs.map((it) => {
         const dt = formatBeijingTime(it.createdAt);
-        return `#${it.id} ${it.result === 'win' ? '🏆' : '💥'} ${it.enemyName}（${realmName(it.enemyLevel)}） | ${it.rounds}回合 | ${dt}`;
+        const meta = parseBattleMeta(it.rewardJson);
+        return `#${it.id} ${battleModeLabel(meta)} ${it.result === 'win' ? '🏆' : '💥'} ${it.enemyName}（${realmName(it.enemyLevel)}） | ${it.rounds}回合 | ${dt}`;
     });
     return [`📚 战报第 ${page} 页（每页 ${pageSize} 条）`, '━━━━━━━━━━━━', ...lines, '💡 查看详情：修仙战详 [战报ID]'].join('\n');
 }
 
 export function battleDetailText(battle: XiuxianBattle): string {
+    const meta = parseBattleMeta(battle.rewardJson);
     const lines = battle.battleLog
         .split('\n')
         .map((v) => v.trim())
         .filter(Boolean)
         .slice(0, 12);
+    const rewardLines = [
+        typeof meta.exp === 'number' && meta.exp > 0 ? `📈 经验：+${meta.exp}` : null,
+        typeof meta.cultivation === 'number' && meta.cultivation > 0 ? `✨ 修为：+${meta.cultivation}` : null,
+        typeof meta.spiritStone === 'number' && meta.spiritStone > 0 ? `💎 灵石：+${meta.spiritStone}` : null,
+        typeof meta.lootStone === 'number' && meta.lootStone > 0 ? `🏴 掠夺灵石：${meta.lootStone}` : null,
+    ].filter((v): v is string => Boolean(v));
     return [
         `🔎 战报 #${battle.id}`,
         '━━━━━━━━━━━━',
+        `🏷️ 类型：${battleModeLabel(meta)}`,
         `👾 对手：${battle.enemyName}（${realmName(battle.enemyLevel)}）`,
         `📌 结果：${battle.result === 'win' ? '胜利' : '失败'}`,
         `🕒 回合：${battle.rounds}`,
+        ...rewardLines,
         ...lines,
     ].join('\n');
 }
@@ -949,6 +983,43 @@ export function npcEncounterLogText(
 
 export function bondRequestText(targetUserId: string): string {
     return `💌 你已向 ${targetUserId} 发起结缘请求，对方发送「修仙允缘」即可确认，或发送「修仙拒缘」拒绝。`;
+}
+
+export function pvpSparRequestText(targetName: string, expiresAt: number): string {
+    return [
+        `⚔️ 已向 ${targetName} 发起切磋邀请。`,
+        '━━━━━━━━━━━━',
+        '💡 对方发送「修仙应战」即可开打，发送「修仙拒战」可拒绝。',
+        `⏰ 邀请截止：${formatBeijingTime(expiresAt)}`,
+    ].join('\n');
+}
+
+export function pvpSparRejectText(requesterName: string): string {
+    return `🛑 你已拒绝来自 ${requesterName} 的切磋邀请。`;
+}
+
+export function pvpBattleResultText(params: {
+    mode: 'spar' | 'force';
+    opponentName: string;
+    win: boolean;
+    rounds: number;
+    exp: number;
+    cultivation: number;
+    lootStone?: number;
+    shieldExpiresAt?: number;
+    logs: string[];
+}): string {
+    return [
+        `${params.mode === 'force' ? '☠️' : '⚔️'} ${params.mode === 'force' ? '强斗' : '切磋'}${params.win ? '胜利' : '失利'}：${params.opponentName}`,
+        '━━━━━━━━━━━━',
+        `🕒 回合数：${params.rounds}`,
+        `📈 经验 +${params.exp}`,
+        `✨ 修为 +${params.cultivation}`,
+        ...(params.lootStone && params.lootStone > 0 ? [`💎 灵石掠夺 +${params.lootStone}`] : []),
+        ...(params.shieldExpiresAt ? [`🛡️ 对方保护至：${formatBeijingTime(params.shieldExpiresAt)}`] : []),
+        '━━━━━━━━━━━━',
+        ...params.logs.slice(0, 6),
+    ].join('\n');
 }
 
 export function bondActivatedText(targetName: string): string {

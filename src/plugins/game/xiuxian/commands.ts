@@ -123,6 +123,16 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
 
     if (text === '修仙探索') return {type: 'explore'};
 
+    const sparMatch = text.match(/^修仙切磋(?:\s*(.+))?$/);
+    if (sparMatch) return {type: 'spar', targetUserId: sparMatch[1]?.trim() || undefined};
+
+    if (text === '修仙应战') return {type: 'sparAccept'};
+
+    if (text === '修仙拒战') return {type: 'sparReject'};
+
+    const forceFightMatch = text.match(/^修仙(?:强斗|强战|强制战斗)(?:\s*(.+))?$/);
+    if (forceFightMatch) return {type: 'forceFight', targetUserId: forceFightMatch[1]?.trim() || undefined};
+
     const bagMatch = text.match(/^修仙背包(?:\s+(.+))?$/);
     if (bagMatch) {
         const arg = bagMatch[1]?.trim();

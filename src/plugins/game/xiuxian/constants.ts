@@ -115,6 +115,15 @@ export const XIUXIAN_COOLDOWN_MS = {
     towerClimb: 45_000,
 } as const;
 
+export const XIUXIAN_PVP = {
+    sparRequestExpireMs: 5 * 60 * 1000,
+    maxLevelGap: 8,
+    forceFightCooldownMs: 10 * 60 * 1000,
+    forceFightShieldMs: 30 * 60 * 1000,
+    lootRate: 0.08,
+    lootCap: 120,
+} as const;
+
 export const XIUXIAN_DEFAULTS = {
     name: '道友',
     level: 1,
@@ -134,6 +143,9 @@ export const XIUXIAN_ACTIONS = {
     cultivate: 'cultivate',
     explore: 'explore',
     challenge: 'challenge',
+    spar: 'spar',
+    forceFight: 'force_fight',
+    forceFightShield: 'force_fight_shield',
     bossRaid: 'boss_raid',
     towerClimb: 'tower_climb',
     shop: 'shop',

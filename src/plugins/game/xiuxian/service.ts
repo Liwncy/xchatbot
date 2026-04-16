@@ -17,6 +17,7 @@ import {
     XIUXIAN_BOND_MILESTONE_REWARDS,
     XIUXIAN_PET_GACHA,
     XIUXIAN_NPC_ENCOUNTER_POOL,
+    XIUXIAN_PVP,
     XIUXIAN_TOWER,
     XIUXIAN_TOWER_SEASON_REWARDS,
     XIUXIAN_TERMS,
@@ -35,6 +36,7 @@ import type {
     XiuxianItemQuality,
     XiuxianPetBannerEntry,
     XiuxianAuction,
+    CombatPower,
 } from './types.js';
 import {XiuxianRepository} from './repository.js';
 import {formatRealm, realmName} from './realm.js';
@@ -131,6 +133,9 @@ import {
     refineResultText,
     sellBatchResultText,
     petStatusText,
+    pvpBattleResultText,
+    pvpSparRejectText,
+    pvpSparRequestText,
     sellResultText,
     shopText,
     statusText,
@@ -981,6 +986,34 @@ function mergeCombatPower(
     };
 }
 
+async function loadPlayerCombatPower(repo: XiuxianRepository, player: XiuxianPlayer): Promise<CombatPower> {
+    const equippedRaw = await repo.getEquippedItems(player);
+    const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
+    const pet = await repo.findPet(player.id);
+    return mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
+}
+
+function applyBattleGrowth(player: XiuxianPlayer, reward: {exp: number; cultivation: number}): void {
+    const progress = applyExpProgress(player, reward.exp);
+    player.level = progress.level;
+    player.exp = progress.exp;
+    player.maxHp = progress.maxHp;
+    player.attack = progress.attack;
+    player.defense = progress.defense;
+    player.hp = progress.maxHp;
+    player.cultivation += reward.cultivation;
+}
+
+function invertBattlePerspective(logs: string[]): string[] {
+    return logs.map((line) => {
+        if (line.includes('你造成')) return line.replace('你造成', '敌人造成');
+        if (line.includes('敌人造成')) return line.replace('敌人造成', '你造成');
+        if (line.includes('你的攻击被闪避')) return line.replace('你的攻击被闪避', '敌人的攻击被闪避');
+        if (line.includes('你闪避了敌人的攻击')) return line.replace('你闪避了敌人的攻击', '敌人闪避了你的攻击');
+        return line;
+    });
+}
+
 function dayKeyOf(now: number): string {
     return new Date(now + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
@@ -1033,6 +1066,37 @@ function resolveBondTarget(message: IncomingMessage, rawInput?: string): {target
         return {error: '⚠️ 未解析到被 @ 的道友，请在群里使用 @ 选择成员后重试。'};
     }
     return {targetUserId: input};
+}
+
+function resolvePvpTarget(
+    message: IncomingMessage,
+    rawInput: string | undefined,
+    modeLabel: '切磋' | '强斗',
+): {targetUserId?: string; error?: string} {
+    const input = (rawInput ?? '').trim();
+    const mentioned = extractGroupMentionedUserIds(message);
+
+    if (mentioned.length > 1) {
+        return {error: `⚠️ ${modeLabel}一次仅支持 @1 位道友，请重新发送。`};
+    }
+    if (mentioned.length === 1) {
+        return {targetUserId: mentioned[0]};
+    }
+    if (!input) {
+        return {error: `💡 用法：修仙${modeLabel} @对方（群聊） 或 修仙${modeLabel} 对方wxid`};
+    }
+    if (input.startsWith('@')) {
+        return {error: '⚠️ 未解析到被 @ 的道友，请在群里使用 @ 选择成员后重试。'};
+    }
+    return {targetUserId: input};
+}
+
+function validatePvpTarget(player: XiuxianPlayer, target: XiuxianPlayer): string | null {
+    if (target.id === player.id) return '😅 不能对自己发起战斗。';
+    if (Math.abs(player.level - target.level) > XIUXIAN_PVP.maxLevelGap) {
+        return `⚖️ 你与 ${target.userName} 的境界差距过大（超过 ${XIUXIAN_PVP.maxLevelGap} 级），暂不可交手。`;
+    }
+    return null;
 }
 
 async function findIncomingPendingBond(repo: XiuxianRepository, playerId: number) {
@@ -1244,6 +1308,223 @@ export async function handleXiuxianCommand(
 
         const player = await mustPlayer(repo, identity);
         if (!player) return asText('🌱 你还没有角色，先发送：修仙创建 [名字]');
+
+        if (cmd.type === 'spar') {
+            const resolved = resolvePvpTarget(message, cmd.targetUserId, '切磋');
+            if (resolved.error) return asText(resolved.error);
+            if (!resolved.targetUserId) return asText('💡 用法：修仙切磋 @对方（群聊） 或 修仙切磋 对方wxid');
+
+            const target = await repo.findPlayerByPlatformUserId('wechat', resolved.targetUserId);
+            if (!target) return asText('🔎 未找到该道友，请确认对方已创建角色且wxid正确。');
+            const invalid = validatePvpTarget(player, target);
+            if (invalid) return asText(invalid);
+
+            const incoming = await repo.findPendingPvpRequestBetween(target.id, player.id, 'spar', now);
+            if (incoming) {
+                return asText(`⚔️ ${target.userName} 已向你发起切磋邀请，发送「修仙应战」或「修仙拒战」即可处理。`);
+            }
+            const existed = await repo.findPendingPvpRequestBetween(player.id, target.id, 'spar', now);
+            if (existed) {
+                return asText(`📨 你已向 ${target.userName} 发起切磋邀请，请等待对方回应。`);
+            }
+
+            const expiresAt = now + XIUXIAN_PVP.sparRequestExpireMs;
+            await repo.createPvpRequest(player.id, target.id, 'spar', expiresAt, now);
+            return asText(pvpSparRequestText(target.userName, expiresAt));
+        }
+
+        if (cmd.type === 'sparAccept') {
+            const request = await repo.findLatestIncomingPvpRequest(player.id, 'spar', now);
+            if (!request) return asText('📭 当前没有待你应战的切磋邀请。');
+            const requester = await repo.findPlayerById(request.requesterId);
+            if (!requester) {
+                await repo.updatePvpRequestStatus(request.id, 'pending', 'expired', now);
+                return asText('⚠️ 发起切磋的道友已不存在，本次邀请已失效。');
+            }
+            const invalid = validatePvpTarget(player, requester);
+            if (invalid) {
+                await repo.updatePvpRequestStatus(request.id, 'pending', 'expired', now);
+                return asText(invalid);
+            }
+
+            const locked = await repo.updatePvpRequestStatus(request.id, 'pending', 'accepted', now);
+            if (!locked) return asText('⚠️ 该切磋邀请状态已变化，请刷新后重试。');
+
+            const selfPower = await loadPlayerCombatPower(repo, player);
+            const enemyPower = await loadPlayerCombatPower(repo, requester);
+            const result = runSimpleBattle(selfPower, enemyPower);
+            const winReward = {
+                exp: 14 + Math.floor((player.level + requester.level) / 2) * 3,
+                cultivation: 12 + Math.floor((player.level + requester.level) / 2) * 2,
+            };
+            const loseReward = {
+                exp: 8 + Math.floor((player.level + requester.level) / 2) * 2,
+                cultivation: 6 + Math.floor((player.level + requester.level) / 2),
+            };
+            const selfReward = result.win ? winReward : loseReward;
+            const enemyReward = result.win ? loseReward : winReward;
+
+            applyBattleGrowth(player, selfReward);
+            applyBattleGrowth(requester, enemyReward);
+            await repo.updatePlayer(player, now);
+            await repo.updatePlayer(requester, now);
+
+            await repo.addBattleLog(
+                player.id,
+                requester.userName,
+                requester.level,
+                result.win ? 'win' : 'lose',
+                result.rounds,
+                JSON.stringify({battleType: 'pvp', pvpMode: 'spar', opponentId: requester.id, opponentName: requester.userName, ...selfReward}),
+                result.logs.join('\n'),
+                now,
+            );
+            await repo.addBattleLog(
+                requester.id,
+                player.userName,
+                player.level,
+                result.win ? 'lose' : 'win',
+                result.rounds,
+                JSON.stringify({battleType: 'pvp', pvpMode: 'spar', opponentId: player.id, opponentName: player.userName, ...enemyReward}),
+                invertBattlePerspective(result.logs).join('\n'),
+                now,
+            );
+
+            return asText(
+                pvpBattleResultText({
+                    mode: 'spar',
+                    opponentName: requester.userName,
+                    win: result.win,
+                    rounds: result.rounds,
+                    exp: selfReward.exp,
+                    cultivation: selfReward.cultivation,
+                    logs: result.logs,
+                }),
+            );
+        }
+
+        if (cmd.type === 'sparReject') {
+            const request = await repo.findLatestIncomingPvpRequest(player.id, 'spar', now);
+            if (!request) return asText('📭 当前没有待你处理的切磋邀请。');
+            const requester = await repo.findPlayerById(request.requesterId);
+            const rejected = await repo.updatePvpRequestStatus(request.id, 'pending', 'rejected', now);
+            if (!rejected) return asText('⚠️ 该切磋邀请状态已变化，请刷新后重试。');
+            return asText(pvpSparRejectText(requester?.userName ?? `道友#${request.requesterId}`));
+        }
+
+        if (cmd.type === 'forceFight') {
+            const resolved = resolvePvpTarget(message, cmd.targetUserId, '强斗');
+            if (resolved.error) return asText(resolved.error);
+            if (!resolved.targetUserId) return asText('💡 用法：修仙强斗 @对方（群聊） 或 修仙强斗 对方wxid');
+
+            const target = await repo.findPlayerByPlatformUserId('wechat', resolved.targetUserId);
+            if (!target) return asText('🔎 未找到该道友，请确认对方已创建角色且wxid正确。');
+            const invalid = validatePvpTarget(player, target);
+            if (invalid) return asText(invalid);
+
+            const attackerCd = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.forceFight, now);
+            if (attackerCd > 0) return asText(cooldownText('强斗', attackerCd));
+            const targetShield = await checkCooldown(repo, target.id, XIUXIAN_ACTIONS.forceFightShield, now);
+            if (targetShield > 0) return asText(`🛡️ ${target.userName} 当前处于强斗保护中，请 ${Math.ceil(targetShield / 1000)}s 后再试。`);
+
+            const selfPower = await loadPlayerCombatPower(repo, player);
+            const targetPower = await loadPlayerCombatPower(repo, target);
+            const result = runSimpleBattle(selfPower, targetPower);
+
+            const winReward = {
+                exp: 18 + Math.floor((player.level + target.level) / 2) * 4,
+                cultivation: 14 + Math.floor((player.level + target.level) / 2) * 3,
+            };
+            const loseReward = {
+                exp: 7 + Math.floor((player.level + target.level) / 2) * 2,
+                cultivation: 5 + Math.floor((player.level + target.level) / 2),
+            };
+            const selfReward = result.win ? winReward : loseReward;
+            const enemyReward = result.win ? loseReward : winReward;
+            applyBattleGrowth(player, selfReward);
+            applyBattleGrowth(target, enemyReward);
+            await repo.updatePlayer(player, now);
+            await repo.updatePlayer(target, now);
+
+            let lootStone = 0;
+            if (result.win) {
+                lootStone = Math.min(XIUXIAN_PVP.lootCap, Math.floor(target.spiritStone * XIUXIAN_PVP.lootRate));
+                if (lootStone > 0) {
+                    const spent = await repo.spendSpiritStone(target.id, lootStone, now);
+                    if (spent) {
+                        await repo.gainSpiritStone(player.id, lootStone, now);
+                    } else {
+                        lootStone = 0;
+                    }
+                }
+            }
+
+            const shieldExpiresAt = now + XIUXIAN_PVP.forceFightShieldMs;
+            await repo.setCooldown(player.id, XIUXIAN_ACTIONS.forceFight, now + XIUXIAN_PVP.forceFightCooldownMs, now);
+            await repo.setCooldown(target.id, XIUXIAN_ACTIONS.forceFightShield, shieldExpiresAt, now);
+
+            if (lootStone > 0) {
+                const latestSelf = await repo.findPlayerById(player.id);
+                const latestTarget = await repo.findPlayerById(target.id);
+                await repo.createEconomyLog({
+                    playerId: player.id,
+                    bizType: 'reward',
+                    deltaSpiritStone: lootStone,
+                    balanceAfter: latestSelf?.spiritStone ?? 0,
+                    refType: 'pvp_force_loot',
+                    refId: null,
+                    idempotencyKey: `${player.id}:pvp-force-loot:${message.messageId}`,
+                    extraJson: JSON.stringify({targetId: target.id, targetName: target.userName}),
+                    now,
+                });
+                await repo.createEconomyLog({
+                    playerId: target.id,
+                    bizType: 'cost',
+                    deltaSpiritStone: -lootStone,
+                    balanceAfter: latestTarget?.spiritStone ?? 0,
+                    refType: 'pvp_force_loss',
+                    refId: null,
+                    idempotencyKey: `${target.id}:pvp-force-loss:${message.messageId}`,
+                    extraJson: JSON.stringify({attackerId: player.id, attackerName: player.userName}),
+                    now,
+                });
+            }
+
+            await repo.addBattleLog(
+                player.id,
+                target.userName,
+                target.level,
+                result.win ? 'win' : 'lose',
+                result.rounds,
+                JSON.stringify({battleType: 'pvp', pvpMode: 'force', opponentId: target.id, opponentName: target.userName, ...selfReward, lootStone, spiritStone: lootStone}),
+                result.logs.join('\n'),
+                now,
+            );
+            await repo.addBattleLog(
+                target.id,
+                player.userName,
+                player.level,
+                result.win ? 'lose' : 'win',
+                result.rounds,
+                JSON.stringify({battleType: 'pvp', pvpMode: 'force', opponentId: player.id, opponentName: player.userName, ...enemyReward, lootStone: 0, spiritStone: 0}),
+                invertBattlePerspective(result.logs).join('\n'),
+                now,
+            );
+
+            return asText(
+                pvpBattleResultText({
+                    mode: 'force',
+                    opponentName: target.userName,
+                    win: result.win,
+                    rounds: result.rounds,
+                    exp: selfReward.exp,
+                    cultivation: selfReward.cultivation,
+                    lootStone,
+                    shieldExpiresAt,
+                    logs: result.logs,
+                }),
+            );
+        }
 
         if (cmd.type === 'bond') {
             const resolved = resolveBondTarget(message, cmd.targetUserId);
