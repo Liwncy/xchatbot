@@ -7,6 +7,7 @@ import type {
     XiuxianWorldBossState,
     XiuxianCheckin,
     EquipmentSlot,
+    XiuxianFortuneRecord,
     XiuxianBagQuery,
     XiuxianBagSort,
     XiuxianBattle,
@@ -1305,6 +1306,85 @@ export class XiuxianRepository {
             .bind(playerId)
             .first<Record<string, unknown>>();
         return Number(row?.cnt ?? 0);
+    }
+
+    async findFortuneByDay(playerId: number, dayKey: string): Promise<XiuxianFortuneRecord | null> {
+        const row = await this.db
+            .prepare(
+                `SELECT * FROM xiuxian_fortunes
+                 WHERE player_id = ?1 AND day_key = ?2
+                 LIMIT 1`,
+            )
+            .bind(playerId, dayKey)
+            .first<Record<string, unknown>>();
+        if (!row) return null;
+        return {
+            id: Number(row.id),
+            playerId: Number(row.player_id),
+            dayKey: String(row.day_key),
+            level: String(row.level),
+            buffJson: String(row.buff_json ?? '{}'),
+            signText: String(row.sign_text ?? ''),
+            rerollCount: Number(row.reroll_count ?? 0),
+            rerollSpent: Number(row.reroll_spent ?? 0),
+            createdAt: Number(row.created_at),
+            updatedAt: Number(row.updated_at),
+        };
+    }
+
+    async insertFortune(entry: {
+        playerId: number;
+        dayKey: string;
+        level: string;
+        buffJson: string;
+        signText: string;
+        now: number;
+    }): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `INSERT OR IGNORE INTO xiuxian_fortunes (
+                    player_id, day_key, level, buff_json, sign_text,
+                    reroll_count, reroll_spent, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, ?6, ?6)`,
+            )
+            .bind(entry.playerId, entry.dayKey, entry.level, entry.buffJson, entry.signText, entry.now)
+            .run();
+        return changedRows(result) > 0;
+    }
+
+    async rerollFortune(entry: {
+        playerId: number;
+        dayKey: string;
+        level: string;
+        buffJson: string;
+        signText: string;
+        extraSpent: number;
+        expectedRerollCount: number;
+        now: number;
+    }): Promise<boolean> {
+        const result = await this.db
+            .prepare(
+                `UPDATE xiuxian_fortunes
+                 SET level = ?3,
+                     buff_json = ?4,
+                     sign_text = ?5,
+                     reroll_count = reroll_count + 1,
+                     reroll_spent = reroll_spent + ?6,
+                     updated_at = ?8
+                 WHERE player_id = ?1 AND day_key = ?2 AND reroll_count = ?7`,
+            )
+            .bind(
+                entry.playerId,
+                entry.dayKey,
+                entry.level,
+                entry.buffJson,
+                entry.signText,
+                entry.extraSpent,
+                entry.expectedRerollCount,
+                entry.now,
+            )
+            .run();
+        return changedRows(result) > 0;
     }
 
     async upsertTaskDef(def: {

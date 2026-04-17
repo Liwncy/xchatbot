@@ -42,6 +42,19 @@ import {XiuxianRepository} from './repository.js';
 import {formatRealm, realmName} from './realm.js';
 import {formatBeijingTime} from './time.js';
 import {
+    applyBattleRewardRate,
+    applyCultivateRate,
+    applyExploreRate,
+    applyFortuneToPower,
+    emptyFortuneBuff,
+    fortuneDayKey,
+    getFortuneConfig,
+    nextRerollCost,
+    rollFortune,
+    type XiuxianFortuneBuff,
+    type XiuxianFortuneLevel,
+} from './fortune.js';
+import {
     applyExpProgress,
     calcSetBonusSummary,
     bossEnemy,
@@ -120,6 +133,12 @@ import {
     dismantleResultText,
     economyLogText,
     equipText,
+    fortuneAlreadyDrewText,
+    fortuneDrawText,
+    fortuneNotYetText,
+    fortuneRerollCapText,
+    fortuneRerollNotEnoughText,
+    fortuneStatusText,
     helpText,
     achievementText,
     npcEncounterLogText,
@@ -265,6 +284,32 @@ async function checkCooldown(repo: XiuxianRepository, playerId: number, action: 
     const cd = await repo.getCooldown(playerId, action);
     if (!cd) return 0;
     return Math.max(0, cd.nextAt - now);
+}
+
+/** 读取今日运势 buff；若未占卜则返回零 buff。 */
+async function loadTodayFortuneBuff(repo: XiuxianRepository, playerId: number, now: number): Promise<XiuxianFortuneBuff> {
+    const record = await repo.findFortuneByDay(playerId, fortuneDayKey(now));
+    if (!record) return emptyFortuneBuff();
+    try {
+        const parsed = JSON.parse(record.buffJson) as Partial<XiuxianFortuneBuff>;
+        return {
+            cultivateRate: Number(parsed.cultivateRate) || 0,
+            exploreRate: Number(parsed.exploreRate) || 0,
+            battleAttack: Number(parsed.battleAttack) || 0,
+            battleCrit: Number(parsed.battleCrit) || 0,
+            battleReward: Number(parsed.battleReward) || 0,
+        };
+    } catch {
+        return emptyFortuneBuff();
+    }
+}
+
+function fortuneHintLine(buff: XiuxianFortuneBuff, level?: XiuxianFortuneLevel): string {
+    const hasBuff = buff.cultivateRate || buff.exploreRate || buff.battleAttack || buff.battleCrit || buff.battleReward;
+    if (!hasBuff && !level) return '';
+    const cfg = level ? getFortuneConfig(level) : null;
+    const label = cfg ? `${cfg.emoji} 今日卦象：${cfg.title}` : '🔮 今日运势已生效';
+    return label;
 }
 
 function resolveBagFilter(raw: string | undefined): {query?: XiuxianBagQuery; label?: string; error?: string} {
@@ -1373,8 +1418,10 @@ export async function handleXiuxianCommand(
             const locked = await repo.updatePvpRequestStatus(request.id, 'pending', 'accepted', now);
             if (!locked) return asText('⚠️ 该切磋邀请状态已变化，请刷新后重试。');
 
-            const selfPower = await loadPlayerCombatPower(repo, player);
-            const enemyPower = await loadPlayerCombatPower(repo, requester);
+            const selfFortune = await loadTodayFortuneBuff(repo, player.id, now);
+            const enemyFortune = await loadTodayFortuneBuff(repo, requester.id, now);
+            const selfPower = applyFortuneToPower(await loadPlayerCombatPower(repo, player), selfFortune);
+            const enemyPower = applyFortuneToPower(await loadPlayerCombatPower(repo, requester), enemyFortune);
             const result = runSimpleBattle(selfPower, enemyPower);
             const winReward = {
                 exp: 14 + Math.floor((player.level + requester.level) / 2) * 3,
@@ -1384,8 +1431,16 @@ export async function handleXiuxianCommand(
                 exp: 8 + Math.floor((player.level + requester.level) / 2) * 2,
                 cultivation: 6 + Math.floor((player.level + requester.level) / 2),
             };
-            const selfReward = result.win ? winReward : loseReward;
-            const enemyReward = result.win ? loseReward : winReward;
+            const baseSelfReward = result.win ? winReward : loseReward;
+            const baseEnemyReward = result.win ? loseReward : winReward;
+            const selfReward = {
+                exp: applyBattleRewardRate(baseSelfReward.exp, selfFortune),
+                cultivation: applyBattleRewardRate(baseSelfReward.cultivation, selfFortune),
+            };
+            const enemyReward = {
+                exp: applyBattleRewardRate(baseEnemyReward.exp, enemyFortune),
+                cultivation: applyBattleRewardRate(baseEnemyReward.cultivation, enemyFortune),
+            };
 
             applyBattleGrowth(player, selfReward);
             applyBattleGrowth(requester, enemyReward);
@@ -1450,8 +1505,10 @@ export async function handleXiuxianCommand(
             const targetShield = await checkCooldown(repo, target.id, XIUXIAN_ACTIONS.forceFightShield, now);
             if (targetShield > 0) return asText(`🛡️ ${target.userName} 当前处于强斗保护中，请 ${Math.ceil(targetShield / 1000)}s 后再试。`);
 
-            const selfPower = await loadPlayerCombatPower(repo, player);
-            const targetPower = await loadPlayerCombatPower(repo, target);
+            const selfFortune = await loadTodayFortuneBuff(repo, player.id, now);
+            const targetFortune = await loadTodayFortuneBuff(repo, target.id, now);
+            const selfPower = applyFortuneToPower(await loadPlayerCombatPower(repo, player), selfFortune);
+            const targetPower = applyFortuneToPower(await loadPlayerCombatPower(repo, target), targetFortune);
             const result = runSimpleBattle(selfPower, targetPower);
 
             const winReward = {
@@ -1462,8 +1519,16 @@ export async function handleXiuxianCommand(
                 exp: 7 + Math.floor((player.level + target.level) / 2) * 2,
                 cultivation: 5 + Math.floor((player.level + target.level) / 2),
             };
-            const selfReward = result.win ? winReward : loseReward;
-            const enemyReward = result.win ? loseReward : winReward;
+            const baseSelfReward = result.win ? winReward : loseReward;
+            const baseEnemyReward = result.win ? loseReward : winReward;
+            const selfReward = {
+                exp: applyBattleRewardRate(baseSelfReward.exp, selfFortune),
+                cultivation: applyBattleRewardRate(baseSelfReward.cultivation, selfFortune),
+            };
+            const enemyReward = {
+                exp: applyBattleRewardRate(baseEnemyReward.exp, targetFortune),
+                cultivation: applyBattleRewardRate(baseEnemyReward.cultivation, targetFortune),
+            };
             applyBattleGrowth(player, selfReward);
             applyBattleGrowth(target, enemyReward);
             await repo.updatePlayer(player, now);
@@ -1761,6 +1826,120 @@ export async function handleXiuxianCommand(
             return asText(bondLogText(logs, page, XIUXIAN_PAGE_SIZE));
         }
 
+        if (cmd.type === 'fortune') {
+            const dayKey = fortuneDayKey(now);
+            const existing = await repo.findFortuneByDay(player.id, dayKey);
+            if (existing) {
+                return asText(fortuneAlreadyDrewText());
+            }
+            const drawn = rollFortune();
+            const inserted = await repo.insertFortune({
+                playerId: player.id,
+                dayKey,
+                level: drawn.level,
+                buffJson: JSON.stringify(drawn.buff),
+                signText: drawn.sign,
+                now,
+            });
+            if (!inserted) {
+                // 并发：他人已写入，读回显示
+                const record = await repo.findFortuneByDay(player.id, dayKey);
+                if (!record) return asText('⚠️ 占卜失败，请稍后重试。');
+                const buff = JSON.parse(record.buffJson) as XiuxianFortuneBuff;
+                return asText(
+                    fortuneStatusText({
+                        level: record.level as XiuxianFortuneLevel,
+                        buff,
+                        sign: record.signText,
+                        dayKey: record.dayKey,
+                        rerollCount: record.rerollCount,
+                        rerollSpent: record.rerollSpent,
+                    }),
+                );
+            }
+            return asText(
+                fortuneDrawText({
+                    level: drawn.level,
+                    buff: drawn.buff,
+                    sign: drawn.sign,
+                    dayKey,
+                }),
+            );
+        }
+
+        if (cmd.type === 'fortuneStatus') {
+            const dayKey = fortuneDayKey(now);
+            const record = await repo.findFortuneByDay(player.id, dayKey);
+            if (!record) return asText(fortuneNotYetText());
+            const buff = JSON.parse(record.buffJson) as XiuxianFortuneBuff;
+            return asText(
+                fortuneStatusText({
+                    level: record.level as XiuxianFortuneLevel,
+                    buff,
+                    sign: record.signText,
+                    dayKey: record.dayKey,
+                    rerollCount: record.rerollCount,
+                    rerollSpent: record.rerollSpent,
+                }),
+            );
+        }
+
+        if (cmd.type === 'fortuneReroll') {
+            const dayKey = fortuneDayKey(now);
+            const record = await repo.findFortuneByDay(player.id, dayKey);
+            if (!record) return asText(fortuneNotYetText());
+            const cost = nextRerollCost(record.rerollCount);
+            if (cost == null) return asText(fortuneRerollCapText(record.rerollCount, record.rerollSpent));
+            if (player.spiritStone < cost) return asText(fortuneRerollNotEnoughText(cost, player.spiritStone));
+
+            const spent = await repo.spendSpiritStone(player.id, cost, now);
+            if (!spent) return asText('💸 灵石扣除失败，请稍后再试。');
+
+            const drawn = rollFortune();
+            const ok = await repo.rerollFortune({
+                playerId: player.id,
+                dayKey,
+                level: drawn.level,
+                buffJson: JSON.stringify(drawn.buff),
+                signText: drawn.sign,
+                extraSpent: cost,
+                expectedRerollCount: record.rerollCount,
+                now,
+            });
+            if (!ok) {
+                // 回退灵石
+                await repo.gainSpiritStone(player.id, cost, now);
+                return asText('⚠️ 改运并发冲突，灵石已退还，请重试。');
+            }
+
+            const latest = await repo.findPlayerById(player.id);
+            await repo.createEconomyLog({
+                playerId: player.id,
+                bizType: 'cost',
+                deltaSpiritStone: -cost,
+                balanceAfter: latest?.spiritStone ?? 0,
+                refType: 'fortune_reroll',
+                refId: null,
+                idempotencyKey: `${player.id}:fortune-reroll:${dayKey}:${record.rerollCount + 1}`,
+                extraJson: JSON.stringify({dayKey, level: drawn.level, rerollCount: record.rerollCount + 1}),
+                now,
+            });
+
+            return asText(
+                fortuneDrawText({
+                    level: drawn.level,
+                    buff: drawn.buff,
+                    sign: drawn.sign,
+                    dayKey,
+                    reroll: {
+                        cost,
+                        totalSpent: record.rerollSpent + cost,
+                        count: record.rerollCount + 1,
+                    },
+                }),
+            );
+        }
+
         if (cmd.type === 'status') {
             const equippedRaw = await repo.getEquippedItems(player);
             const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
@@ -1782,7 +1961,11 @@ export async function handleXiuxianCommand(
             const reward = cultivateReward(player.level, times);
             const pet = await repo.findPet(player.id);
             const petBonus = petCultivateStoneBonus(pet, times);
-            const progress = applyExpProgress(player, reward.gainedExp);
+            const fortuneBuff = await loadTodayFortuneBuff(repo, player.id, now);
+            const gainedExp = applyCultivateRate(reward.gainedExp, fortuneBuff);
+            const gainedCultivation = applyCultivateRate(reward.gainedCultivation, fortuneBuff);
+            const gainedStone = applyCultivateRate(reward.gainedStone, fortuneBuff);
+            const progress = applyExpProgress(player, gainedExp);
 
             player.level = progress.level;
             player.exp = progress.exp;
@@ -1790,20 +1973,22 @@ export async function handleXiuxianCommand(
             player.attack = progress.attack;
             player.defense = progress.defense;
             player.hp = progress.maxHp;
-            player.cultivation += reward.gainedCultivation;
-            player.spiritStone += reward.gainedStone + petBonus;
+            player.cultivation += gainedCultivation;
+            player.spiritStone += gainedStone + petBonus;
 
             await repo.updatePlayer(player, now);
             await repo.setCooldown(player.id, XIUXIAN_ACTIONS.cultivate, now + XIUXIAN_COOLDOWN_MS.cultivate, now);
 
+            const fortuneLine = fortuneHintLine(fortuneBuff);
             return asText(
                 [
                     `🧘 修炼完成 x${times}`,
                     '━━━━━━━━━━━━',
-                    `✨ 修为 +${reward.gainedCultivation}`,
-                    `📈 经验 +${reward.gainedExp}`,
-                    `💎 灵石 +${reward.gainedStone}${petBonus > 0 ? `（灵宠加成 +${petBonus}）` : ''}`,
+                    `✨ 修为 +${gainedCultivation}`,
+                    `📈 经验 +${gainedExp}`,
+                    `💎 灵石 +${gainedStone}${petBonus > 0 ? `（灵宠加成 +${petBonus}）` : ''}`,
                     `🪪 ${XIUXIAN_TERMS.realm.currentLabel}：${formatRealm(player.level)}`,
+                    ...(fortuneLine ? [fortuneLine] : []),
                 ].join('\n'),
             );
         }
@@ -2158,23 +2343,26 @@ export async function handleXiuxianCommand(
             const left = await checkCooldown(repo, player.id, XIUXIAN_ACTIONS.explore, now);
             if (left > 0) return asText(cooldownText('探索', left));
 
+            const fortuneBuff = await loadTodayFortuneBuff(repo, player.id, now);
+            const fortuneLine = fortuneHintLine(fortuneBuff);
+
             const total = await repo.countInventory(player.id);
             if (total >= player.backpackCap) {
-                const stone = exploreStoneReward(player.level);
+                const stone = applyExploreRate(exploreStoneReward(player.level), fortuneBuff);
                 player.spiritStone += stone;
                 await repo.updatePlayer(player, now);
                 await repo.setCooldown(player.id, XIUXIAN_ACTIONS.explore, now + XIUXIAN_COOLDOWN_MS.explore, now);
-                return asText(`🎒 背包已满，本次探索改为获得灵石 ${stone}。\n${dropHint}`);
+                return asText(`🎒 背包已满，本次探索改为获得灵石 ${stone}。\n${dropHint}${fortuneLine ? `\n${fortuneLine}` : ''}`);
             }
 
             const loot = rollExploreLoot(player.level);
             await repo.setCooldown(player.id, XIUXIAN_ACTIONS.explore, now + XIUXIAN_COOLDOWN_MS.explore, now);
 
             if (!loot) {
-                const stone = exploreStoneReward(player.level);
+                const stone = applyExploreRate(exploreStoneReward(player.level), fortuneBuff);
                 player.spiritStone += stone;
                 await repo.updatePlayer(player, now);
-                return asText(`🧭 本次探索没有发现装备，获得灵石 ${stone}。\n${dropHint}`);
+                return asText(`🧭 本次探索没有发现装备，获得灵石 ${stone}。\n${dropHint}${fortuneLine ? `\n${fortuneLine}` : ''}`);
             }
 
             await repo.addItem(player.id, loot, now);
@@ -2186,6 +2374,7 @@ export async function handleXiuxianCommand(
                     `🗡️ 攻击 +${loot.attack}  🛡️ 防御 +${loot.defense}  ❤️ 气血 +${loot.hp}`,
                     `🏷️ 品质：${qualityLabel(loot.quality)}`,
                     dropHint,
+                    ...(fortuneLine ? [fortuneLine] : []),
                 ].join('\n'),
             );
         }
@@ -2274,15 +2463,17 @@ export async function handleXiuxianCommand(
             const equippedRaw = await repo.getEquippedItems(player);
             const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
-            const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
+            const fortuneBuff = await loadTodayFortuneBuff(repo, player.id, now);
+            const basePower = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
+            const power = applyFortuneToPower(basePower, fortuneBuff);
             const enemy = challengeEnemy(player.level);
             const result = runSimpleBattle(power, enemy);
 
             let rewardExp = 0;
             let rewardStone = 0;
             if (result.win) {
-                rewardExp = 20 + player.level * 6;
-                rewardStone = 10 + player.level * 3;
+                rewardExp = applyBattleRewardRate(20 + player.level * 6, fortuneBuff);
+                rewardStone = applyBattleRewardRate(10 + player.level * 3, fortuneBuff);
                 const progress = applyExpProgress(player, rewardExp);
                 player.level = progress.level;
                 player.exp = progress.exp;
@@ -2306,6 +2497,7 @@ export async function handleXiuxianCommand(
             );
             await repo.setCooldown(player.id, XIUXIAN_ACTIONS.challenge, now + XIUXIAN_COOLDOWN_MS.challenge, now);
 
+            const fortuneLine = fortuneHintLine(fortuneBuff);
             return asText(
                 [
                     `${result.win ? '🏆 挑战胜利' : '💥 挑战失败'}：${enemy.name}`,
@@ -2313,6 +2505,7 @@ export async function handleXiuxianCommand(
                     `🕒 回合数：${result.rounds}`,
                     ...(result.win ? [`📈 奖励经验：${rewardExp}`, `💎 奖励灵石：${rewardStone}`] : []),
                     ...result.logs.slice(0, 4),
+                    ...(fortuneLine ? [fortuneLine] : []),
                 ].join('\n'),
             );
         }
@@ -3100,7 +3293,8 @@ export async function handleXiuxianCommand(
             const equippedRaw = await repo.getEquippedItems(player);
             const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
-            const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
+            const fortuneBuff = await loadTodayFortuneBuff(repo, player.id, now);
+            const power = applyFortuneToPower(mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet)), fortuneBuff);
             const scopeKey = bossScopeKeyOfMessage(message);
 
             let state = await ensureWorldBossState(repo, scopeKey, player.level, now);
@@ -3146,9 +3340,9 @@ export async function handleXiuxianCommand(
             const base = bossRewards(player.level, killed);
             const ratio = Math.max(0.1, Math.min(1, actualDamage / Math.max(1, updated.maxHp)));
             const reward = {
-                gainedStone: Math.max(1, Math.floor(base.gainedStone * ratio + (killed ? 40 : 0))),
-                gainedExp: Math.max(1, Math.floor(base.gainedExp * ratio + (killed ? 50 : 0))),
-                gainedCultivation: Math.max(1, Math.floor(base.gainedCultivation * ratio + (killed ? 60 : 0))),
+                gainedStone: Math.max(1, applyBattleRewardRate(Math.floor(base.gainedStone * ratio + (killed ? 40 : 0)), fortuneBuff)),
+                gainedExp: Math.max(1, applyBattleRewardRate(Math.floor(base.gainedExp * ratio + (killed ? 50 : 0)), fortuneBuff)),
+                gainedCultivation: Math.max(1, applyBattleRewardRate(Math.floor(base.gainedCultivation * ratio + (killed ? 60 : 0)), fortuneBuff)),
             };
 
             let dropName: string | undefined;
@@ -3242,6 +3436,7 @@ export async function handleXiuxianCommand(
             const equippedRaw = await repo.getEquippedItems(player);
             const equipped = await enhanceItemsWithRefine(repo, player.id, equippedRaw);
             const pet = await repo.findPet(player.id);
+            const fortuneBuff = await loadTodayFortuneBuff(repo, player.id, now);
             let attempted = 0;
             let cleared = 0;
             let failedFloor: number | undefined;
@@ -3261,9 +3456,14 @@ export async function handleXiuxianCommand(
                 const targetFloor = highestFloor + 1;
                 attempted += 1;
                 const enemy = towerEnemy(player.level, targetFloor);
-                const power = mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet));
+                const power = applyFortuneToPower(mergeCombatPower(calcCombatPower(player, equipped), petCombatBonus(pet)), fortuneBuff);
                 const result = runSimpleBattle(power, enemy);
-                const reward = towerRewards(player.level, targetFloor, result.win);
+                const baseReward = towerRewards(player.level, targetFloor, result.win);
+                const reward = {
+                    spiritStone: applyBattleRewardRate(baseReward.spiritStone, fortuneBuff),
+                    exp: applyBattleRewardRate(baseReward.exp, fortuneBuff),
+                    cultivation: applyBattleRewardRate(baseReward.cultivation, fortuneBuff),
+                };
                 if (!firstRun) {
                     firstRun = {
                         floor: targetFloor,

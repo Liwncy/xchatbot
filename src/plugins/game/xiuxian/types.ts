@@ -77,7 +77,23 @@ export type XiuxianCommand =
     | {type: 'bondTravel'}
     | {type: 'bondStatus'}
     | {type: 'bondLog'; page?: number}
+    | {type: 'fortune'}
+    | {type: 'fortuneStatus'}
+    | {type: 'fortuneReroll'}
     | {type: 'help'; topic?: string};
+
+export interface XiuxianFortuneRecord {
+    id: number;
+    playerId: number;
+    dayKey: string;
+    level: string;
+    buffJson: string;
+    signText: string;
+    rerollCount: number;
+    rerollSpent: number;
+    createdAt: number;
+    updatedAt: number;
+}
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory' | 'sutra';
 

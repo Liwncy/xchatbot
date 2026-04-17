@@ -92,7 +92,7 @@ export function helpText(topic?: string): string {
             '🛑 修仙撤拍 [拍卖ID]',
             '⚖️ 修仙拍结 [拍卖ID]',
         ],
-        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
+        成长: ['📅 修仙签到', '📝 修仙任务 [可领]', '🎁 修仙领奖 [任务ID]', '🎁 修仙领奖 全部', '🏅 修仙成就', '🎲 修仙奇遇', '📜 修仙奇录 [页码]', '� 修仙占卜', '🔮 修仙运势', '🎲 修仙改运（消耗灵石重抽）', '�💞 修仙结缘 [@对方/对方wxid]', '✅ 修仙允缘', '🛑 修仙拒缘', '💔 修仙解缘', '🌸 修仙同游', '💗 修仙情缘', '📖 修仙情录 [页码]'],
         斗法: ['⚔️ 修仙切磋 [@对方/对方wxid]', '✅ 修仙应战', '🛑 修仙拒战', '☠️ 修仙强斗 [@对方/对方wxid]'],
         讨伐: ['👹 修仙讨伐', '📢 修仙伐况', '🏅 修仙伐榜 [条数|我]', '📘 修仙伐报 [页码]', '🔍 修仙伐详 [战报ID]'],
         爬塔: ['🗼 修仙爬塔 [层数|最大]', '🧭 修仙塔况', '🏔️ 修仙塔榜 [周榜|总榜] [条数|我]', '🧩 修仙季键', '🕰️ 修仙季况', '🌄 修仙季榜 [上季|历史 2026-W15|条数|我]', '🎖️ 修仙季奖', '🎁 修仙季领', '📜 修仙塔报 [页码]', '🔎 修仙塔详 [战报ID]'],
@@ -122,6 +122,9 @@ export function helpText(topic?: string): string {
         任务: '成长',
         成就: '成长',
         领奖: '成长',
+        占卜: '成长',
+        运势: '成长',
+        改运: '成长',
         // 讨伐
         boss: '讨伐',
         BOSS: '讨伐',
@@ -1120,3 +1123,104 @@ export function bossDetailText(log: XiuxianBossLog): string {
     ].join('\n');
 }
 
+
+// ============ ����ռ�� ============
+
+import {getFortuneConfig, nextRerollCost, type XiuxianFortuneBuff, type XiuxianFortuneLevel} from './fortune.js';
+
+function formatFortuneBuffLines(buff: XiuxianFortuneBuff): string[] {
+    const fmtPct = (v: number): string => {
+        if (!v) return '0%';
+        const pct = Math.round(v * 1000) / 10;
+        return `${pct > 0 ? '+' : ''}${pct}%`;
+    };
+    const fmtAbs = (v: number): string => {
+        if (!v) return '+0%';
+        const pct = Math.round(v * 1000) / 10;
+        return `${pct > 0 ? '+' : ''}${pct}%`;
+    };
+    return [
+        `?? �������� ${fmtPct(buff.cultivateRate)}`,
+        `?? ̽����ʯ ${fmtPct(buff.exploreRate)}`,
+        `??? ս������ ${fmtPct(buff.battleAttack)}`,
+        `?? ������ ${fmtAbs(buff.battleCrit)}`,
+        `?? ս������ ${fmtPct(buff.battleReward)}`,
+    ];
+}
+
+export function fortuneDrawText(params: {
+    level: XiuxianFortuneLevel;
+    buff: XiuxianFortuneBuff;
+    sign: string;
+    dayKey: string;
+    reroll?: {cost: number; totalSpent: number; count: number};
+}): string {
+    const cfg = getFortuneConfig(params.level);
+    const title = params.reroll ? '?? ���˳ɹ�' : '?? ����ռ��';
+    const headerNote = params.reroll
+        ? `?? ���θ���������ʯ��${params.reroll.cost}�������ۼƸ��� ${params.reroll.count} �Σ��ۼ����� ${params.reroll.totalSpent}��`
+        : `?? ���ڣ�${params.dayKey}`;
+    const next = nextRerollCost(params.reroll?.count ?? 0);
+    const nextHint = next == null ? '?? ���ո��˴����Ѵ�����' : `?? �ٴθ���������ʯ��${next}�����͡����ɸ��ˡ���`;
+    return [
+        title,
+        '������������������������',
+        `${cfg.emoji} ����${cfg.title}`,
+        headerNote,
+        params.sign ? `?? ǩ�ģ�${params.sign}` : '',
+        '������������������������',
+        ...formatFortuneBuffLines(params.buff),
+        ...(cfg.note ? ['������������������������', `?? ${cfg.note}`] : []),
+        '������������������������',
+        nextHint,
+    ]
+        .filter(Boolean)
+        .join('\n');
+}
+
+export function fortuneStatusText(params: {
+    level: XiuxianFortuneLevel;
+    buff: XiuxianFortuneBuff;
+    sign: string;
+    dayKey: string;
+    rerollCount: number;
+    rerollSpent: number;
+}): string {
+    const cfg = getFortuneConfig(params.level);
+    const next = nextRerollCost(params.rerollCount);
+    const nextHint = next == null ? '?? ���ո��˴����Ѵ�����' : `?? ����������ʯ��${next}�����͡����ɸ��ˡ���`;
+    return [
+        '?? ��������',
+        '������������������������',
+        `${cfg.emoji} ����${cfg.title}`,
+        `?? ���ڣ�${params.dayKey}`,
+        params.sign ? `?? ǩ�ģ�${params.sign}` : '',
+        params.rerollCount > 0 ? `?? ���ո��� ${params.rerollCount} �Σ��ۼ�������ʯ ${params.rerollSpent}` : '',
+        '������������������������',
+        ...formatFortuneBuffLines(params.buff),
+        '������������������������',
+        nextHint,
+    ]
+        .filter(Boolean)
+        .join('\n');
+}
+
+export function fortuneNotYetText(): string {
+    return ['?? ������δռ��', '?? ���͡�����ռ������ȡ�������ơ�'].join('\n');
+}
+
+export function fortuneAlreadyDrewText(): string {
+    return ['?? ������ռ����һ�Σ��´�������ճ���', '?? ���͡��������ơ��鿴��������', '?? ���͡����ɸ��ˡ�������ʯ�س顣'].join('\n');
+}
+
+export function fortuneRerollCapText(rerollCount: number, rerollSpent: number): string {
+    return [
+        '?? ���ո��˴����Ѵ�����',
+        `?? �Ѹ��� ${rerollCount} �Σ��ۼ�������ʯ ${rerollSpent}`,
+        '?? ���͡��������ơ��鿴��ǰ����',
+    ].join('\n');
+}
+
+export function fortuneRerollNotEnoughText(cost: number, balance: number): string {
+    return [`?? ��ʯ���㣬�޷����ˣ���Ҫ ${cost}����ǰ ${balance}����`, '?? ���͡��������ơ��鿴��ǰ����'].join('\n');
+}

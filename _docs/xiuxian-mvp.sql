@@ -552,3 +552,21 @@ CREATE INDEX IF NOT EXISTS idx_xiuxian_auction_bids_auction_time ON xiuxian_auct
 CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_auction_bids_idem ON xiuxian_auction_bids(auction_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_xiuxian_auction_settle_unique ON xiuxian_auction_settlements(auction_id);
 
+
+
+-- 修仙占卜（每日运势）
+CREATE TABLE IF NOT EXISTS xiuxian_fortunes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  day_key TEXT NOT NULL,              -- 北京时间 YYYY-MM-DD
+  level TEXT NOT NULL,                -- great_bad/bad/minor_bad/neutral/minor_good/good/great_good
+  buff_json TEXT NOT NULL DEFAULT '{}',
+  sign_text TEXT NOT NULL DEFAULT '',
+  reroll_count INTEGER NOT NULL DEFAULT 0,
+  reroll_spent INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(player_id, day_key),
+  FOREIGN KEY(player_id) REFERENCES xiuxian_players(id)
+);
+CREATE INDEX IF NOT EXISTS idx_xiuxian_fortunes_day ON xiuxian_fortunes(day_key);

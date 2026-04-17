@@ -415,6 +415,10 @@ export function parseXiuxianCommand(content: string): XiuxianCommand | null {
     const bondLogMatch = text.match(/^修仙情录(?:\s+(\d+))?$/);
     if (bondLogMatch) return {type: 'bondLog', page: parsePositiveInt(bondLogMatch[1])};
 
+    if (text === '修仙占卜') return {type: 'fortune'};
+    if (text === '修仙运势') return {type: 'fortuneStatus'};
+    if (text === '修仙改运') return {type: 'fortuneReroll'};
+
     const battleLogMatch = text.match(/^修仙战报(?:\s+(\d+))?$/);
     if (battleLogMatch) return {type: 'battleLog', page: parsePositiveInt(battleLogMatch[1])};
 
