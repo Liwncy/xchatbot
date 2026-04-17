@@ -156,16 +156,15 @@
 ```text
 src/plugins/game/xiuxian/
   index.ts          # 插件入口（匹配「修仙」前缀 + 分发）
-  commands.ts       # 指令解析（文本 → XiuxianCommand）
-  service.ts        # 指令分发与业务主逻辑
-  repository.ts     # D1 / KV 数据访问
-  realm.ts          # 境界 / 等级相关
-  balance.ts        # 数值与掉落
-  time.ts           # 冷却与时间工具
-  reply.ts          # 文本回复（含 helpText 菜单）
-  constants.ts      # 常量与文案
-  fortune.ts        # 每日占卜卦象 / buff / 改运配置
-  types.ts          # 类型定义
+  app/commands/     # 指令解析（文本 → XiuxianCommand）
+  app/reply/        # 顶层与通用回复文案
+  app/service.ts    # 指令分发与业务主逻辑
+  features/fortune/ # 占卜运势 feature 与 buff 计算
+  core/balance/     # 数值、掉落、套装与战斗计算
+  core/constants/   # 全局玩法常量与文案术语
+  core/repository/  # D1 / KV 数据访问
+  core/types/       # 领域类型与命令协议
+  core/utils/       # 时间、境界等通用工具
 ```
 
 ## 测试

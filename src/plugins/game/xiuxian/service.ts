@@ -22,7 +22,7 @@ import {
     XIUXIAN_TOWER_SEASON_REWARDS,
     XIUXIAN_TERMS,
     XIUXIAN_WORLD_BOSS,
-} from './constants.js';
+} from './core/constants/index.js';
 import type {
     XiuxianAchievementDef,
     XiuxianBagQuery,
@@ -37,10 +37,10 @@ import type {
     XiuxianPetBannerEntry,
     XiuxianAuction,
     CombatPower,
-} from './types.js';
-import {XiuxianRepository} from './repository.js';
-import {formatRealm, realmName} from './realm.js';
-import {formatBeijingTime} from './time.js';
+} from './core/types/index.js';
+import {XiuxianRepository} from './core/repository/index.js';
+import {formatRealm, realmName} from './core/utils/realm.js';
+import {formatBeijingTime} from './core/utils/time.js';
 import {
     applyBattleRewardRate,
     applyCultivateRate,
@@ -53,7 +53,7 @@ import {
     rollFortune,
     type XiuxianFortuneBuff,
     type XiuxianFortuneLevel,
-} from './fortune.js';
+} from './features/fortune/index.js';
 import {
     applyExpProgress,
     calcSetBonusSummary,
@@ -72,7 +72,7 @@ import {
     runBossBattle,
     runSimpleBattle,
     setPrefixSetConfig,
-} from './balance.js';
+} from './core/balance/index.js';
 
 const XIUXIAN_SET_CONFIG_KV_KEY = 'xiuxian:equipment:set-config';
 const XIUXIAN_SET_CONFIG_CACHE_MS = 60_000;
@@ -177,7 +177,7 @@ import {
     worldBossRankText,
     worldBossSelfRankText,
     worldBossStatusText,
-} from './reply.js';
+} from './app/reply/index.js';
 
 const XIUXIAN_PET_STARTER_ITEM = {
     itemKey: 'pet-snack-basic',

@@ -1,7 +1,7 @@
 import type {TextMessage} from '../../types.js';
-import {parseXiuxianCommand} from './commands.js';
-import {unknownCommandText} from './reply.js';
-import {handleXiuxianCommand} from './service.js';
+import {parseXiuxianCommand} from './app/commands/index.js';
+import {unknownCommandText} from './app/reply/index.js';
+import {handleXiuxianCommand} from './app/service.js';
 
 export const xiuxianPlugin: TextMessage = {
     type: 'text',
