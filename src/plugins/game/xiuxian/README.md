@@ -159,7 +159,14 @@ src/plugins/game/xiuxian/
   app/commands/     # 指令解析（文本 → XiuxianCommand）
   app/reply/        # 顶层与通用回复文案
   app/service.ts    # 指令分发与业务主逻辑
+  features/battle/  # 挑战战报、战详文案
+  features/boss/    # 讨伐、世界BOSS、BOSS战报文案
+  features/economy/ # 商店、拍卖、出售、分解、炼器、流水文案
   features/fortune/ # 占卜运势 feature 与 buff 计算
+  features/growth/  # 签到、任务、领奖、成就文案
+  features/pet/     # 灵宠面板、宠包、喂宠、出战切换文案
+  features/social/  # 奇遇、结缘、切磋/强斗文案
+  features/tower/   # 爬塔、赛季、塔战报文案
   core/balance/     # 数值、掉落、套装与战斗计算
   core/constants/   # 全局玩法常量与文案术语
   core/repository/  # D1 / KV 数据访问
