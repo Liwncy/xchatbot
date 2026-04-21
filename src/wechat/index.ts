@@ -144,7 +144,7 @@ function parseSenderNameFromPushContent(pushContent?: string): string | undefine
 }
 
 function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
-    const buffer = item.image_buffer?.buffer;
+    const buffer = item.image_buffer?.data ?? item.image_buffer?.buffer;
     if (!buffer) return undefined;
 
     // 新网关格式：base64 字符串

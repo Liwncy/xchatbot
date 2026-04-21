@@ -127,7 +127,7 @@ async function resolveImageDataForRecognize(
         const api = new WechatApi(apiBaseUrl);
         const res = await api.cdnDownloadImage({
             file_id: cdnMeta.fileId,
-            file_aes_key: cdnMeta.fileAesKey,
+            file_key: cdnMeta.fileAesKey,
         });
         const base64 = typeof res.data === 'string' ? res.data.trim() : '';
         if (!base64) {

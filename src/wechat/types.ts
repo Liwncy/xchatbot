@@ -8,8 +8,14 @@ export interface WechatValueField {
 
 /** 网关返回的原始图片缓冲区数据。 */
 export interface WechatImageBuffer {
+    /** Swagger 当前字段名。 */
+    data?: number[] | string;
+    /** Swagger 当前字段名。 */
+    size?: number;
+    /** 兼容旧字段名。 */
     buffer?: number[] | string;
-    len: number;
+    /** 兼容旧字段名。 */
+    len?: number;
 }
 
 /** 微信推送数据 `new_messages` 中的一条消息条目。 */
@@ -21,13 +27,14 @@ export interface WechatPushItem {
     image_status?: number;
     msg_id?: number;
     msg_seq?: number;
+    sequence?: number;
     source?: string;
     msg_source?: string;
     new_id?: number;
     new_msg_id?: number;
     push_content?: string;
-    receiver: WechatValueField;
-    sender: WechatValueField;
+    receiver?: WechatValueField;
+    sender?: WechatValueField;
     status?: number;
     type: number;
 }
