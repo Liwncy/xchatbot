@@ -123,6 +123,14 @@ export interface VideoReply extends ReplyBase {
     mediaId: string;
     title?: string;
     description?: string;
+    /** 视频封面图 base64，省略时使用默认封面。 */
+    thumbData?: string;
+    /** 视频降级为链接卡片时使用的封面图 URL。 */
+    linkPicUrl?: string;
+    /** 视频时长（秒），省略时使用默认时长。 */
+    duration?: number;
+    /** 视频原始链接，可用于发送失败时降级为链接消息。 */
+    originalUrl?: string;
 }
 
 /** 图文回复（支持多篇文章） */

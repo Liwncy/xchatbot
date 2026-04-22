@@ -1,30 +1,6 @@
 import type {TextMessage} from '../types.js';
 import {logger} from '../../utils/logger.js';
-
-interface OpenAiLikeChoice {
-    message?: {
-        content?: string;
-    };
-}
-
-interface OpenAiLikeResponse {
-    choices?: OpenAiLikeChoice[];
-    output_text?: string;
-    reply?: string;
-}
-
-function normalizeAiText(data: OpenAiLikeResponse): string | null {
-    const fromChoices = data.choices?.[0]?.message?.content?.trim();
-    if (fromChoices) return fromChoices;
-
-    const fromOutputText = data.output_text?.trim();
-    if (fromOutputText) return fromOutputText;
-
-    const fromReply = data.reply?.trim();
-    if (fromReply) return fromReply;
-
-    return null;
-}
+import {requestAiText} from '../common/ai-client.js';
 
 /**
  * AI 对话插件。
@@ -46,45 +22,22 @@ export const aiDialogPlugin: TextMessage = {
         }
 
         try {
-            const headers: Record<string, string> = {'Content-Type': 'application/json'};
-            if (env.AI_API_KEY?.trim()) {
-                headers.Authorization = `Bearer ${env.AI_API_KEY.trim()}`;
-            }
-
             const prompt = (message.content ?? '').trim();
-            const model = env.AI_MODEL?.trim() || 'gpt-4o-mini';
-
-            const res = await fetch(apiUrl, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    model,
-                    input: prompt,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: env.AI_SYSTEM_PROMPT?.trim() || '你是我的智能助手，协助我回答问题和提供信息。'
-                        },
-                        {role: 'user', content: prompt},
-                    ],
-                }),
+            const reply = await requestAiText(env, {
+                input: prompt,
+                systemPrompt: env.AI_SYSTEM_PROMPT?.trim() || '你是我的智能助手，协助我回答问题和提供信息。',
             });
-
-            if (!res.ok) {
-                logger.error('AI 服务响应异常', {status: res.status, url: apiUrl});
-                return null;
-            }
-
-            const data = (await res.json()) as OpenAiLikeResponse;
-            const reply = normalizeAiText(data);
             if (!reply) {
-                logger.warn('AI 服务未返回可用内容', {data});
+                logger.warn('AI 服务未返回可用内容', {prompt, url: apiUrl});
                 return null;
             }
 
             return {type: 'text', content: reply};
         } catch (err) {
-            logger.error('调用 AI 服务时发生异常', err);
+            logger.error('调用 AI 服务时发生异常', {
+                url: apiUrl,
+                error: err instanceof Error ? err.message : String(err),
+            });
             return null;
         }
     },

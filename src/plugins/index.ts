@@ -8,6 +8,7 @@
 import {pluginManager} from './manager.js';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {videoLinkParserPlugin} from './video/video-link-parser';
+import {videoRecommendationPlugin} from './video/video-recommendation';
 import {helpPlugin} from './system/help';
 import {commonPluginsEngine} from './common/base';
 import {dynamicCommonPluginsEngine} from './common/dynamic';
@@ -17,6 +18,7 @@ import {xiuxianPlugin} from './game/xiuxian';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
+pluginManager.register(videoRecommendationPlugin);
 // 通用插件配置
 pluginManager.register(commonPluginsEngine);
 pluginManager.register(dynamicCommonPluginsEngine);

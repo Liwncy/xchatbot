@@ -459,14 +459,36 @@ export async function sendWechatReply(
             break;
         }
         case 'video': {
-            const {thumbData, duration} = resolveVideoOptions();
-            const result = await api.sendVideo({
-                receiver: effectiveReceiver,
-                video_data: reply.mediaId,
-                thumb_data: thumbData,
-                duration,
-            });
-            ensureWechatApiSuccess('sendVideo', result);
+            const {thumbData, duration} = resolveVideoOptions(reply);
+            try {
+                const result = await api.sendVideo({
+                    receiver: effectiveReceiver,
+                    video_data: reply.mediaId,
+                    thumb_data: thumbData,
+                    duration,
+                });
+                ensureWechatApiSuccess('sendVideo', result);
+            } catch (videoErr) {
+                if (reply.originalUrl?.trim()) {
+                    const linkPicUrl = reply.linkPicUrl?.trim() || '';
+                    logger.warn('视频发送失败，降级为链接消息', {
+                        receiver: effectiveReceiver,
+                        error: videoErr instanceof Error ? videoErr.message : String(videoErr),
+                        fallbackUrl: reply.originalUrl,
+                        hasLinkPicUrl: Boolean(linkPicUrl),
+                    });
+                    const linkResult = await api.sendLink({
+                        receiver: effectiveReceiver,
+                        url: reply.originalUrl,
+                        title: reply.title?.trim() || '视频推荐',
+                        desc: reply.description?.trim() || '点击查看视频',
+                        thumb_url: linkPicUrl,
+                    });
+                    ensureWechatApiSuccess('sendLink(fallback)', linkResult);
+                } else {
+                    throw videoErr;
+                }
+            }
             break;
         }
         case 'news': {
@@ -507,10 +529,10 @@ export async function sendWechatReply(
     }
 }
 
-function resolveVideoOptions(): { thumbData: string; duration: number } {
+function resolveVideoOptions(reply?: { thumbData?: string; duration?: number }): { thumbData: string; duration: number } {
     return {
-        thumbData: DEFAULT_VIDEO_THUMB_BASE64,
-        duration: DEFAULT_VIDEO_DURATION,
+        thumbData: reply?.thumbData?.trim() || DEFAULT_VIDEO_THUMB_BASE64,
+        duration: Number.isFinite(reply?.duration) ? Math.max(1, Math.floor(Number(reply?.duration))) : DEFAULT_VIDEO_DURATION,
     };
 }
 
