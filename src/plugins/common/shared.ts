@@ -1,5 +1,6 @@
 import {logger} from '../../utils/logger';
 import {arrayBufferToBase64} from '../../utils/binary';
+import {parseMp4DurationSeconds} from '../../utils/video-duration';
 
 export type SharedRequestMode = 'text' | 'base64' | 'json';
 
@@ -17,6 +18,20 @@ interface LinkReplySource {
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
+}
+
+export type MediaPayloadKind = 'image' | 'video' | 'audio';
+
+export interface MediaPayloadOptions {
+    expectedKind?: MediaPayloadKind;
+}
+
+export interface MediaPayloadResult {
+    payload: string;
+    durationSeconds?: number;
+    contentType?: string;
+    actualKind?: MediaPayloadKind | null;
+    size?: number;
 }
 
 function toTemplateString(value: unknown): string {
@@ -338,17 +353,107 @@ const MAX_MEDIA_SIZE = 20 * 1024 * 1024;
 /** 外部 API 请求超时时间（毫秒）。Cloudflare Workers 对外请求无限等待会触发内部错误。 */
 const FETCH_TIMEOUT_MS = 15_000;
 
+function decodeBase64Head(base64: string, maxBytes = 64): Uint8Array | null {
+    try {
+        const normalized = normalizeBase64(base64).replace(/\s+/g, '');
+        if (!normalized) return null;
+        const approxChars = Math.ceil(maxBytes / 3) * 4;
+        const chunk = normalized.slice(0, approxChars);
+        const binary = atob(chunk);
+        const length = Math.min(binary.length, maxBytes);
+        const bytes = new Uint8Array(length);
+        for (let i = 0; i < length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+    } catch {
+        return null;
+    }
+}
+
+function bytesAscii(bytes: Uint8Array, start: number, end: number): string {
+    return Array.from(bytes.slice(start, end)).map((b) => String.fromCharCode(b)).join('');
+}
+
+function inferMediaKindFromBytes(bytes: Uint8Array | null): MediaPayloadKind | null {
+    if (!bytes || bytes.length < 4) return null;
+
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image';
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image';
+    if (bytesAscii(bytes, 0, 4) === 'GIF8') return 'image';
+    if (bytesAscii(bytes, 0, 4) === 'RIFF' && bytesAscii(bytes, 8, 12) === 'WEBP') return 'image';
+    if (bytesAscii(bytes, 4, 8) === 'ftyp') return 'video';
+    if (bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) return 'video';
+    if (bytesAscii(bytes, 0, 4) === 'RIFF' && bytesAscii(bytes, 8, 12) === 'WAVE') return 'audio';
+    if (bytesAscii(bytes, 0, 3) === 'ID3' || (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0)) return 'audio';
+    if (bytesAscii(bytes, 0, 4) === '#!AM') return 'audio';
+    if (bytesAscii(bytes, 0, 4) === 'OggS') return 'audio';
+
+    return null;
+}
+
+function inferMediaKindFromContentType(contentType: string): MediaPayloadKind | null {
+    const normalized = contentType.toLowerCase().trim();
+    if (!normalized) return null;
+    if (normalized.startsWith('image/')) return 'image';
+    if (normalized.startsWith('video/') || normalized.includes('application/mp4') || normalized.includes('quicktime')) {
+        return 'video';
+    }
+    if (normalized.startsWith('audio/')) return 'audio';
+    return null;
+}
+
+function validateMediaKind(
+    expectedKind: MediaPayloadKind | undefined,
+    contentType: string,
+    bytes: Uint8Array | null,
+): {ok: boolean; actualKind: MediaPayloadKind | null; via: 'content-type' | 'signature' | 'unknown'} {
+    if (!expectedKind) return {ok: true, actualKind: null, via: 'unknown'};
+
+    const fromContentType = inferMediaKindFromContentType(contentType);
+    if (fromContentType) {
+        return {ok: fromContentType === expectedKind, actualKind: fromContentType, via: 'content-type'};
+    }
+
+    const fromBytes = inferMediaKindFromBytes(bytes);
+    if (fromBytes) {
+        return {ok: fromBytes === expectedKind, actualKind: fromBytes, via: 'signature'};
+    }
+
+    return {ok: false, actualKind: null, via: 'unknown'};
+}
+
 /**
  * 将返回值标准化为媒体可发送 payload（优先复用 base64，否则下载 URL 转 base64）。
  *
  * 下载时会检查文件大小，超过限制则跳过。
  */
-export async function toMediaPayload(value: unknown, logPrefix: string): Promise<string | null> {
+export async function toMediaPayloadResult(
+    value: unknown,
+    logPrefix: string,
+    options?: MediaPayloadOptions,
+): Promise<MediaPayloadResult | null> {
     const raw = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
     if (!raw) return null;
 
     const normalized = normalizeBase64(raw);
-    if (looksLikeBase64(normalized)) return normalized;
+    if (looksLikeBase64(normalized)) {
+        const headBytes = decodeBase64Head(normalized);
+        const validation = validateMediaKind(options?.expectedKind, '', headBytes);
+        if (!validation.ok) {
+            logger.warn(`${logPrefix}base64 媒体类型不匹配，已拒绝发送`, {
+                expectedKind: options?.expectedKind,
+                detectedKind: validation.actualKind,
+                detectedBy: validation.via,
+                base64Head: normalized.slice(0, 24),
+            });
+            return null;
+        }
+        return {
+            payload: normalized,
+            actualKind: validation.actualKind,
+        };
+    }
 
     if (isHttpUrl(raw)) {
         const controller = new AbortController();
@@ -388,13 +493,36 @@ export async function toMediaPayload(value: unknown, logPrefix: string): Promise
             }
 
             const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
+            const headBytes = new Uint8Array(buffer.slice(0, Math.min(buffer.byteLength, 64)));
+            const validation = validateMediaKind(options?.expectedKind, contentType, headBytes);
+            const durationSeconds = validation.actualKind === 'video' ? parseMp4DurationSeconds(buffer) : undefined;
+            if (!validation.ok) {
+                logger.warn(`${logPrefix}媒体类型不匹配，已拒绝发送`, {
+                    url: raw,
+                    expectedKind: options?.expectedKind,
+                    detectedKind: validation.actualKind,
+                    detectedBy: validation.via,
+                    contentType,
+                    size: buffer.byteLength,
+                });
+                return null;
+            }
             logger.debug(`${logPrefix}媒体下载成功`, {
                 url: raw,
                 size: buffer.byteLength,
                 contentType,
+                detectedKind: validation.actualKind,
+                detectedBy: validation.via,
+                durationSeconds,
             });
 
-            return arrayBufferToBase64(buffer);
+            return {
+                payload: arrayBufferToBase64(buffer),
+                durationSeconds,
+                contentType,
+                actualKind: validation.actualKind,
+                size: buffer.byteLength,
+            };
         } catch (err) {
             clearTimeout(timer);
             const isTimeout = err instanceof Error && err.name === 'AbortError';
@@ -406,7 +534,15 @@ export async function toMediaPayload(value: unknown, logPrefix: string): Promise
         }
     }
 
-    return normalized;
+    return {
+        payload: normalized,
+    };
+}
+
+/** 兼容旧调用：仅返回媒体 payload。 */
+export async function toMediaPayload(value: unknown, logPrefix: string, options?: MediaPayloadOptions): Promise<string | null> {
+    const result = await toMediaPayloadResult(value, logPrefix, options);
+    return result?.payload ?? null;
 }
 
 /** 按 mode 统一提取响应值。 */

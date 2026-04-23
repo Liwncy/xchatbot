@@ -1,4 +1,4 @@
-import {isHttpUrl, toLinkReply, toMediaPayload} from './shared';
+import {isHttpUrl, toLinkReply, toMediaPayloadResult} from './shared';
 
 export type CommonReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
@@ -81,8 +81,12 @@ export async function buildCommonReply(
     const rawStr = typeof value === 'string' ? value.trim() : '';
     const originalUrl = isHttpUrl(rawStr) ? rawStr : undefined;
 
-    const mediaId = await toMediaPayload(value, logPrefix);
-    if (!mediaId) return null;
+    const mediaResult = await toMediaPayloadResult(value, logPrefix, {
+        expectedKind: rule.rType === 'video' ? 'video' : undefined,
+    });
+    if (!mediaResult) return null;
+
+    const mediaId = mediaResult.payload;
 
     if (rule.rType === 'voice') {
         return {
@@ -92,6 +96,15 @@ export async function buildCommonReply(
             format: rule.voiceFormat,
             duration: rule.voiceDurationMs,
             fallbackText: rule.voiceFallbackText,
+        };
+    }
+
+    if (rule.rType === 'video') {
+        return {
+            type: 'video' as const,
+            mediaId,
+            originalUrl,
+            duration: mediaResult.durationSeconds,
         };
     }
 

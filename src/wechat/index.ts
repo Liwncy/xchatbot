@@ -460,15 +460,38 @@ export async function sendWechatReply(
         }
         case 'video': {
             const {thumbData, duration} = resolveVideoOptions(reply);
+            logger.debug('发送视频消息（CDN 上传）', {
+                receiver: effectiveReceiver,
+                videoBase64Length: reply.mediaId?.length ?? 0,
+                videoEstimatedBytes: Math.floor((reply.mediaId?.length ?? 0) * 0.75),
+                videoSignature: detectMediaSignature(reply.mediaId),
+                thumbBase64Length: thumbData.length,
+                thumbEstimatedBytes: Math.floor(thumbData.length * 0.75),
+                thumbSignature: detectMediaSignature(thumbData),
+                usesDefaultThumb: thumbData === DEFAULT_VIDEO_THUMB_BASE64,
+                duration,
+                title: reply.title ?? '',
+                hasOriginalUrl: Boolean(reply.originalUrl?.trim()),
+                hasLinkPicUrl: Boolean(reply.linkPicUrl?.trim()),
+            });
             try {
-                const result = await api.sendVideo({
+                const result = await api.cdnUploadVideo({
                     receiver: effectiveReceiver,
                     video_data: reply.mediaId,
                     thumb_data: thumbData,
-                    duration,
                 });
-                ensureWechatApiSuccess('sendVideo', result);
+                ensureWechatApiSuccess('cdnUploadVideo', result);
             } catch (videoErr) {
+                logger.warn('视频发送失败（CDN 上传）', {
+                    receiver: effectiveReceiver,
+                    duration,
+                    videoBase64Length: reply.mediaId?.length ?? 0,
+                    videoSignature: detectMediaSignature(reply.mediaId),
+                    thumbBase64Length: thumbData.length,
+                    thumbSignature: detectMediaSignature(thumbData),
+                    usesDefaultThumb: thumbData === DEFAULT_VIDEO_THUMB_BASE64,
+                    error: videoErr instanceof Error ? videoErr.message : String(videoErr),
+                });
                 if (reply.originalUrl?.trim()) {
                     const linkPicUrl = reply.linkPicUrl?.trim() || '';
                     logger.warn('视频发送失败，降级为链接消息', {
@@ -553,6 +576,18 @@ function detectImageFormat(base64?: string): string {
     if (head.startsWith('R0lGO')) return 'gif';
     if (head.startsWith('UklGR')) return 'webp';
     if (head.startsWith('Qk')) return 'bmp';
+    return `unknown(${head})`;
+}
+
+function detectMediaSignature(base64?: string): string {
+    if (!base64) return 'empty';
+    const head = base64.slice(0, 24);
+    if (head.startsWith('iVBOR')) return 'png';
+    if (head.startsWith('/9j/')) return 'jpeg';
+    if (head.startsWith('R0lGO')) return 'gif';
+    if (head.startsWith('UklGR')) return 'webp-or-riff';
+    if (head.startsWith('AAAAIGZ0eX') || head.startsWith('AAAAGGZ0eX') || head.startsWith('AAAAG2Z0eX')) return 'mp4/quicktime';
+    if (head.startsWith('GkXfow')) return 'webm';
     return `unknown(${head})`;
 }
 

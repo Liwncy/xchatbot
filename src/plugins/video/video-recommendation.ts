@@ -1,16 +1,26 @@
 import type {TextMessage} from '../types.js';
 import type {HandlerResponse, NewsArticle, VideoReply} from '../../types/message.js';
 import {logger} from '../../utils/logger.js';
+import {DrawService} from '../ai/draw-service.js';
 import {requestAiText} from '../common/ai-client.js';
-import {toMediaPayload} from '../common/shared.js';
+import {toMediaPayloadResult} from '../common/shared.js';
 
 type VideoApiParser = 'yujn-json' | 'redirect-url' | 'nested-video-json';
+type VideoReplyMode = 'video' | 'link' | 'auto';
+
+/**
+ * 视频推荐回复模式：
+ * - video: 优先返回视频，失败时仍降级卡片
+ * - link: 直接返回卡片链接（先转短链）
+ * - auto: 优先返回视频，失败则返回卡片链接（先转短链）
+ */
+const VIDEO_REPLY_MODE: VideoReplyMode = 'video';
 
 interface VideoRoute {
     routeKey: string;
     name: string;
     keywords: string[];
-    endpoint: string;
+    endpoint: string | string[];
     parser: VideoApiParser;
     fallbackTitle: string;
     fallbackDescription: string;
@@ -35,6 +45,11 @@ interface NestedVideoJsonResponse {
     data?: {
         video?: string;
     } | string;
+}
+
+interface GeneratedVideoCover {
+    coverUrl?: string;
+    thumbData?: string;
 }
 
 const TRIGGER_PREFIXES = ['我想看', '我爱看', '我要看'] as const;
@@ -165,13 +180,13 @@ function buildAiClassifierPrompt(): string {
     return [
         '你是一个视频分类器。',
         '你的任务是根据用户的中文需求，从候选分类中选出最合适的一个 routeKey。',
-        '只允许返回一个 routeKey，或者返回 NONE。',
+        '只允许且必须返回一个 routeKey。',
         '不要解释，不要换行，不要输出多余文本。',
         '可选分类如下：',
         ...routeLines,
         '输出示例：xjj',
         '输出示例：rewu',
-        '输出示例：NONE',
+        '输出示例：热舞',
     ].join('\n');
 }
 
@@ -290,41 +305,133 @@ async function parseNestedVideoJson(endpoint: string): Promise<ParsedVideoResult
 }
 
 async function fetchVideoByRoute(route: VideoRoute): Promise<ParsedVideoResult | null> {
-    switch (route.parser) {
-        case 'yujn-json':
-            return parseYujnJson(route.endpoint);
-        case 'redirect-url':
-            return parseRedirectUrl(route.endpoint);
-        case 'nested-video-json':
-            return parseNestedVideoJson(route.endpoint);
-        default:
-            return null;
+    const endpoints = (Array.isArray(route.endpoint) ? route.endpoint : [route.endpoint])
+        .map((item) => item.trim())
+        .filter(Boolean);
+    if (endpoints.length === 0) return null;
+
+    const randomizedEndpoints = [...endpoints]
+        .map((endpoint) => ({endpoint, sortKey: Math.random()}))
+        .sort((a, b) => a.sortKey - b.sortKey)
+        .map((item) => item.endpoint);
+
+    let lastError: unknown = null;
+    for (const endpoint of randomizedEndpoints) {
+        try {
+            switch (route.parser) {
+                case 'yujn-json': {
+                    const result = await parseYujnJson(endpoint);
+                    if (result) return result;
+                    break;
+                }
+                case 'redirect-url': {
+                    const result = await parseRedirectUrl(endpoint);
+                    if (result) return result;
+                    break;
+                }
+                case 'nested-video-json': {
+                    const result = await parseNestedVideoJson(endpoint);
+                    if (result) return result;
+                    break;
+                }
+                default:
+                    return null;
+            }
+        } catch (error) {
+            lastError = error;
+            logger.warn('视频推荐分类接口尝试失败，继续切换下一个源', {
+                route: route.name,
+                endpoint,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
+
+    if (lastError) {
+        throw lastError;
+    }
+
+    return null;
 }
 
-function buildNewsArticle(route: VideoRoute, result: ParsedVideoResult): NewsArticle {
+function buildNewsArticle(route: VideoRoute, result: ParsedVideoResult, url?: string): NewsArticle {
     return {
         title: result.title || route.fallbackTitle,
         description: result.description || route.fallbackDescription,
-        url: result.videoUrl,
+        url: url || result.videoUrl,
     };
 }
 
-async function buildSuccessReply(route: VideoRoute, result: ParsedVideoResult): Promise<HandlerResponse> {
-    const mediaPayload = await toMediaPayload(result.videoUrl, `[video-recommendation:${route.name}] `);
-    if (mediaPayload) {
+function buildCoverPrompt(route: VideoRoute, result: ParsedVideoResult): string {
+    const keyword = result.title?.trim() || route.name;
+    return [
+        '短视频封面',
+        '简约设计',
+        '白底',
+        '干净排版',
+        '竖屏 9:16',
+        `中间竖着艺术大字：${keyword}`,
+    ].filter(Boolean).join('，').slice(0, 180);
+}
+
+async function generateVideoCover(route: VideoRoute, result: ParsedVideoResult): Promise<GeneratedVideoCover> {
+    try {
+        const prompt = buildCoverPrompt(route, result);
+        const coverUrl = await DrawService.draw(prompt, {scale: '9:16'});
+        const coverMedia = await toMediaPayloadResult(coverUrl, `[video-recommendation:${route.name}:cover] `, {
+            expectedKind: 'image',
+        });
+
         return {
-            type: 'video',
-            mediaId: mediaPayload,
-            title: result.title || route.fallbackTitle,
-            description: result.description || route.fallbackDescription,
-            originalUrl: result.videoUrl,
-        } satisfies VideoReply;
+            coverUrl,
+            thumbData: coverMedia?.payload,
+        };
+    } catch (error) {
+        logger.warn('视频推荐 AI 封面生成失败，回退默认封面', {
+            route: route.name,
+            videoUrl: result.videoUrl,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return {};
+    }
+}
+
+async function buildSuccessReply(route: VideoRoute, result: ParsedVideoResult): Promise<HandlerResponse> {
+    const generatedCover = await generateVideoCover(route, result);
+
+    if (VIDEO_REPLY_MODE !== 'link') {
+        const mediaResult = await toMediaPayloadResult(result.videoUrl, `[video-recommendation:${route.name}] `, {
+            expectedKind: 'video',
+        });
+        if (mediaResult) {
+            return {
+                type: 'video',
+                mediaId: mediaResult.payload,
+                title: result.title || route.fallbackTitle,
+                description: result.description || route.fallbackDescription,
+                thumbData: generatedCover.thumbData,
+                linkPicUrl: generatedCover.coverUrl,
+                duration: mediaResult.durationSeconds,
+                originalUrl: result.videoUrl,
+            } satisfies VideoReply;
+        }
+    }
+
+    const article = buildNewsArticle(route, result, result.videoUrl);
+    if (generatedCover.coverUrl) {
+        article.picUrl = generatedCover.coverUrl;
+    }
+
+    if (VIDEO_REPLY_MODE === 'video') {
+        return {
+            type: 'news',
+            articles: [article],
+        };
     }
 
     return {
         type: 'news',
-        articles: [buildNewsArticle(route, result)],
+        articles: [article],
     };
 }
 
