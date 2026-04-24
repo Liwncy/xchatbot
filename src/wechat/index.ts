@@ -382,7 +382,7 @@ export async function sendWechatReply(
         case 'image': {
             const dataSize = reply.mediaId?.length ?? 0;
             const format = detectImageFormat(reply.mediaId);
-            logger.debug('发送图片消息', {
+            logger.debug('发送图片消息（CDN 上传）', {
                 receiver: effectiveReceiver,
                 base64Length: dataSize,
                 estimatedBytes: Math.floor(dataSize * 0.75),
@@ -390,13 +390,13 @@ export async function sendWechatReply(
                 head: reply.mediaId?.slice(0, 20) ?? '',
             });
             try {
-                const result = await api.sendImage({receiver: effectiveReceiver, data: reply.mediaId});
-                ensureWechatApiSuccess('sendImage', result);
+                const result = await api.cdnUploadImage({receiver: effectiveReceiver, image_data: reply.mediaId});
+                ensureWechatApiSuccess('cdnUploadImage', result);
             } catch (imgErr) {
                 // 图片发送失败时，尝试降级为链接消息（如果有原始 URL）
                 const originalUrl = (reply as { originalUrl?: string }).originalUrl;
                 if (originalUrl) {
-                    logger.warn('图片发送失败，降级为链接消息', {
+                    logger.warn('图片发送失败（CDN 上传），降级为链接消息', {
                         error: imgErr instanceof Error ? imgErr.message : String(imgErr),
                         fallbackUrl: originalUrl,
                     });
