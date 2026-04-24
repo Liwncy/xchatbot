@@ -157,8 +157,8 @@ export interface SendAppParam {
 export interface ForwardParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** 转发内容类型（image / video / file）。 */
-    type: string;
+    /** 转发内容类型（image / video / file）或特定消息类型值（如 19）。 */
+    type: string | number;
     /** 原始消息 XML。 */
     xml: string;
 }

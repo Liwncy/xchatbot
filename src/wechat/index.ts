@@ -12,6 +12,12 @@ import {logger} from '../utils/logger.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from './constants.js';
 import {normalizeVoiceForWechat} from '../utils/silk-converter.js';
 
+export {
+    buildWechatChatRecordAppReply,
+    buildWechatChatRecordAppXml,
+    buildSingleWechatChatRecordAppReply,
+} from './chat-record.js';
+
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 
 function getWechatItemSource(item: WechatPushItem): string {
@@ -132,6 +138,7 @@ function parseSenderNameFromPushContent(pushContent?: string): string | undefine
         const name = pushContent.slice(0, separatorIndex).trim();
         if (name) return name;
     }
+
 
     // 群图片等常见格式：`昵称在群聊中发了...`
     const groupActionMatch = pushContent.match(/^(.+?)在群聊中发了/);
@@ -539,11 +546,19 @@ export async function sendWechatReply(
             break;
         }
         case 'app': {
-            const result = await api.sendApp({
+            const payload = {
                 receiver: effectiveReceiver,
                 type: reply.appType,
                 xml: reply.appXml,
+            };
+            logger.info('发送应用消息（sendApp）', {
+                receiver: effectiveReceiver,
+                appType: reply.appType,
+                sendPath: 'sendApp',
+                payload,
             });
+            console.log('wechat app send payload', payload);
+            const result = await api.sendApp(payload);
             ensureWechatApiSuccess('sendApp', result);
             break;
         }
@@ -558,6 +573,7 @@ function resolveVideoOptions(reply?: { thumbData?: string; duration?: number }):
         duration: Number.isFinite(reply?.duration) ? Math.max(1, Math.floor(Number(reply?.duration))) : DEFAULT_VIDEO_DURATION,
     };
 }
+
 
 /**
  * 通过 base64 开头字节（magic bytes）识别图片格式。

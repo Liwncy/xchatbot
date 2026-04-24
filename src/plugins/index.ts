@@ -15,9 +15,11 @@ import {dynamicCommonPluginsEngine} from './common/dynamic';
 import {workflowCommonPluginsEngine} from './common/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
 import {xiuxianPlugin} from './game/xiuxian';
+import {wechatChatRecordDemoPlugin} from './demo/wechat-chat-record';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
+pluginManager.register(wechatChatRecordDemoPlugin);
 pluginManager.register(videoRecommendationPlugin);
 // 通用插件配置
 pluginManager.register(commonPluginsEngine);
