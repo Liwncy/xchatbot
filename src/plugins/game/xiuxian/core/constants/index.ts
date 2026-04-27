@@ -117,10 +117,16 @@ export const XIUXIAN_COOLDOWN_MS = {
 export const XIUXIAN_PVP = {
     sparRequestExpireMs: 5 * 60 * 1000,
     maxLevelGap: 8,
-    forceFightCooldownMs: 10 * 60 * 1000,
-    forceFightShieldMs: 30 * 60 * 1000,
+    forceFightCooldownMs: 30 * 1000,
+    forceFightShieldMs: 30 * 1000,
     lootRate: 0.08,
     lootCap: 120,
+    lootRatePerLevelDelta: 0.005,
+    minLootRate: 0.04,
+    maxLootRate: 0.12,
+    lootCapPerLevelDelta: 8,
+    minLootCap: 56,
+    maxLootCap: 184,
 } as const;
 
 export const XIUXIAN_DEFAULTS = {

@@ -155,6 +155,8 @@ export async function handleSocialCommand(
         const targetShield = await getCooldownLeft(repo, target.id, XIUXIAN_ACTIONS.forceFightShield, now);
         if (targetShield > 0) return asText(`🛡️ ${target.userName} 当前处于强斗保护中，请 ${Math.ceil(targetShield / 1000)}s 后再试。`);
 
+        const attackerBaseLevel = player.level;
+        const targetBaseLevel = target.level;
         const selfFortune = await context.loadFortuneBuff(player.id, now);
         const targetFortune = await context.loadFortuneBuff(target.id, now);
         const selfPower = applyFortuneToPower(await context.buildCombatPower(player), selfFortune);
@@ -186,7 +188,8 @@ export async function handleSocialCommand(
 
         let lootStone = 0;
         if (result.win) {
-            lootStone = Math.min(XIUXIAN_PVP.lootCap, Math.floor(target.spiritStone * XIUXIAN_PVP.lootRate));
+            const lootProfile = getForceFightLootProfile(attackerBaseLevel, targetBaseLevel);
+            lootStone = Math.min(lootProfile.cap, Math.floor(target.spiritStone * lootProfile.rate));
             if (lootStone > 0) {
                 const spent = await repo.spendSpiritStone(target.id, lootStone, now);
                 if (spent) {
@@ -754,6 +757,27 @@ function validatePvpTarget(player: XiuxianPlayer, target: XiuxianPlayer): string
         return `⚖️ 你与 ${target.userName} 的境界差距过大（超过 ${XIUXIAN_PVP.maxLevelGap} 级），暂不可交手。`;
     }
     return null;
+}
+
+function getForceFightLootProfile(attackerLevel: number, targetLevel: number): {rate: number; cap: number} {
+    const levelDelta = targetLevel - attackerLevel;
+    const rate = clampNumber(
+        XIUXIAN_PVP.lootRate + levelDelta * XIUXIAN_PVP.lootRatePerLevelDelta,
+        XIUXIAN_PVP.minLootRate,
+        XIUXIAN_PVP.maxLootRate,
+    );
+    const cap = Math.round(
+        clampNumber(
+            XIUXIAN_PVP.lootCap + levelDelta * XIUXIAN_PVP.lootCapPerLevelDelta,
+            XIUXIAN_PVP.minLootCap,
+            XIUXIAN_PVP.maxLootCap,
+        ),
+    );
+    return {rate, cap};
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
 }
 
 function applyBattleGrowth(player: XiuxianPlayer, reward: {exp: number; cultivation: number}): void {
