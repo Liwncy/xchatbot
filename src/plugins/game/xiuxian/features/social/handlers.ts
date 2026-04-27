@@ -596,6 +596,7 @@ type RawWechatMessageItem = {
     new_msg_id?: number | string;
     source?: string;
     msg_source?: string;
+    [key: string]: unknown;
 };
 
 function getRawWechatItems(raw: unknown): RawWechatMessageItem[] {
@@ -615,21 +616,93 @@ function matchWechatRawItemMessageId(item: RawWechatMessageItem, messageId: stri
     return ids.includes(messageId);
 }
 
+function decodeXmlEntities(value: string): string {
+    return value
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&amp;/gi, '&');
+}
+
+function normalizeMentionCandidate(value: string): string {
+    return decodeXmlEntities(value)
+        .trim()
+        .replace(/^<!\[CDATA\[/i, '')
+        .replace(/]]>$/i, '')
+        .replace(/^['"]+|['"]+$/g, '')
+        .trim();
+}
+
+function parseMentionUserIdList(value: string): string[] {
+    const normalized = normalizeMentionCandidate(value);
+    if (!normalized) return [];
+    return normalized
+        .split(/[\n,;，；]+/)
+        .map((part) => normalizeMentionCandidate(part))
+        .filter((part) => Boolean(part) && part !== 'notify@all');
+}
+
+function extractMentionUserIdsFromXml(source: string): string[] {
+    const normalized = decodeXmlEntities(source);
+    const matches = normalized.matchAll(/<atuserlist(?:\s[^>]*)?>([\s\S]*?)<\/atuserlist>/gi);
+    const values: string[] = [];
+    for (const match of matches) {
+        if (match[1]) values.push(...parseMentionUserIdList(match[1]));
+    }
+    return values;
+}
+
+function isDirectMentionFieldKey(key: string): boolean {
+    const normalized = key.trim().toLowerCase();
+    return normalized === 'atuserlist'
+        || normalized === 'at_user_list'
+        || normalized === 'atusers'
+        || normalized === 'at_users'
+        || normalized === 'mentioneduserids'
+        || normalized === 'mentioned_user_ids'
+        || normalized === 'remind';
+}
+
+function collectMentionedUserIds(value: unknown, result: Set<string>, keyHint?: string): void {
+    if (value == null) return;
+
+    if (typeof value === 'string') {
+        const ids = keyHint && isDirectMentionFieldKey(keyHint)
+            ? parseMentionUserIdList(value)
+            : extractMentionUserIdsFromXml(value);
+        for (const id of ids) result.add(id);
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            collectMentionedUserIds(item, result, keyHint);
+        }
+        return;
+    }
+
+    if (typeof value !== 'object') return;
+
+    for (const [key, nested] of Object.entries(value)) {
+        collectMentionedUserIds(nested, result, key);
+    }
+}
+
 function extractGroupMentionedUserIds(message: IncomingMessage): string[] {
     if (message.source !== 'group') return [];
     const items = getRawWechatItems(message.raw);
-    if (!items.length) return [];
+    const mentioned = new Set<string>();
 
     const target = items.find((item) => matchWechatRawItemMessageId(item, message.messageId)) ?? items[0];
-    const source = String(target?.source ?? target?.msg_source ?? '');
-    if (!source) return [];
+    if (target) {
+        collectMentionedUserIds(target, mentioned);
+    }
+    if (!mentioned.size) {
+        collectMentionedUserIds(message.raw, mentioned);
+    }
 
-    const match = source.match(/<atuserlist>([\s\S]*?)<\/atuserlist>/i);
-    if (!match?.[1]) return [];
-    return match[1]
-        .split(',')
-        .map((value) => value.trim())
-        .filter((value) => Boolean(value) && value !== 'notify@all');
+    return [...mentioned];
 }
 
 function resolveBondTarget(message: IncomingMessage, rawInput?: string): {targetUserId?: string; error?: string} {
