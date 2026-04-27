@@ -147,9 +147,9 @@
 
 ## 数据与配置
 
-- D1 建表脚本：[`_docs/xiuxian-mvp.sql`](../../../_docs/xiuxian-mvp.sql)
-- 配置示例：[`_docs/xiuxian-set-config.sample.json`](../../../_docs/xiuxian-set-config.sample.json)
-- 迭代方案与路线图：[`_docs/xiuxian-roadmap.md`](../../../_docs/xiuxian-roadmap.md)
+- D1 建表脚本：[`_docs/xiuxian/xiuxian-mvp.sql`](../../../_docs/xiuxian/xiuxian-mvp.sql)
+- 配置示例：[`_docs/xiuxian/xiuxian-set-config.sample.json`](../../../_docs/xiuxian/xiuxian-set-config.sample.json)
+- 迭代方案与路线图：[`_docs/xiuxian/xiuxian-roadmap.md`](../../../_docs/xiuxian/xiuxian-roadmap.md)
 
 运行前需在 `wrangler.toml` 中配置好 `XBOT_DB`（D1）与 `XBOT_KV`（KV）绑定，并执行一次建表 SQL。
 

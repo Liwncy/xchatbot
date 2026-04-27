@@ -1,6 +1,10 @@
+import './scheduler-ext/index.js';
+
 import {handleWechat} from './wechat/index.js';
 import type {Env} from './types/message.js';
 import {clearRemoteRulesCache, getRemoteRulesCacheSize} from './plugins/common/remote-config.js';
+import {handleSchedulerAdmin} from './scheduler/admin.js';
+import {handleScheduledDispatch} from './scheduler/index.js';
 import {
     KV_COMMON_BASE_RULES,
     KV_COMMON_DYNAMIC_RULES,
@@ -272,6 +276,13 @@ export default {
             return handleAdminPlugins(request, env);
         }
 
+        // ── 管理接口（调度中心）──
+        if (pathname === '/admin/scheduler' || pathname.startsWith('/admin/scheduler/')) {
+            const unauthorized = authorizeAdmin(request, env);
+            if (unauthorized) return unauthorized;
+            return handleSchedulerAdmin(request, env);
+        }
+
         // ── 防递归：已经是转发过来的请求，直接正常处理 ──
         if (request.headers.get(DEBUG_FORWARDED_HEADER)) {
             // 跳过调试转发，走正常流程
@@ -308,5 +319,8 @@ export default {
         }
 
         return new Response('Not Found', {status: 404});
+    },
+    async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+        await handleScheduledDispatch(controller, env, ctx);
     },
 } satisfies ExportedHandler<Env>;

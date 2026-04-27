@@ -213,6 +213,8 @@ export interface Env {
     WECHAT_TOKEN?: string;
     /** 微信网关 API 基础 URL（如 http://gateway:8080）。 */
     WECHAT_API_BASE_URL?: string;
+    /** 机器人主人的微信 ID，可作为默认定时通知目标。 */
+    BOT_OWNER_WECHAT_ID?: string;
     // 插件
     COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
     /** 通用插件 JSON 配置数组字符串。 */

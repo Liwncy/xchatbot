@@ -8,6 +8,9 @@ routes = [
     { pattern = "xbot.lwcfworker.dpdns.org", zone_name = "lwcfworker.dpdns.org", custom_domain = true }
 ]
 
+[triggers]
+crons = ["* * * * *"]
+
 [observability]
 enabled = false
 head_sampling_rate = 1
@@ -29,7 +32,7 @@ head_sampling_rate = 1
 # WeChat Personal Account bridge/gateway configuration (set via wrangler secret or .dev.vars for local)
 # WECHAT_TOKEN = "your_webhook_hmac_token"
 WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
-BOT_OWNER_WECHAT_ID = "your_wechat_id"  # 机器人主人的微信ID，用于识别消息来源
+BOT_OWNER_WECHAT_ID = "wxid_5jfnhtqy74xr22"  # 机器人主人的微信ID，用于识别消息来源
 
 # AI plugin configuration
 AI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
