@@ -1,6 +1,7 @@
 import type {TextMessage} from '../../../types.js';
 import type {Env, HandlerResponse, IncomingMessage} from '../../../../types/message.js';
 import {parseXiuxianCommand} from './commands/index.js';
+import {finalizeXiuxianReply} from './forward-reply.js';
 import {unknownCommandText} from './reply/index.js';
 import {handleXiuxianCommand} from './service.js';
 
@@ -11,8 +12,9 @@ export function matchXiuxianContent(content: string): boolean {
 
 export async function handleXiuxianPluginMessage(message: IncomingMessage, env: Env): Promise<HandlerResponse> {
     const cmd = parseXiuxianCommand((message.content ?? '').trim());
-    if (!cmd) return {type: 'text', content: unknownCommandText()};
-    return handleXiuxianCommand(env.XBOT_DB, env.XBOT_KV, message, cmd);
+    if (!cmd) return finalizeXiuxianReply(message, null, {type: 'text', content: unknownCommandText()});
+    const response = await handleXiuxianCommand(env.XBOT_DB, env.XBOT_KV, message, cmd);
+    return finalizeXiuxianReply(message, cmd, response);
 }
 
 export const xiuxianPlugin: TextMessage = {
