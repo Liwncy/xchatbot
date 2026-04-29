@@ -16,6 +16,7 @@ import {workflowCommonPluginsEngine} from './common/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
 import {xiuxianPlugin} from './game/xiuxian';
 import {wechatChatRecordDemoPlugin} from './demo/wechat-chat-record';
+import {fakeForwardPlugin} from './wechat/fake-forward';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
@@ -31,6 +32,7 @@ pluginManager.register(aiDialogPlugin);
 pluginManager.register(videoLinkParserPlugin);
 pluginManager.register(imageIntentTriggerPlugin);
 pluginManager.register(imageIntentProcessPlugin);
+pluginManager.register(fakeForwardPlugin);
 
 // 重新导出以便外部使用
 export {pluginManager} from './manager.js';

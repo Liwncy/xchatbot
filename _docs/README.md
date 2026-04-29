@@ -41,6 +41,7 @@ _docs/
 ### `wechat/`
 
 - `swagger.json`：微信网关接口文档源
+- `fake-forward-plugin-design.md`：伪造转发插件设计稿（MVP）
 
 ### `dev/`
 

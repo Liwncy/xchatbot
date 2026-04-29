@@ -107,6 +107,14 @@ export class SchedulerRepository {
         return row ? mapJobRow(row) : null;
     }
 
+    async getJobByNamespaceAndKey(namespace: string, jobKey: string): Promise<SchedulerJobRecord | null> {
+        const row = await this.db
+            .prepare('SELECT * FROM scheduler_jobs WHERE namespace = ?1 AND job_key = ?2 LIMIT 1')
+            .bind(namespace, jobKey)
+            .first<Record<string, unknown>>();
+        return row ? mapJobRow(row) : null;
+    }
+
     async listRunsByJobId(jobId: number, limit: number, offset: number): Promise<SchedulerListResult<SchedulerJobRunRecord>> {
         const [rows, totalRow] = await Promise.all([
             this.db
