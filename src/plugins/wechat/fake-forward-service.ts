@@ -124,9 +124,18 @@ function parseDateTimeParts(year: number, month: number, day: number, hour: numb
     if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
         throw new Error('时间格式无效');
     }
-    const timestampMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+    const date = new Date(year, month - 1, day, hour, minute, 0, 0);
+    if (
+        date.getFullYear() !== year
+        || date.getMonth() !== month - 1
+        || date.getDate() !== day
+        || date.getHours() !== hour
+        || date.getMinutes() !== minute
+    ) {
+        throw new Error('时间格式无效');
+    }
     return {
-        timestampMs,
+        timestampMs: date.getTime(),
         displayText: `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}`,
     };
 }
@@ -147,9 +156,9 @@ export function parseFakeForwardTimeInput(input: string, nowMs = Date.now()): Pa
     if (short) {
         const now = new Date(nowMs);
         return parseDateTimeParts(
-            now.getUTCFullYear(),
-            now.getUTCMonth() + 1,
-            now.getUTCDate(),
+            now.getFullYear(),
+            now.getMonth() + 1,
+            now.getDate(),
             Number(short[1]),
             Number(short[2]),
         );
@@ -159,7 +168,7 @@ export function parseFakeForwardTimeInput(input: string, nowMs = Date.now()): Pa
 
 function displayTimeFromTimestamp(timestampMs: number): string {
     const date = new Date(timestampMs);
-    return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
+    return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
 function toDisplayLines(draft: FakeForwardDraft): string[] {
