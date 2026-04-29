@@ -53,6 +53,12 @@ export interface FakeForwardFlushPayload {
     version: number;
 }
 
+export interface ParsedFakeForwardChatLine {
+    roleId: string;
+    timeText?: string;
+    content: string;
+}
+
 export interface ParsedFakeForwardCommand {
     action: 'start' | 'role' | 'chat' | 'preview' | 'revoke' | 'finish' | 'cancel' | 'help';
     title?: string;
@@ -61,6 +67,7 @@ export interface ParsedFakeForwardCommand {
     avatarUrl?: string;
     timeText?: string;
     content?: string;
+    chatItems?: ParsedFakeForwardChatLine[];
 }
 
 export interface ParsedFakeForwardTime {

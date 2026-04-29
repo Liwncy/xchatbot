@@ -33,6 +33,13 @@ export function buildFakeForwardChatAddedText(seq: number, roleId: string, timeT
     ].join('\n');
 }
 
+export function buildFakeForwardBatchChatAddedText(count: number, timeText: string): string {
+    return [
+        `已批量添加 ${count} 条聊天项，时间：${timeText}`,
+        '2 分钟无新命令将自动发送。',
+    ].join('\n');
+}
+
 export function buildFakeForwardRevokeText(remainingItems: number): string {
     return `已撤回最后一条聊天项，当前还剩 ${remainingItems} 条。`;
 }
@@ -73,10 +80,18 @@ export function buildFakeForwardHelpText(): string {
         '1. 伪转发 开始 [标题]',
         '2. 伪转发 角色 <角色ID> <姓名> [头像URL]',
         '3. 伪转发 聊天 <角色ID> <时间> <内容>',
-        '4. 伪转发 预览',
-        '5. 伪转发 撤回',
-        '6. 伪转发 结束',
-        '7. 伪转发 取消',
+        '4. 伪转发 聊天 [时间]（下一行起可批量写“角色ID [时间]：内容”）',
+        '   例如：',
+        '   伪转发 聊天 09:13',
+        '   A：你好',
+        '   B：我好',
+        '   A 09:15：你真棒',
+        '   B：确实',
+        '   说明：某一行不写时间时，沿用上一条消息时间。',
+        '5. 伪转发 预览',
+        '6. 伪转发 撤回',
+        '7. 伪转发 结束',
+        '8. 伪转发 取消',
     ].join('\n');
 }
 

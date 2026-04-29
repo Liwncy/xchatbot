@@ -5,8 +5,10 @@ import {FAKE_FORWARD_PREFIX, type ParsedFakeForwardCommand} from './fake-forward
 
 const fakeForwardService = new FakeForwardService();
 
+const FAKE_FORWARD_TIME_PATTERN = '(?:\\d{1,2}:\\d{2})|(?:\\d{4}-\\d{2}-\\d{2}\\s+\\d{1,2}:\\d{2})';
+
 function parseRoleCommand(body: string): ParsedFakeForwardCommand {
-    const matched = body.match(/^角色\s+(\S+)\s+(\S+)(?:\s+(https?:\/\/\S+))?$/u);
+    const matched = body.match(/^角色\s+(\S+)\s+(\S+)(?:\s+(\S+))?$/u);
     if (!matched) {
         throw new Error('角色命令格式应为：伪转发 角色 <角色ID> <姓名> [头像URL]');
     }
@@ -19,16 +21,63 @@ function parseRoleCommand(body: string): ParsedFakeForwardCommand {
 }
 
 function parseChatCommand(body: string): ParsedFakeForwardCommand {
-    const matched = body.match(/^聊天\s+(\S+)\s+((?:\d{1,2}:\d{2})|(?:\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}))\s+([\s\S]+)$/u);
-    if (!matched) {
-        throw new Error('聊天命令格式应为：伪转发 聊天 <角色ID> <时间> <内容>');
+    const singleMatched = body.match(new RegExp(`^聊天\\s+(\\S+)\\s+(${FAKE_FORWARD_TIME_PATTERN})\\s+([^\\r\\n]+)$`, 'u'));
+    if (singleMatched) {
+        parseFakeForwardTimeInput(singleMatched[2]);
+        return {
+            action: 'chat',
+            roleId: singleMatched[1],
+            timeText: singleMatched[2],
+            content: singleMatched[3],
+        };
     }
-    parseFakeForwardTimeInput(matched[2]);
+
+    const remainder = body.slice('聊天'.length).trimStart();
+    if (!remainder) {
+        throw new Error('聊天命令格式应为：伪转发 聊天 <角色ID> <时间> <内容>，或使用多行“角色ID [时间]：内容”');
+    }
+
+    const rawLines = remainder.split(/\r?\n/);
+    const firstLine = rawLines[0]?.trim() ?? '';
+    let timeText: string | undefined;
+    let lines = rawLines;
+
+    if (firstLine) {
+        try {
+            parseFakeForwardTimeInput(firstLine);
+            timeText = firstLine;
+            lines = rawLines.slice(1);
+        } catch {
+            // ignore; treat all lines as chat content and default time to now
+        }
+    }
+
+    const chatItems = lines
+        .map((line, index) => ({line, index}))
+        .filter(({line}) => line.trim())
+        .map(({line, index}) => {
+            const matched = line.match(new RegExp(`^([A-Za-z0-9_-]{1,20})(?:\\s+(${FAKE_FORWARD_TIME_PATTERN}))?\\s*[：:]\\s*(.+)$`, 'u'));
+            if (!matched) {
+                throw new Error(`聊天内容第 ${index + 1} 行格式应为：角色ID [时间]：内容`);
+            }
+            if (matched[2]) {
+                parseFakeForwardTimeInput(matched[2]);
+            }
+            return {
+                roleId: matched[1],
+                timeText: matched[2],
+                content: matched[3],
+            };
+        });
+
+    if (chatItems.length === 0) {
+        throw new Error('请至少提供一行聊天内容，格式如：A：你好 或 A 09:13：你好');
+    }
+
     return {
         action: 'chat',
-        roleId: matched[1],
-        timeText: matched[2],
-        content: matched[3],
+        timeText,
+        chatItems,
     };
 }
 
@@ -51,7 +100,7 @@ export function parseFakeForwardCommand(content: string): ParsedFakeForwardComma
     if (body.startsWith('角色 ')) {
         return parseRoleCommand(body);
     }
-    if (body.startsWith('聊天 ')) {
+    if (/^聊天(?:\s|$)/u.test(body)) {
         return parseChatCommand(body);
     }
     return {action: 'help'};

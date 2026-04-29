@@ -5,6 +5,7 @@ import {createSchedulerRepository} from '../../scheduler/index.js';
 import type {SchedulerCreateJobInput} from '../../scheduler/types.js';
 import {
     buildFakeForwardAlreadyStartedText,
+    buildFakeForwardBatchChatAddedText,
     buildFakeForwardCancelledText,
     buildFakeForwardChatAddedText,
     buildFakeForwardHelpText,
@@ -20,6 +21,7 @@ import type {
     FakeForwardFlushPayload,
     FakeForwardItem,
     FakeForwardRole,
+    ParsedFakeForwardChatLine,
     FakeForwardSessionContext,
     ParsedFakeForwardCommand,
     ParsedFakeForwardTime,
@@ -166,9 +168,55 @@ export function parseFakeForwardTimeInput(input: string, nowMs = Date.now()): Pa
     throw new Error('时间格式应为 HH:mm 或 YYYY-MM-DD HH:mm');
 }
 
+function parseFakeForwardTimeInputWithReference(input: string, referenceTimestampMs: number): ParsedFakeForwardTime {
+    const trimmed = input.trim();
+    const short = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (!short) {
+        return parseFakeForwardTimeInput(trimmed, referenceTimestampMs);
+    }
+    const reference = new Date(referenceTimestampMs);
+    return parseDateTimeParts(
+        reference.getFullYear(),
+        reference.getMonth() + 1,
+        reference.getDate(),
+        Number(short[1]),
+        Number(short[2]),
+    );
+}
+
 function displayTimeFromTimestamp(timestampMs: number): string {
     const date = new Date(timestampMs);
     return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+function resolveParsedChatTime(timeText?: string, nowMs = Date.now()): ParsedFakeForwardTime {
+    if (timeText?.trim()) {
+        return parseFakeForwardTimeInput(timeText, nowMs);
+    }
+    const now = new Date(nowMs);
+    return parseDateTimeParts(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes(),
+    );
+}
+
+function resolveParsedChatTimeWithReference(timeText: string, referenceTimestampMs?: number, nowMs = Date.now()): ParsedFakeForwardTime {
+    if (referenceTimestampMs != null) {
+        return parseFakeForwardTimeInputWithReference(timeText, referenceTimestampMs);
+    }
+    return parseFakeForwardTimeInput(timeText, nowMs);
+}
+
+function buildBatchTimeSummary(displayTimes: string[]): string {
+    if (displayTimes.length === 0) {
+        return '未指定';
+    }
+    const first = displayTimes[0];
+    const last = displayTimes[displayTimes.length - 1];
+    return first === last ? first : `${first} ~ ${last}`;
 }
 
 function toDisplayLines(draft: FakeForwardDraft): string[] {
@@ -233,7 +281,9 @@ export class FakeForwardService {
             case 'chat':
                 return {
                     type: 'text' as const,
-                    content: await this.appendChat(env, session, command.roleId ?? '', command.timeText ?? '', command.content ?? ''),
+                    content: command.chatItems?.length
+                        ? await this.appendBatchChat(env, session, command.chatItems, command.timeText)
+                        : await this.appendChat(env, session, command.roleId ?? '', command.timeText ?? '', command.content ?? ''),
                 };
             case 'preview':
                 return {
@@ -322,7 +372,7 @@ export class FakeForwardService {
         if (draft.items.length >= FAKE_FORWARD_MAX_ITEMS) {
             throw new Error(`单个草稿最多只能添加 ${FAKE_FORWARD_MAX_ITEMS} 条聊天项`);
         }
-        const parsedTime = parseFakeForwardTimeInput(timeText);
+        const parsedTime = resolveParsedChatTime(timeText);
         const content = normalizeContent(contentInput);
         const nextItem: FakeForwardItem = {
             seq: draft.items.length + 1,
@@ -342,6 +392,53 @@ export class FakeForwardService {
         await putFakeForwardDraft(env, nextDraft);
         await this.upsertDelayJob(env, nextDraft);
         return buildFakeForwardChatAddedText(nextItem.seq, roleId, parsedTime.displayText, content);
+    }
+
+    async appendBatchChat(env: Env, session: FakeForwardSessionContext, chatItems: ParsedFakeForwardChatLine[], timeText?: string): Promise<string> {
+        const draft = await this.requireDraft(env, session.sessionKey);
+        if (chatItems.length === 0) {
+            throw new Error('请至少提供一条聊天内容');
+        }
+        if (draft.items.length + chatItems.length > FAKE_FORWARD_MAX_ITEMS) {
+            throw new Error(`单个草稿最多只能添加 ${FAKE_FORWARD_MAX_ITEMS} 条聊天项`);
+        }
+
+        const batchNowMs = Date.now();
+        let currentParsedTime = timeText?.trim()
+            ? resolveParsedChatTime(timeText, batchNowMs)
+            : undefined;
+        const displayTimes: string[] = [];
+        const nextItems = chatItems.map((item, index) => {
+            const roleId = normalizeRoleId(item.roleId);
+            if (!draft.roles[roleId]) {
+                throw new Error(`角色不存在：${roleId}，请先使用“伪转发 角色 ...”定义角色`);
+            }
+            if (item.timeText?.trim()) {
+                currentParsedTime = resolveParsedChatTimeWithReference(item.timeText, currentParsedTime?.timestampMs, batchNowMs);
+            } else if (!currentParsedTime) {
+                currentParsedTime = resolveParsedChatTime(undefined, batchNowMs);
+            }
+            displayTimes.push(currentParsedTime.displayText);
+            return {
+                seq: draft.items.length + index + 1,
+                roleId,
+                timestampMs: currentParsedTime.timestampMs,
+                content: normalizeContent(item.content),
+                kind: 'text',
+            } satisfies FakeForwardItem;
+        });
+
+        const now = nowUnixSeconds();
+        const nextDraft: FakeForwardDraft = {
+            ...draft,
+            items: [...draft.items, ...nextItems],
+            version: draft.version + 1,
+            updatedAt: now,
+            autoSendAt: now + FAKE_FORWARD_AUTO_SEND_DELAY_SECONDS,
+        };
+        await putFakeForwardDraft(env, nextDraft);
+        await this.upsertDelayJob(env, nextDraft);
+        return buildFakeForwardBatchChatAddedText(nextItems.length, buildBatchTimeSummary(displayTimes));
     }
 
     async previewDraft(env: Env, session: FakeForwardSessionContext): Promise<string> {
