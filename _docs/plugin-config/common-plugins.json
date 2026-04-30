@@ -4,7 +4,8 @@
             "整点啊",
             "走不走",
             "小酌",
-            "整不整"
+            "整不整",
+            "啤酒"
         ],
         "url": "https://m1.apifoxmock.com/m1/7883103-7633002-default/common/plugins/data?type=drink",
         "mode": "json",
