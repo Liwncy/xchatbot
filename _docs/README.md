@@ -35,8 +35,10 @@ _docs/
 - `common-plugins.json`
 - `common-plugins-dynamic.json`
 - `common-plugins-workflow.json`
+- `rule-plugin-admin-design.md`
 
 用于本地/远程 KV 写入的通用插件配置样例。
+其中 `rule-plugin-admin-design.md` 用于说明“通过主人命令管理规则插件”的设计方案。
 
 ### `wechat/`
 

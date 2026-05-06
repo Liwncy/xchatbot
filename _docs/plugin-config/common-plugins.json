@@ -1,5 +1,6 @@
 [
     {
+        "name": "drink-invite-text",
         "keyword": [
             "整点啊",
             "走不走",
@@ -80,6 +81,7 @@
         "rType": "image"
     },
     {
+        "name": "random-long-image",
         "keyword": "什么屌图",
         "url": "https://api.yujn.cn/api/long.php?type=json",
         "mode": "json",
@@ -87,12 +89,14 @@
         "rType": "image"
     },
     {
+        "name": "abs-image",
         "keyword": "腹肌图片",
         "url": "http://api.yujn.cn/api/fujiimg.php",
         "mode": "base64",
         "rType": "image"
     },
     {
+        "name": "cxk-meme-image",
         "keyword": [
             "坤坤表情包",
             "食不食油饼",
