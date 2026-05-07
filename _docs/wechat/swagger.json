@@ -46,22 +46,16 @@
       "name": "支付"
     },
     {
-      "name": "支付/支付-红包"
-    },
-    {
-      "name": "支付/支付-转账"
-    },
-    {
       "name": "用户"
     },
     {
       "name": "管理"
     },
     {
-      "name": "支付-红包"
+      "name": "支付-转账"
     },
     {
-      "name": "支付-转账"
+      "name": "支付-红包"
     }
   ],
   "paths": {
@@ -239,49 +233,6 @@
                   "properties": {
                     "data": {
                       "$ref": "#/definitions/util.SyncResult"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/login/refresh": {
-      "get": {
-        "summary": "刷新登录凭证",
-        "deprecated": false,
-        "description": "使用已保存的凭证刷新登录状态",
-        "tags": [
-          "登录"
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/login.RefreshResult"
                     }
                   },
                   "type": "object"
@@ -763,7 +714,7 @@
     },
     "/api/contacts/friend-requests": {
       "post": {
-        "summary": "发送好友申请",
+        "summary": "*发送好友申请",
         "deprecated": false,
         "description": "向指定用户发送好友添加请求",
         "tags": [
@@ -873,7 +824,7 @@
     },
     "/api/contacts/lbs": {
       "post": {
-        "summary": "附近的人",
+        "summary": "*附近的人",
         "deprecated": false,
         "description": "根据经纬度查找附近的微信用户",
         "tags": [
@@ -1046,7 +997,7 @@
     },
     "/api/contacts/upload": {
       "post": {
-        "summary": "上传通讯录匹配好友",
+        "summary": "*上传通讯录匹配好友",
         "deprecated": false,
         "description": "上传手机通讯录中的电话号码，查找已注册微信的好友",
         "tags": [
@@ -2165,7 +2116,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.SendAppMessageResponse"
+                      "$ref": "#/definitions/messagepb.SendAppMessageResponse"
                     }
                   },
                   "type": "object"
@@ -2220,7 +2171,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.SendMessageResponse"
+                      "$ref": "#/definitions/messagepb.SendMessageResponse"
                     }
                   },
                   "type": "object"
@@ -2275,7 +2226,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.DownloadAppAttachResponse"
+                      "$ref": "#/definitions/messagepb.DownloadAppAttachResponse"
                     }
                   },
                   "type": "object"
@@ -2314,7 +2265,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.DownloadImgParam"
+              "$ref": "#/definitions/dto.DownloadImageParam"
             }
           }
         ],
@@ -2330,7 +2281,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.DownloadImageResponse"
+                      "$ref": "#/definitions/messagepb.DownloadImageResponse"
                     }
                   },
                   "type": "object"
@@ -2385,7 +2336,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.DownloadVideoResponse"
+                      "$ref": "#/definitions/messagepb.DownloadVideoResponse"
                     }
                   },
                   "type": "object"
@@ -2440,7 +2391,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.DownloadVoiceResponse"
+                      "$ref": "#/definitions/messagepb.DownloadVoiceResponse"
                     }
                   },
                   "type": "object"
@@ -2475,12 +2426,30 @@
         ],
         "parameters": [
           {
+            "name": "receiver",
+            "in": "formData",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.SendEmojiParam"
-            }
+            "type": "string",
+            "description": "接收者 wxid"
+          },
+          {
+            "name": "md5",
+            "in": "formData",
+            "type": "string",
+            "description": "表情 MD5（为空时自动计算）"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "表情图片文件（md5 为空时必填）"
+          },
+          {
+            "name": "emoji_url",
+            "in": "formData",
+            "type": "string",
+            "description": "表情 URL（file 为空时使用）"
           }
         ],
         "responses": {
@@ -2495,7 +2464,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.UploadEmojiResponse"
+                      "$ref": "#/definitions/messagepb.UploadEmojiResponse"
                     }
                   },
                   "type": "object"
@@ -2513,7 +2482,7 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -2524,7 +2493,7 @@
       "post": {
         "summary": "转发消息",
         "deprecated": false,
-        "description": "转发消息给指定接收者（支持 image/video/file 类型）",
+        "description": "转发已有的 CDN 消息（图片/视频/文件）",
         "tags": [
           "消息"
         ],
@@ -2540,22 +2509,10 @@
         ],
         "responses": {
           "200": {
-            "description": "file类型返回",
+            "description": "OK",
             "headers": {},
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/golem_proto_message.SendAppMessageResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
+              "$ref": "#/definitions/handler.Response"
             }
           },
           "400": {
@@ -2585,12 +2542,24 @@
         ],
         "parameters": [
           {
+            "name": "receiver",
+            "in": "formData",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.SendImageParam"
-            }
+            "type": "string",
+            "description": "接收者 wxid"
+          },
+          {
+            "name": "image",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "图片文件"
+          },
+          {
+            "name": "image_url",
+            "in": "formData",
+            "type": "string",
+            "description": "图片 URL（image 为空时使用）"
           }
         ],
         "responses": {
@@ -2605,7 +2574,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.UploadImageResponse"
+                      "$ref": "#/definitions/messagepb.UploadImageResponse"
                     }
                   },
                   "type": "object"
@@ -2623,7 +2592,7 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -2660,7 +2629,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.SendAppMessageResponse"
+                      "$ref": "#/definitions/messagepb.SendAppMessageResponse"
                     }
                   },
                   "type": "object"
@@ -2715,7 +2684,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.SendMessageResponse"
+                      "$ref": "#/definitions/messagepb.SendMessageResponse"
                     }
                   },
                   "type": "object"
@@ -2770,7 +2739,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.RevokeMessageResponse"
+                      "$ref": "#/definitions/messagepb.RevokeMessageResponse"
                     }
                   },
                   "type": "object"
@@ -2946,7 +2915,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.SendMessageResponse"
+                      "$ref": "#/definitions/messagepb.SendMessageResponse"
                     }
                   },
                   "type": "object"
@@ -2981,11 +2950,99 @@
         ],
         "parameters": [
           {
+            "name": "receiver",
+            "in": "formData",
+            "required": true,
+            "type": "string",
+            "description": "接收者 wxid"
+          },
+          {
+            "name": "video",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "视频文件"
+          },
+          {
+            "name": "video_url",
+            "in": "formData",
+            "type": "string",
+            "description": "视频 URL（video 为空时使用）"
+          },
+          {
+            "name": "thumb",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "缩略图文件"
+          },
+          {
+            "name": "thumb_url",
+            "in": "formData",
+            "type": "string",
+            "description": "缩略图 URL（thumb 为空时使用）"
+          },
+          {
+            "name": "duration",
+            "in": "formData",
+            "required": true,
+            "format": "int32",
+            "type": "integer",
+            "description": "播放时长（秒）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/messagepb.UploadVideoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/message/forward/file": {
+      "post": {
+        "summary": "转发文件",
+        "deprecated": false,
+        "description": "转发文件消息",
+        "tags": [
+          "消息"
+        ],
+        "parameters": [
+          {
             "required": true,
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.SendVideoParam"
+              "$ref": "#/definitions/dto.ForwardParam"
             }
           }
         ],
@@ -3001,7 +3058,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.UploadVideoResponse"
+                      "$ref": "#/definitions/messagepb.SendAppMessageResponse"
                     }
                   },
                   "type": "object"
@@ -3036,12 +3093,38 @@
         ],
         "parameters": [
           {
+            "name": "receiver",
+            "in": "formData",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.SendVoiceParam"
-            }
+            "type": "string",
+            "description": "接收者 wxid"
+          },
+          {
+            "name": "voice",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "语音文件"
+          },
+          {
+            "name": "voice_url",
+            "in": "formData",
+            "type": "string",
+            "description": "语音 URL（file 为空时使用）"
+          },
+          {
+            "name": "duration",
+            "in": "formData",
+            "required": true,
+            "type": "integer",
+            "description": "时长（毫秒）"
+          },
+          {
+            "name": "format",
+            "in": "formData",
+            "required": true,
+            "type": "integer",
+            "description": "音频格式：0=AMR, 1=SPEEX, 2=MP3, 3=WAVE, 4=SILK"
           }
         ],
         "responses": {
@@ -3056,7 +3139,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/golem_proto_message.UploadVoiceResponse"
+                      "$ref": "#/definitions/messagepb.UploadVoiceResponse"
                     }
                   },
                   "type": "object"
@@ -3074,7 +3157,7 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -3091,12 +3174,24 @@
         ],
         "parameters": [
           {
+            "name": "receiver",
+            "in": "formData",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnUploadImageParam"
-            }
+            "type": "string",
+            "description": "接收人 wxid"
+          },
+          {
+            "name": "image",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "图片文件"
+          },
+          {
+            "name": "image_url",
+            "in": "formData",
+            "type": "string",
+            "description": "图片 URL（image 为空时使用）"
           }
         ],
         "responses": {
@@ -3117,7 +3212,7 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -3134,12 +3229,45 @@
         ],
         "parameters": [
           {
+            "name": "receiver",
+            "in": "formData",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnUploadVideoParam"
-            }
+            "type": "string",
+            "description": "接收人 wxid"
+          },
+          {
+            "name": "video",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "视频文件"
+          },
+          {
+            "name": "video_url",
+            "in": "formData",
+            "type": "string",
+            "description": "视频 URL（video 为空时使用）"
+          },
+          {
+            "name": "thumb",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "缩略图文件"
+          },
+          {
+            "name": "thumb_url",
+            "in": "formData",
+            "type": "string",
+            "description": "缩略图 URL（thumb 为空时使用）"
+          },
+          {
+            "name": "duration",
+            "in": "formData",
+            "required": true,
+            "format": "int32",
+            "type": "integer",
+            "description": "视频时长（秒）"
           }
         ],
         "responses": {
@@ -3160,14 +3288,14 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
         ]
       }
     },
-    "/api/cdn/upload/sns/image": {
+    "/api/cdn/upload/moments/image": {
       "post": {
         "summary": "CDN 上传朋友圈图片",
         "deprecated": false,
@@ -3177,12 +3305,17 @@
         ],
         "parameters": [
           {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnUploadSnsImageParam"
-            }
+            "name": "image",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "图片文件"
+          },
+          {
+            "name": "image_url",
+            "in": "formData",
+            "type": "string",
+            "description": "图片 URL（image 为空时使用）"
           }
         ],
         "responses": {
@@ -3203,14 +3336,14 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
         ]
       }
     },
-    "/api/cdn/upload/sns/video": {
+    "/api/cdn/upload/moments/video": {
       "post": {
         "summary": "CDN 上传朋友圈视频",
         "deprecated": false,
@@ -3220,12 +3353,30 @@
         ],
         "parameters": [
           {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnUploadSnsVideoParam"
-            }
+            "name": "video",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "视频文件"
+          },
+          {
+            "name": "video_url",
+            "in": "formData",
+            "type": "string",
+            "description": "视频 URL（video 为空时使用）"
+          },
+          {
+            "name": "thumb",
+            "in": "formData",
+            "format": "binary",
+            "type": "string",
+            "description": "缩略图文件"
+          },
+          {
+            "name": "thumb_url",
+            "in": "formData",
+            "type": "string",
+            "description": "缩略图 URL（thumb 为空时使用）"
           }
         ],
         "responses": {
@@ -3246,7 +3397,7 @@
         },
         "security": [],
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -3254,41 +3405,36 @@
       }
     },
     "/api/cdn/download/image": {
-      "post": {
+      "get": {
         "summary": "CDN 下载高清图片",
         "deprecated": false,
-        "description": "通过 CDN 直连 TCP 下载高清图片，返回 Base64 编码数据",
+        "description": "通过 CDN 直连 TCP 下载高清图片",
         "tags": [
           "CDN"
         ],
         "parameters": [
           {
+            "name": "id",
+            "in": "query",
+            "description": "图片id（imgurl）",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnDownloadImageParam"
-            }
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "description": "图片key（aeskey）",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "下载的图片数据",
             "headers": {},
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
+              "type": "string",
+              "format": "binary"
             }
           },
           "400": {
@@ -3300,50 +3446,42 @@
           }
         },
         "security": [],
-        "consumes": [
-          "application/json"
-        ],
         "produces": [
-          "application/json"
+          "image/jpeg"
         ]
       }
     },
-    "/api/cdn/download/video/cover": {
-      "post": {
-        "summary": "CDN 下载视频封面",
+    "/api/cdn/download/moments/video": {
+      "get": {
+        "summary": "CDN 下载朋友圈视频",
         "deprecated": false,
-        "description": "通过 CDN 直连 TCP 下载视频封面图片，返回 Base64 编码数据",
+        "description": "通过 CDN 直连 TCP 下载朋友圈视频",
         "tags": [
           "CDN"
         ],
         "parameters": [
           {
+            "name": "url",
+            "in": "query",
+            "description": "视频url",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnDownloadVideoParam"
-            }
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "description": "视频key（加密后的数字）",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "下载的视频数据",
             "headers": {},
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
+              "type": "string",
+              "format": "binary"
             }
           },
           "400": {
@@ -3355,50 +3493,42 @@
           }
         },
         "security": [],
-        "consumes": [
-          "application/json"
-        ],
         "produces": [
           "application/json"
         ]
       }
     },
     "/api/cdn/download/video": {
-      "post": {
+      "get": {
         "summary": "CDN 下载聊天视频",
         "deprecated": false,
-        "description": "通过 CDN 直连 TCP 下载聊天视频，返回 Base64 编码数据",
+        "description": "通过 CDN 直连 TCP 下载聊天视频",
         "tags": [
           "CDN"
         ],
         "parameters": [
           {
+            "name": "id",
+            "in": "query",
+            "description": "视频id（fileid）",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnDownloadVideoParam"
-            }
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "description": "视频key（filekey）",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "下载的视频数据",
             "headers": {},
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
+              "type": "string",
+              "format": "binary"
             }
           },
           "400": {
@@ -3410,50 +3540,42 @@
           }
         },
         "security": [],
-        "consumes": [
-          "application/json"
-        ],
         "produces": [
-          "application/json"
+          "video/mp4"
         ]
       }
     },
-    "/api/cdn/download/sns/video": {
-      "post": {
-        "summary": "CDN 下载朋友圈视频",
+    "/api/cdn/download/video/cover": {
+      "get": {
+        "summary": "CDN 下载视频封面",
         "deprecated": false,
-        "description": "通过 CDN 直连 TCP 分片下载朋友圈视频（ISAAC64 解密），返回 Base64 编码数据",
+        "description": "通过 CDN 直连 TCP 下载视频封面图片",
         "tags": [
           "CDN"
         ],
         "parameters": [
           {
+            "name": "id",
+            "in": "query",
+            "description": "图片id（imgurl）",
             "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CdnDownloadSnsVideoParam"
-            }
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "description": "图片key（aeskey）",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "下载的图片数据",
             "headers": {},
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
+              "type": "string",
+              "format": "binary"
             }
           },
           "400": {
@@ -3465,11 +3587,8 @@
           }
         },
         "security": [],
-        "consumes": [
-          "application/json"
-        ],
         "produces": [
-          "application/json"
+          "image/jpeg"
         ]
       }
     },
@@ -5213,12 +5332,17 @@
         ],
         "parameters": [
           {
-            "name": "file",
+            "name": "media",
             "in": "formData",
-            "required": true,
             "format": "binary",
             "type": "string",
             "description": "媒体文件"
+          },
+          {
+            "name": "media_url",
+            "in": "formData",
+            "type": "string",
+            "description": "媒体 URL（media 为空时使用）"
           }
         ],
         "responses": {
@@ -5589,510 +5713,6 @@
         ]
       }
     },
-    "/api/payment/hongbao/create": {
-      "post": {
-        "summary": "创建微信红包",
-        "deprecated": false,
-        "description": "创建普通红包或拼手气红包",
-        "tags": [
-          "支付/支付-红包",
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CreateHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/detail": {
-      "post": {
-        "summary": "查询红包领取详情",
-        "deprecated": false,
-        "description": "查询指定红包的领取记录详情",
-        "tags": [
-          "支付/支付-红包",
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.QueryHongBaoDetailParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/grab": {
-      "post": {
-        "summary": "抢红包（接收+打开一步完成）",
-        "deprecated": false,
-        "description": "自动执行接收红包→打开红包两步操作，内部自动提取 timingIdentifier",
-        "tags": [
-          "支付/支付-红包",
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.GrabHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/list": {
-      "post": {
-        "summary": "查询红包领取列表",
-        "deprecated": false,
-        "description": "分页查询红包领取记录列表",
-        "tags": [
-          "支付/支付-红包",
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.QueryHongBaoListParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/open": {
-      "post": {
-        "summary": "打开红包（第二步）",
-        "deprecated": false,
-        "description": "使用接收红包返回的 timingIdentifier 拆开红包",
-        "tags": [
-          "支付/支付-红包",
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.OpenHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/receive": {
-      "post": {
-        "summary": "接收红包（第一步）",
-        "deprecated": false,
-        "description": "接收红包，返回 ret_text JSON 中包含 timingIdentifier，用于后续拆红包",
-        "tags": [
-          "支付/支付-红包",
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.ReceiveHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/transfer/confirm": {
-      "post": {
-        "summary": "确认微信转账",
-        "deprecated": false,
-        "description": "使用支付密码确认转账",
-        "tags": [
-          "支付/支付-转账",
-          "支付-转账"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.ConfirmPreTransferParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.TenPayResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/transfer/create": {
-      "post": {
-        "summary": "创建微信转账",
-        "deprecated": false,
-        "description": "向指定用户发起转账请求",
-        "tags": [
-          "支付/支付-转账",
-          "支付-转账"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CreatePreTransferParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.TenPayResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/collect": {
-      "post": {
-        "summary": "确认收款",
-        "deprecated": false,
-        "description": "确认接收转账款项",
-        "tags": [
-          "支付/支付-转账",
-          "支付-转账"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CollectMoneyParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.TenPayResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
     "/api/payment/cards": {
       "get": {
         "summary": "获取绑定银行卡及余额信息",
@@ -6244,12 +5864,17 @@
         ],
         "parameters": [
           {
-            "name": "file",
+            "name": "avatar",
             "in": "formData",
-            "required": true,
             "format": "binary",
             "type": "string",
             "description": "头像图片文件"
+          },
+          {
+            "name": "avatar_url",
+            "in": "formData",
+            "type": "string",
+            "description": "头像 URL（avatar 为空时使用）"
           }
         ],
         "responses": {
@@ -7173,6 +6798,501 @@
         ]
       }
     },
+    "/api/payment/collect": {
+      "post": {
+        "summary": "确认转账收款",
+        "deprecated": false,
+        "description": "确认接收转账款项",
+        "tags": [
+          "支付-转账"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.CollectMoneyParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.TenPayResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/transfer/confirm": {
+      "post": {
+        "summary": "确认微信转账",
+        "deprecated": false,
+        "description": "使用支付密码确认转账",
+        "tags": [
+          "支付-转账"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.ConfirmPreTransferParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.TenPayResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/transfer/create": {
+      "post": {
+        "summary": "创建微信转账",
+        "deprecated": false,
+        "description": "向指定用户发起转账请求",
+        "tags": [
+          "支付-转账"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.CreatePreTransferParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.TenPayResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/create": {
+      "post": {
+        "summary": "创建微信红包",
+        "deprecated": false,
+        "description": "创建普通红包或拼手气红包",
+        "tags": [
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.CreateHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/detail": {
+      "post": {
+        "summary": "查询红包领取详情",
+        "deprecated": false,
+        "description": "查询指定红包的领取记录详情",
+        "tags": [
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.QueryHongBaoDetailParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/grab": {
+      "post": {
+        "summary": "抢红包（接收+打开一步完成）",
+        "deprecated": false,
+        "description": "自动执行接收红包→打开红包两步操作，内部自动提取 timingIdentifier",
+        "tags": [
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.GrabHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/list": {
+      "post": {
+        "summary": "查询红包领取列表",
+        "deprecated": false,
+        "description": "分页查询红包领取记录列表",
+        "tags": [
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.QueryHongBaoListParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/open": {
+      "post": {
+        "summary": "打开红包（第二步）",
+        "deprecated": false,
+        "description": "使用接收红包返回的 timingIdentifier 拆开红包",
+        "tags": [
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.OpenHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/receive": {
+      "post": {
+        "summary": "接收红包（第一步）",
+        "deprecated": false,
+        "description": "接收红包，返回 ret_text JSON 中包含 timingIdentifier，用于后续拆红包",
+        "tags": [
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.ReceiveHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "summary": "健康检查",
@@ -7294,7 +7414,7 @@
         "contact_list": {
           "description": "联系人列表",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyContact"
+            "$ref": "#/definitions/messagepb.ModifyContact"
           },
           "type": "array"
         },
@@ -8293,28 +8413,6 @@
       ],
       "type": "object"
     },
-    "dto.SendEmojiParam": {
-      "properties": {
-        "data": {
-          "description": "表情原始数据",
-          "type": "string"
-        },
-        "md5": {
-          "description": "表情 MD5（为空时自动计算）",
-          "type": "string",
-          "example": "abc123"
-        },
-        "receiver": {
-          "description": "接收者 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        }
-      },
-      "required": [
-        "receiver"
-      ],
-      "type": "object"
-    },
     "dto.SendFriendRequest": {
       "properties": {
         "content": {
@@ -8343,24 +8441,6 @@
         "scene",
         "v1",
         "v2"
-      ],
-      "type": "object"
-    },
-    "dto.SendImageParam": {
-      "properties": {
-        "data": {
-          "description": "图片原始数据base64",
-          "type": "string"
-        },
-        "receiver": {
-          "description": "接收者 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        }
-      },
-      "required": [
-        "data",
-        "receiver"
       ],
       "type": "object"
     },
@@ -8487,65 +8567,6 @@
       "required": [
         "mobile",
         "operate"
-      ],
-      "type": "object"
-    },
-    "dto.SendVideoParam": {
-      "properties": {
-        "duration": {
-          "description": "播放时长（秒）",
-          "type": "integer",
-          "example": 10
-        },
-        "receiver": {
-          "description": "接收者 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        },
-        "thumb_data": {
-          "description": "缩略图原始数据base64",
-          "type": "string"
-        },
-        "video_data": {
-          "description": "视频原始数据base64",
-          "type": "string"
-        }
-      },
-      "required": [
-        "duration",
-        "receiver",
-        "thumb_data",
-        "video_data"
-      ],
-      "type": "object"
-    },
-    "dto.SendVoiceParam": {
-      "properties": {
-        "data": {
-          "description": "语音原始数据",
-          "type": "string"
-        },
-        "duration": {
-          "description": "时长（毫秒）",
-          "type": "integer",
-          "example": 5000
-        },
-        "format": {
-          "description": "音频格式：0=AMR, 1=SPEEX, 2=MP3, 3=WAVE, 4=SILK",
-          "type": "integer",
-          "example": 0
-        },
-        "receiver": {
-          "description": "接收者 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        }
-      },
-      "required": [
-        "data",
-        "duration",
-        "format",
-        "receiver"
       ],
       "type": "object"
     },
@@ -8817,26 +8838,6 @@
       },
       "type": "object"
     },
-    "login.RefreshResult": {
-      "properties": {
-        "login_mode": {
-          "description": "标识为\"refresh\"",
-          "type": "string",
-          "example": "refresh"
-        },
-        "message": {
-          "description": "消息",
-          "type": "string",
-          "example": "刷新成功"
-        },
-        "success": {
-          "description": "是否成功",
-          "type": "boolean",
-          "example": true
-        }
-      },
-      "type": "object"
-    },
     "login.WakeupResult": {
       "properties": {
         "check_time": {
@@ -9027,7 +9028,7 @@
         "user_info": {
           "allOf": [
             {
-              "$ref": "#/definitions/golem_proto_message.ModifyUserInfo"
+              "$ref": "#/definitions/messagepb.ModifyUserInfo"
             }
           ],
           "description": "用户信息"
@@ -9035,7 +9036,7 @@
         "user_info_ext": {
           "allOf": [
             {
-              "$ref": "#/definitions/golem_proto_message.UserInfoExtend"
+              "$ref": "#/definitions/messagepb.UserInfoExtend"
             }
           ],
           "description": "用户信息扩展"
@@ -9107,42 +9108,42 @@
         "delete_contacts": {
           "description": "联系人删除",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.DeleteContact"
+            "$ref": "#/definitions/messagepb.DeleteContact"
           },
           "type": "array"
         },
         "function_switches": {
           "description": "功能切换",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.FunctionSwitch"
+            "$ref": "#/definitions/messagepb.FunctionSwitch"
           },
           "type": "array"
         },
         "modify_contacts": {
           "description": "联系人信息修改",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyContact"
+            "$ref": "#/definitions/messagepb.ModifyContact"
           },
           "type": "array"
         },
         "modify_user_images": {
           "description": "修改用户头像？",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyUserAvatar"
+            "$ref": "#/definitions/messagepb.ModifyUserAvatar"
           },
           "type": "array"
         },
         "modify_user_infos": {
           "description": "修改用户信息",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyUserInfo"
+            "$ref": "#/definitions/messagepb.ModifyUserInfo"
           },
           "type": "array"
         },
         "new_messages": {
           "description": "新增消息",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.NewMessage"
+            "$ref": "#/definitions/messagepb.NewMessage"
           },
           "type": "array"
         },
@@ -9156,7 +9157,7 @@
         "user_info_extends": {
           "description": "用户信息扩展",
           "items": {
-            "$ref": "#/definitions/golem_proto_message.UserInfoExtend"
+            "$ref": "#/definitions/messagepb.UserInfoExtend"
           },
           "type": "array"
         }
@@ -9167,19 +9168,6 @@
       "properties": {
         "value": {
           "description": "The string value.",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "dto.CdnDownloadImageParam": {
-      "properties": {
-        "file_id": {
-          "description": "CDN 文件ID",
-          "type": "string"
-        },
-        "file_key": {
-          "description": "AES 密钥（hex编码）",
           "type": "string"
         }
       },
@@ -9223,37 +9211,6 @@
         "offset",
         "size",
         "username"
-      ],
-      "type": "object"
-    },
-    "dto.DownloadImgParam": {
-      "properties": {
-        "id": {
-          "description": "消息ID",
-          "type": "integer",
-          "example": 12345678
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer",
-          "example": 12345678
-        },
-        "sender": {
-          "description": "发送者 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        },
-        "size": {
-          "description": "文件总长度（字节），从消息 XML 中获取",
-          "type": "integer",
-          "example": 102400
-        }
-      },
-      "required": [
-        "id",
-        "new_id",
-        "sender",
-        "size"
       ],
       "type": "object"
     },
@@ -10802,1704 +10759,6 @@
       },
       "type": "object"
     },
-    "golem_proto_message.CustomizedInfo": {
-      "properties": {
-        "brand_flag": {
-          "description": "品牌标志",
-          "type": "integer"
-        },
-        "brand_icon_url": {
-          "description": "品牌图标URL",
-          "type": "string"
-        },
-        "brand_info": {
-          "description": "品牌信息",
-          "type": "string"
-        },
-        "extend_info": {
-          "description": "外部信息",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DeleteContact": {
-      "properties": {
-        "scene": {
-          "description": "删除联系人场景",
-          "type": "integer"
-        },
-        "username": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "用户名"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DisturbSetting": {
-      "properties": {
-        "all_day_setting": {
-          "description": "全天设置",
-          "type": "integer"
-        },
-        "all_day_time": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.DisturbSetting_TimeSpan"
-            }
-          ],
-          "description": "全天时间"
-        },
-        "night_setting": {
-          "description": "夜间设置",
-          "type": "integer"
-        },
-        "night_time": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.DisturbSetting_TimeSpan"
-            }
-          ],
-          "description": "夜间时间"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DisturbSetting_TimeSpan": {
-      "properties": {
-        "begin_hour": {
-          "description": "开始小时",
-          "type": "integer"
-        },
-        "begin_min": {
-          "description": "开始分钟",
-          "type": "integer"
-        },
-        "end_hour": {
-          "description": "结束小时",
-          "type": "integer"
-        },
-        "end_min": {
-          "description": "结束分钟",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DownloadAppAttachResponse": {
-      "properties": {
-        "app_id": {
-          "description": "App ID",
-          "type": "string"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "chunk": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "文件数据"
-        },
-        "chunk_size": {
-          "description": "数据长度",
-          "type": "integer"
-        },
-        "media_id": {
-          "description": "附件ID",
-          "type": "string"
-        },
-        "offset": {
-          "description": "起始位置",
-          "type": "integer"
-        },
-        "size": {
-          "description": "文件总长度",
-          "type": "integer"
-        },
-        "username": {
-          "description": "用户名",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DownloadImageResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "chunk": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "图片数据"
-        },
-        "chunk_size": {
-          "description": "本次请求长度",
-          "type": "integer"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "offset": {
-          "description": "起始位置",
-          "type": "integer"
-        },
-        "receiver": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "接收者用户名"
-        },
-        "sender": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "发送者用户名"
-        },
-        "size": {
-          "description": "文件总长度",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DownloadVideoResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "chunk": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "视频数据"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "offset": {
-          "description": "起始位置",
-          "type": "integer"
-        },
-        "size": {
-          "description": "文件总长度",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.DownloadVoiceResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "cancel_flag": {
-          "description": "取消标志",
-          "type": "integer"
-        },
-        "client_id": {
-          "description": "客户端消息ID",
-          "type": "string"
-        },
-        "data": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "数据"
-        },
-        "duration": {
-          "description": "语音长度",
-          "type": "integer"
-        },
-        "end_flag": {
-          "description": "结束标志",
-          "type": "integer"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "offset": {
-          "description": "偏移量",
-          "type": "integer"
-        },
-        "size": {
-          "description": "长度",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.FunctionSwitch": {
-      "properties": {
-        "id": {
-          "description": "开关ID",
-          "type": "integer"
-        },
-        "value": {
-          "description": "开关值",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.LinkedinContactItem": {
-      "properties": {
-        "linkedin_member_id": {
-          "description": "LinkedIn成员ID",
-          "type": "string"
-        },
-        "linkedin_name": {
-          "description": "LinkedIn名称",
-          "type": "string"
-        },
-        "linkedin_public_url": {
-          "description": "LinkedIn公开URL",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact": {
-      "properties": {
-        "add_contact_scene": {
-          "description": "添加联系人场景",
-          "type": "integer"
-        },
-        "additional_contact_list": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.ModifyContact_AdditionalContactList"
-            }
-          ],
-          "description": "附加联系人列表"
-        },
-        "album_bg_image_id": {
-          "description": "相册背景图ID",
-          "type": "string"
-        },
-        "album_flag": {
-          "description": "相册标志",
-          "type": "integer"
-        },
-        "album_style": {
-          "description": "相册样式",
-          "type": "integer"
-        },
-        "alias": {
-          "description": "别名",
-          "type": "string"
-        },
-        "avatar_buffer": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "头像缓冲区"
-        },
-        "avatar_md5": {
-          "description": "头像MD5",
-          "type": "string"
-        },
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "bit_mask": {
-          "description": "位掩码",
-          "type": "integer"
-        },
-        "bit_value": {
-          "description": "位值",
-          "type": "integer"
-        },
-        "brand_list": {
-          "description": "我的品牌列表",
-          "type": "string"
-        },
-        "card_image_url": {
-          "description": "名片图片URL",
-          "type": "string"
-        },
-        "city": {
-          "description": "城市",
-          "type": "string"
-        },
-        "contact_type": {
-          "description": "联系人类型",
-          "type": "integer"
-        },
-        "country": {
-          "description": "国家",
-          "type": "string"
-        },
-        "customized_info": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.CustomizedInfo"
-            }
-          ],
-          "description": "自定义信息"
-        },
-        "delete_contact_scene": {
-          "description": "删除联系人场景",
-          "type": "integer"
-        },
-        "delete_flag": {
-          "description": "删除标志",
-          "type": "integer"
-        },
-        "description": {
-          "description": "描述",
-          "type": "string"
-        },
-        "domain_list": {
-          "description": "域列表",
-          "items": {
-            "$ref": "#/definitions/wrapperspb.StringValue"
-          },
-          "type": "array"
-        },
-        "encrypt_username": {
-          "description": "加密用户名",
-          "type": "string"
-        },
-        "extend_flag": {
-          "description": "扩展标志",
-          "type": "integer"
-        },
-        "extend_info": {
-          "description": "扩展信息",
-          "type": "string"
-        },
-        "gender": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Gender"
-            }
-          ],
-          "description": "性别"
-        },
-        "group_access_type": {
-          "description": "群聊访问类型",
-          "type": "integer"
-        },
-        "group_business_type": {
-          "description": "群聊业务类型",
-          "type": "integer"
-        },
-        "group_data": {
-          "description": "群聊数据",
-          "type": "string"
-        },
-        "group_info_count": {
-          "description": "群组信息数量",
-          "type": "integer"
-        },
-        "group_info_list": {
-          "description": "群组信息列表",
-          "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyContact_GroupInfo"
-          },
-          "type": "array"
-        },
-        "group_info_version": {
-          "description": "群聊信息版本",
-          "type": "integer"
-        },
-        "group_max_count": {
-          "description": "群聊最大人数",
-          "type": "integer"
-        },
-        "group_notify": {
-          "description": "群聊通知",
-          "type": "integer"
-        },
-        "group_owner": {
-          "description": "群主",
-          "type": "string"
-        },
-        "group_status": {
-          "description": "群聊状态",
-          "type": "integer"
-        },
-        "group_version": {
-          "description": "群聊版本",
-          "type": "integer"
-        },
-        "has_hd_avatar": {
-          "description": "是否有微信高清头像",
-          "type": "integer"
-        },
-        "id_card_num": {
-          "description": "身份证号",
-          "type": "string"
-        },
-        "image_flag": {
-          "description": "头像标志",
-          "type": "integer"
-        },
-        "label_id_list": {
-          "description": "标签ID列表",
-          "type": "string"
-        },
-        "level": {
-          "description": "等级",
-          "type": "integer"
-        },
-        "members": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.ModifyContact_GroupMemberData"
-            }
-          ],
-          "description": "群成员数据"
-        },
-        "micro_store_info": {
-          "description": "微店信息",
-          "type": "string"
-        },
-        "mobile_full_hash": {
-          "description": "手机完整哈希",
-          "type": "string"
-        },
-        "mobile_hash": {
-          "description": "手机哈希",
-          "type": "string"
-        },
-        "mobile_info": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.ModifyContact_MobileInfo"
-            }
-          ],
-          "description": "电话号码列表信息"
-        },
-        "nickname": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "昵称"
-        },
-        "nickname_jianpin": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "拼音首字母"
-        },
-        "nickname_quanpin": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "全拼"
-        },
-        "personal_card": {
-          "description": "个人名片",
-          "type": "integer"
-        },
-        "province": {
-          "description": "省份",
-          "type": "string"
-        },
-        "real_name": {
-          "description": "真实姓名",
-          "type": "string"
-        },
-        "remark": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "备注"
-        },
-        "remark_jianpin": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "备注拼音首字母"
-        },
-        "remark_quanpin": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "备注全拼简拼"
-        },
-        "signature": {
-          "description": "签名",
-          "type": "string"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "sns_user_info": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.SnsUserInfo"
-            }
-          ],
-          "description": "朋友圈用户信息"
-        },
-        "source": {
-          "description": "来源",
-          "type": "integer"
-        },
-        "source_extend_info": {
-          "description": "来源扩展信息",
-          "type": "string"
-        },
-        "username": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "用户名"
-        },
-        "verify_content": {
-          "description": "验证内容",
-          "type": "string"
-        },
-        "verify_flag": {
-          "description": "验证标志",
-          "type": "integer"
-        },
-        "verify_info": {
-          "description": "验证信息",
-          "type": "string"
-        },
-        "weibo": {
-          "description": "微博",
-          "type": "string"
-        },
-        "weibo_flag": {
-          "description": "微博标志",
-          "type": "integer"
-        },
-        "weibo_nickname": {
-          "description": "微博昵称",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact_AdditionalContactList": {
-      "properties": {
-        "item": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.ModifyContact_AdditionalContactList_LinkedinItem"
-            }
-          ],
-          "description": "LinkedIn联系人项"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact_AdditionalContactList_LinkedinItem": {
-      "properties": {
-        "member_id": {
-          "description": "LinkedIn成员ID",
-          "type": "string"
-        },
-        "name": {
-          "description": "LinkedIn名称",
-          "type": "string"
-        },
-        "public_url": {
-          "description": "LinkedIn公开URL",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact_GroupInfo": {
-      "properties": {
-        "nickname": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "昵称"
-        },
-        "username": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "用户名"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact_GroupMemberData": {
-      "properties": {
-        "count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "info_mask": {
-          "description": "信息掩码",
-          "type": "integer"
-        },
-        "list": {
-          "description": "群成员列表",
-          "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyContact_GroupMemberData_MemberInfo"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact_GroupMemberData_MemberInfo": {
-      "properties": {
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "chatroom_member_flag": {
-          "description": "群成员标志",
-          "type": "integer"
-        },
-        "display_name": {
-          "description": "显示名称",
-          "type": "string"
-        },
-        "inviter_username": {
-          "description": "邀请者用户名",
-          "type": "string"
-        },
-        "nickname": {
-          "description": "昵称",
-          "type": "string"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "username": {
-          "description": "用户名",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyContact_MobileInfo": {
-      "properties": {
-        "count": {
-          "description": "数量",
-          "type": "integer"
-        },
-        "list": {
-          "description": "电话号码列表",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyUserAvatar": {
-      "properties": {
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "buffer": {
-          "description": "头像缓冲区",
-          "items": {
-            "type": "integer"
-          },
-          "type": "array"
-        },
-        "md5": {
-          "description": "头像MD5",
-          "type": "string"
-        },
-        "size": {
-          "description": "头像长度",
-          "type": "integer"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "type": {
-          "description": "头像类型",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyUserInfo": {
-      "properties": {
-        "album_bg_image_id": {
-          "description": "相册背景图ID",
-          "type": "string"
-        },
-        "album_flag": {
-          "description": "相册标志",
-          "type": "integer"
-        },
-        "album_style": {
-          "description": "相册样式",
-          "type": "integer"
-        },
-        "alias": {
-          "description": "别名",
-          "type": "string"
-        },
-        "avatar_buffer": {
-          "description": "头像缓冲区",
-          "items": {
-            "type": "integer"
-          },
-          "type": "array"
-        },
-        "avatar_len": {
-          "description": "头像长度",
-          "type": "integer"
-        },
-        "bit_flag": {
-          "description": "位标志",
-          "type": "integer"
-        },
-        "city": {
-          "description": "城市",
-          "type": "string"
-        },
-        "country": {
-          "description": "国家",
-          "type": "string"
-        },
-        "disturb_setting": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.DisturbSetting"
-            }
-          ],
-          "description": "免打扰设置"
-        },
-        "email": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "绑定邮箱"
-        },
-        "experience": {
-          "description": "经验",
-          "type": "integer"
-        },
-        "facebook_flag": {
-          "description": "Facebook标志",
-          "type": "integer"
-        },
-        "facebook_token": {
-          "description": "Facebook令牌",
-          "type": "string"
-        },
-        "facebook_userid": {
-          "description": "Facebook用户ID",
-          "type": "integer"
-        },
-        "facebook_username": {
-          "description": "Facebook用户名",
-          "type": "string"
-        },
-        "gender": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Gender"
-            }
-          ],
-          "description": "性别"
-        },
-        "gmail_list": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.ModifyUserInfo_GmailList"
-            }
-          ],
-          "description": "Gmail列表"
-        },
-        "level": {
-          "description": "等级",
-          "type": "integer"
-        },
-        "level_high_experience": {
-          "description": "等级高经验",
-          "type": "integer"
-        },
-        "level_low_experience": {
-          "description": "等级低经验",
-          "type": "integer"
-        },
-        "mobile": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "绑定手机"
-        },
-        "news_category": {
-          "description": "腾讯新闻分类",
-          "type": "integer"
-        },
-        "nick_name": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "昵称"
-        },
-        "personal_card": {
-          "description": "个人名片",
-          "type": "integer"
-        },
-        "plugin_flag": {
-          "description": "插件标志",
-          "type": "integer"
-        },
-        "plugin_switch": {
-          "description": "插件开关",
-          "type": "integer"
-        },
-        "point": {
-          "description": "积分",
-          "type": "integer"
-        },
-        "province": {
-          "description": "省份",
-          "type": "string"
-        },
-        "signature": {
-          "description": "签名",
-          "type": "string"
-        },
-        "status": {
-          "description": "状态",
-          "type": "integer"
-        },
-        "uin": {
-          "description": "绑定UIN",
-          "type": "integer"
-        },
-        "user_name": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "用户名"
-        },
-        "verify_flag": {
-          "description": "验证标志",
-          "type": "integer"
-        },
-        "verify_info": {
-          "description": "验证信息",
-          "type": "string"
-        },
-        "weibo": {
-          "description": "微博",
-          "type": "string"
-        },
-        "weibo_flag": {
-          "description": "微博标志",
-          "type": "integer"
-        },
-        "weibo_nickname": {
-          "description": "微博昵称",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyUserInfo_GmailList": {
-      "properties": {
-        "count": {
-          "description": "数量",
-          "type": "integer"
-        },
-        "list": {
-          "description": "列表",
-          "items": {
-            "$ref": "#/definitions/golem_proto_message.ModifyUserInfo_GmailList_Info"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.ModifyUserInfo_GmailList_Info": {
-      "properties": {
-        "account": {
-          "description": "Gmail账号",
-          "type": "string"
-        },
-        "err_code": {
-          "description": "Gmail错误码",
-          "type": "integer"
-        },
-        "switch": {
-          "description": "Gmail开关",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.NewMessage": {
-      "properties": {
-        "content": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "消息内容"
-        },
-        "create_time": {
-          "description": "创建时间",
-          "type": "integer"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "image_buffer": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "图片缓冲区"
-        },
-        "image_status": {
-          "description": "图片状态",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "push_content": {
-          "description": "推送内容",
-          "type": "string"
-        },
-        "receiver": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "接收者用户名"
-        },
-        "sender": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "发送者用户名"
-        },
-        "sequence": {
-          "description": "消息序列号",
-          "type": "integer"
-        },
-        "source": {
-          "description": "消息来源",
-          "type": "string"
-        },
-        "status": {
-          "description": "状态",
-          "type": "integer"
-        },
-        "type": {
-          "description": "消息类型",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.PatternLockInfo": {
-      "properties": {
-        "lock_status": {
-          "description": "锁定状态",
-          "type": "integer"
-        },
-        "pattern_version": {
-          "description": "图案版本",
-          "type": "integer"
-        },
-        "sign": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.Buffer"
-            }
-          ],
-          "description": "签名"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.RevokeMessageResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "introduction": {
-          "description": "介绍",
-          "type": "string"
-        },
-        "sys_wording": {
-          "description": "系统提示语",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.SafeDevice": {
-      "properties": {
-        "create_time": {
-          "description": "创建时间",
-          "type": "integer"
-        },
-        "device_type": {
-          "description": "设备类型",
-          "type": "string"
-        },
-        "name": {
-          "description": "名称",
-          "type": "string"
-        },
-        "uuid": {
-          "description": "UUID",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.SafeDeviceList": {
-      "properties": {
-        "count": {
-          "description": "数量",
-          "type": "integer"
-        },
-        "list": {
-          "description": "列表",
-          "items": {
-            "$ref": "#/definitions/golem_proto_message.SafeDevice"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.SendAppMessageResponse": {
-      "properties": {
-        "action_flag": {
-          "description": "操作标志",
-          "type": "integer"
-        },
-        "aes_key": {
-          "description": "AES密钥",
-          "type": "string"
-        },
-        "app_id": {
-          "description": "App ID",
-          "type": "string"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "client_id": {
-          "description": "客户端消息ID",
-          "type": "string"
-        },
-        "create_time": {
-          "description": "创建时间",
-          "type": "integer"
-        },
-        "extend_xml": {
-          "description": "扩展XML",
-          "type": "string"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "receiver": {
-          "description": "接收者用户名",
-          "type": "string"
-        },
-        "sender": {
-          "description": "发送者用户名",
-          "type": "string"
-        },
-        "type": {
-          "description": "消息类型",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.SendMessageResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "count": {
-          "description": "数量",
-          "type": "integer"
-        },
-        "list": {
-          "description": "响应列表",
-          "items": {
-            "$ref": "#/definitions/golem_proto_message.SendMessageResponse_Result"
-          },
-          "type": "array"
-        },
-        "unknown": {
-          "description": "未知字段",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.SendMessageResponse_Result": {
-      "properties": {
-        "client_id": {
-          "description": "客户端消息ID",
-          "type": "integer"
-        },
-        "code": {
-          "description": "返回码，0-成功，-22-消息已发出但被对方拒收（被拉黑），-44-对方开启了朋友验证（被删除好友）",
-          "type": "integer"
-        },
-        "create_time": {
-          "description": "创建时间",
-          "type": "integer"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "receiver": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "接收者用户名"
-        },
-        "server_time": {
-          "description": "服务器时间",
-          "type": "integer"
-        },
-        "type": {
-          "description": "类型",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.SnsUserInfo": {
-      "properties": {
-        "bg_image_id": {
-          "description": "朋友圈背景图ID",
-          "type": "string"
-        },
-        "bg_object_id": {
-          "description": "朋友圈背景对象ID",
-          "type": "integer"
-        },
-        "flag": {
-          "description": "朋友圈标志",
-          "type": "integer"
-        },
-        "flag_extend": {
-          "description": "朋友圈扩展标志",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.UploadEmojiResponse": {
-      "properties": {
-        "action_flag": {
-          "description": "操作标志",
-          "type": "integer"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "count": {
-          "description": "emoji项目数量",
-          "type": "integer"
-        },
-        "result": {
-          "description": "emoji上传响应列表",
-          "items": {
-            "$ref": "#/definitions/golem_proto_message.UploadEmojiResponse_Result"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.UploadEmojiResponse_Result": {
-      "properties": {
-        "code": {
-          "description": "返回码",
-          "type": "integer"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "md5": {
-          "description": "MD5值",
-          "type": "string"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "offset": {
-          "description": "起始位置",
-          "type": "integer"
-        },
-        "size": {
-          "description": "总长度",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.UploadImageResponse": {
-      "properties": {
-        "aes_key": {
-          "description": "AES密钥",
-          "type": "string"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "chunk_size": {
-          "description": "数据长度",
-          "type": "integer"
-        },
-        "client_id": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "客户端图片ID"
-        },
-        "create_time": {
-          "description": "创建时间",
-          "type": "integer"
-        },
-        "extend_xml": {
-          "description": "扩展XML",
-          "type": "string"
-        },
-        "file_id": {
-          "description": "文件ID",
-          "type": "string"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "offset": {
-          "description": "起始位置",
-          "type": "integer"
-        },
-        "receiver": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "接收者用户名"
-        },
-        "sender": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "发送者用户名"
-        },
-        "size": {
-          "description": "总长度",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.UploadVideoResponse": {
-      "properties": {
-        "action_flag": {
-          "description": "操作标志",
-          "type": "integer"
-        },
-        "aes_key": {
-          "description": "AES密钥",
-          "type": "string"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "client_id": {
-          "description": "客户端消息ID",
-          "type": "string"
-        },
-        "extend_xml": {
-          "description": "扩展XML",
-          "type": "string"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "thumb_offset": {
-          "description": "缩略图偏移量",
-          "type": "integer"
-        },
-        "video_offset": {
-          "description": "视频偏移量",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.UploadVoiceResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "cancel_flag": {
-          "description": "取消标志",
-          "type": "integer"
-        },
-        "client_id": {
-          "description": "客户端消息ID",
-          "type": "string"
-        },
-        "create_time": {
-          "description": "创建时间",
-          "type": "integer"
-        },
-        "duration": {
-          "description": "语音时长（毫秒）",
-          "type": "integer"
-        },
-        "end_flag": {
-          "description": "结束标志",
-          "type": "integer"
-        },
-        "id": {
-          "description": "消息ID",
-          "type": "integer"
-        },
-        "new_id": {
-          "description": "新消息ID",
-          "type": "integer"
-        },
-        "offset": {
-          "description": "数据偏移量",
-          "type": "integer"
-        },
-        "receiver": {
-          "description": "接收者用户名",
-          "type": "string"
-        },
-        "sender": {
-          "description": "发送者用户名",
-          "type": "string"
-        },
-        "size": {
-          "description": "数据长度",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "golem_proto_message.UserInfoExtend": {
-      "properties": {
-        "bbm_nick_name": {
-          "description": "BBM昵称",
-          "type": "string"
-        },
-        "bbp_in": {
-          "description": "BBPIN",
-          "type": "string"
-        },
-        "bbp_pid": {
-          "description": "BBPPID",
-          "type": "string"
-        },
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "big_group_invite": {
-          "description": "大群邀请",
-          "type": "integer"
-        },
-        "big_group_quota": {
-          "description": "大群配额",
-          "type": "integer"
-        },
-        "big_group_size": {
-          "description": "大群大小",
-          "type": "integer"
-        },
-        "brand_list": {
-          "description": "我的品牌列表",
-          "type": "string"
-        },
-        "extend_status": {
-          "description": "扩展状态",
-          "type": "integer"
-        },
-        "extend_xml": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "扩展XML"
-        },
-        "f2f_push_sound": {
-          "description": "面对面推送声音",
-          "type": "string"
-        },
-        "google_contact_name": {
-          "description": "Google联系人名称",
-          "type": "string"
-        },
-        "grayscale_flag": {
-          "description": "灰度标志",
-          "type": "integer"
-        },
-        "id_card_num": {
-          "description": "身份证号",
-          "type": "string"
-        },
-        "kf_info": {
-          "description": "客服信息",
-          "type": "string"
-        },
-        "linkedin_contact_item": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.LinkedinContactItem"
-            }
-          ],
-          "description": "LinkedIn联系人项"
-        },
-        "main_account_type": {
-          "description": "主账号类型",
-          "type": "integer"
-        },
-        "message_push_sound": {
-          "description": "消息推送声音",
-          "type": "string"
-        },
-        "micro_store_info": {
-          "description": "微店信息",
-          "type": "string"
-        },
-        "pattern_lock_info": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.PatternLockInfo"
-            }
-          ],
-          "description": "图案锁信息"
-        },
-        "pay_setting": {
-          "description": "支付设置",
-          "type": "integer"
-        },
-        "pay_wallet_type": {
-          "description": "支付钱包类型",
-          "type": "integer"
-        },
-        "real_name": {
-          "description": "真实姓名",
-          "type": "string"
-        },
-        "registry_country": {
-          "description": "注册国家",
-          "type": "string"
-        },
-        "safe_device": {
-          "description": "安全设备",
-          "type": "integer"
-        },
-        "safe_device_list": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/golem_proto_message.SafeDeviceList"
-            }
-          ],
-          "description": "安全设备列表"
-        },
-        "safe_mobile": {
-          "description": "安全手机",
-          "type": "string"
-        },
-        "security_device_id": {
-          "description": "安全设备ID",
-          "type": "string"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "user_status": {
-          "description": "用户状态",
-          "type": "integer"
-        },
-        "voip_push_sound": {
-          "description": "VoIP推送声音",
-          "type": "string"
-        },
-        "wallet_region": {
-          "description": "钱包地区",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
     "labelpb.AddContactResponse": {
       "properties": {
         "base_response": {
@@ -13098,66 +11357,6 @@
       },
       "type": "object"
     },
-    "dto.CdnUploadImageParam": {
-      "properties": {
-        "image_data": {
-          "description": "图片数据（base64编码）",
-          "type": "string",
-          "example": "base64..."
-        },
-        "receiver": {
-          "description": "接收人 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        }
-      },
-      "type": "object"
-    },
-    "dto.CdnUploadSnsImageParam": {
-      "properties": {
-        "image_data": {
-          "description": "图片数据（base64编码）",
-          "type": "string",
-          "example": "base64..."
-        }
-      },
-      "type": "object"
-    },
-    "dto.CdnUploadSnsVideoParam": {
-      "properties": {
-        "thumb_data": {
-          "description": "缩略图数据（base64编码）",
-          "type": "string",
-          "example": "base64..."
-        },
-        "video_data": {
-          "description": "视频数据（base64编码）",
-          "type": "string",
-          "example": "base64..."
-        }
-      },
-      "type": "object"
-    },
-    "dto.CdnUploadVideoParam": {
-      "properties": {
-        "receiver": {
-          "description": "接收人 wxid",
-          "type": "string",
-          "example": "wxid_xxx"
-        },
-        "thumb_data": {
-          "description": "缩略图数据（base64编码）",
-          "type": "string",
-          "example": "base64..."
-        },
-        "video_data": {
-          "description": "视频数据（base64编码）",
-          "type": "string",
-          "example": "base64..."
-        }
-      },
-      "type": "object"
-    },
     "golem_pkg_login.PasswordLoginResult": {
       "properties": {
         "alias": {
@@ -13226,32 +11425,6 @@
       "required": [
         "enable"
       ],
-      "type": "object"
-    },
-    "dto.CdnDownloadSnsVideoParam": {
-      "properties": {
-        "enc_key": {
-          "description": "解密密钥",
-          "type": "integer"
-        },
-        "video_url": {
-          "description": "加密视频 URL",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "dto.CdnDownloadVideoParam": {
-      "properties": {
-        "file_id": {
-          "description": "CDN 文件ID",
-          "type": "string"
-        },
-        "file_key": {
-          "description": "AES 密钥（hex编码）",
-          "type": "string"
-        }
-      },
       "type": "object"
     },
     "dto.StorageConfig": {
@@ -13472,6 +11645,1735 @@
             }
           ],
           "description": "返回文本（JSON字符串）"
+        }
+      },
+      "type": "object"
+    },
+    "dto.DownloadImageParam": {
+      "properties": {
+        "id": {
+          "description": "消息ID",
+          "type": "integer",
+          "example": 12345678
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer",
+          "example": 12345678
+        },
+        "sender": {
+          "description": "发送者 wxid",
+          "type": "string",
+          "example": "wxid_xxx"
+        },
+        "size": {
+          "description": "文件总长度（字节），从消息 XML 中获取",
+          "type": "integer",
+          "example": 102400
+        }
+      },
+      "required": [
+        "id",
+        "new_id",
+        "sender",
+        "size"
+      ],
+      "type": "object"
+    },
+    "messagepb.CustomizedInfo": {
+      "properties": {
+        "brand_flag": {
+          "description": "品牌标志",
+          "type": "integer"
+        },
+        "brand_icon_url": {
+          "description": "品牌图标URL",
+          "type": "string"
+        },
+        "brand_info": {
+          "description": "品牌信息",
+          "type": "string"
+        },
+        "extend_info": {
+          "description": "外部信息",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DeleteContact": {
+      "properties": {
+        "scene": {
+          "description": "删除联系人场景",
+          "type": "integer"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DisturbSetting": {
+      "properties": {
+        "all_day_setting": {
+          "description": "全天设置",
+          "type": "integer"
+        },
+        "all_day_time": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.DisturbSetting_TimeSpan"
+            }
+          ],
+          "description": "全天时间"
+        },
+        "night_setting": {
+          "description": "夜间设置",
+          "type": "integer"
+        },
+        "night_time": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.DisturbSetting_TimeSpan"
+            }
+          ],
+          "description": "夜间时间"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DisturbSetting_TimeSpan": {
+      "properties": {
+        "begin_hour": {
+          "description": "开始小时",
+          "type": "integer"
+        },
+        "begin_min": {
+          "description": "开始分钟",
+          "type": "integer"
+        },
+        "end_hour": {
+          "description": "结束小时",
+          "type": "integer"
+        },
+        "end_min": {
+          "description": "结束分钟",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DownloadAppAttachResponse": {
+      "properties": {
+        "app_id": {
+          "description": "App ID",
+          "type": "string"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "chunk": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "文件数据"
+        },
+        "chunk_size": {
+          "description": "数据长度",
+          "type": "integer"
+        },
+        "media_id": {
+          "description": "附件ID",
+          "type": "string"
+        },
+        "offset": {
+          "description": "起始位置",
+          "type": "integer"
+        },
+        "size": {
+          "description": "文件总长度",
+          "type": "integer"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DownloadImageResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "chunk": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "图片数据"
+        },
+        "chunk_size": {
+          "description": "本次请求长度",
+          "type": "integer"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "起始位置",
+          "type": "integer"
+        },
+        "receiver": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "接收者用户名"
+        },
+        "sender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "发送者用户名"
+        },
+        "size": {
+          "description": "文件总长度",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DownloadVideoResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "chunk": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "视频数据"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "起始位置",
+          "type": "integer"
+        },
+        "size": {
+          "description": "文件总长度",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DownloadVoiceResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "cancel_flag": {
+          "description": "取消标志",
+          "type": "integer"
+        },
+        "client_id": {
+          "description": "客户端消息ID",
+          "type": "string"
+        },
+        "data": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "数据"
+        },
+        "duration": {
+          "description": "语音长度",
+          "type": "integer"
+        },
+        "end_flag": {
+          "description": "结束标志",
+          "type": "integer"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "偏移量",
+          "type": "integer"
+        },
+        "size": {
+          "description": "长度",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.FunctionSwitch": {
+      "properties": {
+        "id": {
+          "description": "开关ID",
+          "type": "integer"
+        },
+        "value": {
+          "description": "开关值",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.LinkedinContactItem": {
+      "properties": {
+        "linkedin_member_id": {
+          "description": "LinkedIn成员ID",
+          "type": "string"
+        },
+        "linkedin_name": {
+          "description": "LinkedIn名称",
+          "type": "string"
+        },
+        "linkedin_public_url": {
+          "description": "LinkedIn公开URL",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact": {
+      "properties": {
+        "add_contact_scene": {
+          "description": "添加联系人场景",
+          "type": "integer"
+        },
+        "additional_contact_list": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.ModifyContact_AdditionalContactList"
+            }
+          ],
+          "description": "附加联系人列表"
+        },
+        "album_bg_image_id": {
+          "description": "相册背景图ID",
+          "type": "string"
+        },
+        "album_flag": {
+          "description": "相册标志",
+          "type": "integer"
+        },
+        "album_style": {
+          "description": "相册样式",
+          "type": "integer"
+        },
+        "alias": {
+          "description": "别名",
+          "type": "string"
+        },
+        "avatar_buffer": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "头像缓冲区"
+        },
+        "avatar_md5": {
+          "description": "头像MD5",
+          "type": "string"
+        },
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "bit_mask": {
+          "description": "位掩码",
+          "type": "integer"
+        },
+        "bit_value": {
+          "description": "位值",
+          "type": "integer"
+        },
+        "brand_list": {
+          "description": "我的品牌列表",
+          "type": "string"
+        },
+        "card_image_url": {
+          "description": "名片图片URL",
+          "type": "string"
+        },
+        "city": {
+          "description": "城市",
+          "type": "string"
+        },
+        "contact_type": {
+          "description": "联系人类型",
+          "type": "integer"
+        },
+        "country": {
+          "description": "国家",
+          "type": "string"
+        },
+        "customized_info": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.CustomizedInfo"
+            }
+          ],
+          "description": "自定义信息"
+        },
+        "delete_contact_scene": {
+          "description": "删除联系人场景",
+          "type": "integer"
+        },
+        "delete_flag": {
+          "description": "删除标志",
+          "type": "integer"
+        },
+        "description": {
+          "description": "描述",
+          "type": "string"
+        },
+        "domain_list": {
+          "description": "域列表",
+          "items": {
+            "$ref": "#/definitions/wrapperspb.StringValue"
+          },
+          "type": "array"
+        },
+        "encrypt_username": {
+          "description": "加密用户名",
+          "type": "string"
+        },
+        "extend_flag": {
+          "description": "扩展标志",
+          "type": "integer"
+        },
+        "extend_info": {
+          "description": "扩展信息",
+          "type": "string"
+        },
+        "gender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Gender"
+            }
+          ],
+          "description": "性别"
+        },
+        "group_access_type": {
+          "description": "群聊访问类型",
+          "type": "integer"
+        },
+        "group_business_type": {
+          "description": "群聊业务类型",
+          "type": "integer"
+        },
+        "group_data": {
+          "description": "群聊数据",
+          "type": "string"
+        },
+        "group_info_count": {
+          "description": "群组信息数量",
+          "type": "integer"
+        },
+        "group_info_list": {
+          "description": "群组信息列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyContact_GroupInfo"
+          },
+          "type": "array"
+        },
+        "group_info_version": {
+          "description": "群聊信息版本",
+          "type": "integer"
+        },
+        "group_max_count": {
+          "description": "群聊最大人数",
+          "type": "integer"
+        },
+        "group_notify": {
+          "description": "群聊通知",
+          "type": "integer"
+        },
+        "group_owner": {
+          "description": "群主",
+          "type": "string"
+        },
+        "group_status": {
+          "description": "群聊状态",
+          "type": "integer"
+        },
+        "group_version": {
+          "description": "群聊版本",
+          "type": "integer"
+        },
+        "has_hd_avatar": {
+          "description": "是否有微信高清头像",
+          "type": "integer"
+        },
+        "id_card_num": {
+          "description": "身份证号",
+          "type": "string"
+        },
+        "image_flag": {
+          "description": "头像标志",
+          "type": "integer"
+        },
+        "label_id_list": {
+          "description": "标签ID列表",
+          "type": "string"
+        },
+        "level": {
+          "description": "等级",
+          "type": "integer"
+        },
+        "members": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.ModifyContact_GroupMemberData"
+            }
+          ],
+          "description": "群成员数据"
+        },
+        "micro_store_info": {
+          "description": "微店信息",
+          "type": "string"
+        },
+        "mobile_full_hash": {
+          "description": "手机完整哈希",
+          "type": "string"
+        },
+        "mobile_hash": {
+          "description": "手机哈希",
+          "type": "string"
+        },
+        "mobile_info": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.ModifyContact_MobileInfo"
+            }
+          ],
+          "description": "电话号码列表信息"
+        },
+        "nickname": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "昵称"
+        },
+        "nickname_jianpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "拼音首字母"
+        },
+        "nickname_quanpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "全拼"
+        },
+        "personal_card": {
+          "description": "个人名片",
+          "type": "integer"
+        },
+        "province": {
+          "description": "省份",
+          "type": "string"
+        },
+        "real_name": {
+          "description": "真实姓名",
+          "type": "string"
+        },
+        "remark": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "备注"
+        },
+        "remark_jianpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "备注拼音首字母"
+        },
+        "remark_quanpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "备注全拼简拼"
+        },
+        "signature": {
+          "description": "签名",
+          "type": "string"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "sns_user_info": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.SnsUserInfo"
+            }
+          ],
+          "description": "朋友圈用户信息"
+        },
+        "source": {
+          "description": "来源",
+          "type": "integer"
+        },
+        "source_extend_info": {
+          "description": "来源扩展信息",
+          "type": "string"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        },
+        "verify_content": {
+          "description": "验证内容",
+          "type": "string"
+        },
+        "verify_flag": {
+          "description": "验证标志",
+          "type": "integer"
+        },
+        "verify_info": {
+          "description": "验证信息",
+          "type": "string"
+        },
+        "weibo": {
+          "description": "微博",
+          "type": "string"
+        },
+        "weibo_flag": {
+          "description": "微博标志",
+          "type": "integer"
+        },
+        "weibo_nickname": {
+          "description": "微博昵称",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_AdditionalContactList": {
+      "properties": {
+        "item": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.ModifyContact_AdditionalContactList_LinkedinItem"
+            }
+          ],
+          "description": "LinkedIn联系人项"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_AdditionalContactList_LinkedinItem": {
+      "properties": {
+        "member_id": {
+          "description": "LinkedIn成员ID",
+          "type": "string"
+        },
+        "name": {
+          "description": "LinkedIn名称",
+          "type": "string"
+        },
+        "public_url": {
+          "description": "LinkedIn公开URL",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_GroupInfo": {
+      "properties": {
+        "nickname": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "昵称"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_GroupMemberData": {
+      "properties": {
+        "count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "info_mask": {
+          "description": "信息掩码",
+          "type": "integer"
+        },
+        "list": {
+          "description": "群成员列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyContact_GroupMemberData_MemberInfo"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_GroupMemberData_MemberInfo": {
+      "properties": {
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "chatroom_member_flag": {
+          "description": "群成员标志",
+          "type": "integer"
+        },
+        "display_name": {
+          "description": "显示名称",
+          "type": "string"
+        },
+        "inviter_username": {
+          "description": "邀请者用户名",
+          "type": "string"
+        },
+        "nickname": {
+          "description": "昵称",
+          "type": "string"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_MobileInfo": {
+      "properties": {
+        "count": {
+          "description": "数量",
+          "type": "integer"
+        },
+        "list": {
+          "description": "电话号码列表",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyUserAvatar": {
+      "properties": {
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "buffer": {
+          "description": "头像缓冲区",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "md5": {
+          "description": "头像MD5",
+          "type": "string"
+        },
+        "size": {
+          "description": "头像长度",
+          "type": "integer"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "type": {
+          "description": "头像类型",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyUserInfo": {
+      "properties": {
+        "album_bg_image_id": {
+          "description": "相册背景图ID",
+          "type": "string"
+        },
+        "album_flag": {
+          "description": "相册标志",
+          "type": "integer"
+        },
+        "album_style": {
+          "description": "相册样式",
+          "type": "integer"
+        },
+        "alias": {
+          "description": "别名",
+          "type": "string"
+        },
+        "avatar_buffer": {
+          "description": "头像缓冲区",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "avatar_len": {
+          "description": "头像长度",
+          "type": "integer"
+        },
+        "bit_flag": {
+          "description": "位标志",
+          "type": "integer"
+        },
+        "city": {
+          "description": "城市",
+          "type": "string"
+        },
+        "country": {
+          "description": "国家",
+          "type": "string"
+        },
+        "disturb_setting": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.DisturbSetting"
+            }
+          ],
+          "description": "免打扰设置"
+        },
+        "email": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "绑定邮箱"
+        },
+        "experience": {
+          "description": "经验",
+          "type": "integer"
+        },
+        "facebook_flag": {
+          "description": "Facebook标志",
+          "type": "integer"
+        },
+        "facebook_token": {
+          "description": "Facebook令牌",
+          "type": "string"
+        },
+        "facebook_userid": {
+          "description": "Facebook用户ID",
+          "type": "integer"
+        },
+        "facebook_username": {
+          "description": "Facebook用户名",
+          "type": "string"
+        },
+        "gender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Gender"
+            }
+          ],
+          "description": "性别"
+        },
+        "gmail_list": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.ModifyUserInfo_GmailList"
+            }
+          ],
+          "description": "Gmail列表"
+        },
+        "level": {
+          "description": "等级",
+          "type": "integer"
+        },
+        "level_high_experience": {
+          "description": "等级高经验",
+          "type": "integer"
+        },
+        "level_low_experience": {
+          "description": "等级低经验",
+          "type": "integer"
+        },
+        "mobile": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "绑定手机"
+        },
+        "news_category": {
+          "description": "腾讯新闻分类",
+          "type": "integer"
+        },
+        "nick_name": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "昵称"
+        },
+        "personal_card": {
+          "description": "个人名片",
+          "type": "integer"
+        },
+        "plugin_flag": {
+          "description": "插件标志",
+          "type": "integer"
+        },
+        "plugin_switch": {
+          "description": "插件开关",
+          "type": "integer"
+        },
+        "point": {
+          "description": "积分",
+          "type": "integer"
+        },
+        "province": {
+          "description": "省份",
+          "type": "string"
+        },
+        "signature": {
+          "description": "签名",
+          "type": "string"
+        },
+        "status": {
+          "description": "状态",
+          "type": "integer"
+        },
+        "uin": {
+          "description": "绑定UIN",
+          "type": "integer"
+        },
+        "user_name": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        },
+        "verify_flag": {
+          "description": "验证标志",
+          "type": "integer"
+        },
+        "verify_info": {
+          "description": "验证信息",
+          "type": "string"
+        },
+        "weibo": {
+          "description": "微博",
+          "type": "string"
+        },
+        "weibo_flag": {
+          "description": "微博标志",
+          "type": "integer"
+        },
+        "weibo_nickname": {
+          "description": "微博昵称",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyUserInfo_GmailList": {
+      "properties": {
+        "count": {
+          "description": "数量",
+          "type": "integer"
+        },
+        "list": {
+          "description": "列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyUserInfo_GmailList_Info"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyUserInfo_GmailList_Info": {
+      "properties": {
+        "account": {
+          "description": "Gmail账号",
+          "type": "string"
+        },
+        "err_code": {
+          "description": "Gmail错误码",
+          "type": "integer"
+        },
+        "switch": {
+          "description": "Gmail开关",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.NewMessage": {
+      "properties": {
+        "content": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "消息内容"
+        },
+        "create_time": {
+          "description": "创建时间",
+          "type": "integer"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "image_buffer": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "图片缓冲区"
+        },
+        "image_status": {
+          "description": "图片状态",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "push_content": {
+          "description": "推送内容",
+          "type": "string"
+        },
+        "receiver": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "接收者用户名"
+        },
+        "sender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "发送者用户名"
+        },
+        "sequence": {
+          "description": "消息序列号",
+          "type": "integer"
+        },
+        "source": {
+          "description": "消息来源",
+          "type": "string"
+        },
+        "status": {
+          "description": "状态",
+          "type": "integer"
+        },
+        "type": {
+          "description": "消息类型",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.PatternLockInfo": {
+      "properties": {
+        "lock_status": {
+          "description": "锁定状态",
+          "type": "integer"
+        },
+        "pattern_version": {
+          "description": "图案版本",
+          "type": "integer"
+        },
+        "sign": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "签名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.RevokeMessageResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "introduction": {
+          "description": "介绍",
+          "type": "string"
+        },
+        "sys_wording": {
+          "description": "系统提示语",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SafeDevice": {
+      "properties": {
+        "create_time": {
+          "description": "创建时间",
+          "type": "integer"
+        },
+        "device_type": {
+          "description": "设备类型",
+          "type": "string"
+        },
+        "name": {
+          "description": "名称",
+          "type": "string"
+        },
+        "uuid": {
+          "description": "UUID",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SafeDeviceList": {
+      "properties": {
+        "count": {
+          "description": "数量",
+          "type": "integer"
+        },
+        "list": {
+          "description": "列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.SafeDevice"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SendAppMessageResponse": {
+      "properties": {
+        "action_flag": {
+          "description": "操作标志",
+          "type": "integer"
+        },
+        "aes_key": {
+          "description": "AES密钥",
+          "type": "string"
+        },
+        "app_id": {
+          "description": "App ID",
+          "type": "string"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "client_id": {
+          "description": "客户端消息ID",
+          "type": "string"
+        },
+        "create_time": {
+          "description": "创建时间",
+          "type": "integer"
+        },
+        "extend_xml": {
+          "description": "扩展XML",
+          "type": "string"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "receiver": {
+          "description": "接收者用户名",
+          "type": "string"
+        },
+        "sender": {
+          "description": "发送者用户名",
+          "type": "string"
+        },
+        "type": {
+          "description": "消息类型",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SendMessageResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "count": {
+          "description": "数量",
+          "type": "integer"
+        },
+        "list": {
+          "description": "响应列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.SendMessageResponse_Result"
+          },
+          "type": "array"
+        },
+        "unknown": {
+          "description": "未知字段",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SendMessageResponse_Result": {
+      "properties": {
+        "client_id": {
+          "description": "客户端消息ID",
+          "type": "integer"
+        },
+        "code": {
+          "description": "返回码，0-成功，-22-消息已发出但被对方拒收（被拉黑），-44-对方开启了朋友验证（被删除好友）",
+          "type": "integer"
+        },
+        "create_time": {
+          "description": "创建时间",
+          "type": "integer"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "receiver": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "接收者用户名"
+        },
+        "server_time": {
+          "description": "服务器时间",
+          "type": "integer"
+        },
+        "type": {
+          "description": "类型",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SnsUserInfo": {
+      "properties": {
+        "bg_image_id": {
+          "description": "朋友圈背景图ID",
+          "type": "string"
+        },
+        "bg_object_id": {
+          "description": "朋友圈背景对象ID",
+          "type": "integer"
+        },
+        "flag": {
+          "description": "朋友圈标志",
+          "type": "integer"
+        },
+        "flag_extend": {
+          "description": "朋友圈扩展标志",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.UploadEmojiResponse": {
+      "properties": {
+        "action_flag": {
+          "description": "操作标志",
+          "type": "integer"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "count": {
+          "description": "emoji项目数量",
+          "type": "integer"
+        },
+        "result": {
+          "description": "emoji上传响应列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.UploadEmojiResponse_Result"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.UploadEmojiResponse_Result": {
+      "properties": {
+        "code": {
+          "description": "返回码",
+          "type": "integer"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "md5": {
+          "description": "MD5值",
+          "type": "string"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "起始位置",
+          "type": "integer"
+        },
+        "size": {
+          "description": "总长度",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.UploadImageResponse": {
+      "properties": {
+        "aes_key": {
+          "description": "AES密钥",
+          "type": "string"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "chunk_size": {
+          "description": "数据长度",
+          "type": "integer"
+        },
+        "client_id": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "客户端图片ID"
+        },
+        "create_time": {
+          "description": "创建时间",
+          "type": "integer"
+        },
+        "extend_xml": {
+          "description": "扩展XML",
+          "type": "string"
+        },
+        "file_id": {
+          "description": "文件ID",
+          "type": "string"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "起始位置",
+          "type": "integer"
+        },
+        "receiver": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "接收者用户名"
+        },
+        "sender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "发送者用户名"
+        },
+        "size": {
+          "description": "总长度",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.UploadVideoResponse": {
+      "properties": {
+        "action_flag": {
+          "description": "操作标志",
+          "type": "integer"
+        },
+        "aes_key": {
+          "description": "AES密钥",
+          "type": "string"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "client_id": {
+          "description": "客户端消息ID",
+          "type": "string"
+        },
+        "extend_xml": {
+          "description": "扩展XML",
+          "type": "string"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "thumb_offset": {
+          "description": "缩略图偏移量",
+          "type": "integer"
+        },
+        "video_offset": {
+          "description": "视频偏移量",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.UploadVoiceResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "cancel_flag": {
+          "description": "取消标志",
+          "type": "integer"
+        },
+        "client_id": {
+          "description": "客户端消息ID",
+          "type": "string"
+        },
+        "create_time": {
+          "description": "创建时间",
+          "type": "integer"
+        },
+        "duration": {
+          "description": "语音时长（毫秒）",
+          "type": "integer"
+        },
+        "end_flag": {
+          "description": "结束标志",
+          "type": "integer"
+        },
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "数据偏移量",
+          "type": "integer"
+        },
+        "receiver": {
+          "description": "接收者用户名",
+          "type": "string"
+        },
+        "sender": {
+          "description": "发送者用户名",
+          "type": "string"
+        },
+        "size": {
+          "description": "数据长度",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.UserInfoExtend": {
+      "properties": {
+        "bbm_nick_name": {
+          "description": "BBM昵称",
+          "type": "string"
+        },
+        "bbp_in": {
+          "description": "BBPIN",
+          "type": "string"
+        },
+        "bbp_pid": {
+          "description": "BBPPID",
+          "type": "string"
+        },
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "big_group_invite": {
+          "description": "大群邀请",
+          "type": "integer"
+        },
+        "big_group_quota": {
+          "description": "大群配额",
+          "type": "integer"
+        },
+        "big_group_size": {
+          "description": "大群大小",
+          "type": "integer"
+        },
+        "brand_list": {
+          "description": "我的品牌列表",
+          "type": "string"
+        },
+        "extend_status": {
+          "description": "扩展状态",
+          "type": "integer"
+        },
+        "extend_xml": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "扩展XML"
+        },
+        "f2f_push_sound": {
+          "description": "面对面推送声音",
+          "type": "string"
+        },
+        "google_contact_name": {
+          "description": "Google联系人名称",
+          "type": "string"
+        },
+        "grayscale_flag": {
+          "description": "灰度标志",
+          "type": "integer"
+        },
+        "id_card_num": {
+          "description": "身份证号",
+          "type": "string"
+        },
+        "kf_info": {
+          "description": "客服信息",
+          "type": "string"
+        },
+        "linkedin_contact_item": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.LinkedinContactItem"
+            }
+          ],
+          "description": "LinkedIn联系人项"
+        },
+        "main_account_type": {
+          "description": "主账号类型",
+          "type": "integer"
+        },
+        "message_push_sound": {
+          "description": "消息推送声音",
+          "type": "string"
+        },
+        "micro_store_info": {
+          "description": "微店信息",
+          "type": "string"
+        },
+        "pattern_lock_info": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.PatternLockInfo"
+            }
+          ],
+          "description": "图案锁信息"
+        },
+        "pay_setting": {
+          "description": "支付设置",
+          "type": "integer"
+        },
+        "pay_wallet_type": {
+          "description": "支付钱包类型",
+          "type": "integer"
+        },
+        "real_name": {
+          "description": "真实姓名",
+          "type": "string"
+        },
+        "registry_country": {
+          "description": "注册国家",
+          "type": "string"
+        },
+        "safe_device": {
+          "description": "安全设备",
+          "type": "integer"
+        },
+        "safe_device_list": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.SafeDeviceList"
+            }
+          ],
+          "description": "安全设备列表"
+        },
+        "safe_mobile": {
+          "description": "安全手机",
+          "type": "string"
+        },
+        "security_device_id": {
+          "description": "安全设备ID",
+          "type": "string"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "user_status": {
+          "description": "用户状态",
+          "type": "integer"
+        },
+        "voip_push_sound": {
+          "description": "VoIP推送声音",
+          "type": "string"
+        },
+        "wallet_region": {
+          "description": "钱包地区",
+          "type": "integer"
         }
       },
       "type": "object"

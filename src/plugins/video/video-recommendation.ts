@@ -3,7 +3,6 @@ import type {HandlerResponse, NewsArticle, VideoReply} from '../../types/message
 import {logger} from '../../utils/logger.js';
 import {DrawService} from '../ai/draw-service.js';
 import {requestAiText} from '../common/ai-client.js';
-import {toMediaPayloadResult} from '../common/shared.js';
 
 type VideoApiParser = 'yujn-json' | 'redirect-url' | 'nested-video-json';
 type VideoReplyMode = 'video' | 'link' | 'auto';
@@ -49,7 +48,6 @@ interface NestedVideoJsonResponse {
 
 interface GeneratedVideoCover {
     coverUrl?: string;
-    thumbData?: string;
 }
 
 const TRIGGER_PREFIXES = ['我想看', '我爱看', '我要看'] as const;
@@ -378,13 +376,9 @@ async function generateVideoCover(route: VideoRoute, result: ParsedVideoResult):
     try {
         const prompt = buildCoverPrompt(route, result);
         const coverUrl = await DrawService.draw(prompt, {scale: '9:16'});
-        const coverMedia = await toMediaPayloadResult(coverUrl, `[video-recommendation:${route.name}:cover] `, {
-            expectedKind: 'image',
-        });
 
         return {
             coverUrl,
-            thumbData: coverMedia?.payload,
         };
     } catch (error) {
         logger.warn('视频推荐 AI 封面生成失败，回退默认封面', {
@@ -399,22 +393,15 @@ async function generateVideoCover(route: VideoRoute, result: ParsedVideoResult):
 async function buildSuccessReply(route: VideoRoute, result: ParsedVideoResult): Promise<HandlerResponse> {
     const generatedCover = await generateVideoCover(route, result);
 
-    if (VIDEO_REPLY_MODE !== 'link') {
-        const mediaResult = await toMediaPayloadResult(result.videoUrl, `[video-recommendation:${route.name}] `, {
-            expectedKind: 'video',
-        });
-        if (mediaResult) {
-            return {
-                type: 'video',
-                mediaId: mediaResult.payload,
-                title: result.title || route.fallbackTitle,
-                description: result.description || route.fallbackDescription,
-                thumbData: generatedCover.thumbData,
-                linkPicUrl: generatedCover.coverUrl,
-                duration: mediaResult.durationSeconds,
-                originalUrl: result.videoUrl,
-            } satisfies VideoReply;
-        }
+    if (VIDEO_REPLY_MODE !== 'link' && isLikelyHttpUrl(result.videoUrl)) {
+        return {
+            type: 'video',
+            mediaId: result.videoUrl,
+            title: result.title || route.fallbackTitle,
+            description: result.description || route.fallbackDescription,
+            linkPicUrl: generatedCover.coverUrl,
+            originalUrl: result.videoUrl,
+        } satisfies VideoReply;
     }
 
     const article = buildNewsArticle(route, result, result.videoUrl);

@@ -100,12 +100,16 @@ export interface TextReply extends ReplyBase {
 /** 图片回复 */
 export interface ImageReply extends ReplyBase {
     type: 'image';
+    /** 图片 URL 或 base64 媒体内容。 */
     mediaId: string;
+    /** 图片原始链接，可用于微信网关直接传 `image_url`。 */
+    originalUrl?: string;
 }
 
 /** 语音回复 */
 export interface VoiceReply extends ReplyBase {
     type: 'voice';
+    /** 语音 URL 或 base64 媒体内容。 */
     mediaId: string;
     /** 语音时长（毫秒）。 */
     duration?: number;
@@ -120,12 +124,13 @@ export interface VoiceReply extends ReplyBase {
 /** 视频回复 */
 export interface VideoReply extends ReplyBase {
     type: 'video';
+    /** 视频 URL 或 base64 媒体内容。 */
     mediaId: string;
     title?: string;
     description?: string;
     /** 视频封面图 base64，省略时使用默认封面。 */
     thumbData?: string;
-    /** 视频降级为链接卡片时使用的封面图 URL。 */
+    /** 视频封面图 URL，可用于直传 `thumb_url`，也可在失败时降级为链接卡片封面。 */
     linkPicUrl?: string;
     /** 视频时长（秒），省略时使用默认时长。 */
     duration?: number;

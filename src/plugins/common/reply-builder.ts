@@ -2,6 +2,8 @@ import {isHttpUrl, toLinkReply, toMediaPayloadResult} from './shared';
 
 export type CommonReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
+type MediaReplyType = Extract<CommonReplyType, 'image' | 'video' | 'voice'>;
+
 interface ReplyBuildRule {
     rType: CommonReplyType;
     keyword?: string | string[];
@@ -18,6 +20,27 @@ interface ReplyBuildRule {
     appXml?: string;
 }
 
+interface ResolvedMediaInput {
+    directUrl?: string;
+    payloadValue?: string;
+    title?: string;
+    description?: string;
+    thumbUrl?: string;
+    thumbData?: string;
+    duration?: number;
+    format?: number;
+    fallbackText?: string;
+}
+
+function getObjectField(obj: Record<string, unknown>, keys: string[]): unknown {
+    for (const key of keys) {
+        if (!(key in obj)) continue;
+        const value = obj[key];
+        if (value !== undefined && value !== null && value !== '') return value;
+    }
+    return undefined;
+}
+
 function getObjectStringField(obj: Record<string, unknown>, keys: string[]): string {
     for (const key of keys) {
         const value = obj[key];
@@ -26,14 +49,70 @@ function getObjectStringField(obj: Record<string, unknown>, keys: string[]): str
     return '';
 }
 
+function getObjectNumberField(obj: Record<string, unknown>, keys: string[]): number | undefined {
+    const value = getObjectField(obj, keys);
+    if (value === undefined || value === null || value === '') return undefined;
+    const num = Number(value);
+    if (!Number.isFinite(num)) return undefined;
+    return Math.floor(num);
+}
+
+function resolveMediaInput(rType: MediaReplyType, value: unknown): ResolvedMediaInput {
+    if (typeof value === 'string') {
+        const raw = value.trim();
+        if (!raw) return {};
+        return isHttpUrl(raw)
+            ? {directUrl: raw}
+            : {payloadValue: raw};
+    }
+
+    if (!value || typeof value !== 'object') {
+        return {};
+    }
+
+    const obj = value as Record<string, unknown>;
+    const urlKeys: Record<MediaReplyType, string[]> = {
+        image: ['originalUrl', 'image_url', 'imageUrl', 'url', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
+        video: ['originalUrl', 'video_url', 'videoUrl', 'url', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
+        voice: ['originalUrl', 'voice_url', 'voiceUrl', 'audio_url', 'audioUrl', 'url', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
+    };
+    const payloadKeys: Record<MediaReplyType, string[]> = {
+        image: ['image', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId'],
+        video: ['video', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId'],
+        voice: ['voice', 'audio', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId'],
+    };
+
+    const directUrl = getObjectStringField(obj, urlKeys[rType]);
+    const payloadCandidate = getObjectField(obj, payloadKeys[rType]);
+    const payloadValue = typeof payloadCandidate === 'string' && payloadCandidate.trim()
+        ? payloadCandidate.trim()
+        : undefined;
+    const normalizedDirectUrl = directUrl || (payloadValue && isHttpUrl(payloadValue) ? payloadValue : '');
+    const coverCandidate = getObjectStringField(obj, ['thumb_url', 'thumbUrl', 'cover_url', 'coverUrl', 'image_url', 'imageUrl', 'picUrl']);
+    const thumbCandidate = getObjectStringField(obj, ['thumb', 'thumbData', 'thumb_data', 'cover', 'coverBase64', 'cover_base64']);
+
+    return {
+        directUrl: normalizedDirectUrl || undefined,
+        payloadValue: normalizedDirectUrl ? undefined : payloadValue,
+        title: getObjectStringField(obj, ['title', 'name']),
+        description: getObjectStringField(obj, ['description', 'desc', 'summary']),
+        thumbUrl: coverCandidate || (thumbCandidate && isHttpUrl(thumbCandidate) ? thumbCandidate : ''),
+        thumbData: thumbCandidate && !isHttpUrl(thumbCandidate) ? thumbCandidate : undefined,
+        duration: getObjectNumberField(obj, ['duration', 'durationSeconds', 'duration_seconds']),
+        format: getObjectNumberField(obj, ['format', 'voiceFormat', 'voice_format', 'audioFormat', 'audio_format']),
+        fallbackText: getObjectStringField(obj, ['fallbackText', 'fallback_text']),
+    };
+}
+
 /**
  * 按 rType 统一构建回复对象。
  *
  * - text: 直接输出字符串（对象会 JSON.stringify）
  * - link: 构建 news 结构
- * - image/video/voice: 转换为 mediaId
+ * - image/video/voice: 优先保留原始媒体值；字符串 URL 直接透传，base64 继续兼容
+ * - 若接口返回 JSON 对象，也会尝试从常见字段中提取 URL/base64/封面/时长等信息
  *
- * 对于 image/video，如果原始值是 HTTP URL，会在回复对象上附加 `originalUrl`，
+ * 对于 image/video/voice，如果原始值是 HTTP URL，会在回复对象上附加 `originalUrl`，
  * 以便发送失败时可以降级为链接消息。
  */
 export async function buildCommonReply(
@@ -77,11 +156,38 @@ export async function buildCommonReply(
         };
     }
 
-    // 记录原始 URL，供发送失败时降级为链接回复
-    const rawStr = typeof value === 'string' ? value.trim() : '';
-    const originalUrl = isHttpUrl(rawStr) ? rawStr : undefined;
+    const resolved = resolveMediaInput(rule.rType, value);
+    const originalUrl = resolved.directUrl;
 
-    const mediaResult = await toMediaPayloadResult(value, logPrefix, {
+    if (originalUrl) {
+        if (rule.rType === 'voice') {
+            return {
+                type: 'voice' as const,
+                mediaId: originalUrl,
+                originalUrl,
+                format: resolved.format ?? rule.voiceFormat,
+                duration: resolved.duration ?? rule.voiceDurationMs,
+                fallbackText: resolved.fallbackText || rule.voiceFallbackText,
+            };
+        }
+
+        if (rule.rType === 'video') {
+            return {
+                type: 'video' as const,
+                mediaId: originalUrl,
+                originalUrl,
+                title: resolved.title,
+                description: resolved.description,
+                linkPicUrl: resolved.thumbUrl,
+                thumbData: resolved.thumbData,
+                duration: resolved.duration,
+            };
+        }
+
+        return {type: rule.rType, mediaId: originalUrl, originalUrl};
+    }
+
+    const mediaResult = await toMediaPayloadResult(resolved.payloadValue ?? value, logPrefix, {
         expectedKind: rule.rType === 'video' ? 'video' : undefined,
     });
     if (!mediaResult) return null;
@@ -93,9 +199,9 @@ export async function buildCommonReply(
             type: 'voice' as const,
             mediaId,
             originalUrl,
-            format: rule.voiceFormat,
-            duration: rule.voiceDurationMs,
-            fallbackText: rule.voiceFallbackText,
+            format: resolved.format ?? rule.voiceFormat,
+            duration: resolved.duration ?? rule.voiceDurationMs,
+            fallbackText: resolved.fallbackText || rule.voiceFallbackText,
         };
     }
 
@@ -104,7 +210,11 @@ export async function buildCommonReply(
             type: 'video' as const,
             mediaId,
             originalUrl,
-            duration: mediaResult.durationSeconds,
+            title: resolved.title,
+            description: resolved.description,
+            linkPicUrl: resolved.thumbUrl,
+            thumbData: resolved.thumbData,
+            duration: resolved.duration ?? mediaResult.durationSeconds,
         };
     }
 

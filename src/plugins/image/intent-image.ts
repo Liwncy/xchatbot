@@ -18,6 +18,11 @@ interface WechatCdnImageMeta {
     fileAesKey: string;
 }
 
+type RecognizeImageInput =
+    | {kind: 'url'; value: string}
+    | {kind: 'base64'; value: string}
+    | {kind: 'blob'; value: Blob};
+
 // 会话级别的待处理状态：key -> 过期时间戳（ms）
 const pendingImageBySession = new Map<string, number>();
 
@@ -42,36 +47,23 @@ function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value);
 }
 
-function isCommaNumberBytes(value: string): boolean {
-    return /^\s*\d+(\s*,\s*\d+)+\s*$/.test(value);
-}
-
-function commaNumberBytesToUint8Array(value: string): Uint8Array {
-    const bytes = value
-        .split(',')
-        .map((part) => Number(part.trim()))
-        .filter((n) => Number.isFinite(n) && n >= 0 && n <= 255);
-    return Uint8Array.from(bytes);
-}
-
-function buildRecognizeRequest(mediaId: string): { body: BodyInit; headers?: Record<string, string> } {
-    if (isHttpUrl(mediaId)) {
+function buildRecognizeRequest(input: RecognizeImageInput): { body: BodyInit; headers?: Record<string, string> } {
+    if (input.kind === 'url') {
         return {
-            body: JSON.stringify({file: mediaId}),
+            body: JSON.stringify({file: input.value}),
             headers: {'Content-Type': 'application/json'},
         };
     }
 
-    if (isCommaNumberBytes(mediaId)) {
-        const bytes = commaNumberBytesToUint8Array(mediaId);
+    if (input.kind === 'blob') {
         const form = new FormData();
-        form.append('file', new Blob([bytes], {type: 'application/octet-stream'}), 'wechat-image.bin');
+        form.append('file', input.value, 'wechat-image.bin');
         return {body: form};
     }
 
     return {
         // 兼容 data-url 或纯 base64 字符串
-        body: JSON.stringify({file: mediaId}),
+        body: JSON.stringify({file: input.value}),
         headers: {'Content-Type': 'application/json'},
     };
 }
@@ -114,8 +106,13 @@ function extractWechatCdnImageMeta(raw: unknown): WechatCdnImageMeta | null {
 async function resolveImageDataForRecognize(
     message: Parameters<ImageMessage['handle']>[0],
     env: Parameters<ImageMessage['handle']>[1],
-): Promise<string | null> {
-    if (message.mediaId?.trim()) return message.mediaId.trim();
+): Promise<RecognizeImageInput | null> {
+    if (message.mediaId?.trim()) {
+        const mediaId = message.mediaId.trim();
+        return isHttpUrl(mediaId)
+            ? {kind: 'url', value: mediaId}
+            : {kind: 'base64', value: mediaId};
+    }
 
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim();
     if (!apiBaseUrl) return null;
@@ -125,16 +122,18 @@ async function resolveImageDataForRecognize(
 
     try {
         const api = new WechatApi(apiBaseUrl);
-        const res = await api.cdnDownloadImage({
-            file_id: cdnMeta.fileId,
-            file_key: cdnMeta.fileAesKey,
+        const raw = await api.cdnDownloadImageRaw({
+            id: cdnMeta.fileId,
+            key: cdnMeta.fileAesKey,
         });
-        const base64 = typeof res.data === 'string' ? res.data.trim() : '';
-        if (!base64) {
+        if (raw.byteLength <= 0) {
             logger.warn('微信 CDN 下载图片返回为空', {fileId: cdnMeta.fileId});
             return null;
         }
-        return base64;
+        return {
+            kind: 'blob',
+            value: new Blob([raw], {type: 'application/octet-stream'}),
+        };
     } catch (error) {
         logger.error('微信 CDN 下载图片失败', error);
         return null;

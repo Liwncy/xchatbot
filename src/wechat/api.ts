@@ -35,10 +35,10 @@ import type {
     CdnDownloadImageParam,
     CdnUploadImageParam,
     CdnUploadVideoParam,
-    CdnUploadSnsImageParam,
-    CdnUploadSnsVideoParam,
+    CdnUploadMomentsImageParam,
+    CdnUploadMomentsVideoParam,
     CdnDownloadVideoParam,
-    CdnDownloadSnsVideoParam,
+    CdnDownloadMomentsVideoParam,
     DownloadFileParam,
     DownloadImgParam,
     DownloadVideoParam,
@@ -109,6 +109,7 @@ import type {
     SetPrivacyRequest,
     UpdateProfileRequest,
     DelSafeDeviceRequest,
+    MomentMediaUploadParam,
     PushConfig,
     StorageConfig,
 } from './api-types.js';
@@ -125,6 +126,7 @@ const BROWSER_LIKE_HEADERS: Record<string, string> = {
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 type QueryInput = object;
+type BinaryLike = Blob | string;
 
 export class WechatApi {
     private readonly baseUrl: string;
@@ -213,9 +215,24 @@ export class WechatApi {
         }
     }
 
+    private async getBinary(path: string, params?: QueryInput): Promise<ArrayBuffer> {
+        const res = await this.requestRaw('GET', path, {query: params});
+        if (!res.ok) {
+            const raw = await res.text();
+            const compact = raw.replace(/\s+/g, ' ').trim();
+            throw new Error(`WechatApi ${path} returned status ${res.status}: ${compact}`);
+        }
+        return res.arrayBuffer();
+    }
+
     /** 发送 JSON POST 请求并返回解析后的响应体。 */
     private async post<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
         const res = await this.requestRaw('POST', path, {body});
+        return this.parseApiResponse<T>(path, res);
+    }
+
+    private async postForm<T>(path: string, formData: FormData): Promise<ApiResponse<T>> {
+        const res = await this.requestRaw('POST', path, {body: formData});
         return this.parseApiResponse<T>(path, res);
     }
 
@@ -241,6 +258,94 @@ export class WechatApi {
     private async delete<T>(path: string, body?: unknown, params?: QueryInput): Promise<ApiResponse<T>> {
         const res = await this.requestRaw('DELETE', path, {query: params, body});
         return this.parseApiResponse<T>(path, res);
+    }
+
+    private buildMultipartFormData(fields: Array<[string, string | number | undefined]>, appendBinary?: (formData: FormData) => void): FormData {
+        const formData = new FormData();
+        for (const [key, value] of fields) {
+            if (value === undefined || value === null) continue;
+            formData.set(key, String(value));
+        }
+        appendBinary?.(formData);
+        return formData;
+    }
+
+    private appendBinaryInput(
+        formData: FormData,
+        fieldName: string,
+        input: BinaryLike | undefined,
+        fileName: string,
+        mimeType: string,
+    ): void {
+        if (input == null) return;
+        if (typeof Blob !== 'undefined' && input instanceof Blob) {
+            formData.set(fieldName, input, fileName);
+            return;
+        }
+        const blob = this.base64ToBlob(String(input), mimeType);
+        formData.set(fieldName, blob, fileName);
+    }
+
+    private base64ToBlob(base64: string, mimeType: string): Blob {
+        const normalized = this.normalizeBase64Input(base64);
+        const bytes = this.decodeBase64(normalized.base64);
+        return new Blob([bytes], {type: normalized.mimeType || mimeType});
+    }
+
+    private normalizeBase64Input(input: string): {base64: string; mimeType?: string} {
+        const trimmed = input.trim();
+        const dataUrlMatch = trimmed.match(/^data:([^;,]+)?;base64,(.+)$/i);
+        if (dataUrlMatch) {
+            return {
+                mimeType: dataUrlMatch[1]?.trim() || undefined,
+                base64: dataUrlMatch[2].trim(),
+            };
+        }
+        return {base64: trimmed};
+    }
+
+    private decodeBase64(base64: string): Uint8Array {
+        if (typeof atob === 'function') {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index += 1) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+            return bytes;
+        }
+        const bufferCtor = (globalThis as typeof globalThis & {Buffer?: {from(input: string, encoding: string): Uint8Array}}).Buffer;
+        if (bufferCtor) {
+            return Uint8Array.from(bufferCtor.from(base64, 'base64'));
+        }
+        throw new Error('Base64 decode unavailable in current runtime');
+    }
+
+    private encodeBase64(buffer: ArrayBuffer): string {
+        const bytes = new Uint8Array(buffer);
+        if (typeof btoa === 'function') {
+            let binary = '';
+            for (const byte of bytes) {
+                binary += String.fromCharCode(byte);
+            }
+            return btoa(binary);
+        }
+        const bufferCtor = (globalThis as typeof globalThis & {Buffer?: {from(input: Uint8Array): {toString(encoding: string): string}}}).Buffer;
+        if (bufferCtor) {
+            return bufferCtor.from(bytes).toString('base64');
+        }
+        throw new Error('Base64 encode unavailable in current runtime');
+    }
+
+    private resolveImageDownloadQuery(params: CdnDownloadImageParam): {id: string; key: string} {
+        return {id: params.id, key: params.key};
+    }
+
+    private resolveVideoDownloadQuery(params: CdnDownloadVideoParam): {id: string; key: string} {
+        return {id: params.id, key: params.key};
+    }
+
+    private resolveMomentsVideoDownloadQuery(params: CdnDownloadMomentsVideoParam): {url: string; key: string} {
+        return {url: params.url, key: params.key};
     }
 
     /** 发送 GET 请求并返回非 ApiResponse 包装的 JSON。 */
@@ -273,22 +378,52 @@ export class WechatApi {
 
     /** 发送图片消息。POST /api/message/image */
     async sendImage(params: SendImageParam): Promise<ApiResponse<UploadImageResponse>> {
-        return this.post<UploadImageResponse>('/api/message/image', params);
+        const formData = this.buildMultipartFormData([
+            ['receiver', params.receiver],
+            ['image_url', params.image_url],
+        ], (data) => {
+            this.appendBinaryInput(data, 'image', params.image, 'image.jpg', 'image/jpeg');
+        });
+        return this.postForm<UploadImageResponse>('/api/message/image', formData);
     }
 
     /** 发送视频消息。POST /api/message/video */
     async sendVideo(params: SendVideoParam): Promise<ApiResponse<UploadVideoResponse>> {
-        return this.post<UploadVideoResponse>('/api/message/video', params);
+        const formData = this.buildMultipartFormData([
+            ['receiver', params.receiver],
+            ['video_url', params.video_url],
+            ['thumb_url', params.thumb_url],
+            ['duration', params.duration],
+        ], (data) => {
+            this.appendBinaryInput(data, 'video', params.video, 'video.mp4', 'video/mp4');
+            this.appendBinaryInput(data, 'thumb', params.thumb, 'thumb.jpg', 'image/jpeg');
+        });
+        return this.postForm<UploadVideoResponse>('/api/message/video', formData);
     }
 
     /** 发送语音消息。POST /api/message/voice */
     async sendVoice(params: SendVoiceParam): Promise<ApiResponse<UploadVoiceResponse>> {
-        return this.post<UploadVoiceResponse>('/api/message/voice', params);
+        const formData = this.buildMultipartFormData([
+            ['receiver', params.receiver],
+            ['voice_url', params.voice_url],
+            ['duration', params.duration],
+            ['format', params.format],
+        ], (data) => {
+            this.appendBinaryInput(data, 'voice', params.voice, 'voice.dat', 'application/octet-stream');
+        });
+        return this.postForm<UploadVoiceResponse>('/api/message/voice', formData);
     }
 
     /** 发送表情消息。POST /api/message/emoji */
     async sendEmoji(params: SendEmojiParam): Promise<ApiResponse<UploadEmojiResponse>> {
-        return this.post<UploadEmojiResponse>('/api/message/emoji', params);
+        const formData = this.buildMultipartFormData([
+            ['receiver', params.receiver],
+            ['md5', params.md5],
+            ['emoji_url', params.emoji_url],
+        ], (data) => {
+            this.appendBinaryInput(data, 'file', params.file, 'emoji.gif', 'image/gif');
+        });
+        return this.postForm<UploadEmojiResponse>('/api/message/emoji', formData);
     }
 
     /** 发送名片消息。POST /api/message/card */
@@ -314,6 +449,11 @@ export class WechatApi {
     /** 转发消息。POST /api/message/forward */
     async forwardMessage(params: ForwardParam): Promise<ApiResponse<SendAppMessageResponse>> {
         return this.post<SendAppMessageResponse>('/api/message/forward', params);
+    }
+
+    /** 转发文件消息。POST /api/message/forward/file */
+    async forwardFileMessage(params: ForwardParam): Promise<ApiResponse<SendAppMessageResponse>> {
+        return this.post<SendAppMessageResponse>('/api/message/forward/file', params);
     }
 
     /** 撤回已发送的消息。POST /api/message/revoke */
@@ -383,46 +523,99 @@ export class WechatApi {
 
     /** CDN 上传聊天图片。POST /api/cdn/upload/image */
     async cdnUploadImage(params: CdnUploadImageParam): Promise<ApiResponse> {
-        return this.post('/api/cdn/upload/image', params);
+        const formData = this.buildMultipartFormData([
+            ['receiver', params.receiver],
+            ['image_url', params.image_url],
+        ], (data) => {
+            this.appendBinaryInput(data, 'image', params.image, 'image.jpg', 'image/jpeg');
+        });
+        return this.postForm('/api/cdn/upload/image', formData);
     }
 
     /** CDN 上传聊天视频。POST /api/cdn/upload/video */
     async cdnUploadVideo(params: CdnUploadVideoParam): Promise<ApiResponse> {
-        return this.post('/api/cdn/upload/video', params);
-    }
-
-    /** CDN 上传朋友圈图片。POST /api/cdn/upload/sns/image */
-    async cdnUploadSnsImage(params: CdnUploadSnsImageParam): Promise<ApiResponse> {
-        return this.post('/api/cdn/upload/sns/image', params);
-    }
-
-    /** CDN 上传朋友圈视频。POST /api/cdn/upload/sns/video */
-    async cdnUploadSnsVideo(params: CdnUploadSnsVideoParam): Promise<ApiResponse> {
-        return this.post('/api/cdn/upload/sns/video', params);
-    }
-
-    /** CDN 下载高清图片（返回 base64 字符串）。POST /api/cdn/download/image */
-    async cdnDownloadImage(params: CdnDownloadImageParam): Promise<ApiResponse<string>> {
-        return this.post<string>('/api/cdn/download/image', {
-            file_id: params.file_id,
-            file_key: params.file_key ?? params.file_aes_key,
+        const formData = this.buildMultipartFormData([
+            ['receiver', params.receiver],
+            ['video_url', params.video_url],
+            ['thumb_url', params.thumb_url],
+            ['duration', params.duration],
+        ], (data) => {
+            this.appendBinaryInput(data, 'video', params.video, 'video.mp4', 'video/mp4');
+            this.appendBinaryInput(data, 'thumb', params.thumb, 'thumb.jpg', 'image/jpeg');
         });
+        return this.postForm('/api/cdn/upload/video', formData);
     }
 
-    /** CDN 下载视频封面（返回 base64 字符串）。POST /api/cdn/download/video/cover */
+    /** CDN 上传朋友圈图片。POST /api/cdn/upload/moments/image */
+    async cdnUploadMomentsImage(params: CdnUploadMomentsImageParam): Promise<ApiResponse> {
+        const formData = this.buildMultipartFormData([
+            ['image_url', params.image_url],
+        ], (data) => {
+            this.appendBinaryInput(data, 'image', params.image, 'moments-image.jpg', 'image/jpeg');
+        });
+        return this.postForm('/api/cdn/upload/moments/image', formData);
+    }
+
+    /** CDN 上传朋友圈视频。POST /api/cdn/upload/moments/video */
+    async cdnUploadMomentsVideo(params: CdnUploadMomentsVideoParam): Promise<ApiResponse> {
+        const formData = this.buildMultipartFormData([
+            ['video_url', params.video_url],
+            ['thumb_url', params.thumb_url],
+        ], (data) => {
+            this.appendBinaryInput(data, 'video', params.video, 'moments-video.mp4', 'video/mp4');
+            this.appendBinaryInput(data, 'thumb', params.thumb, 'moments-thumb.jpg', 'image/jpeg');
+        });
+        return this.postForm('/api/cdn/upload/moments/video', formData);
+    }
+
+    /** CDN 下载高清图片原始数据。GET /api/cdn/download/image */
+    async cdnDownloadImageRaw(params: CdnDownloadImageParam): Promise<ArrayBuffer> {
+        const query = this.resolveImageDownloadQuery(params);
+        return this.getBinary('/api/cdn/download/image', query);
+    }
+
+    /** CDN 下载高清图片并返回 base64 包装结果。GET /api/cdn/download/image */
+    async cdnDownloadImage(params: CdnDownloadImageParam): Promise<ApiResponse<string>> {
+        const raw = await this.cdnDownloadImageRaw(params);
+        return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
+    }
+
+    /** CDN 下载视频封面原始数据。GET /api/cdn/download/video/cover */
+    async cdnDownloadVideoCoverRaw(params: CdnDownloadVideoParam): Promise<ArrayBuffer> {
+        const query = this.resolveVideoDownloadQuery(params);
+        return this.getBinary('/api/cdn/download/video/cover', query);
+    }
+
+    /** CDN 下载视频封面并返回 base64 包装结果。GET /api/cdn/download/video/cover */
     async cdnDownloadVideoCover(params: CdnDownloadVideoParam): Promise<ApiResponse<string>> {
-        return this.post<string>('/api/cdn/download/video/cover', params);
+        const raw = await this.cdnDownloadVideoCoverRaw(params);
+        return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
     }
 
-    /** CDN 下载聊天视频（返回 base64 字符串）。POST /api/cdn/download/video */
+    /** CDN 下载聊天视频原始数据。GET /api/cdn/download/video */
+    async cdnDownloadChatVideoRaw(params: CdnDownloadVideoParam): Promise<ArrayBuffer> {
+        const query = this.resolveVideoDownloadQuery(params);
+        return this.getBinary('/api/cdn/download/video', query);
+    }
+
+    /** CDN 下载聊天视频并返回 base64 包装结果。GET /api/cdn/download/video */
     async cdnDownloadChatVideo(params: CdnDownloadVideoParam): Promise<ApiResponse<string>> {
-        return this.post<string>('/api/cdn/download/video', params);
+        const raw = await this.cdnDownloadChatVideoRaw(params);
+        return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
     }
 
-    /** CDN 下载朋友圈视频（返回 base64 字符串）。POST /api/cdn/download/sns/video */
-    async cdnDownloadSnsVideo(params: CdnDownloadSnsVideoParam): Promise<ApiResponse<string>> {
-        return this.post<string>('/api/cdn/download/sns/video', params);
+    /** CDN 下载朋友圈视频原始数据。GET /api/cdn/download/moments/video */
+    async cdnDownloadMomentsVideoRaw(params: CdnDownloadMomentsVideoParam): Promise<ArrayBuffer> {
+        const query = this.resolveMomentsVideoDownloadQuery(params);
+        return this.getBinary('/api/cdn/download/moments/video', query);
     }
+
+    /** CDN 下载朋友圈视频并返回 base64 包装结果。GET /api/cdn/download/moments/video */
+    async cdnDownloadMomentsVideo(params: CdnDownloadMomentsVideoParam): Promise<ApiResponse<string>> {
+        const raw = await this.cdnDownloadMomentsVideoRaw(params);
+        return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
+    }
+
 
     /** 下载文件附件。POST /api/message/download/file */
     async downloadFile(params: DownloadFileParam): Promise<ApiResponse<DownloadAppAttachResponse>> {
@@ -485,11 +678,6 @@ export class WechatApi {
     /** 首次登录初始化。GET /api/login/init */
     async initLogin(): Promise<ApiResponse<SyncResult>> {
         return this.get<SyncResult>('/api/login/init');
-    }
-
-    /** 刷新登录凭证。GET /api/login/refresh */
-    async refreshLogin(): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>('/api/login/refresh');
     }
 
     /** 唤醒登录。GET /api/login/awaken */
@@ -868,11 +1056,19 @@ export class WechatApi {
     }
 
     /** 上传朋友圈媒体文件。POST /api/moments/upload */
-    async uploadMomentMedia(file: Blob): Promise<ApiResponse<unknown>> {
-        const formData = new FormData();
-        formData.set('file', file);
-        const res = await this.requestRaw('POST', '/api/moments/upload', {body: formData});
-        return this.parseApiResponse<unknown>('/api/moments/upload', res);
+    async uploadMomentMedia(params: MomentMediaUploadParam | Blob): Promise<ApiResponse<unknown>> {
+        let input: MomentMediaUploadParam;
+        if (typeof Blob !== 'undefined' && params instanceof Blob) {
+            input = {media: params};
+        } else {
+            input = params as MomentMediaUploadParam;
+        }
+        const formData = this.buildMultipartFormData([
+            ['media_url', input.media_url],
+        ], (data) => {
+            this.appendBinaryInput(data, 'media', input.media, 'moment-media.bin', 'application/octet-stream');
+        });
+        return this.postForm<unknown>('/api/moments/upload', formData);
     }
 
     /** 获取指定用户朋友圈。GET /api/moments/user/{username} */

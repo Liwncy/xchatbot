@@ -1,4 +1,4 @@
-import {hmacSha256Hex} from '../utils/crypto.js';
+﻿import {hmacSha256Hex} from '../utils/crypto.js';
 import type {
     IncomingMessage,
     ReplyMessage,
@@ -19,6 +19,15 @@ export {
 } from './chat-record.js';
 
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
+function isHttpUrl(value?: string): boolean {
+    return /^https?:\/\//i.test(value?.trim() ?? '');
+}
+
+function resolveReplyMediaUrl(reply: {mediaId: string; originalUrl?: string}): string {
+    const originalUrl = reply.originalUrl?.trim();
+    if (originalUrl) return originalUrl;
+    return reply.mediaId;
+}
 
 function getWechatItemSource(item: WechatPushItem): string {
     return item.source ?? item.msg_source ?? '';
@@ -42,8 +51,8 @@ function ensureWechatApiSuccess(op: string, result: unknown): void {
 }
 
 /**
- * 验证微信网关的 Webhook 签名。
- * 使用 HMAC-SHA256(timestamp + body, token) 进行认证。
+ * 楠岃瘉寰俊缃戝叧鐨?Webhook 绛惧悕銆?
+ * 浣跨敤 HMAC-SHA256(timestamp + body, token) 杩涜璁よ瘉銆?
  */
 export async function verifyWechatSignature(
     token: string,
@@ -55,7 +64,7 @@ export async function verifyWechatSignature(
     return expected === signature;
 }
 
-/** 将微信数字消息类型映射为标准化类型。 */
+/** 灏嗗井淇℃暟瀛楁秷鎭被鍨嬫槧灏勪负鏍囧噯鍖栫被鍨嬨€?*/
 function mapWechatType(type: number): MessageType {
     switch (type) {
         case 1:
@@ -76,7 +85,7 @@ function mapWechatType(type: number): MessageType {
     }
 }
 
-/** 根据网关字段推断消息来源。 */
+/** 鏍规嵁缃戝叧瀛楁鎺ㄦ柇娑堟伅鏉ユ簮銆?*/
 function inferWechatSource(payload: WechatPushItem): MessageSource {
     const source = getWechatItemSource(payload).toLowerCase();
     const sender = payload.sender?.value ?? '';
@@ -94,7 +103,7 @@ function inferWechatSource(payload: WechatPushItem): MessageSource {
     return 'private';
 }
 
-/** 将毫秒时间戳转换为标准化消息模型所需的秒级时间戳。 */
+/** 灏嗘绉掓椂闂存埑杞崲涓烘爣鍑嗗寲娑堟伅妯″瀷鎵€闇€鐨勭绾ф椂闂存埑銆?*/
 function toUnixSeconds(timestamp: number): number {
     if (!Number.isFinite(timestamp) || timestamp <= 0) return Math.floor(Date.now() / 1000);
     return timestamp > 1_000_000_000_000 ? Math.floor(timestamp / 1000) : Math.floor(timestamp);
@@ -107,8 +116,8 @@ function resolveRoomId(item: WechatPushItem): string {
 }
 
 /**
- * 群文本常见格式：`wxid_xxx:\n消息内容`。
- * 解析后用于将标准化 `from` 还原为具体群成员 ID。
+ * 缇ゆ枃鏈父瑙佹牸寮忥細`wxid_xxx:\n娑堟伅鍐呭`銆?
+ * 瑙ｆ瀽鍚庣敤浜庡皢鏍囧噯鍖?`from` 杩樺師涓哄叿浣撶兢鎴愬憳 ID銆?
  */
 function parseGroupTextSender(rawContent: string): { senderId?: string; content: string } {
     const text = rawContent ?? '';
@@ -127,12 +136,12 @@ function parseGroupTextSender(rawContent: string): { senderId?: string; content:
 }
 
 /**
- * `push_content` 常见格式：`显示名 : 消息内容`，用于补充 senderName。
+ * `push_content` 甯歌鏍煎紡锛歚鏄剧ず鍚?: 娑堟伅鍐呭`锛岀敤浜庤ˉ鍏?senderName銆?
  */
 function parseSenderNameFromPushContent(pushContent?: string): string | undefined {
     if (!pushContent) return undefined;
 
-    // 私聊常见格式：`昵称 : 内容`
+    // 绉佽亰甯歌鏍煎紡锛歚鏄电О : 鍐呭`
     const separatorIndex = pushContent.indexOf(' : ');
     if (separatorIndex > 0) {
         const name = pushContent.slice(0, separatorIndex).trim();
@@ -140,8 +149,8 @@ function parseSenderNameFromPushContent(pushContent?: string): string | undefine
     }
 
 
-    // 群图片等常见格式：`昵称在群聊中发了...`
-    const groupActionMatch = pushContent.match(/^(.+?)在群聊中发了/);
+    // 缇ゅ浘鐗囩瓑甯歌鏍煎紡锛歚鏄电О鍦ㄧ兢鑱婁腑鍙戜簡...`
+    const groupActionMatch = pushContent.match(/^(.+?)鍦ㄧ兢鑱婁腑鍙戜簡/);
     if (groupActionMatch?.[1]) {
         const name = groupActionMatch[1].trim();
         if (name) return name;
@@ -154,13 +163,13 @@ function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
     const buffer = item.image_buffer?.data ?? item.image_buffer?.buffer;
     if (!buffer) return undefined;
 
-    // 新网关格式：base64 字符串
+    // 鏂扮綉鍏虫牸寮忥細base64 瀛楃涓?
     if (typeof buffer === 'string') {
         const normalized = buffer.trim();
         return normalized || undefined;
     }
 
-    // 兼容旧格式：number[]
+    // 鍏煎鏃ф牸寮忥細number[]
     if (Array.isArray(buffer) && buffer.length > 0) {
         return buffer.join(',');
     }
@@ -169,7 +178,7 @@ function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
 }
 
 /**
- * 将单条微信推送项解析为标准化的 IncomingMessage。
+ * 灏嗗崟鏉″井淇℃帹閫侀」瑙ｆ瀽涓烘爣鍑嗗寲鐨?IncomingMessage銆?
  */
 export function parseWechatPushItem(
     item: WechatPushItem,
@@ -185,12 +194,12 @@ export function parseWechatPushItem(
     const base: Omit<IncomingMessage, 'type'> = {
         platform: 'wechat' as const,
         source,
-        // 群消息里 sender 字段常为 chatroom，content 前缀里才有真实发送者 wxid。
+        // 缇ゆ秷鎭噷 sender 瀛楁甯镐负 chatroom锛宑ontent 鍓嶇紑閲屾墠鏈夌湡瀹炲彂閫佽€?wxid銆?
         from: source === 'group' ? (groupMeta.senderId ?? item.sender?.value ?? '') : (item.sender?.value ?? ''),
         senderName: parseSenderNameFromPushContent(item.push_content),
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),
-        // 优先使用较稳定的客户端消息 ID；兼容新旧字段名。
+        // 浼樺厛浣跨敤杈冪ǔ瀹氱殑瀹㈡埛绔秷鎭?ID锛涘吋瀹规柊鏃у瓧娈靛悕銆?
         messageId: String(getWechatItemId(item) ?? getWechatItemNewId(item) ?? item.create_time),
         raw,
     };
@@ -252,8 +261,8 @@ export function parseWechatPushItem(
 }
 
 /**
- * 将微信推送消息解析为标准化的 IncomingMessage。
- * 如果 `new_messages` 中没有消息则抛出异常。
+ * 灏嗗井淇℃帹閫佹秷鎭В鏋愪负鏍囧噯鍖栫殑 IncomingMessage銆?
+ * 濡傛灉 `new_messages` 涓病鏈夋秷鎭垯鎶涘嚭寮傚父銆?
  */
 export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
     const item = payload.new_messages?.[0];
@@ -265,7 +274,7 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
 }
 
 /**
- * 将微信推送消息解析为标准化消息数组。
+ * 灏嗗井淇℃帹閫佹秷鎭В鏋愪负鏍囧噯鍖栨秷鎭暟缁勩€?
  */
 export function parseWechatMessages(payload: WechatPushMessage): IncomingMessage[] {
     const items = payload.new_messages ?? [];
@@ -277,11 +286,11 @@ export function parseWechatMessages(payload: WechatPushMessage): IncomingMessage
 }
 
 /**
- * 构建发送给微信网关的 JSON 回复数据。
+ * 鏋勫缓鍙戦€佺粰寰俊缃戝叧鐨?JSON 鍥炲鏁版嵁銆?
  *
- * 当 `reply.to` 被设置时会覆盖默认接收者。
- * 当 `reply.mentions` 被设置且消息发送到群聊时，
- * 会包含 `remind` 字段（逗号分隔的 wxid），以便网关 @提及这些用户。
+ * 褰?`reply.to` 琚缃椂浼氳鐩栭粯璁ゆ帴鏀惰€呫€?
+ * 褰?`reply.mentions` 琚缃笖娑堟伅鍙戦€佸埌缇よ亰鏃讹紝
+ * 浼氬寘鍚?`remind` 瀛楁锛堥€楀彿鍒嗛殧鐨?wxid锛夛紝浠ヤ究缃戝叧 @鎻愬強杩欎簺鐢ㄦ埛銆?
  */
 export function buildWechatReply(
     reply: ReplyMessage,
@@ -291,7 +300,7 @@ export function buildWechatReply(
     const effectiveTo = reply.to ?? (roomId ? roomId : toUser);
     const target: Record<string, unknown> = {to: effectiveTo};
 
-    // 发送到群聊时包含 @提及列表
+    // 鍙戦€佸埌缇よ亰鏃跺寘鍚?@鎻愬強鍒楄〃
     if (reply.mentions?.length && (roomId || reply.to?.endsWith('@chatroom'))) {
         target.remind = reply.mentions.join(',');
     }
@@ -301,14 +310,14 @@ export function buildWechatReply(
     }
 
     if (reply.type === 'image') {
-        return {...target, type: 'image', mediaUrl: reply.mediaId};
+        return {...target, type: 'image', mediaUrl: resolveReplyMediaUrl(reply)};
     }
 
     if (reply.type === 'voice') {
         return {
             ...target,
             type: 'voice',
-            mediaUrl: reply.mediaId,
+            mediaUrl: resolveReplyMediaUrl(reply),
             duration: reply.duration ?? 5000,
             format: reply.format ?? 4,
         };
@@ -318,7 +327,7 @@ export function buildWechatReply(
         return {
             ...target,
             type: 'video',
-            mediaUrl: reply.mediaId,
+            mediaUrl: resolveReplyMediaUrl(reply),
             title: reply.title ?? '',
             description: reply.description ?? '',
         };
@@ -357,13 +366,13 @@ export function buildWechatReply(
 }
 
 /**
- * 通过微信网关 API 发送回复。
+ * 閫氳繃寰俊缃戝叧 API 鍙戦€佸洖澶嶃€?
  *
- * 使用类型化的 {@link WechatApi} 客户端，根据回复类型调用相应的消息接口。
+ * 浣跨敤绫诲瀷鍖栫殑 {@link WechatApi} 瀹㈡埛绔紝鏍规嵁鍥炲绫诲瀷璋冪敤鐩稿簲鐨勬秷鎭帴鍙ｃ€?
  *
- * 当 `reply.to` 被设置时会覆盖默认 `receiver`。
- * 当 `reply.mentions` 被设置时，`remind` 参数会被转发，
- * 以便网关在群聊中 @提及这些用户。
+ * 褰?`reply.to` 琚缃椂浼氳鐩栭粯璁?`receiver`銆?
+ * 褰?`reply.mentions` 琚缃椂锛宍remind` 鍙傛暟浼氳杞彂锛?
+ * 浠ヤ究缃戝叧鍦ㄧ兢鑱婁腑 @鎻愬強杩欎簺鐢ㄦ埛銆?
  */
 export async function sendWechatReply(
     api: WechatApi,
@@ -387,21 +396,26 @@ export async function sendWechatReply(
             break;
         }
         case 'image': {
-            const dataSize = reply.mediaId?.length ?? 0;
-            const format = detectImageFormat(reply.mediaId);
+            const imageUrl = reply.originalUrl?.trim() || (isHttpUrl(reply.mediaId) ? reply.mediaId.trim() : '');
+            const dataSize = imageUrl ? 0 : (reply.mediaId?.length ?? 0);
+            const format = imageUrl ? 'url' : detectImageFormat(reply.mediaId);
             logger.debug('发送图片消息（CDN 上传）', {
                 receiver: effectiveReceiver,
+                transferMode: imageUrl ? 'url' : 'binary-base64',
+                imageUrl,
                 base64Length: dataSize,
                 estimatedBytes: Math.floor(dataSize * 0.75),
                 format,
                 head: reply.mediaId?.slice(0, 20) ?? '',
             });
             try {
-                const result = await api.cdnUploadImage({receiver: effectiveReceiver, image_data: reply.mediaId});
+                const result = imageUrl
+                    ? await api.cdnUploadImage({receiver: effectiveReceiver, image_url: imageUrl})
+                    : await api.cdnUploadImage({receiver: effectiveReceiver, image: reply.mediaId});
                 ensureWechatApiSuccess('cdnUploadImage', result);
             } catch (imgErr) {
                 // 图片发送失败时，尝试降级为链接消息（如果有原始 URL）
-                const originalUrl = (reply as { originalUrl?: string }).originalUrl;
+                const originalUrl = imageUrl || reply.originalUrl;
                 if (originalUrl) {
                     logger.warn('图片发送失败（CDN 上传），降级为链接消息', {
                         error: imgErr instanceof Error ? imgErr.message : String(imgErr),
@@ -440,9 +454,13 @@ export async function sendWechatReply(
                 throw new Error(`voice conversion unavailable: format=${requestedFormat}`);
             }
             try {
+                const voiceUrl = !normalizedVoice.converted && isHttpUrl(normalizedVoice.mediaData)
+                    ? normalizedVoice.mediaData.trim()
+                    : '';
                 const result = await api.sendVoice({
                     receiver: effectiveReceiver,
-                    data: normalizedVoice.mediaData,
+                    voice: voiceUrl ? undefined : normalizedVoice.mediaData,
+                    voice_url: voiceUrl || undefined,
                     duration: normalizedVoice.durationMs,
                     format: normalizedVoice.format,
                 });
@@ -466,50 +484,58 @@ export async function sendWechatReply(
             break;
         }
         case 'video': {
+            const videoUrl = reply.originalUrl?.trim() || (isHttpUrl(reply.mediaId) ? reply.mediaId.trim() : '');
+            const thumbUrl = reply.linkPicUrl?.trim() || '';
             const {thumbData, duration} = resolveVideoOptions(reply);
             logger.debug('发送视频消息（CDN 上传）', {
                 receiver: effectiveReceiver,
-                videoBase64Length: reply.mediaId?.length ?? 0,
-                videoEstimatedBytes: Math.floor((reply.mediaId?.length ?? 0) * 0.75),
-                videoSignature: detectMediaSignature(reply.mediaId),
+                transferMode: videoUrl ? 'url' : 'binary-base64',
+                videoUrl,
+                videoBase64Length: videoUrl ? 0 : (reply.mediaId?.length ?? 0),
+                videoEstimatedBytes: videoUrl ? 0 : Math.floor((reply.mediaId?.length ?? 0) * 0.75),
+                videoSignature: videoUrl ? 'url' : detectMediaSignature(reply.mediaId),
+                thumbUrl,
                 thumbBase64Length: thumbData.length,
                 thumbEstimatedBytes: Math.floor(thumbData.length * 0.75),
-                thumbSignature: detectMediaSignature(thumbData),
-                usesDefaultThumb: thumbData === DEFAULT_VIDEO_THUMB_BASE64,
+                thumbSignature: thumbUrl ? 'url' : detectMediaSignature(thumbData),
+                usesDefaultThumb: !thumbUrl && thumbData === DEFAULT_VIDEO_THUMB_BASE64,
                 duration,
                 title: reply.title ?? '',
-                hasOriginalUrl: Boolean(reply.originalUrl?.trim()),
-                hasLinkPicUrl: Boolean(reply.linkPicUrl?.trim()),
+                hasOriginalUrl: Boolean(videoUrl),
+                hasLinkPicUrl: Boolean(thumbUrl),
             });
             try {
                 const result = await api.cdnUploadVideo({
                     receiver: effectiveReceiver,
-                    video_data: reply.mediaId,
-                    thumb_data: thumbData,
+                    video: videoUrl ? undefined : reply.mediaId,
+                    video_url: videoUrl || undefined,
+                    thumb: thumbUrl ? undefined : thumbData,
+                    thumb_url: thumbUrl || undefined,
+                    duration,
                 });
                 ensureWechatApiSuccess('cdnUploadVideo', result);
             } catch (videoErr) {
                 logger.warn('视频发送失败（CDN 上传）', {
                     receiver: effectiveReceiver,
                     duration,
-                    videoBase64Length: reply.mediaId?.length ?? 0,
-                    videoSignature: detectMediaSignature(reply.mediaId),
+                    videoBase64Length: videoUrl ? 0 : (reply.mediaId?.length ?? 0),
+                    videoSignature: videoUrl ? 'url' : detectMediaSignature(reply.mediaId),
                     thumbBase64Length: thumbData.length,
-                    thumbSignature: detectMediaSignature(thumbData),
-                    usesDefaultThumb: thumbData === DEFAULT_VIDEO_THUMB_BASE64,
+                    thumbSignature: thumbUrl ? 'url' : detectMediaSignature(thumbData),
+                    usesDefaultThumb: !thumbUrl && thumbData === DEFAULT_VIDEO_THUMB_BASE64,
                     error: videoErr instanceof Error ? videoErr.message : String(videoErr),
                 });
-                if (reply.originalUrl?.trim()) {
-                    const linkPicUrl = reply.linkPicUrl?.trim() || '';
+                if (videoUrl) {
+                    const linkPicUrl = thumbUrl;
                     logger.warn('视频发送失败，降级为链接消息', {
                         receiver: effectiveReceiver,
                         error: videoErr instanceof Error ? videoErr.message : String(videoErr),
-                        fallbackUrl: reply.originalUrl,
+                        fallbackUrl: videoUrl,
                         hasLinkPicUrl: Boolean(linkPicUrl),
                     });
                     const linkResult = await api.sendLink({
                         receiver: effectiveReceiver,
-                        url: reply.originalUrl,
+                        url: videoUrl,
                         title: reply.title?.trim() || '视频推荐',
                         desc: reply.description?.trim() || '点击查看视频',
                         thumb_url: linkPicUrl,
@@ -576,7 +602,7 @@ function resolveVideoOptions(reply?: { thumbData?: string; duration?: number }):
 
 
 /**
- * 通过 base64 开头字节（magic bytes）识别图片格式。
+ * 閫氳繃 base64 寮€澶村瓧鑺傦紙magic bytes锛夎瘑鍒浘鐗囨牸寮忋€?
  *
  * - JPEG: /9j/
  * - PNG:  iVBOR
@@ -625,32 +651,32 @@ function resolveVoiceConversionOptions(env: Env): {
 }
 
 /**
- * 微信个人号请求主处理器。
- * 接收来自网关的 JSON 数据并处理消息。
+ * 寰俊涓汉鍙疯姹備富澶勭悊鍣ㄣ€?
+ * 鎺ユ敹鏉ヨ嚜缃戝叧鐨?JSON 鏁版嵁骞跺鐞嗘秷鎭€?
  *
- * 通过类型化 API 客户端发送回复。
+ * 閫氳繃绫诲瀷鍖?API 瀹㈡埛绔彂閫佸洖澶嶃€?
  */
 export async function handleWechat(request: Request, env: Env): Promise<Response> {
     const token = env.WECHAT_TOKEN ?? '';
     const apiBaseUrl = env.WECHAT_API_BASE_URL ?? '';
 
-    // 仅接受 POST 请求
+    // 浠呮帴鍙?POST 璇锋眰
     if (request.method !== 'POST') {
         return new Response('Method Not Allowed', {status: 405});
     }
 
     const body = await request.text();
 
-    logger.debug('收到微信消息', body);
+    logger.debug('鏀跺埌寰俊娑堟伅', body);
 
-    // 如果配置了 token，验证 HMAC-SHA256 签名
+    // 濡傛灉閰嶇疆浜?token锛岄獙璇?HMAC-SHA256 绛惧悕
     if (token) {
         const signature = request.headers.get('x-signature') ?? '';
         const timestamp = request.headers.get('x-timestamp') ?? '';
 
         const valid = await verifyWechatSignature(token, signature, timestamp, body);
         if (!valid) {
-            logger.warn('微信签名验证失败');
+            logger.warn('寰俊绛惧悕楠岃瘉澶辫触');
             return new Response('Invalid signature', {status: 403});
         }
     }
@@ -659,7 +685,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     try {
         payload = JSON.parse(body) as WechatPushMessage;
     } catch {
-        logger.error('微信消息 JSON 解析失败', body);
+        logger.error('寰俊娑堟伅 JSON 瑙ｆ瀽澶辫触', body);
         return new Response('Invalid JSON', {status: 400});
     }
 
@@ -667,7 +693,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     try {
         messages = parseWechatMessages(payload);
     } catch {
-        // 忽略非消息推送（联系人变更、个人资料更新等）
+        // 忽略非消息推送（联系人变更、个人资料更新等）。
         logger.debug('跳过非消息推送');
         return new Response(JSON.stringify({success: true, skipped: true}), {
             status: 200,
@@ -679,7 +705,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     const activeMessages = messages.filter((message) => !isExpiredMessage(message, nowUnixSeconds));
     const expiredCount = messages.length - activeMessages.length;
     if (expiredCount > 0) {
-        logger.debug('跳过过期微信消息', {expiredCount, thresholdSeconds: MESSAGE_EXPIRE_SECONDS});
+        logger.debug('璺宠繃杩囨湡寰俊娑堟伅', {expiredCount, thresholdSeconds: MESSAGE_EXPIRE_SECONDS});
     }
 
     if (activeMessages.length === 0) {
@@ -689,12 +715,12 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         });
     }
 
-    // 分发到路由（逐条处理批量消息）
+    // 鍒嗗彂鍒拌矾鐢憋紙閫愭潯澶勭悊鎵归噺娑堟伅锛?
     const {routeMessage, toReplyArray} = await import('../bot/index.js');
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
 
     for (const message of activeMessages) {
-        console.log('处理微信消息', { routeMessage, toReplyArray, message });
+        console.log('澶勭悊寰俊娑堟伅', { routeMessage, toReplyArray, message });
         const response = await routeMessage(message, env);
         const replies = toReplyArray(response);
         for (const reply of replies) {
@@ -709,7 +735,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         });
     }
 
-    // 优先使用类型化 API 客户端（需配置 base URL）
+    // 浼樺厛浣跨敤绫诲瀷鍖?API 瀹㈡埛绔紙闇€閰嶇疆 base URL锛?
     if (apiBaseUrl) {
         const api = new WechatApi(apiBaseUrl);
         const voiceOptions = resolveVoiceConversionOptions(env);
@@ -728,7 +754,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         }
     }
 
-    // 同时在响应体中返回回复
+    // 鍚屾椂鍦ㄥ搷搴斾綋涓繑鍥炲洖澶?
     const replyPayloads = replyTasks.map((task) =>
         buildWechatReply(task.reply, task.message.from, task.message.room?.id),
     );
@@ -738,3 +764,4 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         headers: {'Content-Type': 'application/json'},
     });
 }
+

@@ -63,18 +63,24 @@ export interface SendTextParam {
 export interface SendImageParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** Base64 编码的图片数据。 */
-    data: string;
+    /** 图片文件或 base64 转换后的二进制。 */
+    image?: Blob | string;
+    /** 图片 URL（未直接上传文件时使用）。 */
+    image_url?: string;
 }
 
 /** POST /api/message/video */
 export interface SendVideoParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** Base64 编码的视频数据。 */
-    video_data: string;
-    /** Base64 编码的缩略图数据。 */
-    thumb_data: string;
+    /** 视频文件或 base64 转换后的二进制。 */
+    video?: Blob | string;
+    /** 视频 URL（未直接上传文件时使用）。 */
+    video_url?: string;
+    /** 缩略图文件或 base64 转换后的二进制。 */
+    thumb?: Blob | string;
+    /** 缩略图 URL（未直接上传文件时使用）。 */
+    thumb_url?: string;
     /** 视频时长（秒）。 */
     duration: number;
 }
@@ -83,8 +89,10 @@ export interface SendVideoParam {
 export interface SendVoiceParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** Base64 编码的语音数据。 */
-    data: string;
+    /** 语音文件或 base64 转换后的二进制。 */
+    voice?: Blob | string;
+    /** 语音 URL（未直接上传文件时使用）。 */
+    voice_url?: string;
     /** 语音时长（毫秒）。 */
     duration: number;
     /** 音频格式：0 = AMR，1 = SPEEX，2 = MP3，3 = WAVE，4 = SILK。 */
@@ -95,8 +103,10 @@ export interface SendVoiceParam {
 export interface SendEmojiParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** Base64 编码的表情 / GIF 数据。 */
-    data: string;
+    /** 表情文件或 base64 转换后的二进制。 */
+    file?: Blob | string;
+    /** 表情 URL（未直接上传文件时使用）。 */
+    emoji_url?: string;
     /** 表情数据的 MD5 哈希（为空时自动计算）。 */
     md5?: string;
 }
@@ -157,7 +167,7 @@ export interface SendAppParam {
 export interface ForwardParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** 转发内容类型（image / video / file）或特定消息类型值（如 19）。 */
+    /** 转发内容类型（image / video / file）。 */
     type: string | number;
     /** 原始消息 XML。 */
     xml: string;
@@ -271,62 +281,82 @@ export interface CollectMoneyParam {
     transfer_id: string;
 }
 
-/** POST /api/cdn/download/image */
+/** GET /api/cdn/download/image */
 export interface CdnDownloadImageParam {
-    /** CDN 文件 ID（从消息 XML 中获取）。 */
-    file_id: string;
-    /** hex 编码的 AES 密钥（Swagger 当前字段名）。 */
-    file_key?: string;
-    /** 兼容旧字段名。 */
-    file_aes_key?: string;
+    /** 图片 id（imgurl）。 */
+    id: string;
+    /** 图片 key（aeskey）。 */
+    key: string;
 }
 
 /** POST /api/cdn/upload/image */
 export interface CdnUploadImageParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** Base64 编码的图片数据。 */
-    image_data: string;
+    /** 图片文件或 base64 转换后的二进制。 */
+    image?: Blob | string;
+    /** 图片 URL。 */
+    image_url?: string;
 }
 
 /** POST /api/cdn/upload/video */
 export interface CdnUploadVideoParam {
     /** 接收者 wxid。 */
     receiver: string;
-    /** Base64 编码的视频数据。 */
-    video_data: string;
-    /** Base64 编码的缩略图数据。 */
-    thumb_data: string;
+    /** 视频文件或 base64 转换后的二进制。 */
+    video?: Blob | string;
+    /** 视频 URL。 */
+    video_url?: string;
+    /** 缩略图文件或 base64 转换后的二进制。 */
+    thumb?: Blob | string;
+    /** 缩略图 URL。 */
+    thumb_url?: string;
+    /** 视频时长（秒）。 */
+    duration: number;
 }
 
-/** POST /api/cdn/upload/sns/image */
-export interface CdnUploadSnsImageParam {
-    /** Base64 编码的图片数据。 */
-    image_data: string;
+/** POST /api/cdn/upload/moments/image */
+export interface CdnUploadMomentsImageParam {
+    /** 图片文件或 base64 转换后的二进制。 */
+    image?: Blob | string;
+    /** 图片 URL。 */
+    image_url?: string;
 }
 
-/** POST /api/cdn/upload/sns/video */
-export interface CdnUploadSnsVideoParam {
-    /** Base64 编码的视频数据。 */
-    video_data: string;
-    /** Base64 编码的缩略图数据。 */
-    thumb_data: string;
+/** POST /api/cdn/upload/moments/video */
+export interface CdnUploadMomentsVideoParam {
+    /** 视频文件或 base64 转换后的二进制。 */
+    video?: Blob | string;
+    /** 视频 URL。 */
+    video_url?: string;
+    /** 缩略图文件或 base64 转换后的二进制。 */
+    thumb?: Blob | string;
+    /** 缩略图 URL。 */
+    thumb_url?: string;
 }
 
-/** POST /api/cdn/download/video 与 /api/cdn/download/video/cover */
+/** GET /api/cdn/download/video 与 /api/cdn/download/video/cover */
 export interface CdnDownloadVideoParam {
-    /** CDN 文件 ID。 */
-    file_id: string;
-    /** hex 编码的 AES 密钥（Swagger 当前字段名）。 */
-    file_key: string;
+    /** 视频/封面 id。 */
+    id: string;
+    /** 视频/封面 key。 */
+    key: string;
 }
 
-/** POST /api/cdn/download/sns/video */
-export interface CdnDownloadSnsVideoParam {
-    /** ISAAC64 解密密钥。 */
-    enc_key: number;
-    /** 加密视频 URL。 */
-    video_url: string;
+/** GET /api/cdn/download/moments/video */
+export interface CdnDownloadMomentsVideoParam {
+    /** 视频 url。 */
+    url: string;
+    /** 视频 key。 */
+    key: string;
+}
+
+/** POST /api/moments/upload */
+export interface MomentMediaUploadParam {
+    /** 媒体文件或兼容的 base64 字符串。 */
+    media?: Blob | string;
+    /** 媒体 URL。 */
+    media_url?: string;
 }
 
 /** POST /api/message/download/file */
