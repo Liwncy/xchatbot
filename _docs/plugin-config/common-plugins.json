@@ -48,7 +48,7 @@
         "name": "dailyhot-platform-list",
         "keyword": "热榜平台|热榜平台列表|今日热榜平台",
         "matchMode": "contains",
-        "url": "https://api.pearktrue.cn/api/dailyhot/",
+        "url": "https://api.pearapi.ai/api/dailyhot/",
         "mode": "json",
         "rType": "text",
         "jsonPath": "'📚 可查询热榜平台（共 ' + $.data.total + ' 个）\\n' + '提示: 发送“今日热榜 平台名”查询，例如：今日热榜 哔哩哔哩\\n\\n' + $.data.platforms[*]"
@@ -56,7 +56,7 @@
     {
         "name": "ruozhiba-qa",
         "keyword": "天才|机智|弱智吧问答|来个弱智吧",
-        "url": "https://api.pearktrue.cn/api/ruozhiba",
+        "url": "https://api.pearapi.ai/api/ruozhiba",
         "method": "GET",
         "mode": "json",
         "jsonPath": "$.data.instruction",
@@ -65,7 +65,7 @@
     {
         "name": "superpower-text",
         "keyword": "随机超能力|今日超能力",
-        "url": "https://api.pearktrue.cn/api/superpower",
+        "url": "https://api.pearapi.ai/api/superpower",
         "method": "GET",
         "mode": "json",
         "jsonPath": "'🦸 随机超能力\\n✨ ' + $.data.superpower + '\\n⚠️ 但是：' + $.data.disadvantage + '\\n🖼️ 配图：' + $.data.image_url",
@@ -74,7 +74,7 @@
     {
         "name": "today-wife",
         "keyword": "今日老婆|来个老婆|拗个对象",
-        "url": "https://api.pearktrue.cn/api/today_wife?id={{from}}",
+        "url": "https://api.pearapi.ai/api/today_wife?id={{from}}",
         "method": "GET",
         "mode": "json",
         "jsonPath": "$.data.image_url",
@@ -114,7 +114,7 @@
         "name": "random-greentea-voice",
         "keyword": "随机绿茶语音|绿茶语音|来段绿茶语音|好妹妹呢|茶艺展示",
         "method": "GET",
-        "url": "https://api.pearktrue.cn/api/greentea/?type=mp3",
+        "url": "https://api.pearapi.ai/api/greentea/?type=mp3",
         "mode": "json",
         "jsonPath": "$.audiopath",
         "rType": "voice",

@@ -106,7 +106,7 @@
             "names": ["title"],
             "required": ["title"]
         },
-        "url": "https://api.pearktrue.cn/api/dailyhot/?title=__title__",
+        "url": "https://api.pearapi.ai/api/dailyhot/?title=__title__",
         "mode": "json",
         "rType": "text",
         "jsonPath": "'📊 ' + $.title + '｜' + $.type + '\\n' + '🕒 更新时间：' + $.updateTime + '\\n' + lines(take($.data,10), '{index}. {title}\\n🔥 热度：{hot}\\n🔗 {url}\\n', '\\n')"
@@ -127,7 +127,7 @@
                 "to"
             ]
         },
-        "url": "https://api.pearktrue.cn/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
+        "url": "https://api.pearapi.ai/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
         "method": "GET",
         "mode": "json",
         "rType": "text",
@@ -151,7 +151,7 @@
                 "to"
             ]
         },
-        "url": "https://api.pearktrue.cn/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
+        "url": "https://api.pearapi.ai/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
         "method": "GET",
         "mode": "json",
         "rType": "text",
@@ -175,7 +175,7 @@
                 "to"
             ]
         },
-        "url": "https://api.pearktrue.cn/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
+        "url": "https://api.pearapi.ai/api/highspeedticket?from={{from}}&to={{to}}&time={{time}}",
         "method": "GET",
         "mode": "json",
         "rType": "text",
