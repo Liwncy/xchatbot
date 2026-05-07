@@ -147,6 +147,26 @@ async function main() {
     assert.equal(plainListReply.type, 'text');
     assert.match(plainListReply.content, /当前 common 分类规则：1 条/);
 
+    const largeListEnv = createEnv({
+        commonRules: Array.from({length: 13}, (_, index) => ({
+            name: `bulk-common-${index + 1}`,
+            keyword: `批量关键词${index + 1}`,
+            url: `https://example.com/bulk/${index + 1}`,
+            mode: 'text',
+            rType: 'text',
+        })),
+    });
+    const largeListReply = await pluginAdminPlugin.handle(
+        createOwnerMessage('插件管理 列表 common'),
+        largeListEnv,
+    );
+    assert.ok(largeListReply);
+    assert.equal(largeListReply.type, 'app');
+    assert.match(largeListReply.appXml, /当前 common 分类规则：13 条/);
+    assert.match(largeListReply.appXml, /bulk-common-1/);
+    assert.match(largeListReply.appXml, /bulk-common-13/);
+    assert.doesNotMatch(largeListReply.appXml, /还有 1 条未展示/);
+
     const commonSearchReply = await service.handleCommand(
         createOwnerMessage(),
         commonEnv,
@@ -155,6 +175,26 @@ async function main() {
     assert.equal(commonSearchReply.type, 'text');
     assert.match(commonSearchReply.content, /搜索结果：common \/ hello/);
     assert.match(commonSearchReply.content, /hello-common/);
+
+    const largeSearchEnv = createEnv({
+        commonRules: Array.from({length: 21}, (_, index) => ({
+            name: `weather-bulk-${index + 1}`,
+            keyword: `weather-keyword-${index + 1}`,
+            url: `https://example.com/weather/${index + 1}`,
+            mode: 'text',
+            rType: 'text',
+        })),
+    });
+    const largeSearchReply = await pluginAdminPlugin.handle(
+        createOwnerMessage('插件管理 搜索 common weather'),
+        largeSearchEnv,
+    );
+    assert.ok(largeSearchReply);
+    assert.equal(largeSearchReply.type, 'app');
+    assert.match(largeSearchReply.appXml, /搜索结果：common \/ weather （共 21 条）/);
+    assert.match(largeSearchReply.appXml, /weather-bulk-1/);
+    assert.match(largeSearchReply.appXml, /weather-bulk-21/);
+    assert.doesNotMatch(largeSearchReply.appXml, /仅展示前/);
 
     const commonDetailReply = await service.handleCommand(
         createOwnerMessage(),

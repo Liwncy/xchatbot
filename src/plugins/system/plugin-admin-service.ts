@@ -27,8 +27,6 @@ const SUPPORTED_COMMON_REPLY_TYPES = new Set(['text', 'image', 'video', 'voice',
 const SUPPORTED_HTTP_METHODS = new Set(['GET', 'POST'] as const);
 const SUPPORTED_DYNAMIC_MATCH_MODES = new Set(['contains', 'prefix', 'exact', 'regex'] as const);
 const SUPPORTED_DYNAMIC_ARGS_MODES = new Set(['tail', 'split', 'regex'] as const);
-const PLUGIN_ADMIN_LIST_PREVIEW_LIMIT = 12;
-const PLUGIN_ADMIN_SEARCH_PREVIEW_LIMIT = 20;
 const PLUGIN_ADMIN_VALUE_PREVIEW_LENGTH = 80;
 
 type ArgsInputPatch = {
@@ -381,18 +379,6 @@ function pushDetailValueBlock(lines: string[], label: string, value: unknown): v
 function buildRulePreviewLine(rule: Record<string, unknown>, index: number): string {
     const name = normalizeOptionalString(rule.name) ?? `(未命名-${index + 1})`;
     return `${index + 1}. ${name} - ${matcherPreview(rule)}`;
-}
-
-function buildCappedRuleList(lines: string[], totalCount: number, limit: number, hint: string): string[] {
-    if (totalCount <= limit) {
-        return lines;
-    }
-    const hiddenCount = totalCount - limit;
-    return [
-        ...lines.slice(0, limit),
-        `... 还有 ${hiddenCount} 条未展示，可继续使用更精确的搜索或“插件管理 详情 <分类> <名称>”查看。`,
-        hint,
-    ];
 }
 
 function buildHelpSection(title: string, lines: string[]): string[] {
@@ -2030,16 +2016,11 @@ function buildListText(category: RulePluginCategory, rawRules: Record<string, un
         return `${formatWarningPrefix(warning)}当前 ${category} 分类还没有任何 KV 规则。`;
     }
 
-    const lines = buildCappedRuleList(
-        rawRules.map((rule, index) => buildRulePreviewLine(rule, index)),
-        rawRules.length,
-        PLUGIN_ADMIN_LIST_PREVIEW_LIMIT,
-        '提示：可发送“插件管理 搜索 <分类> <关键字>”缩小范围。',
-    );
+    const lines = rawRules.map((rule, index) => buildRulePreviewLine(rule, index));
 
     return [
         formatWarningPrefix(warning).trimEnd(),
-        `当前 ${category} 分类规则：${rawRules.length} 条（展示 ${Math.min(rawRules.length, PLUGIN_ADMIN_LIST_PREVIEW_LIMIT)} 条）`,
+        `当前 ${category} 分类规则：${rawRules.length} 条`,
         ...lines,
     ].filter(Boolean).join('\n');
 }
@@ -2060,20 +2041,11 @@ function buildSearchText(category: RulePluginCategory, rawRules: Record<string, 
         return `${formatWarningPrefix(warning)}未找到匹配“${query.trim()}”的 ${category} 规则。`;
     }
 
-    const shownCount = Math.min(matchedRules.length, PLUGIN_ADMIN_SEARCH_PREVIEW_LIMIT);
-    const lines = buildCappedRuleList(
-        matchedRules.map((rule, index) => buildRulePreviewLine(rule, index)),
-        matchedRules.length,
-        PLUGIN_ADMIN_SEARCH_PREVIEW_LIMIT,
-        '提示：请继续缩小关键字，或直接用“插件管理 详情 <分类> <名称>”查看。',
-    );
-    const suffix = matchedRules.length > shownCount
-        ? `（仅展示前 ${shownCount} 条，共 ${matchedRules.length} 条）`
-        : `（共 ${matchedRules.length} 条）`;
+    const lines = matchedRules.map((rule, index) => buildRulePreviewLine(rule, index));
 
     return [
         formatWarningPrefix(warning).trimEnd(),
-        `搜索结果：${category} / ${query.trim()} ${suffix}`,
+        `搜索结果：${category} / ${query.trim()} （共 ${matchedRules.length} 条）`,
         ...lines,
     ].filter(Boolean).join('\n');
 }
