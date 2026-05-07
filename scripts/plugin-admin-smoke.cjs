@@ -20,7 +20,7 @@ function resolveCompiledModule(relativePath) {
     throw new Error(`Cannot find compiled module: ${relativePath}`);
 }
 
-const {parsePluginAdminCommand} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin.js')));
+const {parsePluginAdminCommand, pluginAdminPlugin} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin.js')));
 const {PluginAdminService} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin-service.js')));
 const {workflowCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'common', 'workflow.js')));
 
@@ -128,6 +128,24 @@ async function main() {
     assert.ok(helpReply.content.indexOf('二、只读预览命令') < helpReply.content.indexOf('三、写入命令'));
     assert.match(helpReply.content, /插件管理 预览回滚 <分类>/);
     assert.match(helpReply.content, /插件管理 确认删除 <分类> <名称>/);
+
+    const forwardedHelpReply = await pluginAdminPlugin.handle(
+        createOwnerMessage('插件管理 帮助'),
+        commonEnv,
+    );
+    assert.ok(forwardedHelpReply);
+    assert.equal(forwardedHelpReply.type, 'app');
+    assert.equal(forwardedHelpReply.appType, 19);
+    assert.match(forwardedHelpReply.appXml, /插件管理帮助/);
+    assert.match(forwardedHelpReply.appXml, /一、查询命令/);
+
+    const plainListReply = await pluginAdminPlugin.handle(
+        createOwnerMessage('插件管理 列表'),
+        commonEnv,
+    );
+    assert.ok(plainListReply);
+    assert.equal(plainListReply.type, 'text');
+    assert.match(plainListReply.content, /当前 common 分类规则：1 条/);
 
     const commonSearchReply = await service.handleCommand(
         createOwnerMessage(),

@@ -247,6 +247,7 @@ npm run dev:scheduled
 
 - `删除 <分类> <名称>` 当前仍为删除预览，不会立刻写入 KV。
 - 所有预览命令都会明确返回 `规则预览{动作}（未写入）` 与 `本次仅预览，未写入 KV。`。
+- 较长的帮助 / 详情 / JSON / 预览回显会优先折叠成聊天记录式 app 卡片，避免大段文本刷屏。
 - 完整字段说明、更多示例与设计细节可参考：[`_docs/plugin-config/rule-plugin-admin-design.md`](_docs/plugin-config/rule-plugin-admin-design.md)
 - 运行时也可直接发送 `插件管理 帮助` 查看最新命令分区与示例。
 

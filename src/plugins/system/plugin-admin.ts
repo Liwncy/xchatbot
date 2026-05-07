@@ -1,4 +1,5 @@
 import type {TextMessage} from '../types.js';
+import {finalizePluginAdminReply} from './plugin-admin-forward-reply.js';
 import {PluginAdminService} from './plugin-admin-service.js';
 import type {CommonRuleInputPatch, DynamicRuleInputPatch, PluginAdminCommand, RulePluginCategory, RuleInputPatch, WorkflowRuleInputPatch, WorkflowStepSelectorInput} from './plugin-admin-types.js';
 
@@ -447,14 +448,16 @@ export const pluginAdminPlugin: TextMessage = {
     description: '通过“插件管理 ...”命令管理规则插件（common/dynamic/workflow 完整管理）',
     match: (content) => content.trim().startsWith(PLUGIN_ADMIN_PREFIX),
     async handle(message, env) {
+        let command: PluginAdminCommand | null = null;
         try {
-            const command = parsePluginAdminCommand(message.content ?? '');
-            return await pluginAdminService.handleCommand(message, env, command);
+            command = parsePluginAdminCommand(message.content ?? '');
+            const response = await pluginAdminService.handleCommand(message, env, command);
+            return finalizePluginAdminReply(message, command, response);
         } catch (error) {
-            return {
+            return finalizePluginAdminReply(message, command, {
                 type: 'text',
                 content: error instanceof Error ? error.message : String(error),
-            };
+            });
         }
     },
 };
