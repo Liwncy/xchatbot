@@ -1,12 +1,34 @@
 import type {HandlerResponse, IncomingMessage, ReplyMessage, TextReply} from '../../types/message.js';
-import {buildWechatChatRecordAppReply} from '../../wechat/chat-record.js';
+import {buildWechatChatRecordAppReply} from '../../wechat/index.js';
 import type {PluginAdminCommand} from './plugin-admin-types.js';
 
 const LONG_TEXT_MIN_LENGTH = 260;
 const LONG_TEXT_MIN_LINES = 12;
-const MAX_CHUNK_LENGTH = 320;
-const MAX_CHUNK_LINES = 10;
-const FORCE_CHAT_RECORD_ACTIONS = new Set<PluginAdminCommand['action']>(['help']);
+const MAX_CHUNK_LENGTH = 800;
+const MAX_CHUNK_LINES = 18;
+
+interface PluginAdminChatRecordPolicy {
+    forceFold?: boolean;
+    title?: string;
+}
+
+const PLUGIN_ADMIN_CHAT_RECORD_POLICY: Partial<Record<PluginAdminCommand['action'], PluginAdminChatRecordPolicy>> = {
+    help: {forceFold: true, title: '插件管理帮助'},
+    list: {title: '插件规则列表'},
+    search: {title: '插件规则搜索'},
+    check: {title: '插件规则检查'},
+    'preview-add': {title: '规则预览添加'},
+    add: {title: '插件规则新增'},
+    'preview-update': {title: '规则预览修改'},
+    update: {title: '插件规则修改'},
+    'preview-copy': {title: '规则预览复制'},
+    copy: {title: '插件规则复制'},
+    'preview-rename': {title: '规则预览重命名'},
+    rename: {title: '插件规则重命名'},
+    'preview-rollback': {title: '规则预览回滚'},
+    rollback: {title: '插件规则回滚'},
+    refresh: {title: '插件规则刷新'},
+};
 
 export function finalizePluginAdminReply(
     message: IncomingMessage,
@@ -58,7 +80,8 @@ function shouldUseChatRecordReply(command: PluginAdminCommand | null, reply: Rep
     if (reply.type !== 'text') return false;
     const content = normalizeText(reply.content);
     if (!content) return false;
-    if (command && FORCE_CHAT_RECORD_ACTIONS.has(command.action)) return true;
+    const policy = resolveChatRecordPolicy(command);
+    if (policy.forceFold) return true;
     const lineCount = content.split('\n').length;
     return content.length >= LONG_TEXT_MIN_LENGTH || lineCount >= LONG_TEXT_MIN_LINES;
 }
@@ -68,39 +91,31 @@ function normalizeText(content: string): string {
 }
 
 function resolveRecordTitle(command: PluginAdminCommand | null, content: string): string {
-    if (!command) {
-        const firstLine = firstNonEmptyLine(content);
-        if (!firstLine) return '插件管理消息';
-        return firstLine.length > 24 ? `${firstLine.slice(0, 24)}…` : firstLine;
-    }
-
-    if (command.action === 'help') return '插件管理帮助';
-    if (command.action === 'list') return '插件规则列表';
-    if (command.action === 'search') return '插件规则搜索';
-    if (command.action === 'detail') {
-        const selector = command.stepSelector;
-        if (selector?.view === 'steps-json') return '插件步骤JSON';
-        if (selector?.view === 'rule-json') return '插件规则JSON';
-        if (selector?.stepIndex || selector?.stepName) return '插件步骤详情';
-        return '插件规则详情';
-    }
-    if (command.action === 'check') return '插件规则检查';
-    if (command.action === 'preview-add') return '规则预览添加';
-    if (command.action === 'add') return '插件规则新增';
-    if (command.action === 'preview-update') return '规则预览修改';
-    if (command.action === 'update') return '插件规则修改';
-    if (command.action === 'delete') return command.confirmed ? '插件规则删除' : '规则预览删除';
-    if (command.action === 'preview-copy') return '规则预览复制';
-    if (command.action === 'copy') return '插件规则复制';
-    if (command.action === 'preview-rename') return '规则预览重命名';
-    if (command.action === 'rename') return '插件规则重命名';
-    if (command.action === 'preview-rollback') return '规则预览回滚';
-    if (command.action === 'rollback') return '插件规则回滚';
-    if (command.action === 'refresh') return '插件规则刷新';
+    const policy = resolveChatRecordPolicy(command);
+    if (policy.title) return policy.title;
 
     const firstLine = firstNonEmptyLine(content);
     if (!firstLine) return '插件管理消息';
     return firstLine.length > 24 ? `${firstLine.slice(0, 24)}…` : firstLine;
+}
+
+function resolveChatRecordPolicy(command: PluginAdminCommand | null): PluginAdminChatRecordPolicy {
+    if (!command) return {};
+    if (command.action === 'detail') {
+        return resolveDetailChatRecordPolicy(command);
+    }
+    if (command.action === 'delete') {
+        return {title: command.confirmed ? '插件规则删除' : '规则预览删除'};
+    }
+    return PLUGIN_ADMIN_CHAT_RECORD_POLICY[command.action] ?? {};
+}
+
+function resolveDetailChatRecordPolicy(command: Extract<PluginAdminCommand, {action: 'detail'}>): PluginAdminChatRecordPolicy {
+    const selector = command.stepSelector;
+    if (selector?.view === 'steps-json') return {forceFold: true, title: '插件步骤JSON'};
+    if (selector?.view === 'rule-json') return {forceFold: true, title: '插件规则JSON'};
+    if (selector?.stepIndex || selector?.stepName) return {forceFold: true, title: '插件步骤详情'};
+    return {forceFold: true, title: '插件规则详情'};
 }
 
 function firstNonEmptyLine(content: string): string {
@@ -185,11 +200,22 @@ function sliceLongLine(line: string): string[] {
     const result: string[] = [];
     let rest = line.trim();
     while (rest.length > MAX_CHUNK_LENGTH) {
-        result.push(rest.slice(0, MAX_CHUNK_LENGTH));
-        rest = rest.slice(MAX_CHUNK_LENGTH).trim();
+        const sliceIndex = resolveLongLineSliceIndex(rest, MAX_CHUNK_LENGTH);
+        result.push(rest.slice(0, sliceIndex).trim());
+        rest = rest.slice(sliceIndex).trim();
     }
     if (rest) result.push(rest);
     return result;
+}
+
+function resolveLongLineSliceIndex(text: string, maxLength: number): number {
+    const preferredBreakChars = [' ', '，', '。', '；', '：', ',', '.', ';', ':', '）', ')', ']', '】', '}', '、'];
+    for (let index = maxLength; index >= Math.floor(maxLength * 0.6); index -= 1) {
+        if (preferredBreakChars.includes(text[index] ?? '')) {
+            return index + 1;
+        }
+    }
+    return maxLength;
 }
 
 function lineCountOf(content: string): number {

@@ -166,6 +166,15 @@ async function main() {
     assert.match(commonDetailReply.content, /- 地址：https:\/\/example.com\/hello/);
     assert.match(commonDetailReply.content, /- 提取：\$\.data\.text/);
 
+    const forwardedShortCommonDetailReply = await pluginAdminPlugin.handle(
+        createOwnerMessage('插件管理 详情 common hello-common'),
+        commonEnv,
+    );
+    assert.ok(forwardedShortCommonDetailReply);
+    assert.equal(forwardedShortCommonDetailReply.type, 'app');
+    assert.match(forwardedShortCommonDetailReply.appXml, /插件规则详情/);
+    assert.match(forwardedShortCommonDetailReply.appXml, /hello-common/);
+
     const checkCommonReply = await service.handleCommand(
         createOwnerMessage(),
         commonEnv,
@@ -234,9 +243,23 @@ async function main() {
     assert.match(updatedCommonDetailReply.content, /- 模式：json/);
     assert.match(updatedCommonDetailReply.content, /- 请求：POST/);
     assert.match(updatedCommonDetailReply.content, /- 提取：\$\.data\.url/);
-    assert.match(updatedCommonDetailReply.content, /- 请求头：对象/);
-    assert.match(updatedCommonDetailReply.content, /- 请求体：对象/);
+    assert.match(updatedCommonDetailReply.content, /- 请求头：/);
+    assert.match(updatedCommonDetailReply.content, /"Accept": "application\/json"/);
+    assert.match(updatedCommonDetailReply.content, /- 请求体：/);
+    assert.match(updatedCommonDetailReply.content, /"foo": "bar"/);
     assert.match(updatedCommonDetailReply.content, /- 链接标题：整点啊/);
+
+    const forwardedCommonDetailReply = await pluginAdminPlugin.handle(
+        createOwnerMessage('插件管理 详情 common common-link'),
+        commonEnv,
+    );
+    assert.ok(forwardedCommonDetailReply);
+    assert.equal(forwardedCommonDetailReply.type, 'app');
+    assert.match(forwardedCommonDetailReply.appXml, /请求头：/);
+    assert.match(forwardedCommonDetailReply.appXml, /application\/json/);
+    assert.match(forwardedCommonDetailReply.appXml, /请求体：/);
+    assert.match(forwardedCommonDetailReply.appXml, /&quot;foo&quot;: &quot;bar&quot;/);
+    assert.doesNotMatch(forwardedCommonDetailReply.appXml, /对象\(1键\)/);
 
     const previewCopyCommonCommand = parsePluginAdminCommand('插件管理 预览复制 common common-link common-link-preview');
     assert.equal(previewCopyCommonCommand.action, 'preview-copy');
@@ -531,7 +554,8 @@ async function main() {
     );
     assert.equal(updatedDynamicDetailReply.type, 'text');
     assert.match(updatedDynamicDetailReply.content, /- 请求：POST/);
-    assert.match(updatedDynamicDetailReply.content, /- 请求体：对象/);
+    assert.match(updatedDynamicDetailReply.content, /- 请求体：/);
+    assert.match(updatedDynamicDetailReply.content, /"q": "\{\{query\}\}"/);
 
     const copyDynamicReply = await service.handleCommand(
         createOwnerMessage(),
@@ -1079,7 +1103,7 @@ async function main() {
     assert.equal(copiedDetailReply.type, 'text');
     assert.match(copiedDetailReply.content, /步骤数：4/);
     assert.match(copiedDetailReply.content, /步骤1：render-step/);
-    assert.match(copiedDetailReply.content, /步骤2：render-copy .*启用 .*saveAs=renderCopy/);
+    assert.match(copiedDetailReply.content, /步骤2：render-copy[\s\S]*?启用：是[\s\S]*?saveAs：renderCopy/);
     assert.match(copiedDetailReply.content, /步骤3：search/);
     assert.match(copiedDetailReply.content, /步骤4：normalize/);
 
@@ -1098,7 +1122,7 @@ async function main() {
         parsePluginAdminCommand('插件管理 详情 workflow weather-workflow'),
     );
     assert.equal(disabledDetailReply.type, 'text');
-    assert.match(disabledDetailReply.content, /步骤2：render-copy .*禁用 .*saveAs=renderCopy/);
+    assert.match(disabledDetailReply.content, /步骤2：render-copy[\s\S]*?启用：否[\s\S]*?saveAs：renderCopy/);
 
     const enableReply = await service.handleCommand(
         createOwnerMessage(),
@@ -1115,7 +1139,7 @@ async function main() {
         parsePluginAdminCommand('插件管理 详情 workflow weather-workflow'),
     );
     assert.equal(enabledAgainDetailReply.type, 'text');
-    assert.match(enabledAgainDetailReply.content, /步骤2：render-copy .*启用 .*saveAs=renderCopy/);
+    assert.match(enabledAgainDetailReply.content, /步骤2：render-copy[\s\S]*?启用：是[\s\S]*?saveAs：renderCopy/);
 
     const updateWorkflowStepCommandText = [
         '插件管理 修改 workflow weather-workflow',
@@ -1145,7 +1169,7 @@ async function main() {
     assert.equal(updatedDetailReply.type, 'text');
     assert.match(updatedDetailReply.content, /步骤数：4/);
     assert.match(updatedDetailReply.content, /输出来源：finalText/);
-    assert.match(updatedDetailReply.content, /步骤1：render-step .*saveAs=finalText/);
+    assert.match(updatedDetailReply.content, /步骤1：render-step[\s\S]*?saveAs：finalText/);
 
     const deleteWorkflowStepCommandText = [
         '插件管理 修改 workflow weather-workflow',
@@ -1169,7 +1193,7 @@ async function main() {
     );
     assert.equal(deletedStepDetailReply.type, 'text');
     assert.match(deletedStepDetailReply.content, /步骤数：3/);
-    assert.match(deletedStepDetailReply.content, /步骤2：render-copy .*saveAs=renderCopy/);
+    assert.match(deletedStepDetailReply.content, /步骤2：render-copy[\s\S]*?saveAs：renderCopy/);
     assert.doesNotMatch(deletedStepDetailReply.content, /步骤4：normalize/);
     assert.match(deletedStepDetailReply.content, /输出来源：finalText/);
 

@@ -356,22 +356,26 @@ function clipPreviewText(text: string, maxLength = PLUGIN_ADMIN_VALUE_PREVIEW_LE
     return `${normalized.slice(0, Math.max(0, maxLength - 3))}...`;
 }
 
-function summarizeUnknownValue(value: unknown): string {
+function formatUnknownValueExpanded(value: unknown): string {
     if (value == null) return 'null';
-    if (typeof value === 'string') {
-        return `字符串(${value.length})：${clipPreviewText(value)}`;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
+    if (typeof value === 'string') return value.trim() || '（空字符串）';
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    try {
+        return JSON.stringify(value, null, 2) ?? String(value);
+    } catch {
         return String(value);
     }
-    if (Array.isArray(value)) {
-        return `数组(${value.length})：${clipPreviewText(JSON.stringify(value))}`;
+}
+
+function pushDetailValueBlock(lines: string[], label: string, value: unknown): void {
+    const formatted = formatUnknownValueExpanded(value);
+    const blockLines = formatted.split('\n');
+    if (blockLines.length <= 1) {
+        lines.push(`- ${label}：${formatted}`);
+        return;
     }
-    if (typeof value === 'object') {
-        const keys = Object.keys(value as Record<string, unknown>);
-        return `对象(${keys.length}键)：${clipPreviewText(JSON.stringify(value))}`;
-    }
-    return clipPreviewText(String(value));
+    lines.push(`- ${label}：`);
+    lines.push(...blockLines.map((line) => `  ${line}`));
 }
 
 function buildRulePreviewLine(rule: Record<string, unknown>, index: number): string {
@@ -2106,8 +2110,8 @@ function buildDetailText(category: RulePluginCategory, rule: Record<string, unkn
         if (normalizeOptionalString(rule.url)) lines.push(`- 地址：${normalizeOptionalString(rule.url)}`);
         if (method) lines.push(`- 请求：${method}`);
         if (jsonPath) lines.push(`- 提取：${jsonPath}`);
-        if (rule.headers) lines.push(`- 请求头：${summarizeUnknownValue(rule.headers)}`);
-        if (hasOwn(rule, 'body')) lines.push(`- 请求体：${summarizeUnknownValue(rule.body)}`);
+        if (rule.headers) pushDetailValueBlock(lines, '请求头', rule.headers);
+        if (hasOwn(rule, 'body')) pushDetailValueBlock(lines, '请求体', rule.body);
     }
 
     const hasReplyAdvanced = Boolean(
@@ -2135,19 +2139,24 @@ function buildDetailText(category: RulePluginCategory, rule: Record<string, unkn
         if (normalizeOptionalString(rule.cardNickname)) lines.push(`- 卡片昵称：${normalizeOptionalString(rule.cardNickname)}`);
         if (normalizeOptionalString(rule.cardAlias)) lines.push(`- 卡片别名：${normalizeOptionalString(rule.cardAlias)}`);
         if (rule.appType != null) lines.push(`- app类型：${String(rule.appType)}`);
-        if (normalizeOptionalString(rule.appXml)) lines.push(`- appXml：${summarizeUnknownValue(normalizeOptionalString(rule.appXml))}`);
+        if (normalizeOptionalString(rule.appXml)) pushDetailValueBlock(lines, 'appXml', normalizeOptionalString(rule.appXml));
     }
 
     if (steps) {
         lines.push('', '工作流信息', `- 步骤数：${steps.length}`);
         if (outputFrom) lines.push(`- 输出来源：${outputFrom}`);
         for (const [index, step] of steps.entries()) {
-            lines.push(`- 步骤${index + 1}：${step.name ?? '（未命名）'} | ${step.mode} | ${clipPreviewText(step.url, 60)} | ${step.enabled === false ? '禁用' : '启用'}${step.saveAs ? ` | saveAs=${step.saveAs}` : ''}`);
+            lines.push(`- 步骤${index + 1}：${step.name ?? '（未命名）'}`);
+            lines.push(`  - 模式：${step.mode}`);
+            lines.push(`  - 地址：${step.url}`);
+            lines.push(`  - 启用：${step.enabled === false ? '否' : '是'}`);
+            if (step.saveAs) lines.push(`  - saveAs：${step.saveAs}`);
         }
-        lines.push(`- 步骤预览：${clipPreviewText(JSON.stringify(steps.map((step) => ({name: step.name, url: step.url, mode: step.mode, saveAs: step.saveAs}))))}`);
+        pushDetailValueBlock(lines, '步骤原始JSON', steps);
     }
 
-    lines.push('', `原始配置摘要：${summarizeUnknownValue(rule)}`);
+    lines.push('', '原始配置：');
+    lines.push(...formatUnknownValueExpanded(rule).split('\n').map((line) => `  ${line}`));
     return lines.join('\n');
 }
 
@@ -2170,9 +2179,10 @@ function buildWorkflowStepDetailText(rule: WorkflowCommonRule, stepIndex: number
     if (step.saveAs) lines.push(`- saveAs：${step.saveAs}`);
     if (rule.outputFrom) lines.push(`- 当前规则输出来源：${rule.outputFrom}`);
     lines.push(`- 是否命中输出来源：${step.saveAs && rule.outputFrom === step.saveAs ? '是' : '否'}`);
-    if (step.headers) lines.push(`- 请求头：${summarizeUnknownValue(step.headers)}`);
-    if (Object.prototype.hasOwnProperty.call(step, 'body')) lines.push(`- 请求体：${summarizeUnknownValue(step.body)}`);
-    lines.push('', `- 原始步骤摘要：${summarizeUnknownValue(step)}`);
+    if (step.headers) pushDetailValueBlock(lines, '请求头', step.headers);
+    if (Object.prototype.hasOwnProperty.call(step, 'body')) pushDetailValueBlock(lines, '请求体', step.body);
+    lines.push('', '原始步骤：');
+    lines.push(...formatUnknownValueExpanded(step).split('\n').map((line) => `  ${line}`));
     return lines.join('\n');
 }
 
