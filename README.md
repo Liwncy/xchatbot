@@ -200,6 +200,61 @@ npm run dev:scheduled
 - `GET /admin/plugins`：查看当前三层配置是否已配置、KV key 是否存在、缓存条目数。
 - `POST /admin/plugins/reload`：清空规则内存缓存，下一次命中插件时重新加载配置。
 
+### 插件管理（主人命令）管理员速查
+
+当配置了 `BOT_OWNER_WECHAT_ID` 后，可由机器人主人直接发送 `插件管理 ...` 命令管理 `common / dynamic / workflow` 规则。
+
+最常用的只读预览命令：
+
+```text
+插件管理 帮助
+插件管理 预览删除 common ai-news-today
+插件管理 预览复制 workflow weather-workflow weather-workflow-copy
+插件管理 预览重命名 workflow weather-workflow weather-workflow-archive
+插件管理 预览回滚 workflow
+```
+
+删除确认：
+
+```text
+插件管理 确认删除 common ai-news-today
+```
+
+`workflow` 常用预览：
+
+```text
+插件管理 预览添加 workflow
+名称：weather-workflow-preview
+关键词：天气预览
+回复：text
+步骤：<<<
+[{"name":"search","url":"https://example.com/weather?q={{keyword}}","mode":"text","saveAs":"result"}]
+>>>
+输出来源：result
+```
+
+```text
+插件管理 预览修改 workflow weather-workflow
+步骤操作：复制
+步骤名称：render-step
+目标步骤序号：2
+步骤内容：<<<
+{"name":"render-copy","saveAs":"renderCopy"}
+>>>
+```
+
+说明：
+
+- `删除 <分类> <名称>` 当前仍为删除预览，不会立刻写入 KV。
+- 所有预览命令都会明确返回 `规则预览{动作}（未写入）` 与 `本次仅预览，未写入 KV。`。
+- 完整字段说明、更多示例与设计细节可参考：[`_docs/plugin-config/rule-plugin-admin-design.md`](_docs/plugin-config/rule-plugin-admin-design.md)
+- 运行时也可直接发送 `插件管理 帮助` 查看最新命令分区与示例。
+
+相关文档：
+
+- 文档索引：[`_docs/README.md`](_docs/README.md)
+- 插件管理设计稿：[`_docs/plugin-config/rule-plugin-admin-design.md`](_docs/plugin-config/rule-plugin-admin-design.md)
+
 ## 项目结构
 
 ```text

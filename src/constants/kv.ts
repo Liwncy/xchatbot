@@ -4,4 +4,7 @@ export const KV_DEBUG_URL = 'debug:forward:url';
 export const KV_COMMON_BASE_RULES = 'plugins:common:mapping';
 export const KV_COMMON_DYNAMIC_RULES = 'plugins:parameterized:mapping';
 export const KV_COMMON_WORKFLOW_RULES = 'plugins:workflow:mapping';
+export const KV_COMMON_BASE_RULES_BACKUP = 'plugins:common:mapping:backup';
+export const KV_COMMON_DYNAMIC_RULES_BACKUP = 'plugins:parameterized:mapping:backup';
+export const KV_COMMON_WORKFLOW_RULES_BACKUP = 'plugins:workflow:mapping:backup';
 

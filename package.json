@@ -8,6 +8,7 @@
         "dev:scheduled": "wrangler dev --test-scheduled",
         "dev:remote": "wrangler dev --remote",
         "typecheck": "tsc --noEmit",
+        "plugin-admin:smoke": "tsc -p tsconfig.json --module commonjs --moduleResolution node --outDir .tmp-plugin-admin-smoke --rootDir src && node ./scripts/plugin-admin-smoke.cjs",
         "deploy": "wrangler deploy",
         "d1:migrate:local": "wrangler d1 execute xbotdata --local --file \"./_docs/xiuxian/xiuxian-mvp.sql\"",
         "d1:migrate:remote": "wrangler d1 execute xbotdata --remote --file \"./_docs/xiuxian/xiuxian-mvp.sql\"",

@@ -10,6 +10,7 @@ import {aiDialogPlugin} from './ai/ai-dialog';
 import {videoLinkParserPlugin} from './video/video-link-parser';
 import {videoRecommendationPlugin} from './video/video-recommendation';
 import {helpPlugin} from './system/help';
+import {pluginAdminPlugin} from './system/plugin-admin';
 import {commonPluginsEngine} from './common/base';
 import {dynamicCommonPluginsEngine} from './common/dynamic';
 import {workflowCommonPluginsEngine} from './common/workflow';
@@ -22,6 +23,7 @@ import {fakeForwardPlugin} from './wechat/fake-forward';
 pluginManager.register(helpPlugin);
 pluginManager.register(wechatChatRecordDemoPlugin);
 pluginManager.register(videoRecommendationPlugin);
+pluginManager.register(pluginAdminPlugin);
 // 通用插件配置
 pluginManager.register(commonPluginsEngine);
 pluginManager.register(dynamicCommonPluginsEngine);

@@ -20,6 +20,7 @@ type ReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
 interface WorkflowStep {
     name?: string;
+    enabled?: boolean;
     url: string;
     method?: 'GET' | 'POST';
     headers?: Record<string, string>;
@@ -94,6 +95,7 @@ const parseRules = createCachedRuleParser<WorkflowCommonRule>({
 
                     return {
                         name: typeof step.name === 'string' ? step.name : undefined,
+                        enabled: typeof step.enabled === 'boolean' ? step.enabled : undefined,
                         url: stepUrl,
                         method: step.method === 'POST' ? 'POST' : 'GET',
                         headers: step.headers as Record<string, string> | undefined,
@@ -174,6 +176,9 @@ async function executeWorkflow(rule: WorkflowCommonRule, baseParams: Record<stri
     let lastValue: unknown = null;
 
     for (const step of rule.steps) {
+        if (step.enabled === false) {
+            continue;
+        }
         const params = mergeTemplateParams(baseParams, context);
         const value = await fetchTemplatedValue(step, params, 'workflow step ');
         lastValue = value;
