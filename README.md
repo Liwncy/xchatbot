@@ -243,6 +243,34 @@ npm run dev:scheduled
 >>>
 ```
 
+`dynamic` 也很适合做临时接口调试，例如把任意 `http/https` 地址转发到你的跨域代理：
+
+```text
+接口调试 https://api.example.com/ping?from=xchatbot
+代理调试 https://api.github.com/repos/octocat/Hello-World
+debug-url https://httpbin.org/get?foo=bar
+接口调试链接 https://api.github.com/repos/octocat/Hello-World
+debug-link https://httpbin.org/get?foo=bar
+接口调试POST https://httpbin.org/post
+{"from":"xchatbot","debug":true}
+```
+
+仓库内置样例规则名为 `proxy-api-debug-text` / `proxy-api-debug-link` / `proxy-api-debug-post-text`，定义在 [`_docs/plugin-config/common-plugins-dynamic.json`](_docs/plugin-config/common-plugins-dynamic.json)。
+
+接口调试规则说明：
+
+- `proxy-api-debug-text` 会实际请求代理地址，并把返回内容按文本回复出来。
+- `proxy-api-debug-link` 会直接返回一个代理后的链接卡片，适合调试 HTML 页面、长文本或你想手动点开看的场景。
+- `proxy-api-debug-post-text` 会以 `POST` 请求代理地址，并把消息第二行开始的原始文本作为请求体透传出去。
+- 这两条规则当前只匹配 `http/https` URL。
+- 机器人会自动对 `{{targetUrl}}` 做一次 URL 编码，再请求 `https://lwcfworker.dpdns.org/proxy?url=...`。
+- 如果你输入的目标 URL 已经手动做过整串编码，转发时会再次编码；调试时建议直接发送原始 URL。
+- 若代理目标返回超长 HTML、大段源码或非 2xx 响应，`text` 规则不一定适合聊天窗口阅读；这时更建议使用“接口调试链接 / debug-link”。
+- 当前动态规则运行失败时会记录日志并静默返回 `null`，不会把网络错误原文直接回给聊天窗口。
+- 由于链接卡片点击本质是 `GET`，因此 `link` 版只适用于 GET 类调试，不适合复现 POST 请求。
+- `POST` 调试建议使用多行格式：第一行放命令和 URL，第二行开始放原始请求体；这样比把 JSON 挤在同一行里更稳定。
+- 当前字符串类型的 POST body 不会再被强制补上 `application/json` 请求头；若目标接口强依赖特定 `Content-Type`，建议后续再按接口类型单独补规则。
+
 说明：
 
 - `删除 <分类> <名称>` 当前仍为删除预览，不会立刻写入 KV。

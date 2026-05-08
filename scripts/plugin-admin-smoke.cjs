@@ -22,6 +22,7 @@ function resolveCompiledModule(relativePath) {
 
 const {parsePluginAdminCommand, pluginAdminPlugin} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin.js')));
 const {PluginAdminService} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin-service.js')));
+const {dynamicCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'common', 'dynamic.js')));
 const {workflowCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'common', 'workflow.js')));
 
 const COMMON_LIVE_KEY = 'plugins:common:mapping';
@@ -1782,6 +1783,154 @@ async function main() {
         ),
         /步骤必须是至少包含一个元素的 JSON 数组/,
     );
+
+    const dynamicRuntimeEnv = {
+        XBOT_KV: new MemoryKV({
+            [DYNAMIC_LIVE_KEY]: JSON.stringify([
+                {
+                    name: 'proxy-api-debug-text',
+                    matchMode: 'regex',
+                    pattern: '^(?:接口调试|代理调试|debug-url)\\s+(https?:\\/\\/\\S+)$',
+                    args: {
+                        mode: 'regex',
+                        names: ['targetUrl'],
+                        required: ['targetUrl'],
+                    },
+                    url: 'https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}',
+                    method: 'GET',
+                    mode: 'text',
+                    rType: 'text',
+                },
+                {
+                    name: 'proxy-api-debug-link',
+                    matchMode: 'regex',
+                    pattern: '^(?:接口调试链接|代理调试链接|debug-link)\\s+(https?:\\/\\/\\S+)$',
+                    args: {
+                        mode: 'regex',
+                        names: ['targetUrl'],
+                        required: ['targetUrl'],
+                    },
+                    url: 'https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}',
+                    method: 'GET',
+                    mode: 'base64',
+                    rType: 'link',
+                    linkTitle: '接口代理调试',
+                    linkDescription: '点击打开代理后的调试链接',
+                },
+                {
+                    name: 'proxy-api-debug-post-text',
+                    matchMode: 'regex',
+                    pattern: '^(?:接口调试POST|代理调试POST|debug-post)\\s+(https?:\\/\\/\\S+)\\s*\\n([\\s\\S]+)$',
+                    args: {
+                        mode: 'regex',
+                        names: ['targetUrl', 'body'],
+                        required: ['targetUrl', 'body'],
+                    },
+                    url: 'https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}',
+                    method: 'POST',
+                    body: '{{body}}',
+                    mode: 'text',
+                    rType: 'text',
+                },
+            ], null, 4),
+        }),
+        XBOT_DB: {},
+        BOT_OWNER_WECHAT_ID: 'owner-wechat-id',
+        COMMON_PLUGINS_CACHE_MS: '0',
+    };
+    const originalDynamicFetch = global.fetch;
+    const dynamicFetchCalls = [];
+    global.fetch = async (url, init = {}) => {
+        dynamicFetchCalls.push({
+            url: String(url),
+            method: init.method ?? 'GET',
+            headers: init.headers,
+            body: init.body,
+        });
+        return new Response('{"ok":true,"source":"proxy"}', {status: 200});
+    };
+    try {
+        const debugTargetUrl = 'https://api.example.com/search?q=chat-bot&lang=zh-CN#section';
+        const runtimeReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage(`接口调试 ${debugTargetUrl}`),
+            dynamicRuntimeEnv,
+        );
+        assert.ok(runtimeReply);
+        assert.equal(runtimeReply.type, 'text');
+        assert.equal(runtimeReply.content, '{"ok":true,"source":"proxy"}');
+        assert.deepEqual(dynamicFetchCalls, [
+            {
+                url: 'https://lwcfworker.dpdns.org/proxy?url=https%3A%2F%2Fapi.example.com%2Fsearch%3Fq%3Dchat-bot%26lang%3Dzh-CN%23section',
+                method: 'GET',
+                headers: undefined,
+                body: undefined,
+            },
+        ]);
+
+        const linkReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage(`debug-link ${debugTargetUrl}`),
+            dynamicRuntimeEnv,
+        );
+        assert.ok(linkReply);
+        assert.equal(linkReply.type, 'news');
+        assert.equal(linkReply.articles.length, 1);
+        assert.equal(linkReply.articles[0].title, '接口代理调试');
+        assert.equal(linkReply.articles[0].description, '点击打开代理后的调试链接');
+        assert.equal(
+            linkReply.articles[0].url,
+            'https://lwcfworker.dpdns.org/proxy?url=https%3A%2F%2Fapi.example.com%2Fsearch%3Fq%3Dchat-bot%26lang%3Dzh-CN%23section',
+        );
+        assert.deepEqual(dynamicFetchCalls, [
+            {
+                url: 'https://lwcfworker.dpdns.org/proxy?url=https%3A%2F%2Fapi.example.com%2Fsearch%3Fq%3Dchat-bot%26lang%3Dzh-CN%23section',
+                method: 'GET',
+                headers: undefined,
+                body: undefined,
+            },
+        ]);
+
+        const postBody = '{"from":"xchatbot","debug":true}';
+        const postReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage(`debug-post ${debugTargetUrl}\n${postBody}`),
+            dynamicRuntimeEnv,
+        );
+        assert.ok(postReply);
+        assert.equal(postReply.type, 'text');
+        assert.equal(postReply.content, '{"ok":true,"source":"proxy"}');
+        assert.equal(dynamicFetchCalls.length, 2);
+        assert.deepEqual(dynamicFetchCalls[1], {
+            url: 'https://lwcfworker.dpdns.org/proxy?url=https%3A%2F%2Fapi.example.com%2Fsearch%3Fq%3Dchat-bot%26lang%3Dzh-CN%23section',
+            method: 'POST',
+            headers: {},
+            body: postBody,
+        });
+
+        const rejectedReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage('接口调试 ftp://example.com/file.txt'),
+            dynamicRuntimeEnv,
+        );
+        assert.equal(rejectedReply, null);
+
+        const rejectedLinkReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage('debug-link ftp://example.com/file.txt'),
+            dynamicRuntimeEnv,
+        );
+        assert.equal(rejectedLinkReply, null);
+
+        const rejectedPostReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage('debug-post ftp://example.com/file.txt\n{"bad":true}'),
+            dynamicRuntimeEnv,
+        );
+        assert.equal(rejectedPostReply, null);
+
+        const missingBodyPostReply = await dynamicCommonPluginsEngine.handle(
+            createOwnerMessage(`debug-post ${debugTargetUrl}`),
+            dynamicRuntimeEnv,
+        );
+        assert.equal(missingBodyPostReply, null);
+    } finally {
+        global.fetch = originalDynamicFetch;
+    }
 
     const rollbackReply = await service.handleCommand(
         createOwnerMessage(),

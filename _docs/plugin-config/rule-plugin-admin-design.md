@@ -261,6 +261,70 @@ message.from === env.BOT_OWNER_WECHAT_ID
 - `参数名` -> `argsNames`
 - `必填参数` -> `argsRequired`
 
+一个很实用的场景，是给跨域代理做“接口调试”规则：
+
+```text
+插件管理 添加 dynamic
+名称：proxy-api-debug-text
+正则：^(?:接口调试|代理调试|debug-url)\s+(https?:\/\/\S+)$
+匹配模式：regex
+参数模式：regex
+参数名：targetUrl
+必填参数：targetUrl
+地址：https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}
+请求：GET
+模式：text
+回复：text
+```
+
+如果你更希望机器人直接回一个“代理后的链接卡片”，也可以再补一条链接版规则：
+
+```text
+插件管理 添加 dynamic
+名称：proxy-api-debug-link
+正则：^(?:接口调试链接|代理调试链接|debug-link)\s+(https?:\/\/\S+)$
+匹配模式：regex
+参数模式：regex
+参数名：targetUrl
+必填参数：targetUrl
+地址：https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}
+请求：GET
+模式：base64
+回复：link
+链接标题：接口代理调试
+链接描述：点击打开代理后的调试链接
+```
+
+如果目标接口本身是 `POST`，则代理调试规则也不能只写成 `GET`。这时建议再补一条 POST 文本版规则：
+
+```text
+插件管理 添加 dynamic
+名称：proxy-api-debug-post-text
+正则：^(?:接口调试POST|代理调试POST|debug-post)\s+(https?:\/\/\S+)\s*\n([\s\S]+)$
+匹配模式：regex
+参数模式：regex
+参数名：targetUrl|body
+必填参数：targetUrl|body
+地址：https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}
+请求：POST
+请求体：{{body}}
+模式：text
+回复：text
+```
+
+说明：
+
+- 这类“整段 URL”参数建议优先使用 `regex`，避免 `contains / prefix + tail` 在更复杂口令里误截断。
+- 当前模板渲染会对 URL 中的 `{{targetUrl}}` 自动执行一次 `encodeURIComponent(...)`。
+- 因此聊天里建议直接发送原始 `https://...` 地址，不要先把整串 URL 再手动编码一遍。
+- `proxy-api-debug-text` 适合直接看接口返回的短文本 / JSON。
+- `proxy-api-debug-link` 更适合 HTML 页面、长文本或你只想点开代理链接自行查看的场景。
+- `proxy-api-debug-post-text` 适合目标接口本身是 `POST` 的场景，建议聊天消息使用“首行 URL + 后续多行 body”的格式，避免 JSON/body 被空格切碎。
+- 链接版规则可复用当前引擎的 `mode=base64 + rType=link` 直出能力，不必真的先下载远端内容。
+- 由于链接点击本质是 `GET`，所以不建议为 POST 调试做 `link` 版规则。
+- 当前字符串类型的 POST body 会按原样发送；只有当请求体是对象/数组配置时，才会自动补 `application/json`。
+- 当前动态规则请求失败时会记录日志并返回 `null`；如果要把失败原因也回给聊天窗口，再考虑额外做引擎增强。
+
 ### 6.3.2 `workflow` 新增示例
 
 ```text

@@ -676,11 +676,12 @@ export async function fetchTemplatedValue(
     const requestInit: RequestInit = {method, headers};
     if (method === 'POST' && request.body !== undefined) {
         const renderedBody = renderTemplateValue(request.body, params, false);
+        const isStringBody = typeof renderedBody === 'string';
         requestInit.body = typeof renderedBody === 'string'
             ? renderedBody
             : JSON.stringify(renderedBody);
         if (!requestInit.headers) requestInit.headers = {};
-        if (!(requestInit.headers as Record<string, string>)['Content-Type']) {
+        if (!isStringBody && !(requestInit.headers as Record<string, string>)['Content-Type']) {
             (requestInit.headers as Record<string, string>)['Content-Type'] = 'application/json';
         }
     }

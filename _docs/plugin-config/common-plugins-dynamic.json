@@ -233,5 +233,64 @@
         "rType": "app",
         "appType": 76,
         "jsonPath": "'<appmsg appid=\"wx1ebb9c41ccbfb6d4\" sdkver=\"0\"><title><![CDATA[🎵 ' + $.data[0].song + ']]></title><des><![CDATA[歌手：' + $.data[0].singer + ']]></des><type>76</type><url><![CDATA[' + $.data[0].url + ']]></url><lowurl><![CDATA[' + $.data[0].url + ']]></lowurl><dataurl><![CDATA[' + $.data[0].url + ']]></dataurl><lowdataurl><![CDATA[' + $.data[0].url + ']]></lowdataurl><songalbumurl><![CDATA[' + $.data[0].cover + ']]></songalbumurl><songlyric><![CDATA[' + $.data[0].lyric + ']]></songlyric><appattach><cdnthumbaeskey /><aeskey></aeskey></appattach></appmsg>'"
+    },
+    {
+        "name": "proxy-api-debug-text",
+        "matchMode": "regex",
+        "pattern": "^(?:接口调试|代理调试|debug-url)\\s+(https?:\\/\\/\\S+)$",
+        "args": {
+            "mode": "regex",
+            "names": [
+                "targetUrl"
+            ],
+            "required": [
+                "targetUrl"
+            ]
+        },
+        "url": "https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}",
+        "method": "GET",
+        "mode": "text",
+        "rType": "text"
+    },
+    {
+        "name": "proxy-api-debug-link",
+        "matchMode": "regex",
+        "pattern": "^(?:接口调试链接|代理调试链接|debug-link)\\s+(https?:\\/\\/\\S+)$",
+        "args": {
+            "mode": "regex",
+            "names": [
+                "targetUrl"
+            ],
+            "required": [
+                "targetUrl"
+            ]
+        },
+        "url": "https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}",
+        "method": "GET",
+        "mode": "base64",
+        "rType": "link",
+        "linkTitle": "接口代理调试",
+        "linkDescription": "点击打开代理后的调试链接"
+    },
+    {
+        "name": "proxy-api-debug-post-text",
+        "matchMode": "regex",
+        "pattern": "^(?:接口调试POST|代理调试POST|debug-post)\\s+(https?:\\/\\/\\S+)\\s*\\n([\\s\\S]+)$",
+        "args": {
+            "mode": "regex",
+            "names": [
+                "targetUrl",
+                "body"
+            ],
+            "required": [
+                "targetUrl",
+                "body"
+            ]
+        },
+        "url": "https://lwcfworker.dpdns.org/proxy?url={{targetUrl}}",
+        "method": "POST",
+        "body": "{{body}}",
+        "mode": "text",
+        "rType": "text"
     }
 ]

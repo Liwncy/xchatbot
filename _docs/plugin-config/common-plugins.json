@@ -119,5 +119,13 @@
         "jsonPath": "$.audiopath",
         "rType": "voice",
         "voiceFormat": 2
+    },
+    {
+        "name": "genshin-quote",
+        "keyword": "原神启动|原神语录",
+        "url": "http://api.yujn.cn/api/ysyl.php",
+        "mode": "text",
+        "rType": "text",
+        "method": "GET"
     }
 ]
