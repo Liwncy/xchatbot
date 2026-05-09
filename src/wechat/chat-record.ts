@@ -37,7 +37,7 @@ export interface BuildWechatChatRecordOptions {
     isChatRoom?: boolean;
     /** scene，默认 0。 */
     scene?: number;
-    /** extcommoninfo.media_expire_at，默认当前时间 + 14 ���。 */
+    /** extcommoninfo.media_expire_at，默认当前时间 + 14 天。 */
     mediaExpireAt?: number;
     /** appinfo.appname，默认空。 */
     appName?: string;
