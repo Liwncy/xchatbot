@@ -18,6 +18,7 @@ import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent
 import {xiuxianPlugin} from './game/xiuxian';
 import {wechatChatRecordDemoPlugin} from './demo/wechat-chat-record';
 import {fakeForwardPlugin} from './wechat/fake-forward';
+import {xuanxuePlugin} from './xuanxue';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
@@ -29,6 +30,7 @@ pluginManager.register(commonPluginsEngine);
 pluginManager.register(dynamicCommonPluginsEngine);
 pluginManager.register(workflowCommonPluginsEngine);
 pluginManager.register(xiuxianPlugin);
+pluginManager.register(xuanxuePlugin);
 // 自定义插件
 pluginManager.register(aiDialogPlugin);
 pluginManager.register(videoLinkParserPlugin);
