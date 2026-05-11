@@ -30,12 +30,25 @@ export const xuanxuePlugin: TextMessage = {
         const content = (message.content ?? '').trim();
         const context = findMatch(content);
         if (!context) return null;
+        const isUsageIntent = context.query === '__usage__';
+
+        const matchMode = context.rule.matchMode ?? 'exact';
+
+        // 独立用法触发：关键词后加“用法/帮助/说明/示例/usage”直接返回 usage。
+        if (isUsageIntent && context.rule.usage) {
+            logger.debug('玄学插件用法触发', {rule: context.rule.name, content});
+            return {type: 'text', content: context.rule.usage};
+        }
 
         // 前置引导：prefix 规则但用户没带任何参数，直接回复用法提示
-        if ((context.rule.matchMode ?? 'exact') === 'prefix' && !context.query && context.rule.usage) {
+        if (matchMode === 'prefix' && !context.query && context.rule.usage) {
             logger.debug('玄学插件引导触发', {rule: context.rule.name, content});
             return {type: 'text', content: context.rule.usage};
         }
+
+        // exact 规则无参数直接执行；但若用户多输了内容无法匹配到 exact 规则，
+        // 这里不会触发（findMatch 已返回 null）。
+        // 若 exact 规则有 usage，可通过「玄学帮助」查看。
 
         // 纯静态规则（url 为空）：直接返回 usage 作为内容
         if (!context.rule.url && context.rule.usage) {

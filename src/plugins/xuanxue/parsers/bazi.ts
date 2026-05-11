@@ -10,6 +10,7 @@ export interface XuanxueSection {
 export interface BaziParsedResult {
     summary: string[];
     sections: XuanxueSection[];
+    previewImageUrl?: string;
 }
 
 const BAZI_SUMMARY_LABELS = [
@@ -18,6 +19,7 @@ const BAZI_SUMMARY_LABELS = [
     '出生农历：',
     '八字生辰：',
     '八字格局：',
+    '生肖：',
     '星宿信息：',
     '命卦信息：',
     '五行旺度：',
@@ -33,6 +35,15 @@ function pickBasicLine(html: string, label: string): string | null {
     const match = html.match(reg);
     const value = normalizeBasicValue(stripHtml(match?.[1] ?? ''));
     return value ? `${label}${value}` : null;
+}
+
+function stripHtmlWithParagraphs(input: string): string {
+    // 将段落/列表标签转成换行，避免当日运势段落被压成一整行。
+    const paragraphFriendly = input
+        .replace(/<\s*\/p\s*>/gi, '\n')
+        .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+        .replace(/<\s*\/li\s*>/gi, '\n');
+    return stripHtml(paragraphFriendly);
 }
 
 export function parseBaziHtml(page: string): BaziParsedResult {
@@ -51,7 +62,7 @@ export function parseBaziHtml(page: string): BaziParsedResult {
     let match: RegExpExecArray | null;
     while ((match = sectionReg.exec(resultRoot)) !== null) {
         const title = stripHtml(match[1]);
-        const content = stripHtml(match[2]).replace(/\s*\n\s*/g, '\n');
+        const content = stripHtmlWithParagraphs(match[2]).replace(/\s*\n\s*/g, '\n');
         if (!title || !content) continue;
         sections.push({title, content});
     }

@@ -1,6 +1,6 @@
 export type XuanxueMatchMode = 'exact' | 'prefix';
 
-export type XuanxueParseMode = 'text' | 'regex' | 'jsonPath' | 'htmlText' | 'baziHtml' | 'heHunHtml' | 'hePanHtml' | 'paipanHtml';
+export type XuanxueParseMode = 'text' | 'regex' | 'jsonPath' | 'htmlText' | 'baziHtml' | 'heHunHtml' | 'hePanHtml' | 'paipanHtml' | 'jingpanHtml' | 'caiyunHtml' | 'zhanbuHtml';
 
 export type XuanxueArgsMode = 'split' | 'regex';
 
@@ -41,6 +41,8 @@ export interface XuanxueRule {
     usage?: string;
     /** 在「玄学帮助」列表中显示的一行简介，不填则不出现在帮助列表里 */
     helpEntry?: string;
+    /** 在「玄学帮助」中的分类名称，不填则归入「其他功能」 */
+    helpCategory?: string;
 }
 
 export interface XuanxueMatchContext {

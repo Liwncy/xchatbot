@@ -6,6 +6,9 @@ import {parseBaziHtml} from '../parsers/bazi.js';
 import {parseHeHunHtml} from '../parsers/hehun.js';
 import {parseHePanHtml} from '../parsers/hepan.js';
 import {parsePaipanHtml} from '../parsers/paipan.js';
+import {parseJingpanHtml} from '../parsers/jingpan.js';
+import {parseCaiyunHtml} from '../parsers/caiyun.js';
+import {parseZhanbuHtml} from '../parsers/zhanbu.js';
 import type {BaziParsedResult} from '../parsers/bazi.js';
 import type {HeHunParsedResult} from '../parsers/hehun.js';
 import type {XuanxueRule} from '../types.js';
@@ -48,6 +51,18 @@ export function parsePage(rule: XuanxueRule, page: string): ParsedResult {
 
     if (config.mode === 'paipanHtml') {
         return parsePaipanHtml(page);
+    }
+
+    if (config.mode === 'jingpanHtml') {
+        return parseJingpanHtml(page);
+    }
+
+    if (config.mode === 'caiyunHtml') {
+        return parseCaiyunHtml(page);
+    }
+
+    if (config.mode === 'zhanbuHtml') {
+        return parseZhanbuHtml(page);
     }
 
     // jsonPath

@@ -11,6 +11,13 @@ import type {IncomingMessage, ImageReply} from '../../../types/message.js';
 
 const MAX_REPLY_LENGTH = 1800;
 
+function withGroupSenderInTitle(message: IncomingMessage, baseTitle: string): string {
+    if (message.source !== 'group') return baseTitle;
+    const sender = (message.senderName ?? '').trim() || message.from;
+    if (!sender) return baseTitle;
+    return `${baseTitle}【${sender}】`;
+}
+
 export function finalizeReply(rule: XuanxueRule, result: string, params: Record<string, string>): string {
     const text = rule.replyTemplate
         ? renderTemplateString(rule.replyTemplate, {...params, result}, false)
@@ -90,6 +97,10 @@ function buildBaziForwardReply(
         parsed.summary.length > 0
             ? parsed.summary
             : [`缘主姓名：${params.name ?? params.senderName ?? '未知'}`];
+    const previewImageUrl = parsed.previewImageUrl?.trim();
+    if (previewImageUrl) {
+        rawSummaryLines.push(`🖼 结果配图：${previewImageUrl}`);
+    }
     const summaryLines = rawSummaryLines.map((line) => withSummaryEmoji(line));
 
     const items = [
@@ -108,7 +119,7 @@ function buildBaziForwardReply(
     ];
 
     return buildWechatChatRecordAppReply({
-        title: `🔮 ${rule.forwardTitle?.trim() || '八字测算结果'}`,
+        title: withGroupSenderInTitle(message, `🔮 ${rule.forwardTitle?.trim() || '八字测算结果'}`),
         summary: summaryLines.join('  '),
         desc: '八字核心结果摘要',
         items,
@@ -218,14 +229,14 @@ function buildHeHunForwardReply(
     }));
 
     const totalItem = {
-        nickname: `🏆 综合评分`,
+        nickname: '🏆 综合评分',
         content: `总分：${parsed.totalScore || '未知'}\n💞 ${parsed.male.name} ${relationEmoji} ${parsed.female.name}`,
         avatarUrl,
         timestampMs: ts + (scoreItems.length + 2) * 1000,
     };
 
     return buildWechatChatRecordAppReply({
-        title: `${titleEmoji} ${rule.forwardTitle?.trim() || (isHePan ? '八字合盘结果' : '八字合婚结果')}`,
+        title: withGroupSenderInTitle(message, `${titleEmoji} ${rule.forwardTitle?.trim() || (isHePan ? '八字合盘结果' : '八字合婚结果')}`),
         summary: `${parsed.male.name} ${relationEmoji} ${parsed.female.name}  总分 ${parsed.totalScore}`,
         desc: descText,
         items: [maleItem, femaleItem, ...scoreItems, totalItem],

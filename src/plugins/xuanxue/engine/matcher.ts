@@ -3,6 +3,17 @@
 import {xuanxueRules} from '../rules.js';
 import type {XuanxueMatchContext, XuanxueRule} from '../types.js';
 
+const USAGE_INTENT_QUERY = '__usage__';
+const USAGE_SUFFIX_WORDS = new Set(['0','用法', '帮助', '说明', '示例', 'usage']);
+
+function normalizeUsageToken(input: string): string {
+    return input.trim().toLowerCase();
+}
+
+function isUsageSuffix(input: string): boolean {
+    return USAGE_SUFFIX_WORDS.has(normalizeUsageToken(input));
+}
+
 function toKeywords(value: string | string[]): string[] {
     return (Array.isArray(value) ? value : [value]).map((item) => item.trim()).filter(Boolean);
 }
@@ -17,8 +28,18 @@ export function findMatch(content: string): XuanxueMatchContext | null {
             if (matchMode === 'exact' && content === keyword) {
                 return {rule, keyword, query: ''};
             }
+            if (matchMode === 'exact' && content.startsWith(keyword)) {
+                const suffix = content.slice(keyword.length).trim();
+                if (suffix && isUsageSuffix(suffix)) {
+                    return {rule, keyword, query: USAGE_INTENT_QUERY};
+                }
+            }
             if (matchMode === 'prefix' && content.startsWith(keyword)) {
-                return {rule, keyword, query: content.slice(keyword.length).trim()};
+                const query = content.slice(keyword.length).trim();
+                if (query && isUsageSuffix(query)) {
+                    return {rule, keyword, query: USAGE_INTENT_QUERY};
+                }
+                return {rule, keyword, query};
             }
         }
     }
