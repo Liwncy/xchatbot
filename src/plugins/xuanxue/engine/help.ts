@@ -22,14 +22,51 @@ function getCategoryOrderValue(category: string): number {
     return idx >= 0 ? idx : CATEGORY_PRIORITY.length + 1;
 }
 
+const RULE_PRIORITY_BY_CATEGORY: Record<string, Record<string, number>> = {
+    '测算姓名': {
+        'xuanxue-xingming-dafen': 1,
+        'xuanxue-online-qiming': 2,
+        'xuanxue-qiming-dafen': 3,
+        'xuanxue-gongsi-dafen': 4,
+    },
+    '缘份配对': {
+        'xuanxue-xingzuo-peidui': 1,
+        'xuanxue-shengxiao-peidui': 2,
+        'xuanxue-xingming-peidui': 3,
+        'xuanxue-shengri-peidui': 4,
+        'xuanxue-xuexing-peidui': 5,
+    },
+    '测算吉凶': {
+        'xuanxue-laohuangli-chaxun': 1,
+        'xuanxue-zeshi-chaxun': 2,
+        'xuanxue-xingzuo-daily': 3,
+        'xuanxue-shuzi-jixiong': 4,
+    },
+    '八字命理': {
+        'xuanxue-bazi-calc': 1,
+        'xuanxue-bazi-daily-fortune': 2,
+        'xuanxue-bazi-jingsuan': 3,
+        'xuanxue-bazi-paipan': 4,
+        'xuanxue-bazi-jingpan': 5,
+        'xuanxue-bazi-caiyun': 6,
+        'xuanxue-bazi-weilai': 7,
+    },
+};
+
+function getRuleOrderValue(category: string, ruleName: string): number {
+    const mapping = RULE_PRIORITY_BY_CATEGORY[category];
+    if (!mapping) return Number.MAX_SAFE_INTEGER;
+    return mapping[ruleName] ?? Number.MAX_SAFE_INTEGER;
+}
+
 function collectGroupedHelp(rules: XuanxueRule[]): Array<{category: string; entries: string[]}> {
-    const grouped = new Map<string, string[]>();
+    const grouped = new Map<string, Array<{name: string; entry: string}>>();
 
     for (const rule of rules) {
         if (rule.enabled === false || !rule.helpEntry) continue;
         const category = rule.helpCategory?.trim() || '其他功能';
         const list = grouped.get(category) ?? [];
-        list.push(rule.helpEntry);
+        list.push({name: rule.name, entry: rule.helpEntry});
         grouped.set(category, list);
     }
 
@@ -40,7 +77,17 @@ function collectGroupedHelp(rules: XuanxueRule[]): Array<{category: string; entr
             if (pa !== pb) return pa - pb;
             return a[0].localeCompare(b[0], 'zh-CN');
         })
-        .map(([category, entries]) => ({category, entries}));
+        .map(([category, entries]) => ({
+            category,
+            entries: entries
+                .sort((a, b) => {
+                    const pa = getRuleOrderValue(category, a.name);
+                    const pb = getRuleOrderValue(category, b.name);
+                    if (pa !== pb) return pa - pb;
+                    return a.entry.localeCompare(b.entry, 'zh-CN');
+                })
+                .map((item) => item.entry),
+        }));
 }
 
 export function buildHelpText(rules: XuanxueRule[]): string {
