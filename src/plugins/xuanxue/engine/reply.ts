@@ -9,7 +9,7 @@ import type {HeHunParsedResult, HeHunPersonInfo} from '../parsers/hehun.js';
 import type {XuanxueRule} from '../types.js';
 import type {IncomingMessage, ImageReply} from '../../../types/message.js';
 
-const MAX_REPLY_LENGTH = 1800;
+// 不截断文字，将完整内容返回
 
 function withGroupSenderInTitle(message: IncomingMessage, baseTitle: string): string {
     if (message.source !== 'group') return baseTitle;
@@ -19,10 +19,9 @@ function withGroupSenderInTitle(message: IncomingMessage, baseTitle: string): st
 }
 
 export function finalizeReply(rule: XuanxueRule, result: string, params: Record<string, string>): string {
-    const text = rule.replyTemplate
+    return rule.replyTemplate
         ? renderTemplateString(rule.replyTemplate, {...params, result}, false)
         : result;
-    return text.length > MAX_REPLY_LENGTH ? `${text.slice(0, MAX_REPLY_LENGTH)}\n...(已截断)` : text;
 }
 
 export function buildForwardReply(

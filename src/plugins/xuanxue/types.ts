@@ -1,6 +1,6 @@
 export type XuanxueMatchMode = 'exact' | 'prefix';
 
-export type XuanxueParseMode = 'text' | 'regex' | 'jsonPath' | 'htmlText' | 'baziHtml' | 'heHunHtml' | 'hePanHtml' | 'paipanHtml' | 'jingpanHtml' | 'caiyunHtml' | 'zhanbuHtml' | 'daliurenHtml' | 'weilaiHtml' | 'zwpanHtml' | 'qimenHtml' | 'xingpanHtml' | 'jinkoujueHtml' | 'meihuaHtml' | 'liuyaoHtml' | 'jiuxingHtml' | 'shengriHtml' | 'guxiangHtml' | 'chengguHtml' | 'liudaoHtml' | 'zhengyuanHtml' | 'yinyuanHtml' | 'mingyunHtml' | 'caiyunYuceHtml' | 'jiehunHtml';
+export type XuanxueParseMode = 'text' | 'regex' | 'jsonPath' | 'htmlText' | 'baziHtml' | 'heHunHtml' | 'hePanHtml' | 'paipanHtml' | 'jingpanHtml' | 'caiyunHtml' | 'zhanbuHtml' | 'daliurenHtml' | 'weilaiHtml' | 'zwpanHtml' | 'qimenHtml' | 'xingpanHtml' | 'jinkoujueHtml' | 'meihuaHtml' | 'liuyaoHtml' | 'jiuxingHtml' | 'shengriHtml' | 'guxiangHtml' | 'chengguHtml' | 'liudaoHtml' | 'zhengyuanHtml' | 'yinyuanHtml' | 'mingyunHtml' | 'caiyunYuceHtml' | 'jiehunHtml' | 'shuziHtml' | 'xingzuoDailyHtml' | 'tongzimingHtml' | 'zeshiHtml' | 'laohuangliHtml' | 'xuankongHtml' | 'xingmingPeiduiHtml' | 'shengriPeiduiHtml' | 'xingzuoPeiduiHtml' | 'shengxiaoPeiduiHtml' | 'xuexingPeiduiHtml' | 'xingmingDafenHtml' | 'qimingDafenHtml' | 'gongsiDafenHtml' | 'qimingListHtml';
 
 export type XuanxueArgsMode = 'split' | 'regex';
 
@@ -9,6 +9,8 @@ export interface XuanxueArgsConfig {
     delimiter?: string;
     names?: string[];
     required?: string[];
+    /** 条件非空校验：当 key 的值（归一化后）等于 value 时，列出的字段为必填 */
+    conditional?: Array<{when: string; is: string; require: string[]}>;
     pattern?: string;
     flags?: string;
 }

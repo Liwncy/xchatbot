@@ -3,7 +3,26 @@
 import type {XuanxueRule} from '../types.js';
 import type {BaziParsedResult} from '../parsers/bazi.js';
 
-export function buildHelpText(rules: XuanxueRule[]): string {
+const CATEGORY_PRIORITY: string[] = [
+    '测算姓名',
+    '缘份配对',
+    '测算吉凶',
+    '运势预测',
+    '八字命理',
+    '合盘配对',
+    '风水堪舆',
+    '玄学排盘',
+    '算卦占卜',
+    '灵签抽签',
+    '其他功能',
+];
+
+function getCategoryOrderValue(category: string): number {
+    const idx = CATEGORY_PRIORITY.indexOf(category);
+    return idx >= 0 ? idx : CATEGORY_PRIORITY.length + 1;
+}
+
+function collectGroupedHelp(rules: XuanxueRule[]): Array<{category: string; entries: string[]}> {
     const grouped = new Map<string, string[]>();
 
     for (const rule of rules) {
@@ -14,8 +33,23 @@ export function buildHelpText(rules: XuanxueRule[]): string {
         grouped.set(category, list);
     }
 
+    return [...grouped.entries()]
+        .sort((a, b) => {
+            const pa = getCategoryOrderValue(a[0]);
+            const pb = getCategoryOrderValue(b[0]);
+            if (pa !== pb) return pa - pb;
+            return a[0].localeCompare(b[0], 'zh-CN');
+        })
+        .map(([category, entries]) => ({category, entries}));
+}
+
+export function buildHelpText(rules: XuanxueRule[]): string {
+    const grouped = collectGroupedHelp(rules);
+
     const entries: string[] = [];
-    for (const [category, list] of grouped.entries()) {
+    for (const group of grouped) {
+        const category = group.category;
+        const list = group.entries;
         entries.push(`【${category}】`);
         entries.push(...list);
     }
@@ -36,19 +70,11 @@ export function buildHelpText(rules: XuanxueRule[]): string {
 
 /** 返回转发消息结构：每个分类一个 section，末尾附测算告诫 */
 export function buildHelpParsedResult(rules: XuanxueRule[]): BaziParsedResult {
-    const grouped = new Map<string, string[]>();
+    const grouped = collectGroupedHelp(rules);
 
-    for (const rule of rules) {
-        if (rule.enabled === false || !rule.helpEntry) continue;
-        const category = rule.helpCategory?.trim() || '其他功能';
-        const list = grouped.get(category) ?? [];
-        list.push(rule.helpEntry);
-        grouped.set(category, list);
-    }
-
-    const sections = [...grouped.entries()].map(([category, entries]) => ({
-        title: category,
-        content: entries.join('\n'),
+    const sections = grouped.map((group) => ({
+        title: group.category,
+        content: group.entries.join('\n'),
     }));
 
     sections.push({

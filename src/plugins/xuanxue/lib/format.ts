@@ -61,9 +61,9 @@ export function withSummaryEmoji(line: string): string {
 }
 
 /**
- * 把长文本按句号等断句，取前 N 句，每句加 •，超长截断。
+ * 把长文本按句号等断句，每句加 •，不截断。
  */
-export function beautifySectionContent(content: string, maxSentences = 3, maxLength = 240): string {
+export function beautifySectionContent(content: string, maxSentences = Infinity, maxLength = Infinity): string {
     const normalized = content
         .replace(/\s+/g, ' ')
         .replace(/\s*([，。！？；：])/g, '$1')
@@ -76,10 +76,11 @@ export function beautifySectionContent(content: string, maxSentences = 3, maxLen
         .map((item) => item.trim())
         .filter(Boolean);
 
-    const picked = sentenceParts.slice(0, maxSentences).map((item) => `• ${item}`);
+    const picked = (maxSentences === Infinity ? sentenceParts : sentenceParts.slice(0, maxSentences))
+        .map((item) => `• ${item}`);
     const text = picked.length > 0 ? picked.join('\n') : `• ${normalized}`;
 
-    if (text.length <= maxLength) return text;
-    return `${text.slice(0, maxLength)}...`;
+    if (maxLength === Infinity || text.length <= maxLength) return text;
+    return text;
 }
 

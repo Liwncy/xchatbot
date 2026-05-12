@@ -48,9 +48,34 @@ function parseBasicSummary(fragment: string, summaryLabels: string[]): string[] 
         .map((line) => normalizeBasicValue(line).replace(/\s+/g, ' ').trim())
         .filter(Boolean);
 
-    return summaryLabels
-        .map((label) => lines.find((line) => line.startsWith(label)))
-        .filter((line): line is string => Boolean(line));
+    const isKnownLabelLine = (line: string) => summaryLabels.some((label) => line.startsWith(label));
+
+    const results: string[] = [];
+    for (const label of summaryLabels) {
+        const idx = lines.findIndex((line) => line.startsWith(label));
+        if (idx < 0) continue;
+
+        const hit = lines[idx];
+        const tail = hit.slice(label.length).trim();
+        if (tail) {
+            results.push(hit);
+            continue;
+        }
+
+        // 某些页面会把值换行到下一行（如：姓名笔画/姓名五行）
+        let value = '';
+        for (let i = idx + 1; i < lines.length; i++) {
+            const candidate = lines[i].trim();
+            if (!candidate) continue;
+            if (isKnownLabelLine(candidate)) break;
+            value = candidate;
+            break;
+        }
+
+        results.push(value ? `${label} ${value}` : hit);
+    }
+
+    return results;
 }
 
 function parseSections(fragment: string): XuanxueSection[] {
