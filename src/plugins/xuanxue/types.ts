@@ -1,6 +1,6 @@
 export type XuanxueMatchMode = 'exact' | 'prefix';
 
-export type XuanxueParseMode = 'text' | 'regex' | 'jsonPath' | 'htmlText' | 'baziHtml' | 'heHunHtml' | 'hePanHtml' | 'paipanHtml' | 'jingpanHtml' | 'caiyunHtml' | 'zhanbuHtml';
+export type XuanxueParseMode = 'text' | 'regex' | 'jsonPath' | 'htmlText' | 'baziHtml' | 'heHunHtml' | 'hePanHtml' | 'paipanHtml' | 'jingpanHtml' | 'caiyunHtml' | 'zhanbuHtml' | 'daliurenHtml' | 'weilaiHtml' | 'zwpanHtml' | 'qimenHtml' | 'xingpanHtml' | 'jinkoujueHtml' | 'meihuaHtml' | 'liuyaoHtml' | 'jiuxingHtml' | 'shengriHtml' | 'guxiangHtml' | 'chengguHtml' | 'liudaoHtml' | 'zhengyuanHtml' | 'yinyuanHtml' | 'mingyunHtml' | 'caiyunYuceHtml' | 'jiehunHtml';
 
 export type XuanxueArgsMode = 'split' | 'regex';
 

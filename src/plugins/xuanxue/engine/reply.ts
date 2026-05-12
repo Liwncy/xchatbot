@@ -133,7 +133,7 @@ function formatBaziSectionContent(content: string): string {
 
     // 对于排盘表格/多行结构内容，尽量保留原始排版。
     if (normalized.includes('\n') || /[┌└│]/.test(normalized)) {
-        return normalized.length > 1800 ? `${normalized.slice(0, 1800)}...` : normalized;
+        return normalized;
     }
 
     return beautifySectionContent(normalized);

@@ -3,6 +3,13 @@
 export function decodeHtmlEntities(input: string): string {
     return input
         .replace(/&nbsp;/gi, ' ')
+        .replace(/&ensp;/gi, ' ')
+        .replace(/&emsp;/gi, ' ')
+        .replace(/&thinsp;/gi, ' ')
+        .replace(/&#8194;/gi, ' ')
+        .replace(/&#8195;/gi, ' ')
+        .replace(/&#8201;/gi, ' ')
+        .replace(/&#12288;/gi, ' ')
         .replace(/&amp;/gi, '&')
         .replace(/&lt;/gi, '<')
         .replace(/&gt;/gi, '>')

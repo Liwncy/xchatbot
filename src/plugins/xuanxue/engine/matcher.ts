@@ -4,7 +4,7 @@ import {xuanxueRules} from '../rules.js';
 import type {XuanxueMatchContext, XuanxueRule} from '../types.js';
 
 const USAGE_INTENT_QUERY = '__usage__';
-const USAGE_SUFFIX_WORDS = new Set(['0','用法', '帮助', '说明', '示例', 'usage']);
+const USAGE_SUFFIX_WORDS = new Set(['用法', '帮助', '说明', '示例', 'usage']);
 
 function normalizeUsageToken(input: string): string {
     return input.trim().toLowerCase();
@@ -127,6 +127,19 @@ export function normalizeParamsByConvention(params: Record<string, string>): Rec
             out[`${field}Input`] = original;
             out[field] = typeMap[original] ?? out[field];
         }
+    }
+
+    if (!out.isdst) {
+        out.isdst = '0';
+    }
+    if (!out.timezone) {
+        out.timezone = '8';
+    }
+    if (out.longitude_type) {
+        out.longitude_type = out.longitude_type.trim().toUpperCase();
+    }
+    if (out.latitude_type) {
+        out.latitude_type = out.latitude_type.trim().toUpperCase();
     }
 
     return out;

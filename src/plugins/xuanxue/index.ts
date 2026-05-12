@@ -20,6 +20,8 @@ import {findMatch, buildTemplateParams, extractArgs, normalizeParamsByConvention
 import {fetchPage} from './engine/fetcher.js';
 import {parsePage} from './engine/parser.js';
 import {finalizeReply, buildForwardReply} from './engine/reply.js';
+import {buildHelpParsedResult} from './engine/help.js';
+import {xuanxueRules} from './rules.js';
 
 export const xuanxuePlugin: TextMessage = {
     type: 'text',
@@ -50,9 +52,16 @@ export const xuanxuePlugin: TextMessage = {
         // 这里不会触发（findMatch 已返回 null）。
         // 若 exact 规则有 usage，可通过「玄学帮助」查看。
 
-        // 纯静态规则（url 为空）：直接返回 usage 作为内容
-        if (!context.rule.url && context.rule.usage) {
-            return {type: 'text', content: context.rule.usage};
+        // 纯静态规则（url 为空）：forward 模式走转发，否则返回 usage 文本
+        if (!context.rule.url) {
+            if (context.rule.replyMode === 'forward') {
+                const parsed = buildHelpParsedResult(xuanxueRules);
+                return buildForwardReply(message, context.rule, parsed, {});
+            }
+            if (context.rule.usage) {
+                return {type: 'text', content: context.rule.usage};
+            }
+            return null;
         }
 
         const params = buildTemplateParams(message, context);
