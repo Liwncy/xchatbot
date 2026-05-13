@@ -11,9 +11,22 @@ import type {IncomingMessage, ImageReply} from '../../../types/message.js';
 
 // 不截断文字，将完整内容返回
 
+function isLikelyWxId(value: string): boolean {
+    const v = value.trim();
+    return /^wxid[_-]/i.test(v) || /^wx[_-]?id/i.test(v);
+}
+
+function sanitizeSenderDisplayName(value: string): string {
+    const v = value.trim();
+    if (!v) return '';
+    return isLikelyWxId(v) ? '' : v;
+}
+
 function withGroupSenderInTitle(message: IncomingMessage, baseTitle: string): string {
     if (message.source !== 'group') return baseTitle;
-    const sender = (message.senderName ?? '').trim() || message.from;
+    const sender =
+        sanitizeSenderDisplayName(message.senderName ?? '') ||
+        sanitizeSenderDisplayName(message.from);
     if (!sender) return baseTitle;
     return `${baseTitle}【${sender}】`;
 }
@@ -92,10 +105,11 @@ function buildBaziForwardReply(
     params: Record<string, string>,
 ) {
     const avatarUrl = rule.forwardAvatarUrl?.trim() || undefined;
+    const senderDisplay = sanitizeSenderDisplayName(params.senderName ?? '');
     const rawSummaryLines =
         parsed.summary.length > 0
             ? parsed.summary
-            : [`缘主姓名：${params.name ?? params.senderName ?? '未知'}`];
+            : [`缘主姓名：${params.name ?? senderDisplay ?? '未知'}`];
     const previewImageUrl = parsed.previewImageUrl?.trim();
     if (previewImageUrl) {
         rawSummaryLines.push(`🖼 结果配图：${previewImageUrl}`);

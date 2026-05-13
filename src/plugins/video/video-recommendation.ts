@@ -21,8 +21,6 @@ interface VideoRoute {
     keywords: string[];
     endpoint: string | string[];
     parser: VideoApiParser;
-    fallbackTitle: string;
-    fallbackDescription: string;
 }
 
 interface ParsedVideoResult {
@@ -56,11 +54,23 @@ const VIDEO_ROUTES: VideoRoute[] = [
     {
         routeKey: 'xjj',
         name: '小姐姐',
-        keywords: ['小姐姐', '甜妹', '美女', '好看小姐姐'],
+        keywords: ['小姐姐', '小美女', '可爱美女'],
         endpoint: 'https://api.yujn.cn/api/zzxjj.php?type=json',
         parser: 'yujn-json',
-        fallbackTitle: '给你找了一条小姐姐视频',
-        fallbackDescription: '点击即可查看本次推荐的视频。',
+    },
+    {
+        routeKey: 'ksxjjsp',
+        name: '大姐姐',
+        keywords: ['大姐姐', '大美女', '成熟美女'],
+        endpoint: 'https://api.yujn.cn/api/ksxjjsp.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'juhexjj',
+        name: '聚合',
+        keywords: ['随机小姐姐', '各类小姐姐', '综合小姐姐'],
+        endpoint: 'https://api.yujn.cn/api/juhexjj.php',
+        parser: 'redirect-url',
     },
     {
         routeKey: 'rewu',
@@ -68,46 +78,205 @@ const VIDEO_ROUTES: VideoRoute[] = [
         keywords: ['热舞', '跳舞', '舞蹈'],
         endpoint: 'https://api.yujn.cn/api/rewu.php',
         parser: 'redirect-url',
-        fallbackTitle: '给你找了一条热舞视频',
-        fallbackDescription: '点击即可查看本次推荐的视频。',
     },
     {
         routeKey: 'manzhan',
-        name: '漫展/COS',
-        keywords: ['漫展', 'cos', 'coser', '二次元'],
+        name: '漫展',
+        keywords: ['漫展', '漫展拍摄', '展会'],
         endpoint: 'https://api.yujn.cn/api/manzhan.php',
         parser: 'redirect-url',
-        fallbackTitle: '给你找了一条漫展视频',
-        fallbackDescription: '点击即可查看本次推荐的视频。',
     },
     {
         routeKey: 'shuaige',
         name: '帅哥',
-        keywords: ['帅哥', '男大', '男神', '男模'],
+        keywords: ['帅哥', '男大', '男模'],
         endpoint: 'https://api.52vmy.cn/api/video/boy',
         parser: 'nested-video-json',
-        fallbackTitle: '给你找了一条帅哥视频',
-        fallbackDescription: '点击即可查看本次推荐的视频。',
     },
     {
         routeKey: 'heisi',
         name: '黑丝',
-        keywords: ['黑丝', '御姐'],
+        keywords: ['黑丝', '黑丝视频', '黑丝小姐姐'],
         endpoint: 'https://api.yujn.cn/api/heisis.php?type=json',
         parser: 'yujn-json',
-        fallbackTitle: '给你找了一条黑丝风格视频',
-        fallbackDescription: '点击即可查看本次推荐的视频。',
     },
     {
         routeKey: 'nande',
         name: '男德',
-        keywords: ['男德', '腹肌', '型男'],
+        keywords: ['男德', '腹肌', '肌肉男'],
         endpoint: 'https://api.yujn.cn/api/ndym.php?type=json',
         parser: 'yujn-json',
-        fallbackTitle: '给你找了一条男德视频',
-        fallbackDescription: '点击即可查看本次推荐的视频。',
+    },
+    {
+        routeKey: 'qingchun',
+        name: '清纯',
+        keywords: ['清纯', '清纯美女', '清纯系'],
+        endpoint: 'https://api.yujn.cn/api/qingchun.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'tianmei',
+        name: '甜妹',
+        keywords: ['甜妹', '甜妹子', '软妹'],
+        endpoint: 'https://api.yujn.cn/api/tianmei.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'luoli',
+        name: '萝莉',
+        keywords: ['萝莉', '萝莉系', '软萌萝莉'],
+        endpoint: 'https://api.yujn.cn/api/luoli.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'duilian',
+        name: '自拍',
+        keywords: ['怼脸', '怼脸自拍', '近景自拍'],
+        endpoint: 'https://api.yujn.cn/api/duilian.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'jksp',
+        name: '洛丽塔',
+        keywords: ['JK', '洛丽塔', '蛋糕裙'],
+        endpoint: 'https://api.yujn.cn/api/jksp.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'baisi',
+        name: '白丝',
+        keywords: ['白丝', '白丝视频', '白丝小姐姐'],
+        endpoint: 'https://api.yujn.cn/api/baisis.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'diaodai',
+        name: '吊带',
+        keywords: ['吊带', '吊带系列', '吊带小姐姐'],
+        endpoint: 'https://api.yujn.cn/api/diaodai.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'yuzu',
+        name: '玉足',
+        keywords: ['玉足', '美腿', '玉足美腿'],
+        endpoint: 'https://api.yujn.cn/api/yuzu.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'sbkl',
+        name: '双倍快乐',
+        keywords: ['双倍快乐', '双人视频', '双倍快乐视频'],
+        endpoint: 'https://api.yujn.cn/api/sbkl.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'bianzhuang',
+        name: '变装',
+        keywords: ['变装', '抖音变装', '变装视频'],
+        endpoint: 'https://api.yujn.cn/api/bianzhuang.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'shejie',
+        name: '蛇姐',
+        keywords: ['蛇姐', '蛇姐视频', '杀猪饲料蛇姐'],
+        endpoint: 'https://api.yujn.cn/api/shejie.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'jjy',
+        name: '鞠婧祎',
+        keywords: ['鞠婧祎', '抖音鞠婧祎', '鞠婧祎视频'],
+        endpoint: 'https://api.yujn.cn/api/jjy.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'xgg',
+        name: '小哥哥',
+        keywords: ['小哥哥', '男神', '小鲜肉'],
+        endpoint: 'https://api.yujn.cn/api/xgg.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'xiaoxiao',
+        name: '潇潇',
+        keywords: ['潇潇', '抖音潇潇', '潇潇视频'],
+        endpoint: 'https://api.yujn.cn/api/xiaoxiao.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'manhuay',
+        name: '漫画芋',
+        keywords: ['漫画芋', '漫画芋视频', '漫画芋博主'],
+        endpoint: 'https://api.yujn.cn/api/manhuay.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'manyao',
+        name: '慢摇',
+        keywords: ['慢摇', '慢摇系列', '慢摇视频'],
+        endpoint: 'https://api.yujn.cn/api/manyao.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'cos',
+        name: '尻瑟',
+        keywords: ['COS', 'cosplay', '角色扮演'],
+        endpoint: 'https://api.yujn.cn/api/COS.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'mengwa',
+        name: '萌娃',
+        keywords: ['萌娃', '可爱小孩', '萌娃视频'],
+        endpoint: 'https://api.yujn.cn/api/mengwa.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'haibian',
+        name: '风景',
+        keywords: ['海边', '晚霞', '海边晚霞'],
+        endpoint: 'https://api.yujn.cn/api/haibian.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'pcfj',
+        name: '壁纸',
+        keywords: ['PC风景', '电脑风景', '风景壁纸'],
+        endpoint: 'https://api.yujn.cn/api/pcfj.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'pcfjsp',
+        name: '漫屋',
+        keywords: ['二次元房间', '二次元背景', '动漫房间'],
+        endpoint: 'https://api.yujn.cn/api/pcfjsp.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'zuqiu',
+        name: '足球',
+        keywords: ['足球', 'C罗', '世界杯'],
+        endpoint: 'https://api.yujn.cn/api/zuqiu.php',
+        parser: 'redirect-url',
+    },
+    {
+        routeKey: 'ps',
+        name: '劈图',
+        keywords: ['PS', 'PS技巧', 'photoshop'],
+        endpoint: 'https://api.yujn.cn/api/ps.php',
+        parser: 'redirect-url',
     },
 ];
+
+function routeFallbackTitle(route: VideoRoute): string {
+    return `${route.name}视频`;
+}
+
+function routeFallbackDescription(route: VideoRoute): string {
+    return `${route.name} · ${route.keywords.join(' / ')}`;
+}
 
 function normalizeInput(value: string): string {
     return value.trim().replace(/\s+/g, '');
@@ -125,15 +294,49 @@ function extractRequestKeyword(content: string): string {
         .trim();
 }
 
+function getRouteMatchScore(route: VideoRoute, normalized: string): number {
+    const routeKey = route.routeKey.toLowerCase();
+    const routeName = normalizeInput(route.name).toLowerCase();
+    const keywords = route.keywords.map((keyword) => normalizeInput(keyword).toLowerCase());
+
+    if (normalized === routeKey) return 10000 + routeKey.length;
+    if (normalized === routeName) return 9000 + routeName.length;
+
+    const exactKeyword = keywords.find((keyword) => normalized === keyword);
+    if (exactKeyword) return 8000 + exactKeyword.length;
+
+    const routeKeyIncluded = normalized.includes(routeKey) ? routeKey.length : 0;
+    const routeNameIncluded = normalized.includes(routeName) ? routeName.length : 0;
+    const keywordIncluded = keywords
+        .filter((keyword) => normalized.includes(keyword))
+        .reduce((max, keyword) => Math.max(max, keyword.length), 0);
+
+    if (keywordIncluded > 0) return 7000 + keywordIncluded;
+    if (routeNameIncluded > 0) return 6000 + routeNameIncluded;
+    if (routeKeyIncluded > 0) return 5000 + routeKeyIncluded;
+    return 0;
+}
+
+function findBestRoute(normalized: string): VideoRoute | null {
+    let bestRoute: VideoRoute | null = null;
+    let bestScore = 0;
+
+    for (const route of VIDEO_ROUTES) {
+        const score = getRouteMatchScore(route, normalized);
+        if (score > bestScore) {
+            bestScore = score;
+            bestRoute = route;
+        }
+    }
+
+    return bestRoute;
+}
+
 function findVideoRoute(keywordText: string): VideoRoute | null {
     const normalized = normalizeInput(keywordText).toLowerCase();
     if (!normalized) return null;
 
-    return VIDEO_ROUTES.find((route) =>
-        normalized === route.routeKey
-        || normalized.includes(normalizeInput(route.name).toLowerCase())
-        || route.keywords.some((keyword) => normalized.includes(normalizeInput(keyword).toLowerCase())),
-    ) ?? null;
+    return findBestRoute(normalized);
 }
 
 function extractRouteKeyFromAiText(content: string): string | null {
@@ -162,11 +365,7 @@ function extractRouteKeyFromAiText(content: string): string | null {
     const exactRoute = VIDEO_ROUTES.find((route) => route.routeKey === plain);
     if (exactRoute) return exactRoute.routeKey;
 
-    const fuzzyRoute = VIDEO_ROUTES.find((route) =>
-        plain.includes(route.routeKey)
-        || plain.includes(normalizeInput(route.name).toLowerCase())
-        || route.keywords.some((keyword) => plain.includes(normalizeInput(keyword).toLowerCase())),
-    );
+    const fuzzyRoute = findBestRoute(plain);
     return fuzzyRoute?.routeKey ?? null;
 }
 
@@ -354,22 +553,15 @@ async function fetchVideoByRoute(route: VideoRoute): Promise<ParsedVideoResult |
 
 function buildNewsArticle(route: VideoRoute, result: ParsedVideoResult, url?: string): NewsArticle {
     return {
-        title: result.title || route.fallbackTitle,
-        description: result.description || route.fallbackDescription,
+        title: result.title || routeFallbackTitle(route),
+        description: result.description || routeFallbackDescription(route),
         url: url || result.videoUrl,
     };
 }
 
 function buildCoverPrompt(route: VideoRoute, result: ParsedVideoResult): string {
     const keyword = result.title?.trim() || route.name;
-    return [
-        '短视频封面',
-        '简约设计',
-        '白底',
-        '干净排版',
-        '竖屏 9:16',
-        `中间竖着艺术大字：${keyword}`,
-    ].filter(Boolean).join('，').slice(0, 180);
+    return `“${keyword}”，这几字竖排居中，毛笔行书书法，宣纸质感背景，几笔内容简笔画，红色印章点缀，极简国风`;
 }
 
 async function generateVideoCover(route: VideoRoute, result: ParsedVideoResult): Promise<GeneratedVideoCover> {
@@ -397,8 +589,8 @@ async function buildSuccessReply(route: VideoRoute, result: ParsedVideoResult): 
         return {
             type: 'video',
             mediaId: result.videoUrl,
-            title: result.title || route.fallbackTitle,
-            description: result.description || route.fallbackDescription,
+            title: result.title || routeFallbackTitle(route),
+            description: result.description || routeFallbackDescription(route),
             linkPicUrl: generatedCover.coverUrl,
             originalUrl: result.videoUrl,
         } satisfies VideoReply;
@@ -425,7 +617,7 @@ async function buildSuccessReply(route: VideoRoute, result: ParsedVideoResult): 
 export const videoRecommendationPlugin: TextMessage = {
     type: 'text',
     name: 'video-recommendation',
-    description: '以“我想看 / 我爱看 / 我要看”开头，先由 AI 提炼分类，再推荐对应视频',
+    description: '以"我想看 / 我爱看 / 我要看"开头，先由 AI 提炼分类，再推荐对应视频',
     match: (content) => TRIGGER_PREFIXES.some((prefix) => content.trim().startsWith(prefix)),
     handle: async (message, env) => {
         const keywordText = extractRequestKeyword(message.content ?? '');
