@@ -4,7 +4,7 @@ import {WechatApi} from '../../wechat/api.js';
 import type {WechatPushItem, WechatPushMessage} from '../../wechat/types.js';
 
 const WAIT_IMAGE_TTL_MS = 2 * 60 * 1000;
-const TRIGGER_KEYWORDS = ['识图', '解析图片', '看图'];
+const TRIGGER_KEYWORDS = ['聪明识图', '聪明认图', '聪明看图'];
 const AI_RECOGNIZE_URL = 'https://api.pearktrue.cn/api/airecognizeimg';
 
 interface AiRecognizeResponse {
