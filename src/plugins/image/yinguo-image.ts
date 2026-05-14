@@ -36,6 +36,79 @@ function base64ToBlob(base64: string, contentType = 'image/jpeg'): Blob {
     return new Blob([bytes], {type: contentType});
 }
 
+function isLikelyHttpUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value.trim());
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+}
+
+function looksLikeBase64Text(value: string): boolean {
+    const normalized = normalizeBase64(value).replace(/\s+/g, '');
+    return normalized.length > 100 && /^[A-Za-z0-9+/=]+$/.test(normalized);
+}
+
+async function fetchImageAsBase64FromUrl(url: string): Promise<string> {
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            Accept: 'image/*,*/*',
+            ...getAuthHeaders(),
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`图片链接下载失败 status=${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+    if (!contentType.includes('image/')) {
+        throw new Error(`图片链接返回非图片内容 content-type=${contentType || 'unknown'}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    if (!buffer.byteLength) {
+        throw new Error('图片链接返回空内容');
+    }
+    return arrayBufferToBase64(buffer);
+}
+
+function buildImageSourceHeaders(): HeadersInit {
+    return {
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'cache-control': 'max-age=0',
+        priority: 'u=0, i',
+        'sec-ch-ua': '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        ...getAuthHeaders() as Record<string, string>,
+    };
+}
+
+async function fetchSourceResponse(url: string): Promise<Response> {
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: buildImageSourceHeaders(),
+    });
+    if (!response.ok) {
+        throw new Error(`status=${response.status}`);
+    }
+    return response;
+}
+
 function pickStringField(obj: Record<string, unknown>, keys: string[]): string {
     for (const key of keys) {
         const value = obj[key];
@@ -123,24 +196,42 @@ function resolveClassificationFromPayload(payload: unknown): string {
 
 async function fetchImageBase64(): Promise<string> {
     const url = YINGUO_IMAGE_API_URL.trim();
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            Accept: 'application/json, text/plain, */*',
-            ...getAuthHeaders(),
-        },
-    });
-    if (!response.ok) {
-        throw new Error(`获取原图失败 status=${response.status}`);
+    if (!url) {
+        throw new Error('未配置可用原图接口地址');
     }
 
-    const payload = await response.json();
-    const base64 = resolveBase64FromPayload(payload);
-    if (!base64) {
-        throw new Error('原图接口未返回 base64');
+    const response = await fetchSourceResponse(url);
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+
+    if (contentType.includes('image/')) {
+        const imageBuffer = await response.arrayBuffer();
+        if (!imageBuffer.byteLength) {
+            throw new Error('原图接口返回空图片内容');
+        }
+        return arrayBufferToBase64(imageBuffer);
     }
-    return base64;
+
+    if (contentType.includes('application/json')) {
+        const payload = await response.json();
+        const base64 = resolveBase64FromPayload(payload);
+        if (base64) return normalizeBase64(base64);
+
+        const imageUrl = resolveUrlFromPayload(payload);
+        if (imageUrl) {
+            return fetchImageAsBase64FromUrl(imageUrl);
+        }
+        throw new Error('原图 JSON 未返回 base64 或可用图片链接');
+    }
+
+    const rawText = (await response.text()).trim();
+    if (isLikelyHttpUrl(rawText)) {
+        return fetchImageAsBase64FromUrl(rawText);
+    }
+    if (looksLikeBase64Text(rawText)) {
+        return normalizeBase64(rawText);
+    }
+
+    throw new Error(`原图接口返回了无法识别的内容类型 content-type=${contentType || 'unknown'}`);
 }
 
 async function verifyImage(base64: string): Promise<{score: number | null; classification: string}> {
