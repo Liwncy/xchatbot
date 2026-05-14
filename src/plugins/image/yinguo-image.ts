@@ -287,12 +287,26 @@ async function toSketchImageByUrl(imageUrl: string): Promise<string | null> {
         throw new Error(`手绘转换失败 status=${response.status}`);
     }
 
-    const payload = await response.json();
-    const base64Result = resolveBase64FromPayload(payload);
-    if (base64Result) return base64Result;
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+    if (contentType.includes('image/')) {
+        const imageBuffer = await response.arrayBuffer();
+        if (!imageBuffer.byteLength) return null;
+        return arrayBufferToBase64(imageBuffer);
+    }
 
-    const urlResult = resolveUrlFromPayload(payload);
-    return urlResult || null;
+    if (contentType.includes('application/json')) {
+        const payload = await response.json();
+        const base64Result = resolveBase64FromPayload(payload);
+        if (base64Result) return normalizeBase64(base64Result);
+
+        const urlResult = resolveUrlFromPayload(payload);
+        return urlResult || null;
+    }
+
+    const rawText = (await response.text()).trim();
+    if (isLikelyHttpUrl(rawText)) return rawText;
+    if (looksLikeBase64Text(rawText)) return normalizeBase64(rawText);
+    return null;
 }
 
 function isPornClassification(value: string): boolean {
