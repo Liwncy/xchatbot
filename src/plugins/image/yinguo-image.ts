@@ -3,6 +3,7 @@ import {logger} from '../../utils/logger.js';
 import {FileUploader} from '../../utils/file-uploader.js';
 
 const TRIGGER_KEYWORDS = ['我与赌毒不共戴天', '因果循环', '佛祖心中住'] as const;
+const PORN_SKETCH_THRESHOLD = 0.21;
 
 // 在这里直接维护接口配置，不依赖环境变量。
 const YINGUO_IMAGE_API_URL = 'https://veil.ortlinde.com/v1/random';
@@ -176,6 +177,18 @@ function resolveScoreFromPayload(payload: unknown): number | null {
     return pickNumberField(data, ['score', 'risk', 'riskScore', 'nsfw', 'toxicity']);
 }
 
+function resolvePornFromPayload(payload: unknown): number | null {
+    if (!payload || typeof payload !== 'object') return null;
+    const root = payload as Record<string, unknown>;
+
+    const rootPorn = pickNumberField(root, ['porn']);
+    if (rootPorn !== null) return rootPorn;
+
+    const data = pickObjectField(root, ['data', 'result']);
+    if (!data) return null;
+    return pickNumberField(data, ['porn']);
+}
+
 function resolveClassificationFromPayload(payload: unknown): string {
     if (!payload || typeof payload !== 'object') return '';
     const root = payload as Record<string, unknown>;
@@ -234,7 +247,7 @@ async function fetchImageBase64(): Promise<string> {
     throw new Error(`原图接口返回了无法识别的内容类型 content-type=${contentType || 'unknown'}`);
 }
 
-async function verifyImage(base64: string): Promise<{score: number | null; classification: string}> {
+async function verifyImage(base64: string): Promise<{score: number | null; porn: number | null; classification: string}> {
     const api = YINGUO_VERIFY_API_URL.trim();
     const form = new FormData();
     form.append('file', base64ToBlob(base64), `yinguo-${Date.now()}.jpg`);
@@ -254,6 +267,7 @@ async function verifyImage(base64: string): Promise<{score: number | null; class
     const payload = await response.json();
     return {
         score: resolveScoreFromPayload(payload),
+        porn: resolvePornFromPayload(payload),
         classification: resolveClassificationFromPayload(payload),
     };
 }
@@ -313,13 +327,23 @@ function isPornClassification(value: string): boolean {
     return value.replace(/\s+/g, '') === '色情';
 }
 
-async function maybeConvertToSketch(base64: string, classification: string): Promise<string | null> {
-    if (!isPornClassification(classification)) return null;
+function shouldConvertToSketch(classification: string, porn: number | null): boolean {
+    if (isPornClassification(classification)) return true;
+    if (porn === null) return false;
+    return porn > PORN_SKETCH_THRESHOLD;
+}
+
+async function maybeConvertToSketch(base64: string, classification: string, porn: number | null): Promise<string | null> {
+    if (!shouldConvertToSketch(classification, porn)) return null;
 
     const tempUrl = await createTempUrl(base64);
     const sketchImage = await toSketchImageByUrl(tempUrl);
     if (!sketchImage) {
-        logger.warn('因果诱惑图片命中色情分类，但手绘接口未返回有效结果', {classification});
+        logger.warn('因果诱惑图片命中手绘规则，但手绘接口未返回有效结果', {
+            classification,
+            porn,
+            pornThreshold: PORN_SKETCH_THRESHOLD,
+        });
     }
     return sketchImage;
 }
@@ -337,10 +361,12 @@ export const yinguoImagePlugin: TextMessage = {
             assertRequiredConfig();
             const base64 = await fetchImageBase64();
             const verifyResult = await verifyImage(base64);
-            const sketchImage = await maybeConvertToSketch(base64, verifyResult.classification);
+            const sketchImage = await maybeConvertToSketch(base64, verifyResult.classification, verifyResult.porn);
             if (sketchImage) {
-                logger.info('因果诱惑图片命中色情分类，已转手绘图', {
+                logger.info('因果诱惑图片命中手绘规则，已转手绘图', {
                     classification: verifyResult.classification,
+                    porn: verifyResult.porn,
+                    pornThreshold: PORN_SKETCH_THRESHOLD,
                     score: verifyResult.score,
                 });
                 return {
