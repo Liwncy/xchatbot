@@ -7,10 +7,10 @@ import {buildWechatChatRecordAppReply, WechatChatRecordImageTool} from '../../we
 const DIRECT_FORWARD_KEYWORDS = ['我与赌毒不共戴天', '佛祖心中坐'] as const;
 const REVIEW_MODE_KEYWORDS = ['因果循环', '人之初，性本色', '人之初,性本色', '人之初性本色'] as const;
 const TRIGGER_KEYWORDS = [...DIRECT_FORWARD_KEYWORDS, ...REVIEW_MODE_KEYWORDS] as const;
-const PORN_SKETCH_THRESHOLD = 0.21;
+const PORN_SKETCH_THRESHOLD = 0.1;
 
 // 在这里直接维护接口配置，不依赖环境变量。
-const YINGUO_IMAGE_API_URL = 'https://lwcfworker.dpdns.org/proxy?url=https://veil.ortlinde.com/v1/random';
+const YINGUO_IMAGE_API_URL = 'https://veil.ortlinde.com/v1/random';
 const YINGUO_VERIFY_API_URL = 'https://api.pearapi.ai/api/pornimage/';
 const YINGUO_SKETCH_API_URL = 'https://api.xingzhige.com/API/xian?url=';
 const YINGUO_API_KEY = '';
