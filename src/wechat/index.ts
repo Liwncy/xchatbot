@@ -11,6 +11,7 @@ import {WechatApi} from './api.js';
 import {logger} from '../utils/logger.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from './constants.js';
 import {normalizeVoiceForWechat} from '../utils/silk-converter.js';
+import {ContactRepository} from '../plugins/system/contact-admin/repository.js';
 
 export {
     buildWechatChatRecordAppReply,
@@ -721,8 +722,42 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     // 分发到路由（逐条处理批量消息）
     const {routeMessage, toReplyArray} = await import('../bot/index.js');
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
+    const ownerWxid = env.BOT_OWNER_WECHAT_ID?.trim() ?? '';
 
     for (const message of activeMessages) {
+        // 全局白名单：
+        // 1) 机器人主人消息永远放行
+        // 2) 私聊放行
+        // 3) 群聊仅当群ID在联系人列表中才放行
+        if (!ownerWxid || message.from !== ownerWxid) {
+            if (message.source === 'private') {
+                // pass
+            } else if (message.source === 'group') {
+                if (!apiBaseUrl || !message.room?.id) {
+                    logger.debug('消息被白名单过滤（群聊缺少配置或群ID）', {
+                        source: message.source,
+                        roomId: message.room?.id,
+                        hasApiBaseUrl: Boolean(apiBaseUrl),
+                    });
+                    continue;
+                }
+                const allowed = await ContactRepository.isGroupContactAllowed(env.XBOT_DB, message.room.id);
+                if (!allowed) {
+                    logger.debug('消息被白名单过滤（群聊不在联系人列表）', {
+                        source: message.source,
+                        roomId: message.room.id,
+                    });
+                    continue;
+                }
+            } else {
+                logger.debug('消息被白名单过滤（非私聊且非联系人群聊）', {
+                    source: message.source,
+                    from: message.from,
+                });
+                continue;
+            }
+        }
+
         console.log('处理微信消息', {routeMessage, toReplyArray, message});
         const response = await routeMessage(message, env);
         const replies = toReplyArray(response);

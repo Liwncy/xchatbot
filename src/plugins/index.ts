@@ -11,6 +11,7 @@ import {videoLinkParserPlugin} from './video/video-link-parser';
 import {videoRecommendationPlugin} from './video/video-recommendation';
 import {helpPlugin} from './system/help';
 import {pluginAdminPlugin} from './system/plugin-admin';
+import {contactAdminPlugin} from './system/contact-admin';
 import {commonPluginsEngine} from './common/base';
 import {dynamicCommonPluginsEngine} from './common/dynamic';
 import {workflowCommonPluginsEngine} from './common/workflow';
@@ -25,6 +26,7 @@ import {xuanxuePlugin} from './xuanxue';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
+pluginManager.register(contactAdminPlugin);
 pluginManager.register(wechatChatRecordDemoPlugin);
 pluginManager.register(videoRecommendationPlugin);
 pluginManager.register(imageRecommendationPlugin);
