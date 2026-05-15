@@ -1,16 +1,24 @@
 import type {TextMessage} from '../types.js';
 import {logger} from '../../utils/logger.js';
 import {FileUploader} from '../../utils/file-uploader.js';
+import {WechatApi} from '../../wechat/api.js';
+import {buildWechatChatRecordAppReply, WechatChatRecordImageTool} from '../../wechat/index.js';
 
-const TRIGGER_KEYWORDS = ['我与赌毒不共戴天', '因果循环', '佛祖心中住'] as const;
+const DIRECT_FORWARD_KEYWORDS = ['我与赌毒不共戴天', '佛祖心中坐'] as const;
+const REVIEW_MODE_KEYWORDS = ['因果循环', '人之初，性本色', '人之初,性本色', '人之初性本色'] as const;
+const TRIGGER_KEYWORDS = [...DIRECT_FORWARD_KEYWORDS, ...REVIEW_MODE_KEYWORDS] as const;
 const PORN_SKETCH_THRESHOLD = 0.21;
 
 // 在这里直接维护接口配置，不依赖环境变量。
-const YINGUO_IMAGE_API_URL = 'https://veil.ortlinde.com/v1/random';
+const YINGUO_IMAGE_API_URL = 'https://lwcfworker.dpdns.org/proxy?url=https://veil.ortlinde.com/v1/random';
 const YINGUO_VERIFY_API_URL = 'https://api.pearapi.ai/api/pornimage/';
 const YINGUO_SKETCH_API_URL = 'https://api.xingzhige.com/API/xian?url=';
 const YINGUO_API_KEY = '';
 const YINGUO_UPLOAD_VIP_CODE = '';
+const DIRECT_FORWARD_ROLE_A_NAME = 'Ooops';
+const DIRECT_FORWARD_ROLE_A_AVATAR = 'https://wx.qlogo.cn/mmhead/ver_1/npSwbRYUlDdNMFwQ4lUicwSc7xGicUJN0XDdsrH1jD4UUEO9ibUURm0VNPyge3TvsrkhgtVbRR5IcmEznhEVKKEnFvWeCMDNplUSKnCpERz6RVMZQ6QWyKaRquMYPSLSIWMaa4HZFibAEcNUCgduRNdGbQ/132';
+const DIRECT_FORWARD_ROLE_B_NAME = '@小陌...';
+const DIRECT_FORWARD_ROLE_B_AVATAR = 'https://wx.qlogo.cn/mmhead/ver_1/5C1a3PeeRSg3qurLe0ug4Qa8Cahniaqeg5P5pT0uqqpibwq3UoicdtRTPruapqSFOErd1uGAh1sMFgiaMvzVXozAZw/132';
 
 function getAuthHeaders(): HeadersInit {
     const token = YINGUO_API_KEY.trim();
@@ -20,6 +28,18 @@ function getAuthHeaders(): HeadersInit {
 function assertRequiredConfig(): void {
     if (!YINGUO_IMAGE_API_URL.trim()) throw new Error('请在 yinguo-image.ts 中设置 YINGUO_IMAGE_API_URL');
     if (!YINGUO_VERIFY_API_URL.trim()) throw new Error('请在 yinguo-image.ts 中设置 YINGUO_VERIFY_API_URL');
+}
+
+function resolveYinguoMode(content: string): 'direct-forward' | 'review-mode' | null {
+    const trimmed = content.trim();
+    if (!trimmed) return null;
+    if (DIRECT_FORWARD_KEYWORDS.some((keyword) => trimmed.includes(keyword))) {
+        return 'direct-forward';
+    }
+    if (REVIEW_MODE_KEYWORDS.some((keyword) => trimmed.includes(keyword))) {
+        return 'review-mode';
+    }
+    return null;
 }
 
 function normalizeBase64(value: string): string {
@@ -348,38 +368,116 @@ async function maybeConvertToSketch(base64: string, classification: string, porn
     return sketchImage;
 }
 
+async function buildDirectForwardReply(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
+    const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
+    if (!apiBaseUrl) {
+        throw new Error('WECHAT_API_BASE_URL 未配置，无法上传转发图片');
+    }
+
+    const receiver = message.room?.id || message.from;
+    if (!receiver) {
+        throw new Error('无法确定图片上传接收者');
+    }
+
+    const api = new WechatApi(apiBaseUrl);
+    const uploaded = await WechatChatRecordImageTool.uploadImage(api, {
+        imageUrl: YINGUO_IMAGE_API_URL,
+    });
+
+    const senderNickname = message.senderName?.trim() || '发送人昵称';
+    const now = Date.now();
+
+    return buildWechatChatRecordAppReply({
+        title: '群聊的聊天记录',
+        isChatRoom: true,
+        items: [
+            {
+                kind: 'text',
+                nickname: DIRECT_FORWARD_ROLE_A_NAME,
+                content: '兄弟们，我找到一张特别牛逼的图片[奸笑]',
+                avatarUrl: DIRECT_FORWARD_ROLE_A_AVATAR,
+                timestampMs: now,
+            },
+            {
+                kind: 'text',
+                nickname: DIRECT_FORWARD_ROLE_B_NAME,
+                content: '什么图片这么牛逼啊',
+                avatarUrl: DIRECT_FORWARD_ROLE_B_AVATAR,
+                timestampMs: now + 1000,
+            },
+            {
+                kind: 'image',
+                nickname: DIRECT_FORWARD_ROLE_A_NAME,
+                uploadedImage: uploaded,
+                avatarUrl: DIRECT_FORWARD_ROLE_A_AVATAR,
+                timestampMs: now + 2000,
+            },
+            {
+                kind: 'text',
+                nickname: DIRECT_FORWARD_ROLE_A_NAME,
+                content: '哈哈哈，牛逼吧[旺柴]',
+                avatarUrl: DIRECT_FORWARD_ROLE_A_AVATAR,
+                timestampMs: now + 3000,
+            },
+            {
+                kind: 'text',
+                nickname: DIRECT_FORWARD_ROLE_B_NAME,
+                content: '🐂[啤酒]',
+                avatarUrl: DIRECT_FORWARD_ROLE_B_AVATAR,
+                timestampMs: now + 4000,
+            },
+            {
+                kind: 'text',
+                nickname: senderNickname,
+                content: '🐂[啤酒]',
+                timestampMs: now + 5000,
+            },
+        ],
+    }, {
+        to: receiver,
+    });
+}
+
+async function buildReviewModeReply() {
+    assertRequiredConfig();
+    const base64 = await fetchImageBase64();
+    const verifyResult = await verifyImage(base64);
+    const sketchImage = await maybeConvertToSketch(base64, verifyResult.classification, verifyResult.porn);
+    if (sketchImage) {
+        logger.info('因果诱惑图片命中手绘规则，已转手绘图', {
+            classification: verifyResult.classification,
+            porn: verifyResult.porn,
+            pornThreshold: PORN_SKETCH_THRESHOLD,
+            score: verifyResult.score,
+        });
+        return {
+            type: 'image' as const,
+            mediaId: sketchImage,
+            originalUrl: /^https?:\/\//i.test(sketchImage) ? sketchImage : undefined,
+        };
+    }
+
+    return {
+        type: 'image' as const,
+        mediaId: base64,
+    };
+}
+
 export const yinguoImagePlugin: TextMessage = {
     type: 'text',
     name: 'yinguo-image',
-    description: '因果诱惑图片插件：关键词触发，取 base64 -> 临时链接 -> 验证，超阈值转手绘图',
+    description: '因果诱惑图片插件：部分关键词直传 CDN 转聊天记录图片，其他关键词走鉴黄+手绘模式',
     match: (content) => {
         const trimmed = content.trim();
         return TRIGGER_KEYWORDS.some((keyword) => trimmed.includes(keyword));
     },
-    handle: async () => {
+    handle: async (message, env) => {
         try {
-            assertRequiredConfig();
-            const base64 = await fetchImageBase64();
-            const verifyResult = await verifyImage(base64);
-            const sketchImage = await maybeConvertToSketch(base64, verifyResult.classification, verifyResult.porn);
-            if (sketchImage) {
-                logger.info('因果诱惑图片命中手绘规则，已转手绘图', {
-                    classification: verifyResult.classification,
-                    porn: verifyResult.porn,
-                    pornThreshold: PORN_SKETCH_THRESHOLD,
-                    score: verifyResult.score,
-                });
-                return {
-                    type: 'image',
-                    mediaId: sketchImage,
-                    originalUrl: /^https?:\/\//i.test(sketchImage) ? sketchImage : undefined,
-                };
+            const mode = resolveYinguoMode(message.content ?? '');
+            if (mode === 'direct-forward') {
+                return await buildDirectForwardReply(message, env);
             }
-
-            return {
-                type: 'image',
-                mediaId: base64,
-            };
+            return await buildReviewModeReply();
         } catch (error) {
             logger.error('因果诱惑图片插件处理失败', {
                 error: error instanceof Error ? error.message : String(error),

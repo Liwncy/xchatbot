@@ -1,4 +1,21 @@
+import {WechatApi} from '../wechat/api.js';
+import type {UploadImageResponse} from '../wechat/api-types.js';
 import {logger} from './logger.js';
+
+/** 机器人自身的 wxid，用于 CDN 上传时作为 receiver（仅上传，不对外发送）。 */
+const BOT_SELF_WXID = 'wxid_ahl9az25aljx22';
+
+export interface WechatImageUploadResult {
+    fileId: string;
+    aesKey: string;
+}
+
+export interface WechatImageUploadOptions {
+    /** 图片文件或 base64 字符串。与 imageUrl 二选一。 */
+    image?: Blob | string;
+    /** 图片 URL。与 image 二选一。 */
+    imageUrl?: string;
+}
 
 const DEFAULT_FILE_ACCESS_PREFIX = 'https://file.upfile.live/';
 const DEFAULT_GET_UPLOAD_LINK_URL = 'https://upfile.live/api/file/getUploadLink/';
@@ -108,6 +125,57 @@ export class FileUploader {
 
     static async uploadBase64(base64: string, options?: UploadFileOptions): Promise<string | null> {
         return this.upload(base64, options);
+    }
+}
+
+/**
+ * 微信 CDN 图片上传工具。
+ *
+ * 调用 /api/cdn/upload/image 接口，将图片上传至微信 CDN，
+ * receiver 固定为机器人自身 wxid（仅做上传，不对外发送），
+ * 返回 fileId 和 aesKey 供后续构造消息使用。
+ */
+export class WechatImageUploader {
+    private readonly api: WechatApi;
+
+    constructor(apiBaseUrl: string) {
+        this.api = new WechatApi(apiBaseUrl);
+    }
+
+    /**
+     * 上传图片至微信 CDN。
+     * @returns fileId 和 aesKey，失败时返回 null。
+     */
+    async uploadImage(options: WechatImageUploadOptions): Promise<WechatImageUploadResult | null> {
+        try {
+            const resp = await this.api.cdnUploadImage({
+                receiver: BOT_SELF_WXID,
+                image: options.image,
+                image_url: options.imageUrl,
+            });
+
+            if (resp.code !== 0) {
+                logger.warn('微信 CDN 图片上传失败', {code: resp.code, message: resp.message});
+                return null;
+            }
+
+            const data = resp.data as UploadImageResponse | undefined;
+            const fileId = data?.file_id?.trim() ?? '';
+            const aesKey = data?.aes_key?.trim() ?? '';
+
+            if (!fileId || !aesKey) {
+                logger.warn('微信 CDN 图片上传返回缺少必要字段', {data});
+                return null;
+            }
+
+            logger.info('微信 CDN 图片上传成功', {fileId});
+            return {fileId, aesKey};
+        } catch (error) {
+            logger.error('微信 CDN 图片上传异常', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return null;
+        }
     }
 }
 

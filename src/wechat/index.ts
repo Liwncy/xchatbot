@@ -17,6 +17,11 @@ export {
     buildWechatChatRecordAppXml,
     buildSingleWechatChatRecordAppReply,
 } from './chat-record.js';
+export {
+    WechatChatRecordImageTool,
+    buildWechatChatRecordImageDataDesc,
+    buildWechatChatRecordImageFields,
+} from './chat-record-image.js';
 
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 function isHttpUrl(value?: string): boolean {

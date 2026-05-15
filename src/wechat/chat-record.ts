@@ -1,13 +1,17 @@
 import type {AppReply} from '../types/message.js';
+import {buildWechatChatRecordImageFields} from './chat-record-image.js';
+import type {WechatChatRecordUploadedImage} from './chat-record-image.js';
 
 const DEFAULT_RECORD_TITLE = '群聊的聊天记录';
 const DEFAULT_APP_TYPE = 19;
 
 export interface WechatChatRecordItem {
+    /** 项类型。默认 text。 */
+    kind?: 'text' | 'image';
     /** 展示昵称。 */
     nickname: string;
-    /** 文本内容。 */
-    content: string;
+    /** 文本内容。image 类型可省略。 */
+    content?: string;
     /** 头像 URL，可选。 */
     avatarUrl?: string;
     /** 消息时间戳（毫秒）。省略时取当前时间。 */
@@ -20,6 +24,14 @@ export interface WechatChatRecordItem {
     dataId?: string;
     /** dataitemsource.hashusername。省略时自动生成。 */
     hashUsername?: string;
+    /** image 类型专用：cdnUploadImage 的完整返回数据。 */
+    uploadedImage?: WechatChatRecordUploadedImage;
+    /** image 类型专用：图片 CDN URL（cdndataurl）。优先使用 uploadedImage。 */
+    imageFileId?: string;
+    /** image 类型专用：图片 AES Key（cdndatakey）。优先使用 uploadedImage。 */
+    imageAesKey?: string;
+    /** @deprecated 不再使用 */
+    imageDataDesc?: string;
 }
 
 export interface BuildWechatChatRecordOptions {
@@ -107,21 +119,75 @@ function pseudoHex(input: string, length: number): string {
 function buildDefaultRecordSummary(items: WechatChatRecordItem[]): string {
     return items
         .slice(0, 4)
-        .map((item) => `${item.nickname.trim()}: ${item.content.trim()}`)
+        .map((item) => {
+            const kind = item.kind ?? 'text';
+            const content = item.content?.trim() ?? '';
+            return `${item.nickname.trim()}: ${content || (kind === 'image' ? '[图片]' : '[消息]')}`;
+        })
         .join('\n');
+}
+
+function buildImageFields(item: WechatChatRecordItem) {
+    // 优先使用 uploadedImage（包含完整字段）
+    if (item.uploadedImage) {
+        return buildWechatChatRecordImageFields({
+            fileId: item.uploadedImage.fileId,
+            aesKey: item.uploadedImage.aesKey,
+            thumbFileId: item.uploadedImage.thumbFileId,
+            thumbAesKey: item.uploadedImage.thumbAesKey,
+            md5: item.uploadedImage.md5,
+            thumbMd5: item.uploadedImage.thumbMd5,
+            dataSize: item.uploadedImage.dataSize,
+        });
+    }
+    // 兼容旧字段
+    const fileId = item.imageFileId?.trim() ?? '';
+    const aesKey = item.imageAesKey?.trim() ?? '';
+    if (!fileId || !aesKey) {
+        throw new Error('image item requires uploadedImage or imageFileId + imageAesKey');
+    }
+    return buildWechatChatRecordImageFields({fileId, aesKey});
 }
 
 function buildRecordDataItem(item: WechatChatRecordItem, index: number): string {
     const timestampMs = normalizeTimestampMs(item.timestampMs);
     const sourceMsgId = String(item.messageId ?? timestampMs);
     const localId = String(item.localId ?? (index + 1));
+    const kind = item.kind ?? 'text';
     const nickname = escapeXml(item.nickname.trim());
-    const content = escapeXml(item.content);
+    const plainContent = item.content ?? '';
+    const content = escapeXml(plainContent);
     const avatarUrl = escapeXml(item.avatarUrl?.trim() ?? '');
     const sourceTime = formatWechatRecordTime(timestampMs);
     const dataSeed = `${nickname}|${content}|${sourceTime}|${sourceMsgId}|${localId}`;
     const dataId = escapeXml(item.dataId?.trim() || pseudoHex(dataSeed, 32));
     const hashUsername = escapeXml(item.hashUsername?.trim() || pseudoHex(`${nickname}|${avatarUrl}|${sourceMsgId}`, 64));
+
+    if (kind === 'image') {
+        const f = buildImageFields(item);
+        return "<dataitem datatype=\"2\" dataid=\"" + dataId + "\" htmlid=\"" + dataId + "\">\n"
+            + "<datafmt>jpg</datafmt>\n"
+            + "<sourcename>" + nickname + "</sourcename>\n"
+            + "<sourceheadurl>" + avatarUrl + "</sourceheadurl>\n"
+            + "<sourcetime>" + sourceTime + "</sourcetime>\n"
+            + "<thumbsize>0</thumbsize>\n"
+            + "<cdndataurl>" + escapeXml(f.cdndataurl) + "</cdndataurl>\n"
+            + "<cdndatakey>" + escapeXml(f.cdndatakey) + "</cdndatakey>\n"
+            + "<filetype>1</filetype>\n"
+            + "<thumbfiletype>1</thumbfiletype>\n"
+            + "<cdnthumburl>" + escapeXml(f.cdnthumburl) + "</cdnthumburl>\n"
+            + "<cdnthumbkey>" + escapeXml(f.cdnthumbkey) + "</cdnthumbkey>\n"
+            + "<fullmd5>" + escapeXml(f.fullmd5) + "</fullmd5>\n"
+            + "<thumbfullmd5>" + escapeXml(f.thumbfullmd5) + "</thumbfullmd5>\n"
+            + "<datasize>" + f.datasize + "</datasize>\n"
+            + "<srcMsgLocalid>" + localId + "</srcMsgLocalid>\n"
+            + "<srcMsgCreateTime>" + Math.floor(timestampMs / 1000) + "</srcMsgCreateTime>\n"
+            + "<fromnewmsgid>" + sourceMsgId + "</fromnewmsgid>\n"
+            + "<dataitemsource>\n"
+            + "<hashusername>" + hashUsername + "</hashusername>\n"
+            + "</dataitemsource>\n"
+            + "</dataitem>";
+    }
 
     return "<dataitem datatype=\"1\" dataid=\"" + dataId + "\" htmlid=\"" + dataId + "\">\n"
         + "<sourcename>" + nickname + "</sourcename>\n"
@@ -138,7 +204,19 @@ function buildRecordDataItem(item: WechatChatRecordItem, index: number): string 
 }
 
 export function buildWechatChatRecordAppXml(options: BuildWechatChatRecordOptions): string {
-    const items = options.items.filter((item) => item.nickname.trim() && item.content.trim());
+    const items = options.items.filter((item) => {
+        const nickname = item.nickname.trim();
+        if (!nickname) return false;
+        const kind = item.kind ?? 'text';
+        if (kind === 'image') {
+            return Boolean(
+                item.uploadedImage ||
+                item.imageDataDesc?.trim() ||
+                (item.imageFileId?.trim() && item.imageAesKey?.trim())
+            );
+        }
+        return Boolean(item.content?.trim());
+    });
     if (items.length === 0) {
         throw new Error('buildWechatChatRecordAppXml requires at least one non-empty item');
     }
