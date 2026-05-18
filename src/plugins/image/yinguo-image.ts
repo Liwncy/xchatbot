@@ -10,15 +10,15 @@ const TRIGGER_KEYWORDS = [...DIRECT_FORWARD_KEYWORDS, ...REVIEW_MODE_KEYWORDS] a
 const PORN_SKETCH_THRESHOLD = 0.1;
 
 // 在这里直接维护接口配置，不依赖环境变量。
-const YINGUO_IMAGE_API_URL = 'https://veil.ortlinde.com/v1/random';
+const YINGUO_IMAGE_API_URL = 'https://lwcfworker.dpdns.org/proxy?url=https://veil.ortlinde.com/v1/random';
 const YINGUO_VERIFY_API_URL = 'https://api.pearapi.ai/api/pornimage/';
 const YINGUO_SKETCH_API_URL = 'https://api.xingzhige.com/API/xian?url=';
 const YINGUO_API_KEY = '';
 const YINGUO_UPLOAD_VIP_CODE = '';
-const DIRECT_FORWARD_ROLE_A_NAME = 'Ooops';
-const DIRECT_FORWARD_ROLE_A_AVATAR = 'https://wx.qlogo.cn/mmhead/ver_1/npSwbRYUlDdNMFwQ4lUicwSc7xGicUJN0XDdsrH1jD4UUEO9ibUURm0VNPyge3TvsrkhgtVbRR5IcmEznhEVKKEnFvWeCMDNplUSKnCpERz6RVMZQ6QWyKaRquMYPSLSIWMaa4HZFibAEcNUCgduRNdGbQ/132';
-const DIRECT_FORWARD_ROLE_B_NAME = '@小陌...';
-const DIRECT_FORWARD_ROLE_B_AVATAR = 'https://wx.qlogo.cn/mmhead/ver_1/5C1a3PeeRSg3qurLe0ug4Qa8Cahniaqeg5P5pT0uqqpibwq3UoicdtRTPruapqSFOErd1uGAh1sMFgiaMvzVXozAZw/132';
+const DEFAULT_DIRECT_FORWARD_ROLE_A_NAME = 'Ooops';
+const DEFAULT_DIRECT_FORWARD_ROLE_A_AVATAR = 'https://wx.qlogo.cn/mmhead/ver_1/npSwbRYUlDdNMFwQ4lUicwSc7xGicUJN0XDdsrH1jD4UUEO9ibUURm0VNPyge3TvsrkhgtVbRR5IcmEznhEVKKEnFvWeCMDNplUSKnCpERz6RVMZQ6QWyKaRquMYPSLSIWMaa4HZFibAEcNUCgduRNdGbQ/132';
+const DEFAULT_DIRECT_FORWARD_ROLE_B_NAME = '@小陌...';
+const DEFAULT_DIRECT_FORWARD_ROLE_B_AVATAR = 'https://wx.qlogo.cn/mmhead/ver_1/5C1a3PeeRSg3qurLe0ug4Qa8Cahniaqeg5P5pT0uqqpibwq3UoicdtRTPruapqSFOErd1uGAh1sMFgiaMvzVXozAZw/132';
 
 function getAuthHeaders(): HeadersInit {
     const token = YINGUO_API_KEY.trim();
@@ -75,6 +75,34 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 function looksLikeBase64Text(value: string): boolean {
     const normalized = normalizeBase64(value).replace(/\s+/g, '');
     return normalized.length > 100 && /^[A-Za-z0-9+/=]+$/.test(normalized);
+}
+
+function looksLikeImageBytes(bytes: Uint8Array): boolean {
+    if (bytes.length < 12) return false;
+
+    // JPEG: FF D8 FF
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return true;
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (
+        bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+        && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+    ) return true;
+    // GIF: GIF87a / GIF89a
+    if (
+        bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38
+        && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61
+    ) return true;
+    // WEBP: RIFF....WEBP
+    if (
+        bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
+        && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+    ) return true;
+
+    return false;
+}
+
+function decodeUtf8(bytes: Uint8Array): string {
+    return new TextDecoder('utf-8').decode(bytes).trim();
 }
 
 async function fetchImageAsBase64FromUrl(url: string): Promise<string> {
@@ -256,12 +284,34 @@ async function fetchImageBase64(): Promise<string> {
         throw new Error('原图 JSON 未返回 base64 或可用图片链接');
     }
 
-    const rawText = (await response.text()).trim();
+    // 某些源站不会返回 content-type，这里按原始字节做兜底识别。
+    const rawBuffer = await response.arrayBuffer();
+    if (!rawBuffer.byteLength) {
+        throw new Error('原图接口返回空内容');
+    }
+    const rawBytes = new Uint8Array(rawBuffer);
+    if (looksLikeImageBytes(rawBytes)) {
+        return arrayBufferToBase64(rawBuffer);
+    }
+
+    const rawText = decodeUtf8(rawBytes);
     if (isLikelyHttpUrl(rawText)) {
         return fetchImageAsBase64FromUrl(rawText);
     }
     if (looksLikeBase64Text(rawText)) {
         return normalizeBase64(rawText);
+    }
+
+    if (rawText.startsWith('{') || rawText.startsWith('[')) {
+        try {
+            const payload = JSON.parse(rawText) as unknown;
+            const base64 = resolveBase64FromPayload(payload);
+            if (base64) return normalizeBase64(base64);
+            const imageUrl = resolveUrlFromPayload(payload);
+            if (imageUrl) return fetchImageAsBase64FromUrl(imageUrl);
+        } catch {
+            // Ignore invalid JSON and continue to unified error.
+        }
     }
 
     throw new Error(`原图接口返回了无法识别的内容类型 content-type=${contentType || 'unknown'}`);
@@ -372,7 +422,11 @@ async function maybeConvertToSketch(base64: string, classification: string, porn
     return sketchImage;
 }
 
-async function buildDirectForwardReply(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
+async function buildDirectForwardReply(
+    message: Parameters<TextMessage['handle']>[0],
+    env: Parameters<TextMessage['handle']>[1],
+    sourceBase64: string,
+) {
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
     if (!apiBaseUrl) {
         throw new Error('WECHAT_API_BASE_URL 未配置，无法上传转发图片');
@@ -384,11 +438,12 @@ async function buildDirectForwardReply(message: Parameters<TextMessage['handle']
     }
 
     const api = new WechatApi(apiBaseUrl);
+    const {roleA, roleB, senderAvatarUrl, senderName} = await resolveDirectForwardRoles(api, message.room?.id, message.from);
     const uploaded = await WechatChatRecordImageTool.uploadImage(api, {
-        imageUrl: YINGUO_IMAGE_API_URL,
+        imageBase64: sourceBase64,
     });
 
-    const senderNickname = message.senderName?.trim() || '发送人昵称';
+    const senderNickname = senderName || message.senderName?.trim() || '发送人昵称';
     const now = Date.now();
 
     return buildWechatChatRecordAppReply({
@@ -397,43 +452,44 @@ async function buildDirectForwardReply(message: Parameters<TextMessage['handle']
         items: [
             {
                 kind: 'text',
-                nickname: DIRECT_FORWARD_ROLE_A_NAME,
+                nickname: roleA.name,
                 content: '兄弟们，我找到一张特别牛逼的图片[奸笑]',
-                avatarUrl: DIRECT_FORWARD_ROLE_A_AVATAR,
+                avatarUrl: roleA.avatarUrl,
                 timestampMs: now,
             },
             {
                 kind: 'text',
-                nickname: DIRECT_FORWARD_ROLE_B_NAME,
+                nickname: roleB.name,
                 content: '什么图片这么牛逼啊',
-                avatarUrl: DIRECT_FORWARD_ROLE_B_AVATAR,
+                avatarUrl: roleB.avatarUrl,
                 timestampMs: now + 1000,
             },
             {
                 kind: 'image',
-                nickname: DIRECT_FORWARD_ROLE_A_NAME,
+                nickname: roleA.name,
                 uploadedImage: uploaded,
-                avatarUrl: DIRECT_FORWARD_ROLE_A_AVATAR,
+                avatarUrl: roleA.avatarUrl,
                 timestampMs: now + 2000,
             },
             {
                 kind: 'text',
-                nickname: DIRECT_FORWARD_ROLE_A_NAME,
+                nickname: roleA.name,
                 content: '哈哈哈，牛逼吧[旺柴]',
-                avatarUrl: DIRECT_FORWARD_ROLE_A_AVATAR,
+                avatarUrl: roleA.avatarUrl,
                 timestampMs: now + 3000,
             },
             {
                 kind: 'text',
-                nickname: DIRECT_FORWARD_ROLE_B_NAME,
+                nickname: roleB.name,
                 content: '🐂[啤酒]',
-                avatarUrl: DIRECT_FORWARD_ROLE_B_AVATAR,
+                avatarUrl: roleB.avatarUrl,
                 timestampMs: now + 4000,
             },
             {
                 kind: 'text',
                 nickname: senderNickname,
                 content: '🐂[啤酒]',
+                avatarUrl: senderAvatarUrl,
                 timestampMs: now + 5000,
             },
         ],
@@ -442,11 +498,9 @@ async function buildDirectForwardReply(message: Parameters<TextMessage['handle']
     });
 }
 
-async function buildReviewModeReply() {
-    assertRequiredConfig();
-    const base64 = await fetchImageBase64();
-    const verifyResult = await verifyImage(base64);
-    const sketchImage = await maybeConvertToSketch(base64, verifyResult.classification, verifyResult.porn);
+async function buildReviewModeReply(sourceBase64: string) {
+    const verifyResult = await verifyImage(sourceBase64);
+    const sketchImage = await maybeConvertToSketch(sourceBase64, verifyResult.classification, verifyResult.porn);
     if (sketchImage) {
         logger.info('因果诱惑图片命中手绘规则，已转手绘图', {
             classification: verifyResult.classification,
@@ -463,7 +517,7 @@ async function buildReviewModeReply() {
 
     return {
         type: 'image' as const,
-        mediaId: base64,
+        mediaId: sourceBase64,
     };
 }
 
@@ -477,11 +531,13 @@ export const yinguoImagePlugin: TextMessage = {
     },
     handle: async (message, env) => {
         try {
+            assertRequiredConfig();
             const mode = resolveYinguoMode(message.content ?? '');
+            const sourceBase64 = await fetchImageBase64();
             if (mode === 'direct-forward') {
-                return await buildDirectForwardReply(message, env);
+                return await buildDirectForwardReply(message, env, sourceBase64);
             }
-            return await buildReviewModeReply();
+            return await buildReviewModeReply(sourceBase64);
         } catch (error) {
             logger.error('因果诱惑图片插件处理失败', {
                 error: error instanceof Error ? error.message : String(error),
@@ -494,3 +550,118 @@ export const yinguoImagePlugin: TextMessage = {
     },
 };
 
+interface DirectForwardRole {
+    id: string;
+    name: string;
+    avatarUrl?: string;
+}
+
+function asNonEmptyText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function pickFirstText(source: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+        const value = asNonEmptyText(source[key]);
+        if (value) return value;
+    }
+    return '';
+}
+
+function extractGroupMemberRoles(payload: unknown): DirectForwardRole[] {
+    if (!payload || typeof payload !== 'object') return [];
+    const root = payload as Record<string, unknown>;
+    const result = (root.result && typeof root.result === 'object') ? root.result as Record<string, unknown> : null;
+    const list = Array.isArray(result?.list)
+        ? result.list
+        : Array.isArray(root.list)
+            ? root.list
+            : [];
+
+    const roles: DirectForwardRole[] = [];
+    for (const item of list) {
+        if (!item || typeof item !== 'object') continue;
+        const obj = item as Record<string, unknown>;
+        const id = pickFirstText(obj, ['username', 'user_name', 'wxid', 'id', 'userName']);
+        if (!id) continue;
+        const name = pickFirstText(obj, ['display_name', 'nickname']) || id;
+        const avatarUrl = pickFirstText(obj, ['big_avatar_url', 'small_avatar_url']);
+        roles.push({id, name, avatarUrl: avatarUrl || undefined});
+    }
+
+    const dedup = new Map<string, DirectForwardRole>();
+    for (const role of roles) dedup.set(role.id, role);
+    return Array.from(dedup.values());
+}
+
+function pickRandomPair(items: DirectForwardRole[]): [DirectForwardRole, DirectForwardRole] | null {
+    if (items.length < 2) return null;
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return [copy[0], copy[1]];
+}
+
+async function resolveDirectForwardRoles(
+    api: WechatApi,
+    roomId: string | undefined,
+    senderId: string,
+): Promise<{roleA: DirectForwardRole; roleB: DirectForwardRole; senderAvatarUrl?: string; senderName?: string}> {
+    const fallback = {
+        roleA: {
+            id: 'fallback_a',
+            name: DEFAULT_DIRECT_FORWARD_ROLE_A_NAME,
+            avatarUrl: DEFAULT_DIRECT_FORWARD_ROLE_A_AVATAR,
+        },
+        roleB: {
+            id: 'fallback_b',
+            name: DEFAULT_DIRECT_FORWARD_ROLE_B_NAME,
+            avatarUrl: DEFAULT_DIRECT_FORWARD_ROLE_B_AVATAR,
+        },
+        senderAvatarUrl: undefined as string | undefined,
+        senderName: undefined as string | undefined,
+    };
+
+    if (!roomId) return fallback;
+
+    try {
+        const resp = await api.getGroupMembers(roomId);
+        if (typeof resp.code === 'number' && resp.code !== 0) {
+            logger.warn('因果诱惑随机角色获取失败：getGroupMembers 返回异常', {
+                roomId,
+                code: resp.code,
+                message: resp.message,
+            });
+            return fallback;
+        }
+
+        const allMembers = extractGroupMemberRoles(resp.data);
+        const senderMember = allMembers.find((member) => member.id === senderId);
+        const senderAvatarUrl = senderMember?.avatarUrl;
+        const senderName = senderMember?.name;
+        const members = allMembers
+             .filter((member) => member.id !== senderId);
+        const pair = pickRandomPair(members);
+        if (!pair) {
+            return {
+                ...fallback,
+                senderAvatarUrl,
+                senderName,
+            };
+        }
+        return {
+            roleA: pair[0],
+            roleB: pair[1],
+            senderAvatarUrl,
+            senderName,
+        };
+    } catch (error) {
+        logger.warn('因果诱惑随机角色获取异常，使用默认角色', {
+            roomId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return fallback;
+    }
+}

@@ -106,7 +106,63 @@ npm run kv:get:remote:workflow
 npm run deploy
 ```
 
-生产环境建议用 `wrangler secret put` 配置敏感信息（如 `WECHAT_TOKEN`、`AI_API_KEY`）。
+部署前如果你希望先拉最新线上数据再做类型检查：
+
+```bash
+npm run deploy:safe
+```
+
+如果你明确要把本地 KV + D1 推到线上后再部署：
+
+```bash
+npm run deploy:safe:push
+```
+
+### 数据同步（KV / D1）
+
+远端 -> 本地（推荐日常使用）：
+
+```bash
+npm run sync:pull
+```
+
+本地 -> 远端（默认带确认，且会先备份远端到 `.tmp/sync-backups/`）：
+
+```bash
+npm run sync:push
+```
+
+> 注意：D1 同步会先清空目标端 D1 的业务表再导入，避免 `table already exists` 类冲突。
+> 如需跳过重置，可直接调用脚本并传 `-SkipResetTarget`。
+
+无交互强制推送（脚本/CI）：
+
+```bash
+npm run sync:push:force
+```
+
+回滚到最近一次 push 的远端备份（默认会二次确认）：
+
+```bash
+npm run sync:rollback:last
+```
+
+无交互强制回滚：
+
+```bash
+npm run sync:rollback:last:force
+```
+
+开发时先拉取远端再本地启动：
+
+```bash
+npm run dev:pull
+```
+
+同步日志会写入 `.tmp/sync-logs/`。
+同步备份会写入 `.tmp/sync-backups/`。
+
+> 说明：`sync:rollback:last` 依赖 `sync:push` 产生的同批次备份（含 `manifest.json`）。
 
 ### 5) 定时任务表初始化
 
