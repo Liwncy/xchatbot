@@ -386,6 +386,8 @@ export class ContactRepository {
                 source,
             },
         ]);
+        // /cm add-group 是显式启用动作：若历史记录被 remove 置为 enabled=0，需要重新拉起。
+        await ContactRepository.setContactEnabled(db, trimmed, true);
     }
 
     static async debugFetch(apiBaseUrl: string): Promise<{

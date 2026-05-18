@@ -6,12 +6,13 @@ const COMMAND_PREFIX = '/cm';
 const COMMAND_LIST = 'list';
 const COMMAND_APPROVE = 'approve';
 const COMMAND_ADD_GROUP = 'add-group';
+const COMMAND_DEL_GROUP = 'del-group';
 const COMMAND_REMOVE = 'remove';
 const COMMAND_DEBUG_LIST = 'debug-list';
 const COMMAND_SYNC = 'sync';
 const COMMAND_HELP = 'help';
 
-function parseCommand(content: string): {cmd: 'list' | 'approve' | 'add-group' | 'remove' | 'debug-list' | 'sync' | 'help'; arg: string} | null {
+function parseCommand(content: string): {cmd: 'list' | 'approve' | 'add-group' | 'del-group' | 'remove' | 'debug-list' | 'sync' | 'help'; arg: string} | null {
     const raw = content.trim();
     if (!raw.startsWith(COMMAND_PREFIX)) return null;
     const text = raw.slice(COMMAND_PREFIX.length).trim();
@@ -25,6 +26,7 @@ function parseCommand(content: string): {cmd: 'list' | 'approve' | 'add-group' |
     if (cmd === COMMAND_HELP) return {cmd: 'help', arg};
     if (cmd === COMMAND_APPROVE) return {cmd: 'approve', arg};
     if (cmd === COMMAND_ADD_GROUP) return {cmd: 'add-group', arg};
+    if (cmd === COMMAND_DEL_GROUP) return {cmd: 'del-group', arg};
     if (cmd === COMMAND_REMOVE) return {cmd: 'remove', arg};
     if (cmd === COMMAND_DEBUG_LIST) return {cmd: 'debug-list', arg};
     if (cmd === COMMAND_SYNC) return {cmd: 'sync', arg};
@@ -38,9 +40,12 @@ function buildHelpText(): string {
         '2) /cm list',
         '3) /cm approve {JSON参数}',
         '4) /cm add-group 123456@chatroom',
-        '5) /cm remove wxid_xxx',
-        '6) /cm debug-list',
-        '7) /cm sync',
+        '5) /cm add-group（在群里发送可直接保存当前群）',
+        '6) /cm del-group 123456@chatroom',
+        '7) /cm del-group（在群里发送可直接移除当前群）',
+        '8) /cm remove wxid_xxx',
+        '9) /cm debug-list',
+        '10) /cm sync',
         '',
         '说明：',
         '- 仅机器人主人（BOT_OWNER_WECHAT_ID）可执行',
@@ -138,13 +143,27 @@ export const contactAdminPlugin: TextMessage = {
             }
 
             if (parsed.cmd === 'add-group') {
-                const groupId = parsed.arg.trim();
+                const groupId = parsed.arg.trim() || message.room?.id?.trim() || '';
                 if (!groupId || !groupId.endsWith('@chatroom')) {
-                    return {type: 'text', content: '请提供群ID，例如：/cm add-group 123456@chatroom'};
+                    return {type: 'text', content: '请提供群ID，例如：/cm add-group 123456@chatroom；或在群里直接发送 /cm add-group'};
                 }
                 await ContactRepository.addGroupAsContact(apiBaseUrl, groupId);
                 await ContactRepository.addGroupToDb(env.XBOT_DB, groupId, 'manual');
                 return {type: 'text', content: `✅ 已将群加入联系人：${groupId}`};
+            }
+
+            if (parsed.cmd === 'del-group') {
+                const groupId = parsed.arg.trim() || message.room?.id?.trim() || '';
+                if (!groupId || !groupId.endsWith('@chatroom')) {
+                    return {type: 'text', content: '请提供群ID，例如：/cm del-group 123456@chatroom；或在群里直接发送 /cm del-group'};
+                }
+                const api = new WechatApi(apiBaseUrl);
+                const result = await api.setGroupContactList(groupId, false);
+                if (typeof result.code === 'number' && result.code !== 0) {
+                    throw new Error(`setGroupContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
+                }
+                await ContactRepository.setContactEnabled(env.XBOT_DB, groupId, false);
+                return {type: 'text', content: `✅ 已将群移出联系人：${groupId}`};
             }
 
             const contactId = parsed.arg.trim();
