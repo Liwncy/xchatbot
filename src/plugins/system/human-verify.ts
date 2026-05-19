@@ -10,6 +10,9 @@ import {
 
 const TRIGGER_PATTERNS = [/人机验证/i, /我是人类吗/i];
 const STATUS_PATTERNS = [/验证结果/i, /人机结果/i, /验证状态/i, /^\/human\s+status$/i, /^\/cm\s+human-status$/i];
+const VERIFY_LINK_CARD_TITLE = '请先完成人机验证';
+const VERIFY_LINK_CARD_DESC = '点击进入验证页面，完成后会自动通知结果';
+const VERIFY_LINK_CARD_PIC = 'https://developers.cloudflare.com/favicon-32x32.png';
 
 function isTriggerCommand(content: string): boolean {
     return TRIGGER_PATTERNS.some((pattern) => pattern.test(content));
@@ -106,15 +109,28 @@ export const humanVerifyPlugin: TextMessage = {
         ]);
 
         const link = buildTurnstileCheckUrl(publicBaseUrl, sessionId);
-        return {
-            type: 'text',
-            content: [
-                '请点击下面链接完成人机验证：',
-                link,
-                '',
-                '验证完成后你会收到结果通知，也可以发送“验证结果”查询。',
-            ].join('\n'),
-        };
+        return [
+            {
+                type: 'news',
+                articles: [
+                    {
+                        title: VERIFY_LINK_CARD_TITLE,
+                        description: VERIFY_LINK_CARD_DESC,
+                        url: link,
+                        picUrl: VERIFY_LINK_CARD_PIC,
+                    },
+                ],
+            },
+            {
+                type: 'text',
+                content: [
+                    '验证入口（备用链接）：',
+                    link,
+                    '',
+                    '验证完成后你会收到结果通知，也可以发送“验证结果”查询。',
+                ].join('\n'),
+            },
+        ];
     },
 };
 

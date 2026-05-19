@@ -91,22 +91,30 @@ async function notifyUser(env: Env, session: HumanVerifySession): Promise<void> 
     if (!apiBaseUrl) return;
 
     const api = new WechatApi(apiBaseUrl);
-    const content = session.status === 'human'
+    const baseContent = session.status === 'human'
         ? `✅ 人机验证通过\n会话ID: ${session.id}`
         : `❌ 人机验证未通过\n会话ID: ${session.id}\n错误: ${(session.verifyErrorCodes ?? []).join(', ') || 'unknown'}`;
 
+    const isGroupSource = Boolean(session.roomId?.trim());
+    const receiver = isGroupSource ? (session.roomId?.trim() ?? session.requesterId) : session.requesterId;
+    const remind = isGroupSource ? session.requesterId : undefined;
+    const mentionName = session.requesterName?.trim() || '你';
+    const content = isGroupSource ? `@${mentionName}\n${baseContent}` : baseContent;
+
     try {
-        const result = await api.sendText({receiver: session.requesterId, content});
+        const result = await api.sendText({receiver, content, remind});
         if (typeof result.code === 'number' && result.code !== 0) {
             logger.warn('Turnstile 验证结果通知发送失败', {
-                receiver: session.requesterId,
+                receiver,
+                remind,
                 code: result.code,
                 message: result.message,
             });
         }
     } catch (error) {
         logger.warn('Turnstile 验证结果通知异常', {
-            receiver: session.requesterId,
+            receiver,
+            remind,
             error: error instanceof Error ? error.message : String(error),
         });
     }
