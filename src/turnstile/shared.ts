@@ -40,3 +40,12 @@ export function buildTurnstileLandingUrl(baseUrl: string, sessionId: string): st
     return `${normalized}/turnstile/landing?sid=${encodeURIComponent(sessionId)}`;
 }
 
+/**
+ * 生成指向外部静态页面（如 GitHub Pages）的验证链接。
+ * 外部页面直接通过 ?sid= 参数读取会话ID，无需经过 Worker 落地页。
+ */
+export function buildExternalVerifyUrl(pageUrl: string, sessionId: string): string {
+    const normalized = pageUrl.trim().replace(/\/+$/, '');
+    return `${normalized}?sid=${encodeURIComponent(sessionId)}`;
+}
+

@@ -3,6 +3,7 @@ import {
     HUMAN_VERIFY_SESSION_TTL_SECONDS,
     HumanVerifySession,
     buildTurnstileLandingUrl,
+    buildExternalVerifyUrl,
     createHumanVerifySessionId,
     humanVerifyLatestByUserKey,
     humanVerifySessionKey,
@@ -69,10 +70,11 @@ export const humanVerifyPlugin: TextMessage = {
         }
 
         const publicBaseUrl = env.TURNSTILE_BASE_URL?.trim() ?? '';
-        if (!publicBaseUrl) {
+        const pageUrl = env.TURNSTILE_PAGE_URL?.trim() ?? '';
+        if (!publicBaseUrl && !pageUrl) {
             return {
                 type: 'text',
-                content: 'TURNSTILE_BASE_URL 未配置，无法生成验证链接。',
+                content: 'TURNSTILE_PAGE_URL 未配置，无法生成验证链接。',
             };
         }
 
@@ -108,7 +110,10 @@ export const humanVerifyPlugin: TextMessage = {
             ),
         ]);
 
-        const link = buildTurnstileLandingUrl(publicBaseUrl, sessionId);
+        // 优先使用外部静态页面（GitHub Pages），否则回退到 Worker 落地页
+        const link = pageUrl
+            ? buildExternalVerifyUrl(pageUrl, sessionId)
+            : buildTurnstileLandingUrl(publicBaseUrl, sessionId);
         return {
             type: 'news',
             articles: [
