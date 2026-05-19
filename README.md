@@ -200,6 +200,7 @@ npm run d1:migrate:remote:scheduler
 | `/admin/scheduler/jobs/:id/runs` | GET | 查看任务执行记录 |
 | `/health` | GET | 健康检查 |
 | `/` | GET | 健康检查 |
+| `/turnstile/landing` | GET | 验证落地说明页（建议入口） |
 | `/turnstile/check/:sessionId` | GET | 人机验证页面 |
 | `/turnstile/verify/:sessionId` | POST | Turnstile 回调校验 |
 

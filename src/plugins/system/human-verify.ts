@@ -2,7 +2,7 @@ import type {TextMessage} from '../types.js';
 import {
     HUMAN_VERIFY_SESSION_TTL_SECONDS,
     HumanVerifySession,
-    buildTurnstileCheckUrl,
+    buildTurnstileLandingUrl,
     createHumanVerifySessionId,
     humanVerifyLatestByUserKey,
     humanVerifySessionKey,
@@ -12,7 +12,7 @@ const TRIGGER_PATTERNS = [/人机验证/i, /我是人类吗/i];
 const STATUS_PATTERNS = [/验证结果/i, /人机结果/i, /验证状态/i, /^\/human\s+status$/i, /^\/cm\s+human-status$/i];
 const VERIFY_LINK_CARD_TITLE = '请先完成人机验证';
 const VERIFY_LINK_CARD_DESC = '点击进入验证页面，完成后会自动通知结果';
-const VERIFY_LINK_CARD_PIC = 'https://developers.cloudflare.com/favicon-32x32.png';
+const VERIFY_LINK_CARD_PIC = 'https://tiebapic.baidu.com/forum/pic/item/31590e50f3deb48f27f1a218b51f3a292ff57885.jpg?tbpicau=2026-05-30-05_9e03650a4fa0be612b73554682bf4e23';
 
 function isTriggerCommand(content: string): boolean {
     return TRIGGER_PATTERNS.some((pattern) => pattern.test(content));
@@ -108,29 +108,18 @@ export const humanVerifyPlugin: TextMessage = {
             ),
         ]);
 
-        const link = buildTurnstileCheckUrl(publicBaseUrl, sessionId);
-        return [
-            {
-                type: 'news',
-                articles: [
-                    {
-                        title: VERIFY_LINK_CARD_TITLE,
-                        description: VERIFY_LINK_CARD_DESC,
-                        url: link,
-                        picUrl: VERIFY_LINK_CARD_PIC,
-                    },
-                ],
-            },
-            {
-                type: 'text',
-                content: [
-                    '验证入口（备用链接）：',
-                    link,
-                    '',
-                    '验证完成后你会收到结果通知，也可以发送“验证结果”查询。',
-                ].join('\n'),
-            },
-        ];
+        const link = buildTurnstileLandingUrl(publicBaseUrl, sessionId);
+        return {
+            type: 'news',
+            articles: [
+                {
+                    title: VERIFY_LINK_CARD_TITLE,
+                    description: VERIFY_LINK_CARD_DESC,
+                    url: link,
+                    picUrl: VERIFY_LINK_CARD_PIC,
+                },
+            ],
+        };
     },
 };
 

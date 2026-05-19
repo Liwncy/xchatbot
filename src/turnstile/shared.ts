@@ -35,3 +35,8 @@ export function buildTurnstileCheckUrl(baseUrl: string, sessionId: string): stri
     return `${normalized}/turnstile/check/${encodeURIComponent(sessionId)}`;
 }
 
+export function buildTurnstileLandingUrl(baseUrl: string, sessionId: string): string {
+    const normalized = baseUrl.trim().replace(/\/+$/, '');
+    return `${normalized}/turnstile/landing?sid=${encodeURIComponent(sessionId)}`;
+}
+

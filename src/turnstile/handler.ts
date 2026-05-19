@@ -29,6 +29,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-se
 h1 { font-size: 20px; margin-top: 0; }
 button { margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 8px; background: #2563eb; color: white; }
 .tip { color: #6b7280; font-size: 14px; }
+.section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e5e7eb; }
+.section h2 { font-size: 15px; margin: 0 0 8px; }
+.section p, .section li { font-size: 14px; line-height: 1.65; }
+ul { margin: 8px 0 0 18px; padding: 0; }
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -42,6 +48,10 @@ ${content}
 function parseSessionId(pathname: string): string {
     const parts = pathname.split('/').filter(Boolean);
     return decodeURIComponent(parts[2] ?? '').trim();
+}
+
+function parseLandingSessionId(url: URL): string {
+    return decodeURIComponent((url.searchParams.get('sid') ?? '').trim());
 }
 
 async function loadSession(kv: KVNamespace, sessionId: string): Promise<HumanVerifySession | null> {
@@ -153,6 +163,57 @@ async function handleCheckPage(request: Request, env: Env): Promise<Response> {
     return htmlResponse(html);
 }
 
+async function handleLandingPage(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const sessionId = parseLandingSessionId(url);
+    if (!sessionId) {
+        return htmlResponse(renderPage('参数错误', '<h1>参数错误</h1><p>缺少 sid 参数，请返回微信重新获取验证链接。</p>'), 400);
+    }
+
+    const session = await loadSession(env.XBOT_KV, sessionId);
+    if (!session) {
+        return htmlResponse(renderPage('会话不存在', '<h1>会话不存在</h1><p>该验证会话已过期或不存在，请返回微信重新发起。</p>'), 404);
+    }
+
+    const checkPath = `/turnstile/check/${encodeURIComponent(sessionId)}`;
+    const html = renderPage(
+        '验证说明',
+        [
+            '<h1>人机验证说明</h1>',
+            '<p>为防止机器人滥用与批量请求，本服务需要在关键操作前进行一次人机验证。</p>',
+            `<p class="tip">会话ID: ${session.id}</p>`,
+            '<p class="tip">点击下方按钮后进入验证页面，完成后结果会自动回传微信。</p>',
+            `<a href="${checkPath}"><button>开始验证</button></a>`,
+            '<div class="section">',
+            '<h2>验证用途</h2>',
+            '<ul>',
+            '<li>识别异常自动化请求，减少群聊/私聊接口滥用。</li>',
+            '<li>保护机器人服务稳定性，降低恶意刷请求风险。</li>',
+            '<li>仅用于判定当前访问行为是否由真人发起。</li>',
+            '</ul>',
+            '</div>',
+            '<div class="section">',
+            '<h2>隐私与数据说明</h2>',
+            '<ul>',
+            '<li>验证由 Cloudflare Turnstile 提供，服务端仅接收验证结果（通过/未通过）。</li>',
+            '<li>系统会记录会话ID、验证状态与时间，用于通知与故障排查。</li>',
+            '<li>验证会话为短期保存并自动过期，不用于广告或画像用途。</li>',
+            '</ul>',
+            '</div>',
+            '<div class="section">',
+            '<h2>访问提醒</h2>',
+            '<ul>',
+            '<li>请确认当前域名为你信任的机器人验证域名后再继续。</li>',
+            '<li>如页面异常，请返回微信重新触发“人机验证”。</li>',
+            '<li>验证结束后可在微信发送“验证结果”查询状态。</li>',
+            '</ul>',
+            '<p class="tip">健康检查：<a href="/health" target="_blank" rel="noopener noreferrer">/health</a></p>',
+            '</div>',
+        ].join(''),
+    );
+    return htmlResponse(html);
+}
+
 async function handleVerify(request: Request, env: Env): Promise<Response> {
     const sessionId = parseSessionId(new URL(request.url).pathname);
     if (!sessionId) return htmlResponse(renderPage('参数错误', '<h1>参数错误</h1><p>缺少会话ID。</p>'), 400);
@@ -194,6 +255,11 @@ async function handleVerify(request: Request, env: Env): Promise<Response> {
 
 export async function handleTurnstileRequest(request: Request, env: Env): Promise<Response | null> {
     const {pathname} = new URL(request.url);
+
+    if (pathname === '/turnstile/landing') {
+        if (request.method !== 'GET') return new Response('Method Not Allowed', {status: 405});
+        return handleLandingPage(request, env);
+    }
 
     if (pathname.startsWith('/turnstile/check/')) {
         if (request.method !== 'GET') return new Response('Method Not Allowed', {status: 405});
