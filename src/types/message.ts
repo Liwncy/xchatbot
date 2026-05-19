@@ -265,4 +265,6 @@ export interface Env {
     TURNSTILE_SECRET_KEY?: string;
     /** 对外可访问的 Worker 基础地址，用于拼接验证链接。 */
     TURNSTILE_BASE_URL?: string;
+    /** 允许跨域访问 /turnstile/api/verify 的来源，逗号分隔，例如 https://yourname.github.io。留空则允许所有来源。 */
+    TURNSTILE_CORS_ORIGINS?: string;
 }

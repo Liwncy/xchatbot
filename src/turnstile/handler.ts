@@ -102,8 +102,8 @@ async function notifyUser(env: Env, session: HumanVerifySession): Promise<void> 
 
     const api = new WechatApi(apiBaseUrl);
     const baseContent = session.status === 'human'
-        ? `✅ 人机验证通过\n会话ID: ${session.id}`
-        : `❌ 人机验证未通过\n会话ID: ${session.id}\n错误: ${(session.verifyErrorCodes ?? []).join(', ') || 'unknown'}`;
+        ? `🎉 恭喜，经权威认证 TA 是人类！\n会话ID: ${session.id}`
+        : `🤖 很遗憾，TA 未能证明自己是人类。\n会话ID: ${session.id}\n错误: ${(session.verifyErrorCodes ?? []).join(', ') || 'unknown'}`;
 
     const isGroupSource = Boolean(session.roomId?.trim());
     const receiver = isGroupSource ? (session.roomId?.trim() ?? session.requesterId) : session.requesterId;
@@ -253,6 +253,100 @@ async function handleVerify(request: Request, env: Env): Promise<Response> {
     return htmlResponse(html);
 }
 
+function jsonResponse(data: unknown, status = 200, corsOrigin?: string): Response {
+    const headers: Record<string, string> = {'Content-Type': 'application/json'};
+    if (corsOrigin) {
+        headers['Access-Control-Allow-Origin'] = corsOrigin;
+        headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
+        headers['Access-Control-Allow-Headers'] = 'Content-Type';
+    }
+    return new Response(JSON.stringify(data), {status, headers});
+}
+
+function getAllowedOrigin(request: Request, env: Env): string {
+    const origin = request.headers.get('Origin') ?? '';
+    const allowed = (env.TURNSTILE_CORS_ORIGINS ?? '').split(',').map((s: string) => s.trim()).filter(Boolean);
+    // 若未配置，默认允许 GitHub Pages 同名仓库域名；可通过环境变量精确控制
+    if (!allowed.length) return origin;
+    return allowed.includes(origin) ? origin : '';
+}
+
+async function handleApiVerify(request: Request, env: Env): Promise<Response> {
+    const corsOrigin = getAllowedOrigin(request, env);
+
+    // 处理 CORS 预检
+    if (request.method === 'OPTIONS') {
+        return new Response(null, {
+            status: 204,
+            headers: {
+                'Access-Control-Allow-Origin': corsOrigin || '*',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type',
+            },
+        });
+    }
+
+    if (request.method !== 'POST') {
+        return jsonResponse({success: false, error: 'Method Not Allowed'}, 405, corsOrigin);
+    }
+
+    let body: {token?: string; sessionId?: string};
+    try {
+        body = await request.json() as {token?: string; sessionId?: string};
+    } catch {
+        return jsonResponse({success: false, error: '请求体解析失败，需要 JSON 格式。'}, 400, corsOrigin);
+    }
+
+    const token = String(body.token ?? '').trim();
+    const sessionId = String(body.sessionId ?? '').trim();
+
+    if (!token || !sessionId) {
+        return jsonResponse({success: false, error: '缺少 token 或 sessionId 参数。'}, 400, corsOrigin);
+    }
+
+    const session = await loadSession(env.XBOT_KV, sessionId);
+    if (!session) {
+        return jsonResponse({success: false, error: '验证会话不存在或已过期，请返回微信重新发起。'}, 404, corsOrigin);
+    }
+
+    if (session.status !== 'pending') {
+        return jsonResponse({
+            success: session.status === 'human',
+            error: session.status === 'human' ? undefined : '该会话已验证未通过。',
+            alreadyVerified: true,
+        }, 200, corsOrigin);
+    }
+
+    const secretKey = env.TURNSTILE_SECRET_KEY?.trim() ?? '';
+    if (!secretKey) {
+        return jsonResponse({success: false, error: '服务配置缺失，请联系管理员。'}, 500, corsOrigin);
+    }
+
+    const remoteIp = request.headers.get('CF-Connecting-IP') ?? '';
+    const verifyResult = await verifyTurnstileToken(secretKey, token, remoteIp);
+
+    const now = Date.now();
+    const updated: HumanVerifySession = {
+        ...session,
+        status: verifyResult.success ? 'human' : 'bot',
+        updatedAt: now,
+        verifiedAt: now,
+        verifyErrorCodes: verifyResult.success ? [] : verifyResult.errorCodes,
+    };
+
+    await saveSession(env.XBOT_KV, updated);
+    await notifyUser(env, updated);
+
+    if (verifyResult.success) {
+        return jsonResponse({success: true}, 200, corsOrigin);
+    } else {
+        return jsonResponse({
+            success: false,
+            error: `验证未通过（${verifyResult.errorCodes.join(', ') || 'unknown'}），结果已通知到微信。`,
+        }, 200, corsOrigin);
+    }
+}
+
 export async function handleTurnstileRequest(request: Request, env: Env): Promise<Response | null> {
     const {pathname} = new URL(request.url);
 
@@ -269,6 +363,11 @@ export async function handleTurnstileRequest(request: Request, env: Env): Promis
     if (pathname.startsWith('/turnstile/verify/')) {
         if (request.method !== 'POST') return new Response('Method Not Allowed', {status: 405});
         return handleVerify(request, env);
+    }
+
+    // 供外部页面（如 GitHub Pages）调用的 JSON API
+    if (pathname === '/turnstile/api/verify') {
+        return handleApiVerify(request, env);
     }
 
     return null;

@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>人机验证 - Demo</title>
+<title>人机验证</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 24px; color: #1f2937; }
 .card { max-width: 560px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
 h1 { font-size: 20px; margin-top: 0; }
 button { margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 8px; background: #2563eb; color: white; cursor: pointer; font-size: 15px; }
+button:disabled { background: #93c5fd; cursor: not-allowed; }
 .tip { color: #6b7280; font-size: 14px; }
 .section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e5e7eb; }
 .section h2 { font-size: 15px; margin: 0 0 8px; }
@@ -19,51 +20,41 @@ a:hover { text-decoration: underline; }
 #result { margin-top: 16px; padding: 12px; border-radius: 8px; display: none; font-size: 14px; }
 #result.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 #result.fail { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.badge { display: inline-block; font-size: 11px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
+#error-banner { margin-bottom: 12px; padding: 10px 12px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; font-size: 14px; display: none; }
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>请完成人机验证 <span class="badge">UI 预览 Demo</span></h1>
-  <p class="tip">会话ID: <code>demo-session-preview-001</code></p>
+  <h1>你是人类吗？🧐</h1>
+  <div id="error-banner"></div>
+  <p class="tip">会话ID: <code id="session-id-display">加载中…</code></p>
   <form id="verify-form">
-    <!-- Turnstile widget：使用官方测试 sitekey，始终通过 -->
-    <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>
-    <button type="submit" id="submit-btn" disabled>提交验证</button>
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAADSBErUgKOZeHOX3" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>
+    <button type="submit" id="submit-btn" disabled>我是人类，提交！</button>
   </form>
-  <p class="tip">验证完成后，结果会自动回传到微信。</p>
+  <p class="tip">验证完成后，认证结果会发到微信通知你。</p>
   <div id="result"></div>
 
   <div class="section">
-    <h2>验证用途</h2>
-    <ul>
-      <li>识别异常自动化请求，减少群聊/私聊接口滥用。</li>
-      <li>保护机器人服务稳定性，降低恶意刷请求风险。</li>
-      <li>仅用于判定当前访问行为是否由真人发起。</li>
-    </ul>
-  </div>
-  <div class="section">
-    <h2>隐私与数据说明</h2>
-    <ul>
-      <li>验证由 Cloudflare Turnstile 提供，服务端仅接收验证结果（通过/未通过）。</li>
-      <li>系统会记录会话ID、验证状态与时间，用于通知与故障排查。</li>
-      <li>验证会话为短期保存并自动过期，不用于广告或画像用途。</li>
-    </ul>
-  </div>
-  <div class="section">
-    <h2>访问提醒</h2>
-    <ul>
-      <li>请确认当前域名为你信任的机器人验证域名后再继续。</li>
-      <li>如页面异常，请返回微信重新触发"人机验证"。</li>
-      <li>验证结束后可在微信发送"验证结果"查询状态。</li>
-    </ul>
-    <p class="tip">⚠️ 这是 UI 预览页面，表单提交不会真正校验。实际验证由 Cloudflare Workers 后端处理。</p>
+    <h2>这是在干嘛？</h2>
+    <p style="font-size:14px;line-height:1.7">就是想知道你是不是人类 🤖<br>没有别的目的，纯娱乐。</p>
   </div>
 </div>
 
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script>
+  // ── 配置 ──────────────────────────────────────────────
+  var WORKER_VERIFY_API = 'https://xbot.lwcfworker.dpdns.org/turnstile/api/verify';
+  // ─────────────────────────────────────────────────────
+
   var turnstileToken = null;
+  var sessionId = new URLSearchParams(location.search).get('sid') || '';
+
+  document.getElementById('session-id-display').textContent = sessionId || '（缺少 sid 参数）';
+
+  if (!sessionId) {
+    showBanner('缺少会话ID（sid 参数），请返回微信重新获取验证链接。');
+  }
 
   function onTurnstileSuccess(token) {
     turnstileToken = token;
@@ -78,12 +69,34 @@ a:hover { text-decoration: underline; }
 
   document.getElementById('verify-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!turnstileToken) {
-      showResult(false, '请先完成 Turnstile 验证。');
-      return;
-    }
-    // Demo：仅展示 UI，不真正提交到后端
-    showResult(true, '✅ 验证通过（Demo 模式）\n实际部署时，token 将提交到 Cloudflare Workers 后端进行校验，结果通知微信。');
+    if (!turnstileToken) { showResult(false, '请先完成 Turnstile 验证。'); return; }
+    if (!sessionId) { showResult(false, '缺少会话ID，请返回微信重新获取链接。'); return; }
+
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = '提交中…';
+
+    fetch(WORKER_VERIFY_API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token: turnstileToken, sessionId: sessionId}),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        showResult(true, '🎉 恭喜，经权威认证您是人类！结果已上报微信，欢迎继续做人～');
+        document.getElementById('verify-form').style.display = 'none';
+      } else {
+        showResult(false, '❌ ' + (data.error || '验证未通过，请重试。'));
+        btn.disabled = false;
+        btn.textContent = '提交验证';
+      }
+    })
+    .catch(function(err) {
+      showResult(false, '网络错误，请检查连接后重试：' + err.message);
+      btn.disabled = false;
+      btn.textContent = '提交验证';
+    });
   });
 
   function showResult(success, message) {
@@ -92,7 +105,12 @@ a:hover { text-decoration: underline; }
     el.className = success ? 'success' : 'fail';
     el.textContent = message;
   }
+
+  function showBanner(message) {
+    var el = document.getElementById('error-banner');
+    el.style.display = 'block';
+    el.textContent = message;
+  }
 </script>
 </body>
 </html>
-
