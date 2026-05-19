@@ -57,6 +57,7 @@ COMMON_WORKFLOW_PLUGINS_CLIENT_ID = "workflow_client_id"
 # TURNSTILE_SITE_KEY（secret）
 # TURNSTILE_SECRET_KEY（secret）
 # TURNSTILE_BASE_URL（secret）
+TURNSTILE_PAGE_URL = "https://liwncy.github.io/xchatbot"
 
 # ── KV 命名空间绑定 ──
 [[kv_namespaces]]
