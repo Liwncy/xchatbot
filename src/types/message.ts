@@ -258,4 +258,11 @@ export interface Env {
     /** 传给 AI 接口的模型名称（可选）。 */
     AI_MODEL?: string;
     AI_SYSTEM_PROMPT?: string;
+
+    /** Turnstile 页面使用的公开 site key。 */
+    TURNSTILE_SITE_KEY?: string;
+    /** Turnstile 服务端校验 secret key。 */
+    TURNSTILE_SECRET_KEY?: string;
+    /** 对外可访问的 Worker 基础地址，用于拼接验证链接。 */
+    TURNSTILE_BASE_URL?: string;
 }

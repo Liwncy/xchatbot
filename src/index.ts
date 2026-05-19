@@ -13,6 +13,7 @@ import {
     KV_DEBUG_URL,
 } from './constants/kv.js';
 import {DEBUG_FORWARDED_HEADER, DEBUG_TTL_SECONDS} from './constants/debug.js';
+import {handleTurnstileRequest} from './turnstile/handler.js';
 
 // ── 管理接口鉴权 Token 的 KV Key ──
 // 通过 `wrangler secret put ADMIN_TOKEN` 设置，或放在 .dev.vars
@@ -281,6 +282,12 @@ export default {
             const unauthorized = authorizeAdmin(request, env);
             if (unauthorized) return unauthorized;
             return handleSchedulerAdmin(request, env);
+        }
+
+        // ── Turnstile 人机验证页面/回调 ──
+        if (pathname.startsWith('/turnstile/')) {
+            const response = await handleTurnstileRequest(request, env);
+            if (response) return response;
         }
 
         // ── 防递归：已经是转发过来的请求，直接正常处理 ──

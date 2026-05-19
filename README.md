@@ -52,6 +52,11 @@ COMMON_WORKFLOW_PLUGINS_CLIENT_ID=your_workflow_client_id
 # 全局调试透传（可选）
 DEBUG_FORWARD_ENABLED=false
 DEBUG_FORWARD_URL=http://127.0.0.1:8787
+
+# Turnstile 人机验证（可选）
+TURNSTILE_SITE_KEY=your_turnstile_site_key
+TURNSTILE_SECRET_KEY=your_turnstile_secret_key
+TURNSTILE_BASE_URL=https://your-worker-domain
 ```
 
 ### 3) 本地运行
@@ -195,6 +200,8 @@ npm run d1:migrate:remote:scheduler
 | `/admin/scheduler/jobs/:id/runs` | GET | 查看任务执行记录 |
 | `/health` | GET | 健康检查 |
 | `/` | GET | 健康检查 |
+| `/turnstile/check/:sessionId` | GET | 人机验证页面 |
+| `/turnstile/verify/:sessionId` | POST | Turnstile 回调校验 |
 
 ## 定时任务中心（MVP）
 
@@ -248,6 +255,13 @@ npm run dev:scheduled
 | `workflow-common-plugins-engine` | workflow 规则（多步骤请求编排） | — |
 | `today-wife` | 今日老婆图片 | — |
 | `xiuxian-plugin` | 文本修仙玩法（创建/修炼/探索/背包/挑战/拍卖/爬塔/灵宠 等） | [src/plugins/game/xiuxian/README.md](src/plugins/game/xiuxian/README.md) |
+| `human-verify` | 人机验证插件（关键词触发链接，完成后微信通知结果） | — |
+
+`human-verify` 常用触发词：
+
+- `人机验证`
+- `我是人类吗`
+- `验证结果`
 
 > 具体插件的配置字段、规则示例与指令清单不在本文档中展开，请参考对应插件目录下的说明或 `_docs/` 下的示例配置文件。
 
@@ -375,6 +389,9 @@ test/
 | `AI_API_KEY` | AI 接口 Bearer Token（可选） |
 | `AI_MODEL` | AI 模型名称（可选） |
 | `AI_SYSTEM_PROMPT` | AI 系统提示词（可选） |
+| `TURNSTILE_SITE_KEY` | Turnstile 公钥（前端页面渲染） |
+| `TURNSTILE_SECRET_KEY` | Turnstile 私钥（服务端校验） |
+| `TURNSTILE_BASE_URL` | 外网可访问的 Worker 基础地址（生成验证链接） |
 | `COMMON_PLUGINS_CONFIG` | 通用插件 JSON 配置（内联，优先级最高，仅基础规则） |
 | `COMMON_PLUGINS_CONFIG_URL` | 通用插件远程配置地址 |
 | `COMMON_PLUGINS_CLIENT_ID` | 通用插件远程配置请求头 `clientid` |
