@@ -3,7 +3,7 @@ import type {MessageSource} from '../../types/message.js';
 export const FAKE_FORWARD_PREFIX = '伪转发';
 export const FAKE_FORWARD_DRAFT_TTL_SECONDS = 1800;
 export const FAKE_FORWARD_AUTO_SEND_DELAY_SECONDS = 120;
-export const FAKE_FORWARD_MAX_ITEMS = 20;
+export const FAKE_FORWARD_MAX_ITEMS = 100;
 export const FAKE_FORWARD_MAX_ROLES = 10;
 export const FAKE_FORWARD_MAX_ROLE_NAME_LENGTH = 30;
 export const FAKE_FORWARD_MAX_CONTENT_LENGTH = 300;

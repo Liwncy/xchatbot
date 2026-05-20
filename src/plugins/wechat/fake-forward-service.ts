@@ -36,6 +36,16 @@ import {
     FAKE_FORWARD_SCHEDULER_NAMESPACE,
 } from './fake-forward-types.js';
 
+const FAKE_FORWARD_TIMEZONE_OFFSET_MINUTES = 8 * 60;
+
+function shiftToConfiguredTimezone(timestampMs: number): Date {
+    return new Date(timestampMs + FAKE_FORWARD_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
+}
+
+function buildTimestampFromConfiguredTimezone(year: number, month: number, day: number, hour: number, minute: number): number {
+    return Date.UTC(year, month - 1, day, hour, minute, 0, 0) - FAKE_FORWARD_TIMEZONE_OFFSET_MINUTES * 60 * 1000;
+}
+
 function nowUnixSeconds(): number {
     return Math.floor(Date.now() / 1000);
 }
@@ -126,18 +136,19 @@ function parseDateTimeParts(year: number, month: number, day: number, hour: numb
     if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
         throw new Error('时间格式无效');
     }
-    const date = new Date(year, month - 1, day, hour, minute, 0, 0);
+    const timestampMs = buildTimestampFromConfiguredTimezone(year, month, day, hour, minute);
+    const date = shiftToConfiguredTimezone(timestampMs);
     if (
-        date.getFullYear() !== year
-        || date.getMonth() !== month - 1
-        || date.getDate() !== day
-        || date.getHours() !== hour
-        || date.getMinutes() !== minute
+        date.getUTCFullYear() !== year
+        || date.getUTCMonth() !== month - 1
+        || date.getUTCDate() !== day
+        || date.getUTCHours() !== hour
+        || date.getUTCMinutes() !== minute
     ) {
         throw new Error('时间格式无效');
     }
     return {
-        timestampMs: date.getTime(),
+        timestampMs,
         displayText: `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}`,
     };
 }
@@ -156,11 +167,11 @@ export function parseFakeForwardTimeInput(input: string, nowMs = Date.now()): Pa
     }
     const short = trimmed.match(/^(\d{1,2}):(\d{2})$/);
     if (short) {
-        const now = new Date(nowMs);
+        const now = shiftToConfiguredTimezone(nowMs);
         return parseDateTimeParts(
-            now.getFullYear(),
-            now.getMonth() + 1,
-            now.getDate(),
+            now.getUTCFullYear(),
+            now.getUTCMonth() + 1,
+            now.getUTCDate(),
             Number(short[1]),
             Number(short[2]),
         );
@@ -174,32 +185,32 @@ function parseFakeForwardTimeInputWithReference(input: string, referenceTimestam
     if (!short) {
         return parseFakeForwardTimeInput(trimmed, referenceTimestampMs);
     }
-    const reference = new Date(referenceTimestampMs);
+    const reference = shiftToConfiguredTimezone(referenceTimestampMs);
     return parseDateTimeParts(
-        reference.getFullYear(),
-        reference.getMonth() + 1,
-        reference.getDate(),
+        reference.getUTCFullYear(),
+        reference.getUTCMonth() + 1,
+        reference.getUTCDate(),
         Number(short[1]),
         Number(short[2]),
     );
 }
 
 function displayTimeFromTimestamp(timestampMs: number): string {
-    const date = new Date(timestampMs);
-    return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    const date = shiftToConfiguredTimezone(timestampMs);
+    return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
 }
 
 function resolveParsedChatTime(timeText?: string, nowMs = Date.now()): ParsedFakeForwardTime {
     if (timeText?.trim()) {
         return parseFakeForwardTimeInput(timeText, nowMs);
     }
-    const now = new Date(nowMs);
+    const now = shiftToConfiguredTimezone(nowMs);
     return parseDateTimeParts(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        now.getDate(),
-        now.getHours(),
-        now.getMinutes(),
+        now.getUTCFullYear(),
+        now.getUTCMonth() + 1,
+        now.getUTCDate(),
+        now.getUTCHours(),
+        now.getUTCMinutes(),
     );
 }
 
