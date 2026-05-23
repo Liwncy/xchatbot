@@ -46,6 +46,12 @@
       "name": "支付"
     },
     {
+      "name": "支付/支付-转账"
+    },
+    {
+      "name": "支付/支付-红包"
+    },
+    {
       "name": "用户"
     },
     {
@@ -372,24 +378,7 @@
         "tags": [
           "联系人"
         ],
-        "parameters": [
-          {
-            "name": "contact_seq",
-            "in": "query",
-            "description": "联系人序列号，首次同步传 0",
-            "required": false,
-            "default": 0,
-            "type": "integer"
-          },
-          {
-            "name": "group_seq",
-            "in": "query",
-            "description": "群聊序列号，首次同步传 0",
-            "required": false,
-            "default": 0,
-            "type": "integer"
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "OK",
@@ -402,7 +391,10 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.InitContactResponse"
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
                     }
                   },
                   "type": "object"
@@ -455,85 +447,6 @@
                   "properties": {
                     "data": {
                       "$ref": "#/definitions/basepb.OperateResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/contacts/all": {
-      "get": {
-        "summary": "获取全部联系人列表（分页）",
-        "deprecated": false,
-        "description": "支持分页获取所有联系人，适用于需要完整联系人列表的场景",
-        "tags": [
-          "联系人"
-        ],
-        "parameters": [
-          {
-            "name": "contact_seq",
-            "in": "query",
-            "description": "联系人序列号",
-            "required": false,
-            "default": 0,
-            "type": "integer"
-          },
-          {
-            "name": "group_seq",
-            "in": "query",
-            "description": "群聊序列号",
-            "required": false,
-            "default": 0,
-            "type": "integer"
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "description": "分页偏移量",
-            "required": false,
-            "default": 0,
-            "type": "integer"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "每页数量限制",
-            "required": false,
-            "default": 50,
-            "type": "integer"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "items": {
-                        "$ref": "#/definitions/contactpb.InitTotalContactResponse_ContactInfo"
-                      },
-                      "type": "array"
                     }
                   },
                   "type": "object"
@@ -671,7 +584,10 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.ContactDetailRequest"
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             }
           }
         ],
@@ -1050,7 +966,7 @@
         ]
       }
     },
-    "/api/groups": {
+    "/api/chatroom": {
       "post": {
         "summary": "创建群聊",
         "deprecated": false,
@@ -1064,7 +980,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.CreateGroupRequest"
+              "$ref": "#/definitions/dto.CreateChatroomRequest"
             }
           }
         ],
@@ -1080,7 +996,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.CreateGroupResponse"
+                      "$ref": "#/definitions/contactpb.CreateChatroomResponse"
                     }
                   },
                   "type": "object"
@@ -1105,7 +1021,7 @@
         ]
       }
     },
-    "/api/groups/admins/{group}": {
+    "/api/chatroom/admins/{chatroom}": {
       "delete": {
         "summary": "移除群管理员",
         "deprecated": false,
@@ -1115,7 +1031,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1127,7 +1043,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.GroupMembersRequest"
+              "$ref": "#/definitions/dto.ChatroomMembersRequest"
             }
           }
         ],
@@ -1143,7 +1059,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.GroupAdminResponse"
+                      "$ref": "#/definitions/contactpb.ChatroomAdminResponse"
                     }
                   },
                   "type": "object"
@@ -1176,7 +1092,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1188,7 +1104,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.GroupMembersRequest"
+              "$ref": "#/definitions/dto.ChatroomMembersRequest"
             }
           }
         ],
@@ -1204,7 +1120,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.GroupAdminResponse"
+                      "$ref": "#/definitions/contactpb.ChatroomAdminResponse"
                     }
                   },
                   "type": "object"
@@ -1229,7 +1145,7 @@
         ]
       }
     },
-    "/api/groups/announcement/{group}": {
+    "/api/chatroom/announcement/{chatroom}": {
       "put": {
         "summary": "设置群公告",
         "deprecated": false,
@@ -1239,7 +1155,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1267,7 +1183,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.SetGroupAnnouncementResponse"
+                      "$ref": "#/definitions/contactpb.SetChatroomAnnouncementResponse"
                     }
                   },
                   "type": "object"
@@ -1292,7 +1208,7 @@
         ]
       }
     },
-    "/api/groups/contact-list/{group}": {
+    "/api/chatroom/contact-list/{chatroom}": {
       "put": {
         "summary": "保存到通讯录",
         "deprecated": false,
@@ -1302,7 +1218,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1351,7 +1267,7 @@
         ]
       }
     },
-    "/api/groups/facing": {
+    "/api/chatroom/facing": {
       "post": {
         "summary": "面对面建群",
         "deprecated": false,
@@ -1381,7 +1297,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.FacingCreateGroupResponse"
+                      "$ref": "#/definitions/contactpb.FacingCreateChatroomResponse"
                     }
                   },
                   "type": "object"
@@ -1406,7 +1322,7 @@
         ]
       }
     },
-    "/api/groups/info/{group}": {
+    "/api/chatroom/info/{chatroom}": {
       "get": {
         "summary": "获取群信息",
         "deprecated": false,
@@ -1416,7 +1332,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1436,7 +1352,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.GetGroupInfoDetailResponse"
+                      "$ref": "#/definitions/contactpb.GetChatroomInfoDetailResponse"
                     }
                   },
                   "type": "object"
@@ -1458,7 +1374,7 @@
         ]
       }
     },
-    "/api/groups/invite/{group}": {
+    "/api/chatroom/invite/{chatroom}": {
       "post": {
         "summary": "邀请群成员",
         "deprecated": false,
@@ -1468,7 +1384,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1480,7 +1396,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.GroupMembersRequest"
+              "$ref": "#/definitions/dto.ChatroomMembersRequest"
             }
           }
         ],
@@ -1496,7 +1412,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.AddGroupMemberResponse"
+                      "$ref": "#/definitions/contactpb.AddChatroomMemberResponse"
                     }
                   },
                   "type": "object"
@@ -1521,7 +1437,7 @@
         ]
       }
     },
-    "/api/groups/join/consent": {
+    "/api/chatroom/join/consent": {
       "post": {
         "summary": "同意入群邀请",
         "deprecated": false,
@@ -1551,7 +1467,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/group.ConsentJoinResult"
+                      "$ref": "#/definitions/chatroom.ConsentJoinResult"
                     }
                   },
                   "type": "object"
@@ -1576,7 +1492,7 @@
         ]
       }
     },
-    "/api/groups/join/scan": {
+    "/api/chatroom/join/scan": {
       "post": {
         "summary": "扫码进群",
         "deprecated": false,
@@ -1606,7 +1522,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/group.ScanJoinResult"
+                      "$ref": "#/definitions/chatroom.ScanJoinResult"
                     }
                   },
                   "type": "object"
@@ -1631,7 +1547,7 @@
         ]
       }
     },
-    "/api/groups/members/{group}": {
+    "/api/chatroom/members/{chatroom}": {
       "delete": {
         "summary": "删除群成员",
         "deprecated": false,
@@ -1641,7 +1557,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1653,7 +1569,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.GroupMembersRequest"
+              "$ref": "#/definitions/dto.ChatroomMembersRequest"
             }
           }
         ],
@@ -1669,7 +1585,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.DeleteGroupMemberResponse"
+                      "$ref": "#/definitions/contactpb.DeleteChatroomMemberResponse"
                     }
                   },
                   "type": "object"
@@ -1696,18 +1612,29 @@
       "get": {
         "summary": "获取群成员详情",
         "deprecated": false,
-        "description": "获取群聊中所有成员的详细信息，包括昵称、头像、入群方式等",
+        "description": "获取群聊中成员详情，每次最多只能获取20个成员信息",
         "tags": [
           "群聊"
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
             "type": "string",
             "x-example": ""
+          },
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
           }
         ],
         "responses": {
@@ -1722,7 +1649,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.GetGroupMemberDetailResponse"
+                      "$ref": "#/definitions/contactpb.ListMembersResponse"
                     }
                   },
                   "type": "object"
@@ -1739,6 +1666,9 @@
           }
         },
         "security": [],
+        "consumes": [
+          "application/json"
+        ],
         "produces": [
           "application/json"
         ]
@@ -1752,7 +1682,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1764,7 +1694,7 @@
             "name": "body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/dto.GroupMembersRequest"
+              "$ref": "#/definitions/dto.ChatroomMembersRequest"
             }
           }
         ],
@@ -1780,7 +1710,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.AddGroupMemberResponse"
+                      "$ref": "#/definitions/contactpb.AddChatroomMemberResponse"
                     }
                   },
                   "type": "object"
@@ -1805,7 +1735,7 @@
         ]
       }
     },
-    "/api/groups/name/{group}": {
+    "/api/chatroom/name/{chatroom}": {
       "put": {
         "summary": "设置群名称",
         "deprecated": false,
@@ -1815,7 +1745,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1864,7 +1794,7 @@
         ]
       }
     },
-    "/api/groups/qrcode/{group}": {
+    "/api/chatroom/qrcode/{chatroom}": {
       "get": {
         "summary": "获取群二维码",
         "deprecated": false,
@@ -1874,7 +1804,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1916,7 +1846,7 @@
         ]
       }
     },
-    "/api/groups/quit/{group}": {
+    "/api/chatroom/quit/{chatroom}": {
       "delete": {
         "summary": "退出群聊",
         "deprecated": false,
@@ -1926,7 +1856,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -1968,7 +1898,7 @@
         ]
       }
     },
-    "/api/groups/remark/{group}": {
+    "/api/chatroom/remark/{chatroom}": {
       "put": {
         "summary": "设置群备注",
         "deprecated": false,
@@ -1978,7 +1908,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -2027,7 +1957,7 @@
         ]
       }
     },
-    "/api/groups/transfer/{group}": {
+    "/api/chatroom/transfer/{chatroom}": {
       "post": {
         "summary": "转让群主",
         "deprecated": false,
@@ -2037,7 +1967,7 @@
         ],
         "parameters": [
           {
-            "name": "group",
+            "name": "chatroom",
             "in": "path",
             "description": "群 ID（xxx@chatroom）",
             "required": true,
@@ -2064,7 +1994,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/contactpb.GroupAdminResponse"
+                      "$ref": "#/definitions/contactpb.ChatroomAdminResponse"
                     }
                   },
                   "type": "object"
@@ -2439,7 +2369,7 @@
             "description": "表情 MD5（为空时自动计算）"
           },
           {
-            "name": "file",
+            "name": "emoji",
             "in": "formData",
             "format": "binary",
             "type": "string",
@@ -2513,6 +2443,61 @@
             "headers": {},
             "schema": {
               "$ref": "#/definitions/handler.Response"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/message/forward/file": {
+      "post": {
+        "summary": "转发文件",
+        "deprecated": false,
+        "description": "转发文件消息",
+        "tags": [
+          "消息"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.ForwardParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/messagepb.SendAppMessageResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           },
           "400": {
@@ -2863,7 +2848,7 @@
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/util.SyncResult"
+                      "$ref": "#/definitions/messagepb.SyncResult"
                     }
                   },
                   "type": "object"
@@ -2944,7 +2929,7 @@
       "post": {
         "summary": "发送视频消息",
         "deprecated": false,
-        "description": "发送视频消息给指定接收者",
+        "description": "发送视频消息给指定接收者，视频体积30MB之类，超过会失败",
         "tags": [
           "消息"
         ],
@@ -3022,61 +3007,6 @@
         "security": [],
         "consumes": [
           "multipart/form-data"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/message/forward/file": {
-      "post": {
-        "summary": "转发文件",
-        "deprecated": false,
-        "description": "转发文件消息",
-        "tags": [
-          "消息"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.ForwardParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/messagepb.SendAppMessageResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
         ],
         "produces": [
           "application/json"
@@ -3223,7 +3153,7 @@
       "post": {
         "summary": "CDN 上传聊天视频",
         "deprecated": false,
-        "description": "通过 CDN 直连 TCP 上传聊天视频",
+        "description": "通过 CDN 直连 TCP 上传聊天视频，30MB以内，超过会失败",
         "tags": [
           "CDN"
         ],
@@ -5713,6 +5643,510 @@
         ]
       }
     },
+    "/api/payment/collect": {
+      "post": {
+        "summary": "确认转账收款",
+        "deprecated": false,
+        "description": "确认接收转账款项",
+        "tags": [
+          "支付/支付-转账",
+          "支付-转账"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.CollectMoneyParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.TenPayResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/transfer/confirm": {
+      "post": {
+        "summary": "确认微信转账",
+        "deprecated": false,
+        "description": "使用支付密码确认转账",
+        "tags": [
+          "支付/支付-转账",
+          "支付-转账"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.ConfirmPreTransferParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.TenPayResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/transfer/create": {
+      "post": {
+        "summary": "创建微信转账",
+        "deprecated": false,
+        "description": "向指定用户发起转账请求",
+        "tags": [
+          "支付/支付-转账",
+          "支付-转账"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.CreatePreTransferParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.TenPayResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/create": {
+      "post": {
+        "summary": "创建微信红包",
+        "deprecated": false,
+        "description": "创建普通红包或拼手气红包",
+        "tags": [
+          "支付/支付-红包",
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.CreateHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/detail": {
+      "post": {
+        "summary": "查询红包领取详情",
+        "deprecated": false,
+        "description": "查询指定红包的领取记录详情",
+        "tags": [
+          "支付/支付-红包",
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.QueryHongBaoDetailParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/grab": {
+      "post": {
+        "summary": "抢红包（接收+打开一步完成）",
+        "deprecated": false,
+        "description": "自动执行接收红包→打开红包两步操作，内部自动提取 timingIdentifier",
+        "tags": [
+          "支付/支付-红包",
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.GrabHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/list": {
+      "post": {
+        "summary": "查询红包领取列表",
+        "deprecated": false,
+        "description": "分页查询红包领取记录列表",
+        "tags": [
+          "支付/支付-红包",
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.QueryHongBaoListParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/open": {
+      "post": {
+        "summary": "打开红包（第二步）",
+        "deprecated": false,
+        "description": "使用接收红包返回的 timingIdentifier 拆开红包",
+        "tags": [
+          "支付/支付-红包",
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.OpenHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
+    "/api/payment/hongbao/receive": {
+      "post": {
+        "summary": "接收红包（第一步）",
+        "deprecated": false,
+        "description": "接收红包，返回 ret_text JSON 中包含 timingIdentifier，用于后续拆红包",
+        "tags": [
+          "支付/支付-红包",
+          "支付-红包"
+        ],
+        "parameters": [
+          {
+            "required": true,
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/dto.ReceiveHongBaoParam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/handler.Response"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "headers": {},
+            "schema": {
+              "$ref": "#/definitions/handler.Response"
+            }
+          }
+        },
+        "security": [],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ]
+      }
+    },
     "/api/payment/cards": {
       "get": {
         "summary": "获取绑定银行卡及余额信息",
@@ -6798,501 +7232,6 @@
         ]
       }
     },
-    "/api/payment/collect": {
-      "post": {
-        "summary": "确认转账收款",
-        "deprecated": false,
-        "description": "确认接收转账款项",
-        "tags": [
-          "支付-转账"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CollectMoneyParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.TenPayResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/transfer/confirm": {
-      "post": {
-        "summary": "确认微信转账",
-        "deprecated": false,
-        "description": "使用支付密码确认转账",
-        "tags": [
-          "支付-转账"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.ConfirmPreTransferParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.TenPayResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/transfer/create": {
-      "post": {
-        "summary": "创建微信转账",
-        "deprecated": false,
-        "description": "向指定用户发起转账请求",
-        "tags": [
-          "支付-转账"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CreatePreTransferParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.TenPayResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/create": {
-      "post": {
-        "summary": "创建微信红包",
-        "deprecated": false,
-        "description": "创建普通红包或拼手气红包",
-        "tags": [
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.CreateHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/detail": {
-      "post": {
-        "summary": "查询红包领取详情",
-        "deprecated": false,
-        "description": "查询指定红包的领取记录详情",
-        "tags": [
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.QueryHongBaoDetailParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/grab": {
-      "post": {
-        "summary": "抢红包（接收+打开一步完成）",
-        "deprecated": false,
-        "description": "自动执行接收红包→打开红包两步操作，内部自动提取 timingIdentifier",
-        "tags": [
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.GrabHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/list": {
-      "post": {
-        "summary": "查询红包领取列表",
-        "deprecated": false,
-        "description": "分页查询红包领取记录列表",
-        "tags": [
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.QueryHongBaoListParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/open": {
-      "post": {
-        "summary": "打开红包（第二步）",
-        "deprecated": false,
-        "description": "使用接收红包返回的 timingIdentifier 拆开红包",
-        "tags": [
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.OpenHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
-    "/api/payment/hongbao/receive": {
-      "post": {
-        "summary": "接收红包（第一步）",
-        "deprecated": false,
-        "description": "接收红包，返回 ret_text JSON 中包含 timingIdentifier，用于后续拆红包",
-        "tags": [
-          "支付-红包"
-        ],
-        "parameters": [
-          {
-            "required": true,
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/dto.ReceiveHongBaoParam"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {},
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/handler.Response"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/paymentpb.HongBaoResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "headers": {},
-            "schema": {
-              "$ref": "#/definitions/handler.Response"
-            }
-          }
-        },
-        "security": [],
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ]
-      }
-    },
     "/health": {
       "get": {
         "summary": "健康检查",
@@ -7476,55 +7415,6 @@
       },
       "type": "object"
     },
-    "contactpb.InitContactResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "contact_sequence": {
-          "description": "当前微信联系人序列",
-          "type": "integer"
-        },
-        "continue_flag": {
-          "description": "继续标志",
-          "type": "integer"
-        },
-        "group_sequence": {
-          "description": "当前群聊联系人序列",
-          "type": "integer"
-        },
-        "usernames": {
-          "description": "联系人用户名列表",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.InitTotalContactResponse_ContactInfo": {
-      "properties": {
-        "nickname": {
-          "description": "昵称",
-          "type": "string"
-        },
-        "remark": {
-          "description": "备注",
-          "type": "string"
-        },
-        "username": {
-          "description": "用户名",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
     "contactpb.LbsResponse": {
       "properties": {
         "base_response": {
@@ -7535,6 +7425,10 @@
           ],
           "description": "基础响应"
         },
+        "chatroom_member_count": {
+          "description": "群成员数量",
+          "type": "integer"
+        },
         "count": {
           "description": "结果数量",
           "type": "integer"
@@ -7543,11 +7437,7 @@
           "description": "刷新时间",
           "type": "integer"
         },
-        "group_member_count": {
-          "description": "群成员数量",
-          "type": "integer"
-        },
-        "is_show_group": {
+        "is_show_chatroom": {
           "description": "是否显示群",
           "type": "integer"
         },
@@ -8085,40 +7975,6 @@
       ],
       "type": "object"
     },
-    "dto.ContactDetailRequest": {
-      "properties": {
-        "groups": {
-          "description": "群聊 ID 列表",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "usernames": {
-          "description": "用户名列表（wxid）",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "dto.CreateGroupRequest": {
-      "properties": {
-        "members": {
-          "description": "初始成员用户名列表（wxid），至少 2 人",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "members"
-      ],
-      "type": "object"
-    },
     "dto.DelSafeDeviceRequest": {
       "properties": {
         "uuid": {
@@ -8180,21 +8036,6 @@
         "receiver",
         "type",
         "xml"
-      ],
-      "type": "object"
-    },
-    "dto.GroupMembersRequest": {
-      "properties": {
-        "members": {
-          "description": "成员用户名列表（wxid）",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "members"
       ],
       "type": "object"
     },
@@ -8766,32 +8607,6 @@
       },
       "type": "object"
     },
-    "group.ConsentJoinResult": {
-      "properties": {
-        "groupID": {
-          "description": "进群成功后的群ID",
-          "type": "string"
-        },
-        "message": {
-          "description": "消息",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "group.ScanJoinResult": {
-      "properties": {
-        "groupID": {
-          "description": "进群成功后的群ID",
-          "type": "string"
-        },
-        "message": {
-          "description": "消息",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
     "handler.Response": {
       "properties": {
         "code": {
@@ -9105,42 +8920,42 @@
           "description": "是否需要继续同步",
           "type": "boolean"
         },
-        "delete_contacts": {
+        "deleteContacts": {
           "description": "联系人删除",
           "items": {
             "$ref": "#/definitions/messagepb.DeleteContact"
           },
           "type": "array"
         },
-        "function_switches": {
+        "functionSwitches": {
           "description": "功能切换",
           "items": {
             "$ref": "#/definitions/messagepb.FunctionSwitch"
           },
           "type": "array"
         },
-        "modify_contacts": {
+        "modifyContacts": {
           "description": "联系人信息修改",
           "items": {
             "$ref": "#/definitions/messagepb.ModifyContact"
           },
           "type": "array"
         },
-        "modify_user_images": {
+        "modifyUserImages": {
           "description": "修改用户头像？",
           "items": {
             "$ref": "#/definitions/messagepb.ModifyUserAvatar"
           },
           "type": "array"
         },
-        "modify_user_infos": {
+        "modifyUserInfos": {
           "description": "修改用户信息",
           "items": {
             "$ref": "#/definitions/messagepb.ModifyUserInfo"
           },
           "type": "array"
         },
-        "new_messages": {
+        "newMessages": {
           "description": "新增消息",
           "items": {
             "$ref": "#/definitions/messagepb.NewMessage"
@@ -9154,7 +8969,7 @@
           },
           "type": "array"
         },
-        "user_info_extends": {
+        "userInfoExtends": {
           "description": "用户信息扩展",
           "items": {
             "$ref": "#/definitions/messagepb.UserInfoExtend"
@@ -9246,7 +9061,7 @@
           "type": "integer",
           "example": 98765432
         },
-        "group_id": {
+        "chatroom_id": {
           "description": "群聊名称（非群聊传空字符串）",
           "type": "string",
           "example": ""
@@ -9921,166 +9736,6 @@
       },
       "type": "object"
     },
-    "contactpb.AddGroupMemberResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "member_count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "member_list": {
-          "description": "成员列表",
-          "items": {
-            "$ref": "#/definitions/contactpb.Member"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.CreateGroupResponse": {
-      "properties": {
-        "avatar_buffer": {
-          "description": "头像缓冲区",
-          "items": {
-            "type": "integer"
-          },
-          "type": "array"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "group": {
-          "description": "群ID",
-          "type": "string"
-        },
-        "member_count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "member_list": {
-          "description": "成员列表",
-          "items": {
-            "$ref": "#/definitions/contactpb.Member"
-          },
-          "type": "array"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "topic": {
-          "description": "群名称",
-          "type": "string"
-        },
-        "topic_jianpin": {
-          "description": "拼音首字母",
-          "type": "string"
-        },
-        "topic_quanpin": {
-          "description": "全拼",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.DeleteGroupMemberResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "member_count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "member_list": {
-          "description": "成员列表",
-          "items": {
-            "$ref": "#/definitions/contactpb.Member"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.FacingCreateGroupResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "group": {
-          "description": "群ID",
-          "type": "string"
-        },
-        "member_count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "member_list": {
-          "description": "成员列表",
-          "items": {
-            "$ref": "#/definitions/contactpb.FacingCreateGroupResponse_FacingMember"
-          },
-          "type": "array"
-        },
-        "ticket": {
-          "description": "票据",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.FacingCreateGroupResponse_FacingMember": {
-      "properties": {
-        "avatar_url": {
-          "description": "头像URL",
-          "type": "string"
-        },
-        "display_name": {
-          "description": "群显示名称",
-          "type": "string"
-        },
-        "flag": {
-          "description": "标志",
-          "type": "integer"
-        },
-        "nickname": {
-          "description": "昵称",
-          "type": "string"
-        },
-        "username": {
-          "description": "用户名",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
     "contactpb.GetContactResponse_VerifyUserValidTicket": {
       "properties": {
         "ticket": {
@@ -10090,206 +9745,6 @@
         "username": {
           "description": "用户名",
           "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GetGroupInfoDetailResponse": {
-      "properties": {
-        "announcement": {
-          "description": "群公告",
-          "type": "string"
-        },
-        "announcement_editor": {
-          "description": "公告编辑者",
-          "type": "string"
-        },
-        "announcement_publish_time": {
-          "description": "公告发布时间",
-          "type": "integer"
-        },
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "business_type": {
-          "description": "群业务类型",
-          "type": "integer"
-        },
-        "info_version": {
-          "description": "群信息版本",
-          "type": "integer"
-        },
-        "status": {
-          "description": "群状态",
-          "type": "integer"
-        },
-        "tools": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/contactpb.GetGroupInfoDetailResponse_Tools"
-            }
-          ],
-          "description": "群工具"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GetGroupInfoDetailResponse_Tools": {
-      "properties": {
-        "app_count": {
-          "description": "群工具小程序数量",
-          "type": "integer"
-        },
-        "app_list": {
-          "description": "群工具小程序列表",
-          "items": {
-            "$ref": "#/definitions/contactpb.GetGroupInfoDetailResponse_Tools_Todo"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GetGroupInfoDetailResponse_Tools_Todo": {
-      "properties": {
-        "creator": {
-          "description": "创建者",
-          "type": "string"
-        },
-        "custom_info": {
-          "description": "自定义信息",
-          "items": {
-            "type": "integer"
-          },
-          "type": "array"
-        },
-        "id": {
-          "description": "待办ID",
-          "type": "string"
-        },
-        "manager": {
-          "description": "管理员",
-          "type": "string"
-        },
-        "path": {
-          "description": "路径",
-          "type": "string"
-        },
-        "related_msg_id": {
-          "description": "相关消息ID",
-          "type": "integer"
-        },
-        "time": {
-          "description": "时间",
-          "type": "integer"
-        },
-        "title": {
-          "description": "标题",
-          "type": "string"
-        },
-        "username": {
-          "description": "用户名",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GetGroupMemberDetailResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
-        },
-        "group": {
-          "description": "群ID",
-          "type": "string"
-        },
-        "result": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/contactpb.GetGroupMemberDetailResponse_Result"
-            }
-          ],
-          "description": "群成员数据"
-        },
-        "server_version": {
-          "description": "服务端版本",
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GetGroupMemberDetailResponse_Result": {
-      "properties": {
-        "count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "info_mask": {
-          "description": "信息掩码",
-          "type": "integer"
-        },
-        "list": {
-          "description": "群成员列表",
-          "items": {
-            "$ref": "#/definitions/contactpb.GetGroupMemberDetailResponse_Result_MemberInfo"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GetGroupMemberDetailResponse_Result_MemberInfo": {
-      "properties": {
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "display_name": {
-          "description": "显示名称",
-          "type": "string"
-        },
-        "flag": {
-          "description": "群成员标志",
-          "type": "integer"
-        },
-        "inviter_username": {
-          "description": "邀请者用户名",
-          "type": "string"
-        },
-        "nickname": {
-          "description": "昵称",
-          "type": "string"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "username": {
-          "description": "用户名",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.GroupAdminResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
         }
       },
       "type": "object"
@@ -10586,19 +10041,6 @@
         "weibo_nickname": {
           "description": "微博昵称",
           "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "contactpb.SetGroupAnnouncementResponse": {
-      "properties": {
-        "base_response": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/basepb.BaseResponse"
-            }
-          ],
-          "description": "基础响应"
         }
       },
       "type": "object"
@@ -12052,6 +11494,53 @@
           "description": "名片图片URL",
           "type": "string"
         },
+        "chatroom_access_type": {
+          "description": "群聊访问类型",
+          "type": "integer"
+        },
+        "chatroom_business_type": {
+          "description": "群聊业务类型",
+          "type": "integer"
+        },
+        "chatroom_data": {
+          "description": "群聊数据",
+          "type": "string"
+        },
+        "chatroom_info_count": {
+          "description": "群组信息数量",
+          "type": "integer"
+        },
+        "chatroom_info_list": {
+          "description": "群组信息列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyContact_ChatroomInfo"
+          },
+          "type": "array"
+        },
+        "chatroom_info_version": {
+          "description": "群聊信息版本",
+          "type": "integer"
+        },
+        "chatroom_max_count": {
+          "description": "群聊最大人数",
+          "type": "integer"
+        },
+        "chatroom_notify": {
+          "description": "群聊通知",
+          "type": "integer"
+        },
+        "chatroom_owner": {
+          "description": "群主",
+          "type": "string"
+        },
+        "chatroom_status": {
+          "description": "群聊状态",
+          "type": "integer"
+        },
+        "chatroom_version": {
+          "description": "群聊版本",
+          "type": "integer"
+        },
         "city": {
           "description": "城市",
           "type": "string"
@@ -12111,53 +11600,6 @@
           ],
           "description": "性别"
         },
-        "group_access_type": {
-          "description": "群聊访问类型",
-          "type": "integer"
-        },
-        "group_business_type": {
-          "description": "群聊业务类型",
-          "type": "integer"
-        },
-        "group_data": {
-          "description": "群聊数据",
-          "type": "string"
-        },
-        "group_info_count": {
-          "description": "群组信息数量",
-          "type": "integer"
-        },
-        "group_info_list": {
-          "description": "群组信息列表",
-          "items": {
-            "$ref": "#/definitions/messagepb.ModifyContact_GroupInfo"
-          },
-          "type": "array"
-        },
-        "group_info_version": {
-          "description": "群聊信息版本",
-          "type": "integer"
-        },
-        "group_max_count": {
-          "description": "群聊最大人数",
-          "type": "integer"
-        },
-        "group_notify": {
-          "description": "群聊通知",
-          "type": "integer"
-        },
-        "group_owner": {
-          "description": "群主",
-          "type": "string"
-        },
-        "group_status": {
-          "description": "群聊状态",
-          "type": "integer"
-        },
-        "group_version": {
-          "description": "群聊版本",
-          "type": "integer"
-        },
         "has_hd_avatar": {
           "description": "是否有微信高清头像",
           "type": "integer"
@@ -12181,7 +11623,7 @@
         "members": {
           "allOf": [
             {
-              "$ref": "#/definitions/messagepb.ModifyContact_GroupMemberData"
+              "$ref": "#/definitions/messagepb.ModifyContact_ChatroomMemberData"
             }
           ],
           "description": "群成员数据"
@@ -12350,80 +11792,6 @@
         },
         "public_url": {
           "description": "LinkedIn公开URL",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "messagepb.ModifyContact_GroupInfo": {
-      "properties": {
-        "nickname": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "昵称"
-        },
-        "username": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/wrapperspb.StringValue"
-            }
-          ],
-          "description": "用户名"
-        }
-      },
-      "type": "object"
-    },
-    "messagepb.ModifyContact_GroupMemberData": {
-      "properties": {
-        "count": {
-          "description": "成员数量",
-          "type": "integer"
-        },
-        "info_mask": {
-          "description": "信息掩码",
-          "type": "integer"
-        },
-        "list": {
-          "description": "群成员列表",
-          "items": {
-            "$ref": "#/definitions/messagepb.ModifyContact_GroupMemberData_MemberInfo"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "messagepb.ModifyContact_GroupMemberData_MemberInfo": {
-      "properties": {
-        "big_avatar_url": {
-          "description": "大头像URL",
-          "type": "string"
-        },
-        "chatroom_member_flag": {
-          "description": "群成员标志",
-          "type": "integer"
-        },
-        "display_name": {
-          "description": "显示名称",
-          "type": "string"
-        },
-        "inviter_username": {
-          "description": "邀请者用户名",
-          "type": "string"
-        },
-        "nickname": {
-          "description": "昵称",
-          "type": "string"
-        },
-        "small_avatar_url": {
-          "description": "小头像URL",
-          "type": "string"
-        },
-        "username": {
-          "description": "用户名",
           "type": "string"
         }
       },
@@ -13247,15 +12615,15 @@
           "description": "大头像URL",
           "type": "string"
         },
-        "big_group_invite": {
+        "big_chatroom_invite": {
           "description": "大群邀请",
           "type": "integer"
         },
-        "big_group_quota": {
+        "big_chatroom_quota": {
           "description": "大群配额",
           "type": "integer"
         },
-        "big_group_size": {
+        "big_chatroom_size": {
           "description": "大群大小",
           "type": "integer"
         },
@@ -13374,6 +12742,880 @@
         "wallet_region": {
           "description": "钱包地区",
           "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "chatroom.ConsentJoinResult": {
+      "properties": {
+        "chatroomID": {
+          "description": "进群成功后的群ID",
+          "type": "string"
+        },
+        "message": {
+          "description": "消息",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "chatroom.ScanJoinResult": {
+      "properties": {
+        "chatroomID": {
+          "description": "进群成功后的群ID",
+          "type": "string"
+        },
+        "message": {
+          "description": "消息",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.AddChatroomMemberResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "member_count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "member_list": {
+          "description": "成员列表",
+          "items": {
+            "$ref": "#/definitions/contactpb.Member"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.ChatroomAdminResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.CreateChatroomResponse": {
+      "properties": {
+        "avatar_buffer": {
+          "description": "头像缓冲区",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "chatroom": {
+          "description": "群ID",
+          "type": "string"
+        },
+        "member_count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "member_list": {
+          "description": "成员列表",
+          "items": {
+            "$ref": "#/definitions/contactpb.Member"
+          },
+          "type": "array"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "topic": {
+          "description": "群名称",
+          "type": "string"
+        },
+        "topic_jianpin": {
+          "description": "拼音首字母",
+          "type": "string"
+        },
+        "topic_quanpin": {
+          "description": "全拼",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.DeleteChatroomMemberResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "member_count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "member_list": {
+          "description": "成员列表",
+          "items": {
+            "$ref": "#/definitions/contactpb.Member"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.FacingCreateChatroomResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "chatroom": {
+          "description": "群ID",
+          "type": "string"
+        },
+        "member_count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "member_list": {
+          "description": "成员列表",
+          "items": {
+            "$ref": "#/definitions/contactpb.FacingCreateChatroomResponse_FacingMember"
+          },
+          "type": "array"
+        },
+        "ticket": {
+          "description": "票据",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.FacingCreateChatroomResponse_FacingMember": {
+      "properties": {
+        "avatar_url": {
+          "description": "头像URL",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "群显示名称",
+          "type": "string"
+        },
+        "flag": {
+          "description": "标志",
+          "type": "integer"
+        },
+        "nickname": {
+          "description": "昵称",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.GetChatroomInfoDetailResponse": {
+      "properties": {
+        "announcement": {
+          "description": "群公告",
+          "type": "string"
+        },
+        "announcement_editor": {
+          "description": "公告编辑者",
+          "type": "string"
+        },
+        "announcement_publish_time": {
+          "description": "公告发布时间",
+          "type": "integer"
+        },
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "business_type": {
+          "description": "群业务类型",
+          "type": "integer"
+        },
+        "info_version": {
+          "description": "群信息版本",
+          "type": "integer"
+        },
+        "status": {
+          "description": "群状态",
+          "type": "integer"
+        },
+        "tools": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/contactpb.GetChatroomInfoDetailResponse_Tools"
+            }
+          ],
+          "description": "群工具"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.GetChatroomInfoDetailResponse_Tools": {
+      "properties": {
+        "app_count": {
+          "description": "群工具小程序数量",
+          "type": "integer"
+        },
+        "app_list": {
+          "description": "群工具小程序列表",
+          "items": {
+            "$ref": "#/definitions/contactpb.GetChatroomInfoDetailResponse_Tools_Todo"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.GetChatroomInfoDetailResponse_Tools_Todo": {
+      "properties": {
+        "creator": {
+          "description": "创建者",
+          "type": "string"
+        },
+        "custom_info": {
+          "description": "自定义信息",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "待办ID",
+          "type": "string"
+        },
+        "manager": {
+          "description": "管理员",
+          "type": "string"
+        },
+        "path": {
+          "description": "路径",
+          "type": "string"
+        },
+        "related_msg_id": {
+          "description": "相关消息ID",
+          "type": "integer"
+        },
+        "time": {
+          "description": "时间",
+          "type": "integer"
+        },
+        "title": {
+          "description": "标题",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.ListMembersResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        },
+        "chatroom": {
+          "description": "群ID",
+          "type": "string"
+        },
+        "result": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/contactpb.ListMembersResponse_Result"
+            }
+          ],
+          "description": "群成员数据"
+        },
+        "server_version": {
+          "description": "服务端版本",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.ListMembersResponse_Result": {
+      "properties": {
+        "count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "info_mask": {
+          "description": "信息掩码",
+          "type": "integer"
+        },
+        "list": {
+          "description": "群成员列表",
+          "items": {
+            "$ref": "#/definitions/contactpb.ListMembersResponse_Result_MemberInfo"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.ListMembersResponse_Result_MemberInfo": {
+      "properties": {
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "显示名称",
+          "type": "string"
+        },
+        "flag": {
+          "description": "群成员标志",
+          "type": "integer"
+        },
+        "inviter_username": {
+          "description": "邀请者用户名",
+          "type": "string"
+        },
+        "nickname": {
+          "description": "昵称",
+          "type": "string"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "contactpb.SetChatroomAnnouncementResponse": {
+      "properties": {
+        "base_response": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.BaseResponse"
+            }
+          ],
+          "description": "基础响应"
+        }
+      },
+      "type": "object"
+    },
+    "dto.ChatroomMembersRequest": {
+      "properties": {
+        "members": {
+          "description": "成员用户名列表（wxid）",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "members"
+      ],
+      "type": "object"
+    },
+    "dto.CreateChatroomRequest": {
+      "properties": {
+        "members": {
+          "description": "初始成员用户名列表（wxid），至少 2 人",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "members"
+      ],
+      "type": "object"
+    },
+    "messagepb.DeleteChatContact": {
+      "properties": {
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.DeleteContactMessage": {
+      "properties": {
+        "max_id": {
+          "description": "最大消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyChatroomMember": {
+      "properties": {
+        "album_bg_image_id": {
+          "description": "相册背景图ID",
+          "type": "string"
+        },
+        "album_flag": {
+          "description": "相册标志",
+          "type": "integer"
+        },
+        "album_style": {
+          "description": "相册样式",
+          "type": "integer"
+        },
+        "alias": {
+          "description": "别名",
+          "type": "string"
+        },
+        "avatar_buffer": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Buffer"
+            }
+          ],
+          "description": "头像缓冲区"
+        },
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "brand_list": {
+          "description": "我的品牌列表",
+          "type": "string"
+        },
+        "city": {
+          "description": "城市",
+          "type": "string"
+        },
+        "contact_type": {
+          "description": "联系人类型",
+          "type": "integer"
+        },
+        "country": {
+          "description": "国家",
+          "type": "string"
+        },
+        "customized_info": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.CustomizedInfo"
+            }
+          ],
+          "description": "自定义信息"
+        },
+        "gender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/basepb.Gender"
+            }
+          ],
+          "description": "性别"
+        },
+        "image_flag": {
+          "description": "头像标志",
+          "type": "integer"
+        },
+        "nickname": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "昵称"
+        },
+        "nickname_jianpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "拼音首字母"
+        },
+        "nickname_quanpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "全拼"
+        },
+        "personal_card": {
+          "description": "个人名片",
+          "type": "integer"
+        },
+        "province": {
+          "description": "省份",
+          "type": "string"
+        },
+        "remark": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "备注"
+        },
+        "remark_jianpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "备注拼音首字母"
+        },
+        "remark_quanpin": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "备注全拼简拼"
+        },
+        "signature": {
+          "description": "签名",
+          "type": "string"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "sns_user_info": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/messagepb.SnsUserInfo"
+            }
+          ],
+          "description": "朋友圈用户信息"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        },
+        "verify_content": {
+          "description": "验证内容",
+          "type": "string"
+        },
+        "verify_flag": {
+          "description": "验证标志",
+          "type": "integer"
+        },
+        "verify_info": {
+          "description": "验证信息",
+          "type": "string"
+        },
+        "weibo": {
+          "description": "微博",
+          "type": "string"
+        },
+        "weibo_flag": {
+          "description": "微博标志",
+          "type": "integer"
+        },
+        "weibo_nickname": {
+          "description": "微博昵称",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyChatroomMemberDisplayName": {
+      "properties": {
+        "chatroom": {
+          "description": "群ID",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "显示名称",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_ChatroomInfo": {
+      "properties": {
+        "nickname": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "昵称"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_ChatroomMemberData": {
+      "properties": {
+        "count": {
+          "description": "成员数量",
+          "type": "integer"
+        },
+        "info_mask": {
+          "description": "信息掩码",
+          "type": "integer"
+        },
+        "list": {
+          "description": "群成员列表",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyContact_ChatroomMemberData_MemberInfo"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyContact_ChatroomMemberData_MemberInfo": {
+      "properties": {
+        "big_avatar_url": {
+          "description": "大头像URL",
+          "type": "string"
+        },
+        "chatroom_member_flag": {
+          "description": "群成员标志",
+          "type": "integer"
+        },
+        "display_name": {
+          "description": "显示名称",
+          "type": "string"
+        },
+        "extend_xml": {
+          "description": "入群追溯消息",
+          "type": "string"
+        },
+        "inviter_username": {
+          "description": "邀请者用户名",
+          "type": "string"
+        },
+        "nickname": {
+          "description": "昵称",
+          "type": "string"
+        },
+        "small_avatar_url": {
+          "description": "小头像URL",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.ModifyMessageStatus": {
+      "properties": {
+        "id": {
+          "description": "消息ID",
+          "type": "integer"
+        },
+        "new_id": {
+          "description": "新消息ID",
+          "type": "integer"
+        },
+        "receiver": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "接收者用户名"
+        },
+        "sender": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "发送者用户名"
+        },
+        "status": {
+          "description": "状态，2-已送达，4-已读",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.QuitChatroom": {
+      "properties": {
+        "chatroom": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "群ID"
+        },
+        "username": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/wrapperspb.StringValue"
+            }
+          ],
+          "description": "用户名"
+        }
+      },
+      "type": "object"
+    },
+    "messagepb.SyncResult": {
+      "properties": {
+        "delete_chat_contact": {
+          "description": "删除聊天联系人",
+          "items": {
+            "$ref": "#/definitions/messagepb.DeleteChatContact"
+          },
+          "type": "array"
+        },
+        "delete_contact": {
+          "description": "删除联系人",
+          "items": {
+            "$ref": "#/definitions/messagepb.DeleteContact"
+          },
+          "type": "array"
+        },
+        "delete_contact_message": {
+          "description": "删除联系人消息",
+          "items": {
+            "$ref": "#/definitions/messagepb.DeleteContactMessage"
+          },
+          "type": "array"
+        },
+        "modify_chatroom_member": {
+          "description": "修改群成员",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyChatroomMember"
+          },
+          "type": "array"
+        },
+        "modify_chatroom_member_display_name": {
+          "description": "修改群成员显示名称",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyChatroomMemberDisplayName"
+          },
+          "type": "array"
+        },
+        "modify_contact": {
+          "description": "修改联系人信息",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyContact"
+          },
+          "type": "array"
+        },
+        "modify_messages_status": {
+          "description": "修改消息状态",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyMessageStatus"
+          },
+          "type": "array"
+        },
+        "modify_user_info": {
+          "description": "修改用户信息",
+          "items": {
+            "$ref": "#/definitions/messagepb.ModifyUserInfo"
+          },
+          "type": "array"
+        },
+        "new_message": {
+          "description": "新消息",
+          "items": {
+            "$ref": "#/definitions/messagepb.NewMessage"
+          },
+          "type": "array"
+        },
+        "quit_chatroom": {
+          "description": "退出群组",
+          "items": {
+            "$ref": "#/definitions/messagepb.QuitChatroom"
+          },
+          "type": "array"
+        },
+        "unknown": {
+          "description": "未知数据类型",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "user_info_extend": {
+          "description": "用户扩展信息",
+          "items": {
+            "$ref": "#/definitions/messagepb.UserInfoExtend"
+          },
+          "type": "array"
         }
       },
       "type": "object"

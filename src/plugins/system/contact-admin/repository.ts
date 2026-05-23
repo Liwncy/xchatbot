@@ -1,4 +1,5 @@
 import {WechatApi} from '../../../wechat/api.js';
+import type {VerifyFriendRequest} from '../../../wechat/api-types.js';
 
 type ContactType = 'user' | 'group' | 'system';
 
@@ -185,27 +186,22 @@ export class ContactRepository {
         return Array.isArray(list) ? list : [];
     }
 
-    private static extractGroupMemberEntries(payload: unknown): {
+    private static extractGroupMemberEntriesFromContactDetail(entry: unknown): {
         serverVersion: number;
         infoMask: number;
         list: unknown[];
     } {
-        if (!payload || typeof payload !== 'object') {
+        if (!entry || typeof entry !== 'object') {
             return {serverVersion: 0, infoMask: 0, list: []};
         }
-        const data = payload as Record<string, unknown>;
-        const result = data.result && typeof data.result === 'object'
-            ? data.result as Record<string, unknown>
+        const obj = entry as Record<string, unknown>;
+        const members = obj.members && typeof obj.members === 'object'
+            ? obj.members as Record<string, unknown>
             : null;
-        const list = Array.isArray(result?.list)
-            ? result.list
-            : Array.isArray(data.list)
-                ? data.list
-                : [];
         return {
-            serverVersion: ContactRepository.normalizeInt(data.server_version),
-            infoMask: ContactRepository.normalizeInt(result?.info_mask),
-            list,
+            serverVersion: ContactRepository.normalizeInt(obj.chatroom_info_version ?? obj.chatroom_version ?? obj.info_version),
+            infoMask: ContactRepository.normalizeInt(members?.info_mask),
+            list: Array.isArray(members?.list) ? members.list : [],
         };
     }
 
@@ -392,9 +388,9 @@ export class ContactRepository {
 
     static async debugFetch(apiBaseUrl: string): Promise<{
         contactsMeta: DebugEndpointMeta;
-        contactsAllMeta: DebugEndpointMeta;
+        contactDetailMeta: DebugEndpointMeta;
         fromContacts: string[];
-        fromContactsAll: string[];
+        fromContactDetail: string[];
         merged: string[];
     }> {
         const api = new WechatApi(apiBaseUrl);
@@ -405,16 +401,11 @@ export class ContactRepository {
         const fromContacts = ContactRepository.toContactIds(syncEntries);
         const syncEnvelope = syncResult as ApiEnvelope;
 
-        const allResult = await api.getAllContacts({
-            contact_seq: 0,
-            group_seq: 0,
-            offset: 0,
-            limit: 5000,
-        });
-        ContactRepository.ensureSuccess('getAllContacts', allResult);
-        const allEntries = ContactRepository.extractContactEntries(allResult.data);
-        const fromContactsAll = ContactRepository.toContactIds(allEntries);
-        const allEnvelope = allResult as ApiEnvelope;
+        const detailResult = await api.getContactDetail(fromContacts);
+        ContactRepository.ensureSuccess('getContactDetail', detailResult);
+        const detailEntries = ContactRepository.extractContactDetailEntries(detailResult.data);
+        const fromContactDetail = ContactRepository.toContactIds(detailEntries);
+        const detailEnvelope = detailResult as ApiEnvelope;
 
         const toMeta = (result: ApiEnvelope): DebugEndpointMeta => {
             const code = typeof result.code === 'number' ? result.code : null;
@@ -428,10 +419,10 @@ export class ContactRepository {
 
         return {
             contactsMeta: toMeta(syncEnvelope),
-            contactsAllMeta: toMeta(allEnvelope),
+            contactDetailMeta: toMeta(detailEnvelope),
             fromContacts,
-            fromContactsAll,
-            merged: Array.from(new Set([...fromContacts, ...fromContactsAll])),
+            fromContactDetail,
+            merged: Array.from(new Set([...fromContacts, ...fromContactDetail])),
         };
     }
 
@@ -445,24 +436,19 @@ export class ContactRepository {
     }> {
         await ContactRepository.ensureSchema(db);
         const api = new WechatApi(apiBaseUrl);
-        const [syncResult, allResult] = await Promise.all([
-            api.getContacts({contact_seq: 0, group_seq: 0}),
-            api.getAllContacts({contact_seq: 0, group_seq: 0, offset: 0, limit: 5000}),
-        ]);
+        const syncResult = await api.getContacts({contact_seq: 0, group_seq: 0});
         ContactRepository.ensureSuccess('getContacts', syncResult);
-        ContactRepository.ensureSuccess('getAllContacts', allResult);
 
         const syncEntries = ContactRepository.extractContactEntries(syncResult.data);
-        const allEntries = ContactRepository.extractContactEntries(allResult.data);
-        const mergedIds = ContactRepository.toContactIds([...syncEntries, ...allEntries]);
+        const mergedIds = ContactRepository.toContactIds(syncEntries);
         const detailEntries = await ContactRepository.fetchContactDetailEntries(api, mergedIds);
         const records = detailEntries.length > 0
             ? ContactRepository.toContactRecords(detailEntries, 'contacts_detail')
-            : ContactRepository.toContactRecords([...syncEntries, ...allEntries], 'contacts');
+            : ContactRepository.toContactRecords(syncEntries, 'contacts');
         await ContactRepository.upsertContacts(db, records);
 
         const groupIds = records.filter((item) => item.contactType === 'group').map((item) => item.contactId);
-        const memberRecords = await ContactRepository.fetchGroupMembersByGroups(api, groupIds);
+        const memberRecords = await ContactRepository.fetchGroupMembersByGroups(api, groupIds, detailEntries);
         await ContactRepository.upsertGroupMembers(db, memberRecords);
 
         let users = 0;
@@ -489,8 +475,7 @@ export class ContactRepository {
 
         // 优先按联系人 ID 分批拉取详情，避免一次请求参数过大。
         for (const batch of ContactRepository.chunkArray(ids, ContactRepository.CONTACT_DETAIL_BATCH_SIZE)) {
-            // 网关兼容行为：群 ID 也通过 usernames 传递（例如 123@chatroom）。
-            const result = await api.getContactDetail({usernames: batch});
+            const result = await api.getContactDetail(batch);
             ContactRepository.ensureSuccess('getContactDetail', result);
             const entries = ContactRepository.extractContactDetailEntries(result.data);
             for (const entry of entries) {
@@ -499,9 +484,9 @@ export class ContactRepository {
             }
         }
 
-        // 当上游联系人列表未返回 ID 时，尝试无参数调用获取详情全集。
+        // 当上游联系人列表未返回 ID 时，尝试空数组调用获取详情全集。
         if (ids.length === 0) {
-            const result = await api.getContactDetail({});
+            const result = await api.getContactDetail([]);
             ContactRepository.ensureSuccess('getContactDetail', result);
             const entries = ContactRepository.extractContactDetailEntries(result.data);
             for (const entry of entries) {
@@ -513,13 +498,30 @@ export class ContactRepository {
         return Array.from(merged.values());
     }
 
-    private static async fetchGroupMembersByGroups(api: WechatApi, groupIds: string[]): Promise<GroupMemberRecord[]> {
+    private static async fetchGroupMembersByGroups(api: WechatApi, groupIds: string[], detailEntries: unknown[] = []): Promise<GroupMemberRecord[]> {
         const uniqueGroupIds = Array.from(new Set(groupIds.map((id) => id.trim()).filter(Boolean)));
+        const groupDetailMap = new Map<string, unknown>();
+        for (const entry of detailEntries) {
+            const groupId = ContactRepository.pickContactId(entry);
+            if (groupId && uniqueGroupIds.includes(groupId)) {
+                groupDetailMap.set(groupId, entry);
+            }
+        }
+
+        const missingGroupIds = uniqueGroupIds.filter((groupId) => !groupDetailMap.has(groupId));
+        for (const batch of ContactRepository.chunkArray(missingGroupIds, ContactRepository.CONTACT_DETAIL_BATCH_SIZE)) {
+            const result = await api.getContactDetail(batch);
+            ContactRepository.ensureSuccess('getContactDetail(groupMembers)', result);
+            const entries = ContactRepository.extractContactDetailEntries(result.data);
+            for (const entry of entries) {
+                const groupId = ContactRepository.pickContactId(entry);
+                if (groupId) groupDetailMap.set(groupId, entry);
+            }
+        }
+
         const records: GroupMemberRecord[] = [];
         for (const groupId of uniqueGroupIds) {
-            const result = await api.getGroupMembers(groupId);
-            ContactRepository.ensureSuccess('getGroupMembers', result);
-            const {serverVersion, infoMask, list} = ContactRepository.extractGroupMemberEntries(result.data);
+            const {serverVersion, infoMask, list} = ContactRepository.extractGroupMemberEntriesFromContactDetail(groupDetailMap.get(groupId));
             for (const entry of list) {
                 const record = ContactRepository.mapGroupMemberRecord(
                     groupId,
@@ -562,11 +564,11 @@ export class ContactRepository {
 
     static async addGroupAsContact(apiBaseUrl: string, groupId: string): Promise<void> {
         const api = new WechatApi(apiBaseUrl);
-        const result = await api.setGroupContactList(groupId.trim(), true);
-        ContactRepository.ensureSuccess('setGroupContactList', result);
+        const result = await api.setChatroomContactList(groupId.trim(), true);
+        ContactRepository.ensureSuccess('setChatroomContactList', result);
     }
 
-    static async approveFriendRequest(apiBaseUrl: string, payload: Record<string, unknown>): Promise<void> {
+    static async approveFriendRequest(apiBaseUrl: string, payload: VerifyFriendRequest): Promise<void> {
         const api = new WechatApi(apiBaseUrl);
         const result = await api.verifyFriendRequest(payload);
         ContactRepository.ensureSuccess('verifyFriendRequest', result);
@@ -588,4 +590,3 @@ export class ContactRepository {
         return Boolean(row?.ok);
     }
 }
-

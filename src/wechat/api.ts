@@ -58,7 +58,7 @@ import type {
     DownloadVoiceResponse,
     SyncResult,
     ContactsSyncQuery,
-    ContactsPageQuery,
+    ContactsSyncResponse,
     FavorSyncQuery,
     MomentsTimelineQuery,
     UserCertQuery,
@@ -71,9 +71,9 @@ import type {
     SetRemarkRequest,
     SearchContactRequest,
     UploadContactRequest,
-    CreateGroupRequest,
-    GroupMembersRequest,
-    SetAnnouncementRequest,
+    CreateChatroomRequest,
+    ChatroomMembersRequest,
+    SetChatroomAnnouncementRequest,
     FacingCreateRequest,
     ConsentJoinRequest,
     ScanJoinRequest,
@@ -112,6 +112,26 @@ import type {
     MomentMediaUploadParam,
     PushConfig,
     StorageConfig,
+    OperateResponse,
+    GetContactResponse,
+    VerifyUserResponse,
+    LbsResponse,
+    SearchContactResponse,
+    UploadMContactResponse,
+    CreateChatroomResponse,
+    ChatroomAdminResponse,
+    AddChatroomMemberResponse,
+    DeleteChatroomMemberResponse,
+    FacingCreateChatroomResponse,
+    GetChatroomInfoDetailResponse,
+    ListMembersResponse,
+    SetChatroomAnnouncementResponse,
+    ConsentJoinResult,
+    ScanJoinResult,
+    GetQRCodeResponse,
+    LoginQRCodeResult,
+    WakeupLoginResult,
+    PasswordLoginResult,
 } from './api-types.js';
 
 const BROWSER_LIKE_HEADERS: Record<string, string> = {
@@ -666,13 +686,13 @@ export class WechatApi {
     // -----------------------------------------------------------------------
 
     /** 开始登录并获取二维码。GET /api/login/login */
-    async startLogin(): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>('/api/login/login');
+    async startLogin(): Promise<ApiResponse<LoginQRCodeResult>> {
+        return this.get<LoginQRCodeResult>('/api/login/login');
     }
 
     /** 账号密码登录。POST /api/login/password */
-    async loginWithPassword(params: PasswordLoginRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/login/password', params);
+    async loginWithPassword(params: PasswordLoginRequest): Promise<ApiResponse<PasswordLoginResult>> {
+        return this.post<PasswordLoginResult>('/api/login/password', params);
     }
 
     /** 首次登录初始化。GET /api/login/init */
@@ -681,8 +701,8 @@ export class WechatApi {
     }
 
     /** 唤醒登录。GET /api/login/awaken */
-    async awakenLogin(): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>('/api/login/awaken');
+    async awakenLogin(): Promise<ApiResponse<WakeupLoginResult>> {
+        return this.get<WakeupLoginResult>('/api/login/awaken');
     }
 
     /** 退出登录。GET /api/login/logout */
@@ -700,163 +720,159 @@ export class WechatApi {
     // -----------------------------------------------------------------------
 
     /** 获取联系人增量列表。GET /api/contacts */
-    async getContacts(params?: ContactsSyncQuery): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>('/api/contacts', params);
+    async getContacts(params?: ContactsSyncQuery): Promise<ApiResponse<ContactsSyncResponse>> {
+        return this.get<ContactsSyncResponse>('/api/contacts', params);
     }
 
     /** 删除联系人。DELETE /api/contacts/{username} */
-    async deleteContact(username: string): Promise<ApiResponse<unknown>> {
-        return this.delete<unknown>(this.buildPath('/api/contacts/{username}', {username}));
-    }
-
-    /** 获取全部联系人（分页）。GET /api/contacts/all */
-    async getAllContacts(params?: ContactsPageQuery): Promise<ApiResponse<unknown[]>> {
-        return this.get<unknown[]>('/api/contacts/all', params);
+    async deleteContact(username: string): Promise<ApiResponse<OperateResponse>> {
+        return this.delete<OperateResponse>(this.buildPath('/api/contacts/{username}', {username}));
     }
 
     /** 加入黑名单。POST /api/contacts/blacklist/{username} */
-    async addContactToBlacklist(username: string): Promise<ApiResponse<unknown>> {
-        return this.postQuery<unknown>(this.buildPath('/api/contacts/blacklist/{username}', {username}));
+    async addContactToBlacklist(username: string): Promise<ApiResponse<OperateResponse>> {
+        return this.postQuery<OperateResponse>(this.buildPath('/api/contacts/blacklist/{username}', {username}));
     }
 
     /** 移出黑名单。DELETE /api/contacts/blacklist/{username} */
-    async removeContactFromBlacklist(username: string): Promise<ApiResponse<unknown>> {
-        return this.delete<unknown>(this.buildPath('/api/contacts/blacklist/{username}', {username}));
+    async removeContactFromBlacklist(username: string): Promise<ApiResponse<OperateResponse>> {
+        return this.delete<OperateResponse>(this.buildPath('/api/contacts/blacklist/{username}', {username}));
     }
 
     /** 获取联系人详情。POST /api/contacts/detail */
-    async getContactDetail(params: ContactDetailRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/contacts/detail', params);
+    async getContactDetail(params: ContactDetailRequest): Promise<ApiResponse<GetContactResponse>> {
+        return this.post<GetContactResponse>('/api/contacts/detail', params);
     }
 
     /** 发送好友申请。POST /api/contacts/friend-requests */
-    async sendFriendRequest(params: SendFriendRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/contacts/friend-requests', params);
+    async sendFriendRequest(params: SendFriendRequest): Promise<ApiResponse<VerifyUserResponse>> {
+        return this.post<VerifyUserResponse>('/api/contacts/friend-requests', params);
     }
 
     /** 通过好友验证。POST /api/contacts/friend-requests/verify */
-    async verifyFriendRequest(params: VerifyFriendRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/contacts/friend-requests/verify', params);
+    async verifyFriendRequest(params: VerifyFriendRequest): Promise<ApiResponse<VerifyUserResponse>> {
+        return this.post<VerifyUserResponse>('/api/contacts/friend-requests/verify', params);
     }
 
     /** 搜索附近的人。POST /api/contacts/lbs */
-    async findNearbyContacts(params: LbsFindRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/contacts/lbs', params);
+    async findNearbyContacts(params: LbsFindRequest): Promise<ApiResponse<LbsResponse>> {
+        return this.post<LbsResponse>('/api/contacts/lbs', params);
     }
 
     /** 设置联系人备注。PUT /api/contacts/remark/{username} */
-    async setContactRemark(username: string, params: SetRemarkRequest): Promise<ApiResponse<unknown>> {
-        return this.put<unknown>(this.buildPath('/api/contacts/remark/{username}', {username}), params);
+    async setContactRemark(username: string, params: SetRemarkRequest): Promise<ApiResponse<OperateResponse>> {
+        return this.put<OperateResponse>(this.buildPath('/api/contacts/remark/{username}', {username}), params);
     }
 
     /** 搜索联系人。POST /api/contacts/search */
-    async searchContacts(params: SearchContactRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/contacts/search', params);
+    async searchContacts(params: SearchContactRequest): Promise<ApiResponse<SearchContactResponse>> {
+        return this.post<SearchContactResponse>('/api/contacts/search', params);
     }
 
     /** 上传手机联系人。POST /api/contacts/upload */
-    async uploadContacts(params: UploadContactRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/contacts/upload', params);
+    async uploadContacts(params: UploadContactRequest): Promise<ApiResponse<UploadMContactResponse>> {
+        return this.post<UploadMContactResponse>('/api/contacts/upload', params);
     }
 
     /** 修改联系人标签。PUT /api/contacts/{username}/labels */
-    async updateContactLabels(username: string, params: ModifyContactLabelsRequest): Promise<ApiResponse<unknown>> {
-        return this.put<unknown>(this.buildPath('/api/contacts/{username}/labels', {username}), params);
+    async updateContactLabels(username: string, params: ModifyContactLabelsRequest): Promise<ApiResponse<OperateResponse>> {
+        return this.put<OperateResponse>(this.buildPath('/api/contacts/{username}/labels', {username}), params);
     }
 
     // -----------------------------------------------------------------------
     // 群聊接口
     // -----------------------------------------------------------------------
 
-    /** 创建群聊。POST /api/groups */
-    async createGroup(params: CreateGroupRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/groups', params);
+    /** 创建群聊。POST /api/chatroom */
+    async createChatroom(params: CreateChatroomRequest): Promise<ApiResponse<CreateChatroomResponse>> {
+        return this.post<CreateChatroomResponse>('/api/chatroom', params);
     }
 
-    /** 添加群管理员。POST /api/groups/admins/{group} */
-    async addGroupAdmins(group: string, params: GroupMembersRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>(this.buildPath('/api/groups/admins/{group}', {group}), params);
+    /** 添加群管理员。POST /api/chatroom/admins/{chatroom} */
+    async addChatroomAdmins(chatroom: string, params: ChatroomMembersRequest): Promise<ApiResponse<ChatroomAdminResponse>> {
+        return this.post<ChatroomAdminResponse>(this.buildPath('/api/chatroom/admins/{chatroom}', {chatroom}), params);
     }
 
-    /** 移除群管理员。DELETE /api/groups/admins/{group} */
-    async removeGroupAdmins(group: string, params: GroupMembersRequest): Promise<ApiResponse<unknown>> {
-        return this.delete<unknown>(this.buildPath('/api/groups/admins/{group}', {group}), params);
+    /** 移除群管理员。DELETE /api/chatroom/admins/{chatroom} */
+    async removeChatroomAdmins(chatroom: string, params: ChatroomMembersRequest): Promise<ApiResponse<ChatroomAdminResponse>> {
+        return this.delete<ChatroomAdminResponse>(this.buildPath('/api/chatroom/admins/{chatroom}', {chatroom}), params);
     }
 
-    /** 设置群公告。PUT /api/groups/announcement/{group} */
-    async setGroupAnnouncement(group: string, params: SetAnnouncementRequest): Promise<ApiResponse<unknown>> {
-        return this.put<unknown>(this.buildPath('/api/groups/announcement/{group}', {group}), params);
+    /** 设置群公告。PUT /api/chatroom/announcement/{chatroom} */
+    async setChatroomAnnouncement(chatroom: string, params: SetChatroomAnnouncementRequest): Promise<ApiResponse<SetChatroomAnnouncementResponse>> {
+        return this.put<SetChatroomAnnouncementResponse>(this.buildPath('/api/chatroom/announcement/{chatroom}', {chatroom}), params);
     }
 
-    /** 设置群保存到通讯录。PUT /api/groups/contact-list/{group} */
-    async setGroupContactList(group: string, save: boolean): Promise<ApiResponse<unknown>> {
-        return this.put<unknown>(this.buildPath('/api/groups/contact-list/{group}', {group}), undefined, {save});
+    /** 设置群保存到通讯录。PUT /api/chatroom/contact-list/{chatroom} */
+    async setChatroomContactList(chatroom: string, save: boolean): Promise<ApiResponse<OperateResponse>> {
+        return this.put<OperateResponse>(this.buildPath('/api/chatroom/contact-list/{chatroom}', {chatroom}), undefined, {save});
     }
 
-    /** 面对面建群。POST /api/groups/facing */
-    async createFacingGroup(params: FacingCreateRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/groups/facing', params);
+    /** 面对面建群。POST /api/chatroom/facing */
+    async createFacingChatroom(params: FacingCreateRequest): Promise<ApiResponse<FacingCreateChatroomResponse>> {
+        return this.post<FacingCreateChatroomResponse>('/api/chatroom/facing', params);
     }
 
-    /** 获取群信息。GET /api/groups/info/{group} */
-    async getGroupInfo(group: string): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>(this.buildPath('/api/groups/info/{group}', {group}));
+    /** 获取群信息。GET /api/chatroom/info/{chatroom} */
+    async getChatroomInfo(chatroom: string): Promise<ApiResponse<GetChatroomInfoDetailResponse>> {
+        return this.get<GetChatroomInfoDetailResponse>(this.buildPath('/api/chatroom/info/{chatroom}', {chatroom}));
     }
 
-    /** 邀请成员进群。POST /api/groups/invite/{group} */
-    async inviteGroupMembers(group: string, params: GroupMembersRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>(this.buildPath('/api/groups/invite/{group}', {group}), params);
+    /** 邀请成员进群。POST /api/chatroom/invite/{chatroom} */
+    async inviteChatroomMembers(chatroom: string, params: ChatroomMembersRequest): Promise<ApiResponse<AddChatroomMemberResponse>> {
+        return this.post<AddChatroomMemberResponse>(this.buildPath('/api/chatroom/invite/{chatroom}', {chatroom}), params);
     }
 
-    /** 同意入群。POST /api/groups/join/consent */
-    async consentJoinGroup(params: ConsentJoinRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/groups/join/consent', params);
+    /** 同意入群。POST /api/chatroom/join/consent */
+    async consentJoinChatroom(params: ConsentJoinRequest): Promise<ApiResponse<ConsentJoinResult>> {
+        return this.post<ConsentJoinResult>('/api/chatroom/join/consent', params);
     }
 
-    /** 扫码入群。POST /api/groups/join/scan */
-    async scanJoinGroup(params: ScanJoinRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>('/api/groups/join/scan', params);
+    /** 扫码入群。POST /api/chatroom/join/scan */
+    async scanJoinChatroom(params: ScanJoinRequest): Promise<ApiResponse<ScanJoinResult>> {
+        return this.post<ScanJoinResult>('/api/chatroom/join/scan', params);
     }
 
-    /** 获取群成员列表。GET /api/groups/members/{group} */
-    async getGroupMembers(group: string): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>(this.buildPath('/api/groups/members/{group}', {group}));
+    /** 获取群成员列表。GET /api/chatroom/members/{chatroom} */
+    async getChatroomMembers(chatroom: string): Promise<ApiResponse<ListMembersResponse>> {
+        return this.get<ListMembersResponse>(this.buildPath('/api/chatroom/members/{chatroom}', {chatroom}));
     }
 
-    /** 添加群成员。POST /api/groups/members/{group} */
-    async addGroupMembers(group: string, params: GroupMembersRequest): Promise<ApiResponse<unknown>> {
-        return this.post<unknown>(this.buildPath('/api/groups/members/{group}', {group}), params);
+    /** 添加群成员。POST /api/chatroom/members/{chatroom} */
+    async addChatroomMembers(chatroom: string, params: ChatroomMembersRequest): Promise<ApiResponse<AddChatroomMemberResponse>> {
+        return this.post<AddChatroomMemberResponse>(this.buildPath('/api/chatroom/members/{chatroom}', {chatroom}), params);
     }
 
-    /** 删除群成员。DELETE /api/groups/members/{group} */
-    async removeGroupMembers(group: string, params: GroupMembersRequest): Promise<ApiResponse<unknown>> {
-        return this.delete<unknown>(this.buildPath('/api/groups/members/{group}', {group}), params);
+    /** 删除群成员。DELETE /api/chatroom/members/{chatroom} */
+    async removeChatroomMembers(chatroom: string, params: ChatroomMembersRequest): Promise<ApiResponse<DeleteChatroomMemberResponse>> {
+        return this.delete<DeleteChatroomMemberResponse>(this.buildPath('/api/chatroom/members/{chatroom}', {chatroom}), params);
     }
 
-    /** 修改群名称。PUT /api/groups/name/{group} */
-    async renameGroup(group: string, name: string): Promise<ApiResponse<unknown>> {
-        return this.put<unknown>(this.buildPath('/api/groups/name/{group}', {group}), undefined, {name});
+    /** 修改群名称。PUT /api/chatroom/name/{chatroom} */
+    async renameChatroom(chatroom: string, name: string): Promise<ApiResponse<OperateResponse>> {
+        return this.put<OperateResponse>(this.buildPath('/api/chatroom/name/{chatroom}', {chatroom}), undefined, {name});
     }
 
-    /** 获取群二维码。GET /api/groups/qrcode/{group} */
-    async getGroupQrcode(group: string): Promise<ApiResponse<unknown>> {
-        return this.get<unknown>(this.buildPath('/api/groups/qrcode/{group}', {group}));
+    /** 获取群二维码。GET /api/chatroom/qrcode/{chatroom} */
+    async getChatroomQrcode(chatroom: string): Promise<ApiResponse<GetQRCodeResponse>> {
+        return this.get<GetQRCodeResponse>(this.buildPath('/api/chatroom/qrcode/{chatroom}', {chatroom}));
     }
 
-    /** 退出群聊。DELETE /api/groups/quit/{group} */
-    async quitGroup(group: string): Promise<ApiResponse<unknown>> {
-        return this.delete<unknown>(this.buildPath('/api/groups/quit/{group}', {group}));
+    /** 退出群聊。DELETE /api/chatroom/quit/{chatroom} */
+    async quitChatroom(chatroom: string): Promise<ApiResponse<OperateResponse>> {
+        return this.delete<OperateResponse>(this.buildPath('/api/chatroom/quit/{chatroom}', {chatroom}));
     }
 
-    /** 设置群备注。PUT /api/groups/remark/{group} */
-    async setGroupRemark(group: string, remark: string): Promise<ApiResponse<unknown>> {
-        return this.put<unknown>(this.buildPath('/api/groups/remark/{group}', {group}), undefined, {remark});
+    /** 设置群备注。PUT /api/chatroom/remark/{chatroom} */
+    async setChatroomRemark(chatroom: string, remark: string): Promise<ApiResponse<OperateResponse>> {
+        return this.put<OperateResponse>(this.buildPath('/api/chatroom/remark/{chatroom}', {chatroom}), undefined, {remark});
     }
 
-    /** 转让群主。POST /api/groups/transfer/{group} */
-    async transferGroup(group: string, newOwner: string): Promise<ApiResponse<unknown>> {
-        return this.postQuery<unknown>(this.buildPath('/api/groups/transfer/{group}', {group}), {new_owner: newOwner});
+    /** 转让群主。POST /api/chatroom/transfer/{chatroom} */
+    async transferChatroom(chatroom: string, newOwner: string): Promise<ApiResponse<ChatroomAdminResponse>> {
+        return this.postQuery<ChatroomAdminResponse>(this.buildPath('/api/chatroom/transfer/{chatroom}', {chatroom}), {new_owner: newOwner});
     }
+
 
     // -----------------------------------------------------------------------
     // 标签 / 收藏接口

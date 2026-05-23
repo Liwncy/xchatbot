@@ -571,12 +571,22 @@ function pickFirstText(source: Record<string, unknown>, keys: string[]): string 
 function extractGroupMemberRoles(payload: unknown): DirectForwardRole[] {
     if (!payload || typeof payload !== 'object') return [];
     const root = payload as Record<string, unknown>;
+    const contactList = Array.isArray(root.contact_list) ? root.contact_list : [];
+    const detailList = contactList.flatMap((item) => {
+        if (!item || typeof item !== 'object') return [];
+        const members = (item as Record<string, unknown>).members;
+        if (!members || typeof members !== 'object') return [];
+        const list = (members as Record<string, unknown>).list;
+        return Array.isArray(list) ? list : [];
+    });
     const result = (root.result && typeof root.result === 'object') ? root.result as Record<string, unknown> : null;
-    const list = Array.isArray(result?.list)
-        ? result.list
-        : Array.isArray(root.list)
-            ? root.list
-            : [];
+    const list = detailList.length > 0
+        ? detailList
+        : Array.isArray(result?.list)
+            ? result.list
+            : Array.isArray(root.list)
+                ? root.list
+                : [];
 
     const roles: DirectForwardRole[] = [];
     for (const item of list) {
@@ -627,17 +637,29 @@ async function resolveDirectForwardRoles(
     if (!roomId) return fallback;
 
     try {
-        const resp = await api.getGroupMembers(roomId);
-        if (typeof resp.code === 'number' && resp.code !== 0) {
-            logger.warn('因果诱惑随机角色获取失败：getGroupMembers 返回异常', {
+        const detailResp = await api.getContactDetail([roomId]);
+        if (typeof detailResp.code === 'number' && detailResp.code !== 0) {
+            logger.warn('因果诱惑随机角色获取失败：getContactDetail 返回异常', {
                 roomId,
-                code: resp.code,
-                message: resp.message,
+                code: detailResp.code,
+                message: detailResp.message,
             });
             return fallback;
         }
 
-        const allMembers = extractGroupMemberRoles(resp.data);
+        let allMembers = extractGroupMemberRoles(detailResp.data);
+        if (allMembers.length === 0) {
+            const membersResp = await api.getChatroomMembers(roomId);
+            if (typeof membersResp.code === 'number' && membersResp.code !== 0) {
+                logger.warn('因果诱惑随机角色获取失败：getChatroomMembers 返回异常', {
+                    roomId,
+                    code: membersResp.code,
+                    message: membersResp.message,
+                });
+                return fallback;
+            }
+            allMembers = extractGroupMemberRoles(membersResp.data);
+        }
         const senderMember = allMembers.find((member) => member.id === senderId);
         const senderAvatarUrl = senderMember?.avatarUrl;
         const senderName = senderMember?.name;

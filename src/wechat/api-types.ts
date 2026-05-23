@@ -424,12 +424,6 @@ export interface ContactsSyncQuery {
     group_seq?: number;
 }
 
-/** 全部联系人分页查询参数。 */
-export interface ContactsPageQuery extends ContactsSyncQuery {
-    offset?: number;
-    limit?: number;
-}
-
 /** 收藏同步查询参数。 */
 export interface FavorSyncQuery {
     key?: string;
@@ -452,33 +446,78 @@ export interface UserQrcodeQuery {
 }
 
 /** POST /api/login/password */
-export type PasswordLoginRequest = JsonObject;
+export interface PasswordLoginRequest {
+    device_id?: string;
+    device_name?: string;
+    device_type?: string;
+    password: string;
+    username: string;
+}
 /** POST /api/contacts/detail */
-export type ContactDetailRequest = JsonObject;
+export type ContactDetailRequest = string[];
 /** POST /api/contacts/friend-requests */
-export type SendFriendRequest = JsonObject;
+export interface SendFriendRequest {
+    content?: string;
+    operate: number;
+    scene: number;
+    v1: string;
+    v2: string;
+}
 /** POST /api/contacts/friend-requests/verify */
-export type VerifyFriendRequest = JsonObject;
+export interface VerifyFriendRequest {
+    scene: number;
+    v1: string;
+    v2: string;
+}
 /** POST /api/contacts/lbs */
-export type LbsFindRequest = JsonObject;
+export interface LbsFindRequest {
+    latitude: number;
+    longitude: number;
+    operate: number;
+}
 /** PUT /api/contacts/remark/{username} */
-export type SetRemarkRequest = JsonObject;
+export interface SetRemarkRequest {
+    remark: string;
+}
 /** POST /api/contacts/search */
-export type SearchContactRequest = JsonObject;
+export interface SearchContactRequest {
+    from_scene?: number;
+    keyword: string;
+    search_scene?: number;
+}
 /** POST /api/contacts/upload */
-export type UploadContactRequest = JsonObject;
-/** POST /api/groups */
-export type CreateGroupRequest = JsonObject;
-/** POST/DELETE /api/groups/admins/{group}, /api/groups/members/{group}, /api/groups/invite/{group} */
-export type GroupMembersRequest = JsonObject;
-/** PUT /api/groups/announcement/{group} */
-export type SetAnnouncementRequest = JsonObject;
-/** POST /api/groups/facing */
-export type FacingCreateRequest = JsonObject;
-/** POST /api/groups/join/consent */
-export type ConsentJoinRequest = JsonObject;
-/** POST /api/groups/join/scan */
-export type ScanJoinRequest = JsonObject;
+export interface UploadContactRequest {
+    current_phone: string;
+    operate: number;
+    phones: string[];
+}
+/** POST /api/chatroom */
+export interface CreateChatroomRequest {
+    members: string[];
+}
+/** POST/DELETE /api/chatroom/admins/{chatroom}, /api/chatroom/members/{chatroom}, /api/chatroom/invite/{chatroom} */
+export interface ChatroomMembersRequest {
+    members: string[];
+}
+/** PUT /api/chatroom/announcement/{chatroom} */
+export interface SetChatroomAnnouncementRequest {
+    content: string;
+}
+/** POST /api/chatroom/facing */
+export interface FacingCreateRequest {
+    latitude: number;
+    longitude: number;
+    operate: number;
+    password: string;
+}
+/** POST /api/chatroom/join/consent */
+export interface ConsentJoinRequest {
+    url: string;
+}
+/** POST /api/chatroom/join/scan */
+export interface ScanJoinRequest {
+    url: string;
+}
 /** PUT /api/contacts/{username}/labels */
 export type ModifyContactLabelsRequest = JsonObject;
 /** POST /api/labels */
@@ -547,6 +586,319 @@ export type DelSafeDeviceRequest = JsonObject;
 export type PushConfig = JsonObject;
 /** POST /api/manager/storage/status */
 export type StorageConfig = JsonObject;
+
+// ---------------------------------------------------------------------------
+// 联系人 / 群聊 – 响应类型
+// ---------------------------------------------------------------------------
+
+/** 兼容 protobuf wrapper 和已解包字符串。 */
+export type WrappedString = StringValue | string;
+
+/** 通用操作结果条目。 */
+export interface OperateResponseResult {
+    code?: number;
+    count?: number;
+    message?: number[];
+}
+
+/** 通用操作型接口响应。 */
+export interface OperateResponse {
+    code?: number;
+    result?: OperateResponseResult;
+}
+
+/** 联系人 / 群成员的简化资料。 */
+export interface WechatMemberProfile {
+    city?: string;
+    contact_type?: number;
+    country?: string;
+    gender?: number;
+    nickname?: WrappedString;
+    nickname_jianpin?: WrappedString;
+    nickname_quanpin?: WrappedString;
+    personal_card?: number;
+    province?: string;
+    remark?: WrappedString;
+    remark_jianpin?: WrappedString;
+    remark_quanpin?: WrappedString;
+    signature?: string;
+    status?: number;
+    username?: WrappedString;
+    verify_flag?: number;
+    verify_info?: string;
+}
+
+/** 群成员数据。 */
+export interface WechatChatroomMemberInfo {
+    big_avatar_url?: string;
+    display_name?: string;
+    flag?: number;
+    inviter_username?: string;
+    nickname?: string;
+    small_avatar_url?: string;
+    username?: string;
+}
+
+/** 联系人详情中的群成员集合。 */
+export interface WechatChatroomMemberData {
+    count?: number;
+    info_mask?: number;
+    list?: WechatChatroomMemberInfo[];
+}
+
+/** 联系人详情资料。 */
+export interface WechatContactProfile {
+    alias?: string;
+    big_avatar_url?: string;
+    chatroom_info_version?: number;
+    chatroom_owner?: string;
+    chatroom_status?: number;
+    chatroom_version?: number;
+    city?: string;
+    contact_type?: number;
+    country?: string;
+    encrypt_username?: string;
+    gender?: number;
+    image_flag?: number;
+    label_id_list?: string;
+    members?: WechatChatroomMemberData;
+    nickname?: WrappedString;
+    province?: string;
+    remark?: WrappedString;
+    signature?: string;
+    small_avatar_url?: string;
+    username?: WrappedString;
+    v1?: string;
+    v2?: string;
+    verify_flag?: number;
+    verify_info?: string;
+}
+
+/** 联系人增量接口返回数据。 */
+export type ContactsSyncResponse = Array<string | WechatContactProfile>;
+
+/** 联系人详情里的验证票据。 */
+export interface VerifyUserValidTicket {
+    ticket?: string;
+    username?: string;
+}
+
+/** 联系人详情响应。 */
+export interface GetContactResponse {
+    base_response: BaseResponse;
+    code?: number[];
+    contact_count?: number;
+    contact_list?: WechatContactProfile[];
+    send_message_ticket_list?: number[][];
+    ticket?: VerifyUserValidTicket[];
+}
+
+/** 好友验证响应。 */
+export interface VerifyUserResponse {
+    base_response: BaseResponse;
+    username?: string;
+}
+
+/** 附近的人返回项。 */
+export interface LbsInfo {
+    alias?: string;
+    big_avatar_url?: string;
+    city?: string;
+    country?: string;
+    distance?: string;
+    nickname?: string;
+    province?: string;
+    signature?: string;
+    small_avatar_url?: string;
+    username?: string;
+    v1?: string;
+    v2?: string;
+}
+
+/** 附近的人响应。 */
+export interface LbsResponse {
+    base_response: BaseResponse;
+    chatroom_member_count?: number;
+    count?: number;
+    flush_time?: number;
+    is_show_chatroom?: number;
+    list?: LbsInfo[];
+    state?: number;
+}
+
+/** 搜索联系人返回项。 */
+export interface SearchContactItem extends WechatContactProfile {
+    antispam_ticket?: string;
+    match_type?: number;
+}
+
+/** 搜索联系人响应。 */
+export interface SearchContactResponse {
+    base_response: BaseResponse;
+    contact_count?: number;
+    contact_list?: SearchContactItem[];
+    match_type?: number;
+}
+
+/** 上传通讯录匹配好友响应。 */
+export interface UploadMContactResponse {
+    base_response: BaseResponse;
+}
+
+/** 群成员资料。 */
+export interface ChatroomMember extends WechatMemberProfile {}
+
+/** 创建群聊响应。 */
+export interface CreateChatroomResponse {
+    avatar_buffer?: number[];
+    base_response: BaseResponse;
+    big_avatar_url?: string;
+    chatroom?: string;
+    member_count?: number;
+    member_list?: ChatroomMember[];
+    small_avatar_url?: string;
+    topic?: string;
+    topic_jianpin?: string;
+    topic_quanpin?: string;
+}
+
+/** 群管理员操作响应。 */
+export interface ChatroomAdminResponse {
+    base_response: BaseResponse;
+}
+
+/** 添加群成员响应。 */
+export interface AddChatroomMemberResponse {
+    base_response: BaseResponse;
+    member_count?: number;
+    member_list?: ChatroomMember[];
+}
+
+/** 删除群成员响应。 */
+export interface DeleteChatroomMemberResponse {
+    base_response: BaseResponse;
+    member_count?: number;
+    member_list?: ChatroomMember[];
+}
+
+/** 面对面建群成员。 */
+export interface FacingChatroomMember {
+    avatar_url?: string;
+    display_name?: string;
+    flag?: number;
+    nickname?: string;
+    username?: string;
+}
+
+/** 面对面建群响应。 */
+export interface FacingCreateChatroomResponse {
+    base_response: BaseResponse;
+    chatroom?: string;
+    member_count?: number;
+    member_list?: FacingChatroomMember[];
+    ticket?: string;
+}
+
+/** 群工具项。 */
+export interface ChatroomToolItem {
+    creator?: string;
+    custom_info?: number[];
+    id?: string;
+    manager?: string;
+    path?: string;
+    related_msg_id?: number;
+    time?: number;
+    title?: string;
+    username?: string;
+}
+
+/** 群工具集合。 */
+export interface ChatroomTools {
+    app_count?: number;
+    app_list?: ChatroomToolItem[];
+}
+
+/** 群信息详情响应。 */
+export interface GetChatroomInfoDetailResponse {
+    announcement?: string;
+    announcement_editor?: string;
+    announcement_publish_time?: number;
+    base_response: BaseResponse;
+    business_type?: number;
+    info_version?: number;
+    status?: number;
+    tools?: ChatroomTools;
+}
+
+/** 群成员列表结果。 */
+export interface ListMembersResult {
+    count?: number;
+    info_mask?: number;
+    list?: WechatChatroomMemberInfo[];
+}
+
+/** 群成员列表响应。 */
+export interface ListMembersResponse {
+    base_response: BaseResponse;
+    chatroom?: string;
+    result?: ListMembersResult;
+    server_version?: number;
+}
+
+/** 设置群公告响应。 */
+export interface SetChatroomAnnouncementResponse {
+    base_response: BaseResponse;
+}
+
+/** 入群同意结果。 */
+export interface ConsentJoinResult {
+    chatroomID?: string;
+    message?: string;
+}
+
+/** 扫码进群结果。 */
+export interface ScanJoinResult {
+    chatroomID?: string;
+    message?: string;
+}
+
+/** 群二维码响应。 */
+export interface GetQRCodeResponse {
+    base_response: BaseResponse;
+    footer_wording?: string;
+    notify_wording?: string;
+    qrcode_buffer?: BufferValue;
+    qrcode_url?: string;
+    revoke_qrcode?: number;
+}
+
+/** 登录二维码结果。 */
+export interface LoginQRCodeResult {
+    check_time?: number;
+    data?: string;
+    expired_time?: number;
+    url?: string;
+    uuid?: string;
+}
+
+/** 唤醒登录结果。 */
+export interface WakeupLoginResult {
+    check_time?: number;
+    expired_time?: number;
+    login_mode?: string;
+    url?: string;
+    uuid?: string;
+}
+
+/** 账号密码登录结果。 */
+export interface PasswordLoginResult {
+    alias?: string;
+    email?: string;
+    mobile?: string;
+    nickname?: string;
+    uin?: number;
+    username?: string;
+}
 
 // ---------------------------------------------------------------------------
 // 消息 – 响应类型 (golem_proto_message.*)

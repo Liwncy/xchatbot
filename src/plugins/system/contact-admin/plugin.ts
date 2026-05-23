@@ -1,6 +1,7 @@
 import type {TextMessage} from '../../types.js';
 import {ContactRepository} from './repository.js';
 import {WechatApi} from '../../../wechat/api.js';
+import type {VerifyFriendRequest} from '../../../wechat/api-types.js';
 
 const COMMAND_PREFIX = '/cm';
 const COMMAND_LIST = 'list';
@@ -114,27 +115,35 @@ export const contactAdminPlugin: TextMessage = {
                         `- /api/contacts code: ${debug.contactsMeta.code ?? 'null'}, message: ${debug.contactsMeta.message || '(empty)'}`,
                         `- /api/contacts data keys: ${keysText(debug.contactsMeta.dataKeys)}`,
                         `- /api/contacts: ${debug.fromContacts.length}`,
-                        `- /api/contacts/all code: ${debug.contactsAllMeta.code ?? 'null'}, message: ${debug.contactsAllMeta.message || '(empty)'}`,
-                        `- /api/contacts/all data keys: ${keysText(debug.contactsAllMeta.dataKeys)}`,
-                        `- /api/contacts/all: ${debug.fromContactsAll.length}`,
+                        `- /api/contacts/detail code: ${debug.contactDetailMeta.code ?? 'null'}, message: ${debug.contactDetailMeta.message || '(empty)'}`,
+                        `- /api/contacts/detail data keys: ${keysText(debug.contactDetailMeta.dataKeys)}`,
+                        `- /api/contacts/detail: ${debug.fromContactDetail.length}`,
                         `- merged: ${debug.merged.length}`,
                         '',
                         '[contacts sample]',
                         head(debug.fromContacts),
                         '',
-                        '[contacts/all sample]',
-                        head(debug.fromContactsAll),
+                        '[contacts/detail sample]',
+                        head(debug.fromContactDetail),
                     ].join('\n'),
                 };
             }
 
             if (parsed.cmd === 'approve') {
                 if (!parsed.arg) {
-                    return {type: 'text', content: '请提供审批参数 JSON，例如：/cm approve {"v1":"...","v2":"...","opcode":3}'};
+                    return {type: 'text', content: '请提供审批参数 JSON，例如：/cm approve {"v1":"...","v2":"...","scene":17}'};
                 }
-                let payload: Record<string, unknown>;
+                let payload: VerifyFriendRequest;
                 try {
-                    payload = JSON.parse(parsed.arg) as Record<string, unknown>;
+                    const raw = JSON.parse(parsed.arg) as Record<string, unknown>;
+                    if (typeof raw.v1 !== 'string' || typeof raw.v2 !== 'string' || typeof raw.scene !== 'number') {
+                        return {type: 'text', content: '审批参数缺少必要字段，需包含字符串 v1/v2 和数字 scene'};
+                    }
+                    payload = {
+                        v1: raw.v1,
+                        v2: raw.v2,
+                        scene: raw.scene,
+                    };
                 } catch {
                     return {type: 'text', content: '审批参数不是有效 JSON'};
                 }
@@ -158,9 +167,9 @@ export const contactAdminPlugin: TextMessage = {
                     return {type: 'text', content: '请提供群ID，例如：/cm del-group 123456@chatroom；或在群里直接发送 /cm del-group'};
                 }
                 const api = new WechatApi(apiBaseUrl);
-                const result = await api.setGroupContactList(groupId, false);
+                const result = await api.setChatroomContactList(groupId, false);
                 if (typeof result.code === 'number' && result.code !== 0) {
-                    throw new Error(`setGroupContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
+                    throw new Error(`setChatroomContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
                 }
                 await ContactRepository.setContactEnabled(env.XBOT_DB, groupId, false);
                 return {type: 'text', content: `✅ 已将群移出联系人：${groupId}`};
@@ -174,9 +183,9 @@ export const contactAdminPlugin: TextMessage = {
             if (contactId.endsWith('@chatroom')) {
                 // 群联系人不删会话，只取消保存到通讯录。
                 const api = new WechatApi(apiBaseUrl);
-                const result = await api.setGroupContactList(contactId, false);
+                const result = await api.setChatroomContactList(contactId, false);
                 if (typeof result.code === 'number' && result.code !== 0) {
-                    throw new Error(`setGroupContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
+                    throw new Error(`setChatroomContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
                 }
             } else {
                 await ContactRepository.removeContact(apiBaseUrl, contactId);
