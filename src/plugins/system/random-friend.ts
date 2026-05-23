@@ -16,18 +16,60 @@ const RANDOM_FRIEND_KEYWORDS = [
     '来个朋友',
 ] as const;
 
-const MOBILE_PREFIXES = [
-    '130', '131', '132', '133', '135', '136', '137', '138', '139',
-    '147', '150', '151', '152', '155', '156', '157', '158', '159',
-    '166', '167', '170', '171', '172', '173', '175', '176', '177', '178',
-    '180', '181', '182', '183', '184', '185', '186', '187', '188', '189',
-    '190', '191', '193', '195', '196', '197', '198', '199',
+const MOBILE_PREFIX_WEIGHTS = [
+    {prefix: '130', weight: 1},
+    {prefix: '131', weight: 1},
+    {prefix: '132', weight: 1},
+    {prefix: '133', weight: 1},
+    {prefix: '135', weight: 1},
+    {prefix: '136', weight: 1},
+    {prefix: '137', weight: 1},
+    {prefix: '138', weight: 1},
+    {prefix: '139', weight: 1},
+    {prefix: '147', weight: 2},
+    {prefix: '150', weight: 2},
+    {prefix: '151', weight: 2},
+    {prefix: '152', weight: 2},
+    {prefix: '155', weight: 2},
+    {prefix: '156', weight: 2},
+    {prefix: '157', weight: 2},
+    {prefix: '158', weight: 2},
+    {prefix: '159', weight: 2},
+    {prefix: '166', weight: 4},
+    {prefix: '167', weight: 4},
+    {prefix: '170', weight: 2},
+    {prefix: '171', weight: 4},
+    {prefix: '172', weight: 4},
+    {prefix: '173', weight: 4},
+    {prefix: '175', weight: 4},
+    {prefix: '176', weight: 4},
+    {prefix: '177', weight: 4},
+    {prefix: '178', weight: 4},
+    {prefix: '180', weight: 4},
+    {prefix: '181', weight: 4},
+    {prefix: '182', weight: 4},
+    {prefix: '183', weight: 4},
+    {prefix: '184', weight: 4},
+    {prefix: '185', weight: 4},
+    {prefix: '186', weight: 4},
+    {prefix: '187', weight: 4},
+    {prefix: '188', weight: 4},
+    {prefix: '189', weight: 4},
+    {prefix: '190', weight: 5},
+    {prefix: '191', weight: 5},
+    {prefix: '193', weight: 5},
+    {prefix: '195', weight: 5},
+    {prefix: '196', weight: 5},
+    {prefix: '197', weight: 5},
+    {prefix: '198', weight: 5},
+    {prefix: '199', weight: 5},
 ] as const;
 
 const SEARCH_MAX_ATTEMPTS = 12;
 const SEARCH_FROM_SCENE = 1;
-const SEARCH_SCENE = 1;
+const SEARCH_SCENE = 2;
 const DEFAULT_CARD_SCENE = 17;
+const MIN_CANDIDATE_QUALITY_SCORE = 4;
 
 interface RandomFriendCandidate {
     username: string;
@@ -43,6 +85,12 @@ interface RandomFriendCandidate {
     smallAvatarUrl: string;
     antispamTicket: string;
     scene: number;
+}
+
+interface CandidateQualityResult {
+    passed: boolean;
+    score: number;
+    reasons: string[];
 }
 
 function isRandomFriendCommand(content: string): boolean {
@@ -71,8 +119,18 @@ function randomDigits(length: number): string {
 }
 
 function generateRandomPhone(): string {
-    const prefix = MOBILE_PREFIXES[Math.floor(Math.random() * MOBILE_PREFIXES.length)];
+    const prefix = pickWeightedMobilePrefix();
     return `${prefix}${randomDigits(8)}`;
+}
+
+function pickWeightedMobilePrefix(): string {
+    const totalWeight = MOBILE_PREFIX_WEIGHTS.reduce((sum, item) => sum + item.weight, 0);
+    let hit = Math.floor(Math.random() * totalWeight);
+    for (const item of MOBILE_PREFIX_WEIGHTS) {
+        if (hit < item.weight) return item.prefix;
+        hit -= item.weight;
+    }
+    return MOBILE_PREFIX_WEIGHTS[MOBILE_PREFIX_WEIGHTS.length - 1]?.prefix ?? '188';
 }
 
 function extractSearchEntries(data: unknown): Array<Record<string, unknown>> {
@@ -100,7 +158,7 @@ function normalizeSearchCandidate(entry: Record<string, unknown>): RandomFriendC
         sign: unwrapString(entry.signature) || unwrapString(entry.sign),
         gender: toNumber(entry.gender),
         verifyFlag: toNumber(entry.verify_flag),
-        country: unwrapString(entry.country) || 'CN',
+        country: unwrapString(entry.country),
         bigAvatarUrl: unwrapString(entry.big_avatar_url),
         smallAvatarUrl: unwrapString(entry.small_avatar_url),
         antispamTicket: unwrapString(entry.antispam_ticket),
@@ -108,11 +166,82 @@ function normalizeSearchCandidate(entry: Record<string, unknown>): RandomFriendC
     };
 }
 
+function isPhoneLikeText(value: string): boolean {
+    return /^1\d{10}$/.test(value);
+}
+
+function isWxidLikeText(value: string): boolean {
+    return /^wxid[_a-zA-Z0-9-]+$/i.test(value) || /^v3_/i.test(value);
+}
+
+function evaluateCandidateQuality(candidate: RandomFriendCandidate): CandidateQualityResult {
+    let score = 0;
+    let blocked = false;
+    const reasons: string[] = [];
+
+    if (candidate.username.endsWith('@chatroom')) {
+        blocked = true;
+        reasons.push('命中群聊账号');
+    }
+
+    const nickname = candidate.nickname.trim();
+    if (!nickname) {
+        reasons.push('昵称为空');
+    } else if (isPhoneLikeText(nickname) || isWxidLikeText(nickname)) {
+        reasons.push('昵称像占位标识');
+    } else {
+        score += 2;
+    }
+
+    if (candidate.bigAvatarUrl || candidate.smallAvatarUrl) {
+        score += 1;
+    } else {
+        reasons.push('缺少头像');
+    }
+
+    if (candidate.antispamTicket) {
+        score += 1;
+    } else {
+        reasons.push('缺少名片票据');
+    }
+
+    if (candidate.alias) {
+        score += 1;
+    }
+
+    if (candidate.sign) {
+        score += 1;
+    }
+
+    if (candidate.province || candidate.city || candidate.country) {
+        score += 1;
+    } else {
+        reasons.push('地区资料过少');
+    }
+
+    if (candidate.verifyFlag > 0) {
+        score += 1;
+    }
+
+    const passed = !blocked && score >= MIN_CANDIDATE_QUALITY_SCORE;
+    return {passed, score, reasons};
+}
+
 function pickRandomFriendCandidate(response: ApiResponse<SearchContactResponse>): RandomFriendCandidate | null {
     const entries = extractSearchEntries(response.data);
     for (const entry of entries) {
         const candidate = normalizeSearchCandidate(entry);
-        if (candidate) return candidate;
+        if (!candidate) continue;
+        const quality = evaluateCandidateQuality(candidate);
+        if (quality.passed) {
+            return candidate;
+        }
+        logger.debug('随机朋友候选联系人被质量过滤跳过', {
+            username: candidate.username,
+            nickname: candidate.nickname,
+            score: quality.score,
+            reasons: quality.reasons,
+        });
     }
     return null;
 }
@@ -121,6 +250,12 @@ function ensureWechatApiSuccess(op: string, result: {code?: unknown; message?: u
     if (typeof result.code === 'number' && result.code !== 0) {
         throw new Error(`${op} failed: code=${result.code}, message=${String(result.message ?? '')}`);
     }
+}
+
+function isSearchContactNotFound(result: {code?: unknown; message?: unknown}): boolean {
+    if (result.code !== -1) return false;
+    const message = String(result.message ?? '');
+    return message.includes('用户不存在');
 }
 
 async function sendCardMessage(
@@ -155,6 +290,15 @@ async function searchRandomFriend(api: WechatApi): Promise<{candidate: RandomFri
             from_scene: SEARCH_FROM_SCENE,
             search_scene: SEARCH_SCENE,
         });
+        if (isSearchContactNotFound(result)) {
+            logger.debug('随机朋友搜索未命中，继续尝试下一个手机号', {
+                attempt,
+                phone,
+                code: result.code,
+                message: result.message,
+            });
+            continue;
+        }
         ensureWechatApiSuccess('searchContacts', result);
         const candidate = pickRandomFriendCandidate(result);
         if (candidate) {
