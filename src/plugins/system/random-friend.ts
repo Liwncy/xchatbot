@@ -1,8 +1,8 @@
 import type {TextMessage} from '../types.js';
 import {WechatApi} from '../../wechat/api.js';
-import {sendWechatContactCardXmlMessage} from '../../wechat/index.js';
+import {buildWechatContactCardXml} from '../../wechat/index.js';
 import {logger} from '../../utils/logger.js';
-import type {ApiResponse, SearchContactResponse} from '../../wechat/api-types.js';
+import type {ApiResponse, SearchContactResponse, SendMessageResponse} from '../../wechat/api-types.js';
 
 const RANDOM_FRIEND_KEYWORDS = [
     '随机朋友',
@@ -91,6 +91,12 @@ interface CandidateQualityResult {
     passed: boolean;
     score: number;
     reasons: string[];
+}
+
+interface RandomFriendSendOutcome {
+    mode: 'card-xml' | 'card-api';
+    delivered: number;
+    messageIds: number[];
 }
 
 function isRandomFriendCommand(content: string): boolean {
@@ -252,6 +258,26 @@ function ensureWechatApiSuccess(op: string, result: {code?: unknown; message?: u
     }
 }
 
+function ensureWechatSendMessageDelivered(op: string, result: ApiResponse<SendMessageResponse>): number[] {
+    ensureWechatApiSuccess(op, result);
+    const list = Array.isArray(result.data?.list) ? result.data.list : [];
+    if (list.length === 0) {
+        throw new Error(`${op} failed: empty send result list`);
+    }
+
+    const failedItems = list.filter((item) => typeof item?.code === 'number' && item.code !== 0);
+    if (failedItems.length > 0) {
+        const detail = failedItems
+            .map((item) => `code=${item.code},id=${item.id},newId=${item.new_id}`)
+            .join('; ');
+        throw new Error(`${op} failed: delivery rejected: ${detail}`);
+    }
+
+    return list
+        .flatMap((item) => [item.id, item.new_id])
+        .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+}
+
 function isSearchContactNotFound(result: {code?: unknown; message?: unknown}): boolean {
     if (result.code !== -1) return false;
     const message = String(result.message ?? '');
@@ -262,22 +288,54 @@ async function sendCardMessage(
     api: WechatApi,
     receiver: string,
     candidate: RandomFriendCandidate,
-): Promise<void> {
+): Promise<RandomFriendSendOutcome> {
     const cardResult = await api.sendCard({
         receiver,
         card_username: candidate.username,
         card_nickname: candidate.nickname,
         card_alias: candidate.alias,
     });
-    ensureWechatApiSuccess('sendCard', cardResult);
+    const messageIds = ensureWechatSendMessageDelivered('sendCard', cardResult);
+    return {
+        mode: 'card-api',
+        delivered: messageIds.length,
+        messageIds,
+    };
 }
 
 async function sendCardXmlMessage(
     api: WechatApi,
     receiver: string,
     candidate: RandomFriendCandidate,
-): Promise<void> {
-    await sendWechatContactCardXmlMessage(api, receiver, candidate);
+): Promise<RandomFriendSendOutcome> {
+    const textResult = await api.sendText({
+        receiver,
+        content: buildWechatContactCardXml(candidate),
+        type: 42,
+    });
+    const messageIds = ensureWechatSendMessageDelivered('sendText(type=42)', textResult);
+    return {
+        mode: 'card-xml',
+        delivered: messageIds.length,
+        messageIds,
+    };
+}
+
+async function deliverRandomFriendCard(
+    api: WechatApi,
+    receiver: string,
+    candidate: RandomFriendCandidate,
+): Promise<RandomFriendSendOutcome> {
+    try {
+        return await sendCardXmlMessage(api, receiver, candidate);
+    } catch (xmlError) {
+        logger.warn('随机朋友原始名片 XML 发送失败，回退 sendCard 接口', {
+            receiver,
+            username: candidate.username,
+            error: xmlError instanceof Error ? xmlError.message : String(xmlError),
+        });
+        return sendCardMessage(api, receiver, candidate);
+    }
 }
 
 async function searchRandomFriend(api: WechatApi): Promise<{candidate: RandomFriendCandidate | null; phone: string; attempts: number}> {
@@ -336,18 +394,21 @@ export const randomFriendPlugin: TextMessage = {
                 };
             }
 
-            try {
-                await sendCardMessage(api, receiver, candidate);
-            } catch (cardError) {
-                logger.warn('随机朋友 sendCard 发送失败，回退原始名片 XML', {
-                    receiver,
-                    username: candidate.username,
-                    error: cardError instanceof Error ? cardError.message : String(cardError),
-                });
-                await sendCardXmlMessage(api, receiver, candidate);
-            }
+            const sendOutcome = await deliverRandomFriendCard(api, receiver, candidate);
+            logger.info('随机朋友命中并已发送联系人名片', {
+                receiver,
+                phone,
+                attempts,
+                username: candidate.username,
+                nickname: candidate.nickname,
+                sendMode: sendOutcome.mode,
+                messageIds: sendOutcome.messageIds,
+            });
 
-            return null;
+            return {
+                type: 'text',
+                content: `捞到一个朋友啦：${phone}（已发送名片，方式：${sendOutcome.mode}）`,
+            };
         } catch (error) {
             logger.error('随机朋友插件处理失败', {
                 receiver,
