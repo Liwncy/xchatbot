@@ -18,7 +18,7 @@ export interface WechatImageBuffer {
     len?: number;
 }
 
-/** 微信推送数据 `new_messages` 中的一条消息条目。 */
+/** 微信推送数据 `new_message` 中的一条消息条目。 */
 export interface WechatPushItem {
     content?: WechatValueField;
     create_time: number;
@@ -41,12 +41,12 @@ export interface WechatPushItem {
 
 /**
  * 微信推送数据信封。
- * 消息事件包含在 `new_messages` 中。
+ * 消息事件包含在 `new_message` 中。
  */
 export interface WechatPushMessage {
     modify_contacts?: unknown;
     delete_contacts?: unknown;
-    new_messages?: WechatPushItem[] | null;
+    new_message?: WechatPushItem[] | null;
     modify_user_infos?: unknown;
     modify_user_images?: unknown;
     user_info_extends?: unknown;

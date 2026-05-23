@@ -266,12 +266,17 @@ export function parseWechatPushItem(
 
 /**
  * 将微信推送消息解析为标准化的 IncomingMessage。
- * 如果 `new_messages` 里没有消息则抛出异常。
+ * 如果 `new_message` 里没有消息则抛出异常。
  */
+function getWechatPushItems(payload: WechatPushMessage): WechatPushItem[] {
+    if (Array.isArray(payload.new_message)) return payload.new_message;
+    return [];
+}
+
 export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage {
-    const item = payload.new_messages?.[0];
+    const item = getWechatPushItems(payload)[0];
     if (!item) {
-        throw new Error('No new_messages in WeChat push payload');
+        throw new Error('No new_message in WeChat push payload');
     }
 
     return parseWechatPushItem(item, payload);
@@ -281,9 +286,9 @@ export function parseWechatMessage(payload: WechatPushMessage): IncomingMessage 
  * 将微信推送消息解析为标准化消息数组。
  */
 export function parseWechatMessages(payload: WechatPushMessage): IncomingMessage[] {
-    const items = payload.new_messages ?? [];
+    const items = getWechatPushItems(payload);
     if (items.length === 0) {
-        throw new Error('No new_messages in WeChat push payload');
+        throw new Error('No new_message in WeChat push payload');
     }
 
     return items.map((item) => parseWechatPushItem(item, payload));
@@ -696,9 +701,13 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     let messages: IncomingMessage[];
     try {
         messages = parseWechatMessages(payload);
-    } catch {
+    } catch (error) {
         // 忽略非消息推送（联系人变更、个人资料更新等）。
-        logger.debug('跳过非消息推送');
+        logger.debug('跳过非消息推送', {
+            error: error instanceof Error ? error.message : String(error),
+            payloadKeys: Object.keys(payload ?? {}),
+            newMessageCount: Array.isArray(payload.new_message) ? payload.new_message.length : null,
+        });
         return new Response(JSON.stringify({success: true, skipped: true}), {
             status: 200,
             headers: {'Content-Type': 'application/json'},

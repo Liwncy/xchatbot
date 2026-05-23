@@ -604,8 +604,8 @@ type RawWechatMessageItem = {
 
 function getRawWechatItems(raw: unknown): RawWechatMessageItem[] {
     if (!raw || typeof raw !== 'object') return [];
-    const record = raw as {new_messages?: unknown} & RawWechatMessageItem;
-    if (Array.isArray(record.new_messages)) return record.new_messages as RawWechatMessageItem[];
+    const record = raw as {new_message?: unknown} & RawWechatMessageItem;
+    if (Array.isArray(record.new_message)) return record.new_message as RawWechatMessageItem[];
     if (record.source || record.msg_source || record.id || record.msg_id || record.new_id || record.new_msg_id) {
         return [record];
     }

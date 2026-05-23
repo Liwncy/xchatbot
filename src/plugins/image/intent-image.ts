@@ -70,7 +70,7 @@ function buildRecognizeRequest(input: RecognizeImageInput): { body: BodyInit; he
 
 function getFirstRawWechatItem(raw: unknown): WechatPushItem | null {
     const payload = raw as WechatPushMessage;
-    const first = payload?.new_messages?.[0];
+    const first = payload?.new_message?.[0];
     return first ?? null;
 }
 
