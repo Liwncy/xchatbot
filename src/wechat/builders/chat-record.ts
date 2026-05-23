@@ -1,4 +1,4 @@
-import type {AppReply} from '../types/message.js';
+import type {AppReply} from '../../types/message.js';
 import {buildWechatChatRecordImageFields} from './chat-record-image.js';
 import type {WechatChatRecordUploadedImage} from './chat-record-image.js';
 
@@ -311,5 +311,6 @@ export function buildSingleWechatChatRecordAppReply(
         ],
     }, extras);
 }
+
 
 

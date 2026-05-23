@@ -17,12 +17,17 @@ export {
     buildWechatChatRecordAppReply,
     buildWechatChatRecordAppXml,
     buildSingleWechatChatRecordAppReply,
-} from './chat-record.js';
+} from './builders/chat-record.js';
 export {
     WechatChatRecordImageTool,
     buildWechatChatRecordImageDataDesc,
     buildWechatChatRecordImageFields,
-} from './chat-record-image.js';
+} from './builders/chat-record-image.js';
+export {
+    buildWechatContactCardXml,
+    buildWechatContactCardXmlReply,
+    sendWechatContactCardXmlMessage,
+} from './builders/card.js';
 
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 function isHttpUrl(value?: string): boolean {

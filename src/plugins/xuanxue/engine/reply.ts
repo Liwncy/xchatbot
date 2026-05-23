@@ -1,7 +1,7 @@
 /** 回复构建器：text 回退 + forward 卡片（八字 / 合婚） */
 
 import {renderTemplateString} from '../../common/shared.js';
-import {buildWechatChatRecordAppReply} from '../../../wechat/chat-record.js';
+import {buildWechatChatRecordAppReply} from '../../../wechat/builders/chat-record.js';
 import {withSectionEmoji, withSummaryEmoji, beautifySectionContent, HEHUN_SCORE_EMOJI} from '../lib/format.js';
 import {renderTableImageUrl, renderTableSvgDataUrl} from '../lib/table-image.js';
 import type {BaziParsedResult} from '../parsers/bazi.js';

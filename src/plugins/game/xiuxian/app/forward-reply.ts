@@ -1,5 +1,5 @@
 import type {HandlerResponse, IncomingMessage, ReplyMessage, TextReply} from '../../../../types/message.js';
-import {buildWechatChatRecordAppReply} from '../../../../wechat/chat-record.js';
+import {buildWechatChatRecordAppReply} from '../../../../wechat/builders/chat-record.js';
 import type {XiuxianCommand} from '../core/types/index.js';
 
 const LONG_TEXT_MIN_LENGTH = 220;
