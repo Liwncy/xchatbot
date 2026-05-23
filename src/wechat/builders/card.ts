@@ -1,5 +1,5 @@
 import type {TextReply} from '../../types/message.js';
-import type {ApiResponse, SendMessageResponse} from '../api-types.js';
+import type {ApiResponse, SendAppMessageResponse, SendMessageResponse} from '../api-types.js';
 import type {WechatApi} from '../api.js';
 
 const DEFAULT_CARD_SCENE = 17;
@@ -36,7 +36,21 @@ function ensureWechatApiSuccess(op: string, result: {code?: unknown; message?: u
     }
 }
 
-export function buildWechatContactCardXml(options: BuildWechatContactCardOptions): string {
+function ensureWechatSendMessageDelivered(op: string, result: ApiResponse<SendMessageResponse>): void {
+    ensureWechatApiSuccess(op, result);
+    const list = Array.isArray(result.data?.list) ? result.data.list : [];
+    if (list.length === 0) {
+        throw new Error(`${op} failed: empty send result list`);
+    }
+    const failedItems = list.filter((item) => typeof item?.code === 'number' && item.code !== 0);
+    if (failedItems.length === 0) return;
+    const detail = failedItems
+        .map((item) => `code=${item.code},id=${item.id},newId=${item.new_id}`)
+        .join('; ');
+    throw new Error(`${op} failed: delivery rejected: ${detail}`);
+}
+
+function serializeWechatContactCardMsg(options: BuildWechatContactCardOptions): string {
     const attrs: Record<string, string | number> = {
         bigheadimgurl: options.bigAvatarUrl?.trim() ?? '',
         smallheadimgurl: options.smallAvatarUrl?.trim() ?? '',
@@ -66,7 +80,25 @@ export function buildWechatContactCardXml(options: BuildWechatContactCardOptions
     const serialized = Object.entries(attrs)
         .map(([key, value]) => `${key}="${xmlEscapeAttribute(String(value ?? ''))}"`)
         .join(' ');
-    return `<?xml version="1.0"?>\n<msg ${serialized} />`;
+    return `<msg ${serialized} />`;
+}
+
+export function buildWechatContactCardXml(options: BuildWechatContactCardOptions): string {
+    return `<?xml version="1.0"?>\n${serializeWechatContactCardMsg(options)}`;
+}
+
+export function buildWechatContactCardForwardXml(options: BuildWechatContactCardOptions): string {
+    return serializeWechatContactCardMsg(options);
+}
+
+export function buildWechatContactCardMessageContent(
+    options: BuildWechatContactCardOptions,
+    sharerUsername?: string,
+): string {
+    const xml = buildWechatContactCardXml(options);
+    const sharer = sharerUsername?.trim();
+    if (!sharer) return xml;
+    return `${sharer}:\n${xml}`;
 }
 
 export function buildWechatContactCardXmlReply(
@@ -75,7 +107,7 @@ export function buildWechatContactCardXmlReply(
 ): TextReply {
     return {
         type: 'text',
-        content: buildWechatContactCardXml(options),
+        content: buildWechatContactCardMessageContent(options),
         ...extras,
     };
 }
@@ -84,13 +116,40 @@ export async function sendWechatContactCardXmlMessage(
     api: WechatApi,
     receiver: string,
     options: BuildWechatContactCardOptions,
+    sharerUsername?: string,
 ): Promise<void> {
     const result = await api.sendText({
         receiver,
-        content: buildWechatContactCardXml(options),
+        content: buildWechatContactCardMessageContent(options, sharerUsername),
         type: 42,
     });
-    ensureWechatApiSuccess('sendText(type=42)', result as ApiResponse<SendMessageResponse>);
+    ensureWechatSendMessageDelivered('sendText(type=42)', result as ApiResponse<SendMessageResponse>);
+}
+
+export async function sendWechatContactCardForwardMessage(
+    api: WechatApi,
+    receiver: string,
+    options: BuildWechatContactCardOptions,
+): Promise<void> {
+    const result = await api.forwardMessage({
+        receiver,
+        type: 42,
+        xml: buildWechatContactCardForwardXml(options),
+    });
+    ensureWechatApiSuccess('forwardMessage(type=42)', result as ApiResponse<SendAppMessageResponse>);
+}
+
+export async function sendWechatContactCardAppMessage(
+    api: WechatApi,
+    receiver: string,
+    options: BuildWechatContactCardOptions,
+): Promise<void> {
+    const result = await api.sendApp({
+        receiver,
+        type: 42,
+        xml: buildWechatContactCardForwardXml(options),
+    });
+    ensureWechatApiSuccess('sendApp(type=42)', result as ApiResponse<SendAppMessageResponse>);
 }
 
 

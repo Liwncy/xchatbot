@@ -24,8 +24,12 @@ export {
     buildWechatChatRecordImageFields,
 } from './builders/chat-record-image.js';
 export {
+    buildWechatContactCardMessageContent,
+    buildWechatContactCardForwardXml,
     buildWechatContactCardXml,
     buildWechatContactCardXmlReply,
+    sendWechatContactCardAppMessage,
+    sendWechatContactCardForwardMessage,
     sendWechatContactCardXmlMessage,
 } from './builders/card.js';
 
