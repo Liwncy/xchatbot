@@ -8,3 +8,6 @@ export const KV_COMMON_BASE_RULES_BACKUP = 'plugins:common:mapping:backup';
 export const KV_COMMON_DYNAMIC_RULES_BACKUP = 'plugins:parameterized:mapping:backup';
 export const KV_COMMON_WORKFLOW_RULES_BACKUP = 'plugins:workflow:mapping:backup';
 
+export const KV_AI_DIALOG_CONFIG = 'plugins:ai-dialog:config';
+export const KV_AI_DIALOG_MEMORY_PREFIX = 'plugins:ai-dialog:memory:';
+

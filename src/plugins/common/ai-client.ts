@@ -22,6 +22,8 @@ export interface RequestAiTextOptions {
     systemPrompt?: string;
     messages?: AiChatMessage[];
     model?: string;
+    apiUrl?: string;
+    apiKey?: string;
 }
 
 type AiEnv = Pick<Env, 'AI_API_URL' | 'AI_API_KEY' | 'AI_MODEL'>;
@@ -40,7 +42,7 @@ export function normalizeAiText(data: OpenAiLikeResponse): string | null {
 }
 
 export async function requestAiText(env: AiEnv, options: RequestAiTextOptions): Promise<string | null> {
-    const apiUrl = env.AI_API_URL?.trim();
+    const apiUrl = options.apiUrl?.trim() || env.AI_API_URL?.trim();
     if (!apiUrl) return null;
 
     const input = options.input.trim();
@@ -48,16 +50,17 @@ export async function requestAiText(env: AiEnv, options: RequestAiTextOptions): 
     const model = options.model?.trim() || env.AI_MODEL?.trim() || 'gpt-4o-mini';
 
     const headers: Record<string, string> = {'Content-Type': 'application/json'};
-    if (env.AI_API_KEY?.trim()) {
-        headers.Authorization = `Bearer ${env.AI_API_KEY.trim()}`;
+    const apiKey = options.apiKey !== undefined ? options.apiKey.trim() : env.AI_API_KEY?.trim();
+    if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const messages = options.messages?.length
+    const baseMessages = options.messages?.length
         ? options.messages
-        : [
-            ...(systemPrompt ? [{role: 'system' as const, content: systemPrompt}] : []),
-            {role: 'user' as const, content: input},
-        ];
+        : [{role: 'user' as const, content: input}];
+    const messages = systemPrompt && baseMessages[0]?.role !== 'system'
+        ? [{role: 'system' as const, content: systemPrompt}, ...baseMessages]
+        : baseMessages;
 
     const res = await fetch(apiUrl, {
         method: 'POST',

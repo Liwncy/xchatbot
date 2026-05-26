@@ -1,4 +1,5 @@
 import type {TextMessage} from '../../types.js';
+import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {ContactRepository} from './repository.js';
 import {WechatApi} from '../../../wechat/api.js';
 import type {VerifyFriendRequest} from '../../../wechat/api-types.js';
@@ -57,7 +58,7 @@ function buildHelpText(): string {
 function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
     if (!owner) return '未配置 BOT_OWNER_WECHAT_ID，无法执行联系人管理';
-    if (messageFrom.trim() !== owner) return '无权限，仅机器人主人可执行此命令';
+    if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
 

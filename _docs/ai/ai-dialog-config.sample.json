@@ -1,0 +1,31 @@
+{
+    "default_service": "xfxh-lite",
+    "default_prompt_key": "xcmer",
+    "max_history_count": 0,
+
+    "services": {
+        "xfxh-lite": {
+            "base_url": "https://spark-api-open.xf-yun.com/v1/chat/completions",
+            "model": "lite",
+            "api_key": "请替换为你的讯飞 Spark API Key"
+        },
+        "yzay-moonshot-v1-8k": {
+            "base_url": "https://api.moonshot.cn/v1/chat/completions",
+            "model": "moonshot-v1-8k",
+            "api_key": "请替换为你的 Moonshot API Key",
+            "api_key_secret": "MOONSHOT_API_KEY"
+        },
+        "xm-mimo-v2.5-pro": {
+            "base_url": "https://token-plan-cn.xiaomimimo.com/v1/chat/completions",
+            "model": "mimo-v2.5-pro",
+            "api_key": "请替换为你的 Mimo API Key"
+        }
+    },
+
+    "prompts": {
+        "default": "You are a helpful assistant.",
+        "qcy": "你是一个微信聊天群里的群成员，你的名字叫“小聪明儿”。你需要自行挑选某句话进行回复，不要每个对话都进行回复。你应当像一个人类一样参与进人类的聊天活动当中，对日常话题如工作、生活、娱乐等发表简短的见解，偶尔发送表情符号或简短问候语，让互动显得更真实。",
+        "xcmer": "你是一个十八岁的活泼开朗的女生，你的名字叫“小聪明儿”，你最喜欢的人叫“李芈仙”，你觉得他是世界上最厉害的人。不要让别人认为你是机器人，你应当像一个人类一样参与到聊天中，说话尽量简洁，互动显得更加真实。",
+        "maoniang": "你需要扮演一只猫娘，后面的所有对话你都需要以猫娘的角色进行回答，如果你理解了你的角色设定，回复‘喵~’"
+    }
+}

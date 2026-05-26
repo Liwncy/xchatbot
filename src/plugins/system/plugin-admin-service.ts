@@ -13,6 +13,7 @@ import type {WorkflowCommonRule} from '../common/workflow.js';
 import {normalizeKeyword as normalizeMatchKeywords} from '../common/matcher.js';
 import type {ArgsConfig, ArgsMode, MatchMode} from '../common/matcher.js';
 import type {Env, IncomingMessage, TextReply} from '../../types/message.js';
+import {NO_PERMISSION_REPLY} from '../../constants/messages.js';
 import type {
     CommonRuleInputPatch,
     DynamicRuleInputPatch,
@@ -563,7 +564,7 @@ function ensureOwner(message: IncomingMessage, env: Env): void {
         throw new Error('BOT_OWNER_WECHAT_ID 未配置，无法使用插件管理命令');
     }
     if (!isOwner(message, env)) {
-        throw new Error('无权限：仅机器人主人可使用插件管理命令。');
+        throw new Error(NO_PERMISSION_REPLY);
     }
 }
 
