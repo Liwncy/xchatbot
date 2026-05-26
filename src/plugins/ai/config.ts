@@ -368,29 +368,57 @@ export async function clearAiDialogHistory(env: Env, message: IncomingMessage): 
     await env.XBOT_KV.delete(buildAiDialogMemoryKey(message));
 }
 
+function buildTransientExpiryPayload(windowSeconds: number): string {
+    return JSON.stringify({expiresAt: Date.now() + (windowSeconds * 1000)});
+}
+
+async function isTransientKvFlagActive(env: Env, key: string): Promise<boolean> {
+    const raw = await env.XBOT_KV.get(key);
+    if (!raw?.trim()) return false;
+
+    try {
+        const parsed = JSON.parse(raw) as {expiresAt?: unknown};
+        const expiresAt = typeof parsed.expiresAt === 'number' ? parsed.expiresAt : Number.NaN;
+        if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+            return true;
+        }
+    } catch (error) {
+        logger.warn('AI 对话短时状态解析失败，已按过期处理', {error, key});
+    }
+
+    await env.XBOT_KV.delete(key);
+    return false;
+}
+
+async function saveTransientKvFlag(env: Env, key: string, windowSeconds: number): Promise<void> {
+    if (windowSeconds <= 0) {
+        await env.XBOT_KV.delete(key);
+        return;
+    }
+    await env.XBOT_KV.put(key, buildTransientExpiryPayload(windowSeconds));
+}
+
 export async function isAiDialogGroupAutoReplyCoolingDown(env: Env, message: IncomingMessage): Promise<boolean> {
     if (!message.room?.id?.trim()) return false;
-    const raw = await env.XBOT_KV.get(buildAiDialogGroupAutoReplyCooldownKey(message));
-    return Boolean(raw?.trim());
+    return isTransientKvFlagActive(env, buildAiDialogGroupAutoReplyCooldownKey(message));
 }
 
 export async function markAiDialogGroupAutoReply(env: Env, message: IncomingMessage, cooldownSeconds: number): Promise<void> {
     if (!message.room?.id?.trim() || cooldownSeconds <= 0) return;
-    await env.XBOT_KV.put(buildAiDialogGroupAutoReplyCooldownKey(message), '1', {expirationTtl: cooldownSeconds});
+    await saveTransientKvFlag(env, buildAiDialogGroupAutoReplyCooldownKey(message), cooldownSeconds);
 }
 
 export async function isAiDialogUserActivationActive(env: Env, message: IncomingMessage): Promise<boolean> {
     const userId = message.from.trim();
     if (!userId) return false;
-    const raw = await env.XBOT_KV.get(buildAiDialogUserActivationKey(message));
-    return Boolean(raw?.trim());
+    return isTransientKvFlagActive(env, buildAiDialogUserActivationKey(message));
 }
 
 export async function markAiDialogUserActivation(env: Env, message: IncomingMessage, windowSeconds: number): Promise<void> {
     if (windowSeconds <= 0) return;
     const userId = message.from.trim();
     if (!userId) return;
-    await env.XBOT_KV.put(buildAiDialogUserActivationKey(message), '1', {expirationTtl: windowSeconds});
+    await saveTransientKvFlag(env, buildAiDialogUserActivationKey(message), windowSeconds);
 }
 
 export function maskSensitiveValue(value?: string): string {
