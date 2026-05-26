@@ -263,9 +263,18 @@ function extractUserPrompt(content: string): string {
     return withoutLeadingTrigger || trimmed;
 }
 
+function getConversationSpeaker(message: Parameters<TextMessage['handle']>[0]): string {
+    const displayName = message.senderName?.trim();
+    if (displayName) return displayName;
+    return message.from.trim() || '未知成员';
+}
+
 function buildAiUserMessage(message: Parameters<TextMessage['handle']>[0], prompt: string): string {
-    const speaker = message.senderName?.trim() || message.from;
-    return `${speaker}: ${prompt}`;
+    const speaker = getConversationSpeaker(message);
+    if (message.room?.id?.trim()) {
+        return `群成员「${speaker}」说：${prompt}`;
+    }
+    return `用户「${speaker}」说：${prompt}`;
 }
 
 async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
