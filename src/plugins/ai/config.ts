@@ -1,5 +1,5 @@
 import type {Env, IncomingMessage} from '../../types/message.js';
-import {KV_AI_DIALOG_CONFIG, KV_AI_DIALOG_MEMORY_PREFIX} from '../../constants/kv.js';
+import {KV_AI_DIALOG_CONFIG, KV_AI_DIALOG_GROUP_AUTO_REPLY_PREFIX, KV_AI_DIALOG_MEMORY_PREFIX, KV_AI_DIALOG_USER_ACTIVATION_PREFIX} from '../../constants/kv.js';
 import {logger} from '../../utils/logger.js';
 
 export interface AiDialogServiceConfig {
@@ -13,6 +13,10 @@ export interface AiDialogConfig {
     default_service: string;
     default_prompt_key: string;
     max_history_count: number;
+    user_activation_window_seconds: number;
+    group_auto_reply_enabled: boolean;
+    group_auto_reply_probability: number;
+    group_auto_reply_cooldown_seconds: number;
     services: Record<string, AiDialogServiceConfig>;
     prompts: Record<string, string>;
 }
@@ -66,6 +70,26 @@ function normalizeHistoryCount(value: unknown): number {
         }
     }
     return 0;
+}
+
+function normalizeBoolean(value: unknown): boolean {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value !== 'string') return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on' || normalized === '开' || normalized === '开启';
+}
+
+function normalizePercentage(value: unknown, fallback = 0): number {
+    const raw = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseFloat(value.trim()) : Number.NaN;
+    if (!Number.isFinite(raw)) return fallback;
+    return Math.min(100, Math.max(0, Math.round(raw)));
+}
+
+function normalizeCooldownSeconds(value: unknown, fallback = 0): number {
+    const raw = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value.trim(), 10) : Number.NaN;
+    if (!Number.isFinite(raw)) return fallback;
+    return Math.max(0, Math.floor(raw));
 }
 
 function normalizeServiceConfig(value: unknown): AiDialogServiceConfig | null {
@@ -144,6 +168,10 @@ export function buildAiDialogBaseConfig(env?: Pick<Env, 'AI_SYSTEM_PROMPT'>): Ai
         default_service: '',
         default_prompt_key: DEFAULT_PROMPT_KEY,
         max_history_count: 0,
+        user_activation_window_seconds: 15,
+        group_auto_reply_enabled: false,
+        group_auto_reply_probability: 15,
+        group_auto_reply_cooldown_seconds: 180,
         services: {},
         prompts: {
             [DEFAULT_PROMPT_KEY]: normalizeString(env?.AI_SYSTEM_PROMPT) ?? DEFAULT_SYSTEM_PROMPT,
@@ -160,6 +188,10 @@ export function normalizeAiDialogConfig(source: unknown, env?: Pick<Env, 'AI_SYS
         default_service: normalizeString(record.default_service) ?? '',
         default_prompt_key: normalizeString(record.default_prompt_key) ?? baseConfig.default_prompt_key,
         max_history_count: normalizeHistoryCount(record.max_history_count),
+        user_activation_window_seconds: normalizeCooldownSeconds(record.user_activation_window_seconds, baseConfig.user_activation_window_seconds),
+        group_auto_reply_enabled: normalizeBoolean(record.group_auto_reply_enabled),
+        group_auto_reply_probability: normalizePercentage(record.group_auto_reply_probability, baseConfig.group_auto_reply_probability),
+        group_auto_reply_cooldown_seconds: normalizeCooldownSeconds(record.group_auto_reply_cooldown_seconds, baseConfig.group_auto_reply_cooldown_seconds),
         services: normalizeServices(record.services),
         prompts: normalizePrompts(record.prompts, baseConfig.prompts[DEFAULT_PROMPT_KEY]),
     };
@@ -282,6 +314,22 @@ export function buildAiDialogMemoryKey(message: IncomingMessage): string {
     return `${KV_AI_DIALOG_MEMORY_PREFIX}${getConversationScope(message)}`;
 }
 
+export function buildAiDialogGroupAutoReplyCooldownKey(message: IncomingMessage): string {
+    const roomId = message.room?.id?.trim();
+    if (!roomId) {
+        throw new Error('仅群聊消息支持冒泡冷却键');
+    }
+    return `${KV_AI_DIALOG_GROUP_AUTO_REPLY_PREFIX}${roomId}`;
+}
+
+export function buildAiDialogUserActivationKey(message: IncomingMessage): string {
+    const userId = message.from.trim();
+    if (!userId) {
+        throw new Error('消息缺少发送者 ID，无法生成连续对话键');
+    }
+    return `${KV_AI_DIALOG_USER_ACTIVATION_PREFIX}${userId}`;
+}
+
 export async function loadAiDialogHistory(env: Env, message: IncomingMessage): Promise<AiDialogHistoryMessage[]> {
     const raw = await env.XBOT_KV.get(buildAiDialogMemoryKey(message));
     if (!raw?.trim()) return [];
@@ -318,6 +366,31 @@ export async function saveAiDialogHistory(
 
 export async function clearAiDialogHistory(env: Env, message: IncomingMessage): Promise<void> {
     await env.XBOT_KV.delete(buildAiDialogMemoryKey(message));
+}
+
+export async function isAiDialogGroupAutoReplyCoolingDown(env: Env, message: IncomingMessage): Promise<boolean> {
+    if (!message.room?.id?.trim()) return false;
+    const raw = await env.XBOT_KV.get(buildAiDialogGroupAutoReplyCooldownKey(message));
+    return Boolean(raw?.trim());
+}
+
+export async function markAiDialogGroupAutoReply(env: Env, message: IncomingMessage, cooldownSeconds: number): Promise<void> {
+    if (!message.room?.id?.trim() || cooldownSeconds <= 0) return;
+    await env.XBOT_KV.put(buildAiDialogGroupAutoReplyCooldownKey(message), '1', {expirationTtl: cooldownSeconds});
+}
+
+export async function isAiDialogUserActivationActive(env: Env, message: IncomingMessage): Promise<boolean> {
+    const userId = message.from.trim();
+    if (!userId) return false;
+    const raw = await env.XBOT_KV.get(buildAiDialogUserActivationKey(message));
+    return Boolean(raw?.trim());
+}
+
+export async function markAiDialogUserActivation(env: Env, message: IncomingMessage, windowSeconds: number): Promise<void> {
+    if (windowSeconds <= 0) return;
+    const userId = message.from.trim();
+    if (!userId) return;
+    await env.XBOT_KV.put(buildAiDialogUserActivationKey(message), '1', {expirationTtl: windowSeconds});
 }
 
 export function maskSensitiveValue(value?: string): string {

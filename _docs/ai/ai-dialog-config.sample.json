@@ -2,6 +2,10 @@
     "default_service": "xfxh-lite",
     "default_prompt_key": "xcmer",
     "max_history_count": 0,
+    "user_activation_window_seconds": 15,
+    "group_auto_reply_enabled": false,
+    "group_auto_reply_probability": 15,
+    "group_auto_reply_cooldown_seconds": 180,
 
     "services": {
         "xfxh-lite": {

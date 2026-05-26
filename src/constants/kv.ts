@@ -10,4 +10,6 @@ export const KV_COMMON_WORKFLOW_RULES_BACKUP = 'plugins:workflow:mapping:backup'
 
 export const KV_AI_DIALOG_CONFIG = 'plugins:ai-dialog:config';
 export const KV_AI_DIALOG_MEMORY_PREFIX = 'plugins:ai-dialog:memory:';
+export const KV_AI_DIALOG_GROUP_AUTO_REPLY_PREFIX = 'plugins:ai-dialog:group-auto-reply:';
+export const KV_AI_DIALOG_USER_ACTIVATION_PREFIX = 'plugins:ai-dialog:user-activation:';
 
