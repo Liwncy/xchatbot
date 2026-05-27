@@ -457,21 +457,30 @@ export async function sendWechatReply(
             const requestedFormat = Number.isFinite(reply.format) ? Number(reply.format) : 4;
             const duration = Number.isFinite(reply.duration) ? Math.max(0, Number(reply.duration)) : 5000;
 
-            const normalizedVoice = await normalizeVoiceForWechat(
-                {
-                    format: requestedFormat,
-                    mediaData: reply.mediaId,
-                    durationMs: duration,
-                    originalUrl: reply.originalUrl,
-                },
-                {
-                    convertApiUrl: options?.voiceConvertApiUrl,
-                },
-            );
-            if (!normalizedVoice) {
-                throw new Error(`voice conversion unavailable: format=${requestedFormat}`);
-            }
+            const fallbackText = reply.fallbackText?.trim()
+                || (reply.originalUrl ? `语音发送失败，可尝试打开原链接：${reply.originalUrl}` : '语音发送失败，请稍后重试');
+
             try {
+                const normalizedVoice = await normalizeVoiceForWechat(
+                    {
+                        format: requestedFormat,
+                        mediaData: reply.mediaId,
+                        durationMs: duration,
+                        originalUrl: reply.originalUrl,
+                    },
+                    {
+                        convertApiUrl: options?.voiceConvertApiUrl,
+                    },
+                );
+                if (!normalizedVoice) {
+                    logger.warn('语音转换失败，无法生成可发送的 SILK 音频', {
+                        receiver: effectiveReceiver,
+                        requestedFormat,
+                        hasOriginalUrl: Boolean(reply.originalUrl?.trim()),
+                    });
+                    throw new Error(`voice conversion unavailable: format=${requestedFormat}`);
+                }
+
                 const voiceUrl = !normalizedVoice.converted && isHttpUrl(normalizedVoice.mediaData)
                     ? normalizedVoice.mediaData.trim()
                     : '';
@@ -484,8 +493,6 @@ export async function sendWechatReply(
                 });
                 ensureWechatApiSuccess('sendVoice', result);
             } catch (voiceErr) {
-                const fallbackText = reply.fallbackText?.trim()
-                    || (reply.originalUrl ? `语音发送失败，可尝试打开原链接：${reply.originalUrl}` : '语音发送失败，请稍后重试');
                 logger.warn('语音发送失败，降级为文本提示', {
                     receiver: effectiveReceiver,
                     requestedFormat,

@@ -136,8 +136,7 @@ function buildSpeakInstruction(styleTags: string[]): string {
     ].join(' ');
 }
 
-async function maybeUploadAudio(base64Audio: string, enabled: boolean): Promise<string | undefined> {
-    if (!enabled) return undefined;
+async function uploadAudioForDelivery(base64Audio: string): Promise<string | undefined> {
     const url = await FileUploader.uploadBase64(base64Audio, {
         fileName: `ai-sing-${Date.now()}.wav`,
         contentType: 'audio/wav',
@@ -151,15 +150,16 @@ async function buildVoiceReply(
     durationMs: number,
     fallbackHint: string,
 ) {
-    const originalUrl = await maybeUploadAudio(audioBase64, config.auto_upload_audio);
+    const deliveryUrl = await uploadAudioForDelivery(audioBase64);
+    const shouldExposeUrl = config.auto_upload_audio && Boolean(deliveryUrl);
     return {
         type: 'voice' as const,
         mediaId: audioBase64,
         format: 3,
         duration: durationMs,
-        ...(originalUrl ? {originalUrl} : {}),
-        fallbackText: originalUrl
-            ? `${fallbackHint}\n如果语音发送失败，也可以打开音频：${originalUrl}`
+        ...(deliveryUrl ? {originalUrl: deliveryUrl} : {}),
+        fallbackText: shouldExposeUrl
+            ? `${fallbackHint}\n如果语音发送失败，也可以打开音频：${deliveryUrl}`
             : fallbackHint,
     };
 }
