@@ -18,6 +18,10 @@
   - 看：[`scheduler/cloudflare-scheduler-design.md`](scheduler/cloudflare-scheduler-design.md)
   - 再看：[`scheduler/scheduler-api-draft.md`](scheduler/scheduler-api-draft.md)
   - 落库时看：[`scheduler/scheduler-mvp.sql`](scheduler/scheduler-mvp.sql)
+- **想了解 AI 对话 / AI 唱歌相关设计**
+  - 看：[`ai/ai-dialog-config.sample.json`](ai/ai-dialog-config.sample.json)
+  - 看：[`ai/mimo-tts-config.sample.json`](ai/mimo-tts-config.sample.json)
+  - 看：[`ai/mimo-tts-plugin-design.md`](ai/mimo-tts-plugin-design.md)
 - **想了解修仙玩法**
   - 先看：[`../src/plugins/game/xiuxian/README.md`](../src/plugins/game/xiuxian/README.md)
   - 再看：[`xiuxian/xiuxian-roadmap.md`](xiuxian/xiuxian-roadmap.md)
@@ -29,6 +33,7 @@
 _docs/
   README.md
   dev/            # 开发协作文档
+  ai/             # AI 对话 / TTS / 唱歌相关设计与样例
   misc/           # 临时/杂项资料
   plugin-config/  # 通用插件配置样例
   scheduler/      # 定时任务中心设计、API 草案、SQL
@@ -37,6 +42,12 @@ _docs/
 ```
 
 ## 各目录说明
+
+### `ai/`
+
+- `ai-dialog-config.sample.json`：AI 对话配置样例
+- `mimo-tts-config.sample.json`：AI唱歌 / MiMo TTS 配置样例
+- `mimo-tts-plugin-design.md`：MiMo TTS / AI 唱歌插件设计稿（MVP）
 
 ### `scheduler/`
 

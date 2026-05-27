@@ -1,0 +1,18 @@
+{
+    "enabled": true,
+    "allow_group_use": true,
+    "allow_private_use": true,
+    "allow_theme_generate": true,
+    "allow_user_direct_lyrics": true,
+    "auto_upload_audio": false,
+    "default_voice": "冰糖",
+    "default_style_tags": ["活泼", "轻快"],
+    "max_lyrics_chars": 120,
+    "target_segment_seconds": 25,
+    "service": {
+        "base_url": "https://token-plan-cn.xiaomimimo.com/v1/chat/completions",
+        "model": "mimo-v2.5-tts",
+        "api_key_secret": "MIMO_API_KEY"
+    }
+}
+

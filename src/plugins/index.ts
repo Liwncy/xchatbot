@@ -25,6 +25,7 @@ import {xiuxianPlugin} from './game/xiuxian';
 import {wechatChatRecordDemoPlugin} from './demo/wechat-chat-record';
 import {fakeForwardPlugin} from './wechat/fake-forward';
 import {xuanxuePlugin} from './xuanxue';
+import {aiSingPlugin} from './audio/ai-sing';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 pluginManager.register(helpPlugin);
@@ -45,6 +46,7 @@ pluginManager.register(xiuxianPlugin);
 pluginManager.register(xuanxuePlugin);
 // 自定义插件
 pluginManager.register(aiDialogPlugin);
+pluginManager.register(aiSingPlugin);
 pluginManager.register(videoLinkParserPlugin);
 pluginManager.register(imageIntentTriggerPlugin);
 pluginManager.register(imageIntentProcessPlugin);
