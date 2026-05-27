@@ -145,22 +145,17 @@ async function uploadAudioForDelivery(base64Audio: string): Promise<string | und
 }
 
 async function buildVoiceReply(
-    config: Awaited<ReturnType<typeof loadAiSingRuntimeConfig>>,
     audioBase64: string,
     durationMs: number,
-    fallbackHint: string,
 ) {
     const deliveryUrl = await uploadAudioForDelivery(audioBase64);
-    const shouldExposeUrl = config.auto_upload_audio && Boolean(deliveryUrl);
     return {
         type: 'voice' as const,
         mediaId: audioBase64,
         format: 2,
         duration: durationMs,
         ...(deliveryUrl ? {originalUrl: deliveryUrl} : {}),
-        fallbackText: shouldExposeUrl
-            ? `${fallbackHint}\n如果语音发送失败，也可以打开音频：${deliveryUrl}`
-            : fallbackHint,
+        fallbackText: '嗓子哑了，不想说话了啦 🙈',
     };
 }
 
@@ -210,7 +205,7 @@ async function handleSing(
         singing: true,
     });
 
-    return buildVoiceReply(config, result.audioBase64, result.durationMs, `刚刚想唱的是：\n${lyrics}`);
+    return buildVoiceReply(result.audioBase64, result.durationMs);
 }
 
 async function handleTrialVoice(
@@ -241,7 +236,7 @@ async function handleTrialVoice(
         singing: false,
     });
 
-    return buildVoiceReply(config, result.audioBase64, result.durationMs, `刚刚试音朗读的是：${text}`);
+    return buildVoiceReply(result.audioBase64, result.durationMs);
 }
 
 async function handleConfigCommand(
