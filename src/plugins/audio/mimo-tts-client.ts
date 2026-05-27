@@ -103,7 +103,7 @@ export async function requestMimoTts(options: MimoTtsRequestOptions): Promise<Mi
             model: options.model.trim(),
             messages,
             audio: {
-                format: 'wav',
+                format: 'mp3',
                 voice,
             },
         }),

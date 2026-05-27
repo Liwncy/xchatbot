@@ -138,8 +138,8 @@ function buildSpeakInstruction(styleTags: string[]): string {
 
 async function uploadAudioForDelivery(base64Audio: string): Promise<string | undefined> {
     const url = await FileUploader.uploadBase64(base64Audio, {
-        fileName: `ai-sing-${Date.now()}.wav`,
-        contentType: 'audio/wav',
+        fileName: `ai-sing-${Date.now()}.mp3`,
+        contentType: 'audio/mpeg',
     });
     return url ?? undefined;
 }
@@ -155,7 +155,7 @@ async function buildVoiceReply(
     return {
         type: 'voice' as const,
         mediaId: audioBase64,
-        format: 3,
+        format: 2,
         duration: durationMs,
         ...(deliveryUrl ? {originalUrl: deliveryUrl} : {}),
         fallbackText: shouldExposeUrl

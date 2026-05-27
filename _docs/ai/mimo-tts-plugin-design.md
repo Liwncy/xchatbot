@@ -60,7 +60,7 @@ MVP 暂不做：
 - `src/wechat/index.ts`
   - 已支持 `voice` 类型回复发送
 - `src/utils/silk-converter.ts`
-  - 可将 `wav/mp3` 等非 SILK 音频转为微信可发的 SILK
+  - 可将 `mp3/wav` 等非 SILK 音频转为微信可发的 SILK
 - `src/utils/file-uploader.ts`
   - 可上传文件并拿到外链，适合语音发送失败时降级
 - `src/plugins/ai/config.ts`
@@ -443,23 +443,23 @@ MVP 固定使用：
     }
   ],
   "audio": {
-    "format": "wav",
+    "format": "mp3",
     "voice": "冰糖"
   }
 }
 ```
 
-### 8.3 为什么建议音频格式先用 `wav`
+### 8.3 为什么建议音频格式先用 `mp3`
 
 原因：
 
-1. MiMo 非流式示例里 `wav` 最直接
-2. 当前仓库已有 `wav -> silk` 转换链路
-3. 实现成本最低
+1. 更贴近现有随机语音插件的处理方式
+2. 当前仓库已有 `mp3 -> silk` 转换链路
+3. 和外部文件 URL 音频的兼容性通常更好
 
 结论：
 
-> **首版先固定请求 `wav`，交给现有 `normalizeVoiceForWechat(...)` 转换即可。**
+> **首版先固定请求 `mp3`，交给现有 `normalizeVoiceForWechat(...)` 转换即可。**
 
 ---
 
@@ -556,7 +556,7 @@ MiMo 返回后，插件需执行：
 
 如果开启，则：
 
-1. 将生成的 `wav` 上传到外部文件服务
+1. 将生成的 `mp3` 上传到外部文件服务
 2. 把返回 URL 填到 `VoiceReply.originalUrl`
 3. 当发送失败时，可降级给出可打开的原始链接
 
@@ -660,7 +660,7 @@ MVP 应明确避免：
 目标：
 
 - 完成 `AI唱歌 唱 <主题/歌词>`
-- 生成 `wav`
+- 生成 `mp3`
 - 转 SILK
 - 通过微信语音发出
 
@@ -753,7 +753,7 @@ AI唱歌 设置音色 冰糖
 2. **模型固定** 用 `mimo-v2.5-tts`
 3. **只用预置音色**，先别碰 VoiceClone
 4. **默认做原创短唱段**，不要做点歌翻唱
-5. **输出固定走 `wav -> silk -> 微信 voice`**
+5. **输出固定走 `mp3 -> silk -> 微信 voice`**
 6. **默认显式命令触发**，不要自动唱
 7. **配置独立存 KV**，方便后续单独演进
 
