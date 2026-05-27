@@ -2,7 +2,7 @@ import {arrayBufferToBase64} from './binary.js';
 import {logger} from './logger.js';
 
 const DEFAULT_AUDIO_CONVERT_API = 'https://api.chrelyonly.cn/convert';
-const FETCH_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_MS = 45_000;
 
 export interface VoiceConversionInput {
     format: number;
@@ -21,6 +21,10 @@ export interface VoiceConversionResult {
     durationMs: number;
     converted: boolean;
 }
+
+type ConversionSource =
+    | {audioUrl: string; base64Audio?: undefined; sourceType: 'url'}
+    | {audioUrl?: undefined; base64Audio: string; sourceType: 'base64'};
 
 function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test((value ?? '').trim());
@@ -49,7 +53,7 @@ export class AudioToSilkConverter {
         this.apiUrl = options?.convertApiUrl?.trim() || DEFAULT_AUDIO_CONVERT_API;
     }
 
-    async convertToSilkBase64(source: {audioUrl?: string; base64Audio?: string}): Promise<string | null> {
+    async convertToSilkBase64(source: ConversionSource): Promise<string | null> {
         const formData = new FormData();
         if (source.audioUrl?.trim()) formData.append('audioUrl', source.audioUrl.trim());
         if (source.base64Audio?.trim()) formData.append('base64Audio', normalizeBase64(source.base64Audio));
@@ -82,6 +86,7 @@ export class AudioToSilkConverter {
         } catch (error) {
             logger.warn('audio->silk conversion exception', {
                 apiUrl: this.apiUrl,
+                sourceType: source.sourceType,
                 error: error instanceof Error ? error.message : String(error),
             });
             return null;
@@ -111,11 +116,24 @@ export async function normalizeVoiceForWechat(
 
     const converter = new AudioToSilkConverter(options);
     const audioUrl = input.originalUrl?.trim() || (isHttpUrl(input.mediaData) ? input.mediaData.trim() : '');
-    const base64Audio = audioUrl ? '' : normalizeBase64(input.mediaData);
-    const silkBase64 = await converter.convertToSilkBase64({
-        audioUrl: audioUrl || undefined,
-        base64Audio: base64Audio || undefined,
-    });
+    const inlineBase64 = isHttpUrl(input.mediaData) ? '' : normalizeBase64(input.mediaData);
+    let silkBase64: string | null = null;
+
+    if (inlineBase64) {
+        silkBase64 = await converter.convertToSilkBase64({
+            base64Audio: inlineBase64,
+            sourceType: 'base64',
+        });
+    }
+
+    if (!silkBase64 && audioUrl) {
+        silkBase64 = await converter.convertToSilkBase64({
+            audioUrl,
+            sourceType: 'url',
+        });
+    }
+
+
     if (!silkBase64) return null;
 
     return {
