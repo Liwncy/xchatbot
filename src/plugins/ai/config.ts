@@ -29,6 +29,7 @@ export interface AiDialogHistoryMessage {
 const DEFAULT_PROMPT_KEY = 'default';
 const DEFAULT_SYSTEM_PROMPT = '你是我的智能助手，协助我回答问题和提供信息。';
 const ENV_FALLBACK_SERVICE_KEY = 'env-default';
+const AI_DIALOG_HISTORY_TTL_SECONDS = 60 * 60;
 
 type ServiceInputPatch = {
     base_url?: string | null;
@@ -361,7 +362,7 @@ export async function saveAiDialogHistory(
         await env.XBOT_KV.delete(key);
         return;
     }
-    await env.XBOT_KV.put(key, JSON.stringify(trimmed));
+    await env.XBOT_KV.put(key, JSON.stringify(trimmed), {expirationTtl: AI_DIALOG_HISTORY_TTL_SECONDS});
 }
 
 export async function clearAiDialogHistory(env: Env, message: IncomingMessage): Promise<void> {
