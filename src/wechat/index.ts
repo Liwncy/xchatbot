@@ -815,9 +815,14 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
                 });
             }
         }
+
+        return new Response(JSON.stringify({success: true}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+        });
     }
 
-    // 同时在响应体中返回回复
+    // 未配置 API 网关时，回落为在响应体中返回回复
     const replyPayloads = replyTasks.map((task) =>
         buildWechatReply(task.reply, task.message.from, task.message.room?.id),
     );
