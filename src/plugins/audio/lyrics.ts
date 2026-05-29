@@ -1,6 +1,5 @@
 import type {Env} from '../../types/message.js';
 import {requestAiText} from '../common/ai-client.js';
-import {loadAiDialogRuntimeConfig, resolveAiDialogService} from '../ai/config.js';
 
 export interface GenerateOriginalLyricsOptions {
     theme: string;
@@ -37,23 +36,16 @@ export function looksLikeDirectLyrics(input: string): boolean {
     return /[，。！？!?]/u.test(trimmed) && trimmed.length >= 18;
 }
 
-async function resolveLyricService(env: Env) {
-    const dialogConfig = await loadAiDialogRuntimeConfig(env);
-    const dialogService = resolveAiDialogService(env, dialogConfig);
-    return {
-        apiUrl: dialogService.base_url,
-        apiKey: dialogService.resolvedApiKey,
-        model: dialogService.model,
-    };
-}
-
 export async function generateOriginalLyrics(env: Env, options: GenerateOriginalLyricsOptions): Promise<string> {
     const theme = options.theme.trim();
     if (!theme) {
         throw new Error('请提供一个想唱的主题或场景');
     }
 
-    const service = await resolveLyricService(env);
+    if (!env.AI_API_URL?.trim()) {
+        throw new Error('当前环境未配置 AI_API_URL，无法使用主题写词模式');
+    }
+
     const prompt = [
         '你要帮一个叫“小聪明儿”的女生写一小段适合在微信里随口清唱的原创短歌词。',
         '她 18 岁，机灵、活泼、自然，不要写得像诗朗诵或广告文案，要像她带点情绪、轻轻哼出来的几句。',
@@ -63,9 +55,6 @@ export async function generateOriginalLyrics(env: Env, options: GenerateOriginal
     ].join('\n');
 
     const reply = await requestAiText(env, {
-        apiUrl: service.apiUrl,
-        apiKey: service.apiKey,
-        model: service.model,
         input: theme,
         systemPrompt: prompt,
         messages: [{role: 'user', content: `主题：${theme}`}],
