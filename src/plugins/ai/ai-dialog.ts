@@ -23,17 +23,25 @@ import {
     saveAiDialogHistory,
 } from './config.js';
 
-const AI_DIALOG_COMMAND_PREFIX = 'AI对话';
+const AI_DIALOG_COMMAND_PREFIX = '聪明对话';
+const AI_DIALOG_COMMAND_ALIASES = [AI_DIALOG_COMMAND_PREFIX, 'AI对话'] as const;
 const AI_DIALOG_TRIGGER_NAME = '小聪明儿';
 
 function isAiDialogCommand(content: string): boolean {
     const trimmed = content.trim();
-    return trimmed === AI_DIALOG_COMMAND_PREFIX || trimmed.startsWith(`${AI_DIALOG_COMMAND_PREFIX} `);
+    return AI_DIALOG_COMMAND_ALIASES.some((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `));
+}
+
+function stripAiDialogCommandPrefix(content: string): string {
+    const trimmed = content.trim();
+    const matchedPrefix = AI_DIALOG_COMMAND_ALIASES.find((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `));
+    if (!matchedPrefix) return trimmed;
+    return trimmed.slice(matchedPrefix.length).trim();
 }
 
 function ensureAiDialogCommandOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
-    if (!owner) return 'BOT_OWNER_WECHAT_ID 未配置，无法使用 AI 对话配置命令';
+    if (!owner) return 'BOT_OWNER_WECHAT_ID 未配置，无法使用 聪明对话配置命令';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
@@ -56,7 +64,8 @@ function isAmbientReplyCandidate(content: string): boolean {
     const trimmed = content.trim();
     if (!trimmed) return false;
     if (trimmed.length < 2 || trimmed.length > 200) return false;
-    if (/^(AI对话|[!！/#.])/u.test(trimmed)) return false;
+    if (AI_DIALOG_COMMAND_ALIASES.some((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `))) return false;
+    if (/^[!！/#.]/u.test(trimmed)) return false;
     if (/^https?:\/\//iu.test(trimmed)) return false;
 
     const normalized = trimmed.toLowerCase();
@@ -183,7 +192,7 @@ function formatConfigOverview(
     const serviceKeys = listSortedKeys(config.services);
     const promptKeys = listSortedKeys(config.prompts);
     const lines = [
-        'AI 对话配置：',
+        '聪明对话 配置：',
         `- 默认服务：${config.default_service || '(未设置)'}`,
         `- 默认提示词：${config.default_prompt_key}`,
         `- 最大记忆轮数：${config.max_history_count}（0 表示不保存）`,
@@ -204,7 +213,7 @@ function formatConfigOverview(
 
 function formatGroupAutoReplyOverview(config: Awaited<ReturnType<typeof loadAiDialogRuntimeConfig>>): string {
     return [
-        '群聊冒泡配置：',
+        '聪明对话 群聊冒泡配置：',
         `- 状态：${config.group_auto_reply_enabled ? '开启' : '关闭'}`,
         `- 概率：${config.group_auto_reply_probability}%`,
         `- 冷却：${config.group_auto_reply_cooldown_seconds} 秒`,
@@ -217,7 +226,7 @@ function formatGroupAutoReplyOverview(config: Awaited<ReturnType<typeof loadAiDi
 function formatServiceList(config: Awaited<ReturnType<typeof loadAiDialogRuntimeConfig>>): string {
     const keys = listSortedKeys(config.services);
     if (!keys.length) {
-        return '当前还没有可用服务，请先发送「AI对话 服务新增 服务名 ...」';
+        return '当前还没有可用服务，请先发送「聪明对话 服务新增 服务名 ...」';
     }
 
     return [
@@ -287,32 +296,32 @@ function formatPromptDetail(key: string, config: Awaited<ReturnType<typeof loadA
 
 function buildHelpText(): string {
     return [
-        'AI 对话命令：',
-        '- AI对话 配置',
-        '- AI对话 冒泡配置',
-        '- AI对话 切换服务 服务名',
-        '- AI对话 切换模型 服务名（模型跟随服务切换）',
-        '- AI对话 切换提示词 提示词名',
-        '- AI对话 设置记忆 数字（0 表示不保存）',
-        '- AI对话 设置连续对话 秒数（同一用户触发后，窗口期内免提及继续聊）',
-        '- AI对话 设置冒泡 开|关',
-        '- AI对话 设置冒泡概率 0-100',
-        '- AI对话 设置冒泡冷却 秒数',
+        '聪明对话 命令：',
+        '- 聪明对话 配置',
+        '- 聪明对话 冒泡配置',
+        '- 聪明对话 切换服务 服务名',
+        '- 聪明对话 切换模型 服务名（模型跟随服务切换）',
+        '- 聪明对话 切换提示词 提示词名',
+        '- 聪明对话 设置记忆 数字（0 表示不保存）',
+        '- 聪明对话 设置连续对话 秒数（同一用户触发后，窗口期内短时间可免提及继续聊）',
+        '- 聪明对话 设置冒泡 开|关',
+        '- 聪明对话 设置冒泡概率 0-100',
+        '- 聪明对话 设置冒泡冷却 秒数',
         '- 说明：群聊冒泡默认只会对提问 / 求助 / 征询意见类消息尝试接话',
-        '- AI对话 清空记忆',
-        '- AI对话 服务列表 / 服务查看 服务名 / 服务删除 服务名',
-        '- AI对话 服务新增 服务名 {json}',
-        '- AI对话 服务修改 服务名 {json}',
-        '- AI对话 提示词列表 / 提示词查看 名称 / 提示词删除 名称',
-        '- AI对话 提示词新增 名称 内容',
-        '- AI对话 提示词修改 名称 内容',
+        '- 聪明对话 清空记忆',
+        '- 聪明对话 服务列表 / 服务查看 服务名 / 服务删除 服务名',
+        '- 聪明对话 服务新增 服务名 {json}',
+        '- 聪明对话 服务修改 服务名 {json}',
+        '- 聪明对话 提示词列表 / 提示词查看 名称 / 提示词删除 名称',
+        '- 聪明对话 提示词新增 名称 内容',
+        '- 聪明对话 提示词修改 名称 内容',
         '',
         '服务字段支持：base_url、model、api_key、api_key_secret',
         '示例：',
-        'AI对话 服务新增 moonshot {"base_url":"https://api.moonshot.cn/v1/chat/completions","model":"moonshot-v1-8k","api_key_secret":"MOONSHOT_API_KEY"}',
-        'AI对话 提示词新增 xcmer 你是一个十八岁的活泼开朗的女生，你的名字叫“小聪明儿”。',
-        'AI对话 切换服务 moonshot',
-        'AI对话 设置记忆 6',
+        '聪明对话 服务新增 moonshot {"base_url":"https://api.moonshot.cn/v1/chat/completions","model":"moonshot-v1-8k","api_key_secret":"MOONSHOT_API_KEY"}',
+        '聪明对话 提示词新增 xcmer 你是一个十八岁的活泼开朗的女生，你的名字叫“小聪明儿”。',
+        '聪明对话 切换服务 moonshot',
+        '聪明对话 设置记忆 6',
         '普通对话示例：小聪明儿，今天心情怎么样？',
     ].join('\n');
 }
@@ -352,7 +361,7 @@ async function shouldUseAmbientGroupReply(
 
 async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
     const content = (message.content ?? '').trim();
-    const body = content.slice(AI_DIALOG_COMMAND_PREFIX.length).trim();
+    const body = stripAiDialogCommandPrefix(content);
     const ownerErr = ensureAiDialogCommandOwner(message.from, env.BOT_OWNER_WECHAT_ID);
     if (ownerErr) {
         return {type: 'text' as const, content: ownerErr};
@@ -555,13 +564,13 @@ async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[
 
         return {type: 'text' as const, content: buildHelpText()};
     } catch (error) {
-        logger.warn('AI 对话命令执行失败', {
+        logger.warn('聪明对话命令执行失败', {
             content,
             error: error instanceof Error ? error.message : String(error),
         });
         return {
             type: 'text' as const,
-            content: `AI 对话配置操作失败：${error instanceof Error ? error.message : String(error)}`,
+            content: `聪明对话配置操作失败：${error instanceof Error ? error.message : String(error)}`,
         };
     }
 }
@@ -594,12 +603,12 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
     try {
         service = resolveAiDialogService(env, runtimeConfig);
     } catch (error) {
-        logger.warn('AI 对话服务解析失败', {
+        logger.warn('聪明对话服务解析失败', {
             error: error instanceof Error ? error.message : String(error),
         });
         return {
             type: 'text' as const,
-            content: `AI 对话暂未配置完成：${error instanceof Error ? error.message : String(error)}\n可发送「AI对话 帮助」查看配置命令。`,
+            content: `聪明对话暂未配置完成：${error instanceof Error ? error.message : String(error)}\n可发送「聪明对话 帮助」查看配置命令。`,
         };
     }
 
@@ -619,7 +628,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
         });
 
         if (!reply) {
-            logger.warn('AI 服务未返回可用内容', {
+            logger.warn('聪明对话服务未返回可用内容', {
                 prompt,
                 service: service.key,
                 url: service.base_url,
@@ -646,14 +655,14 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
 
         return {type: 'text' as const, content: reply};
     } catch (err) {
-        logger.error('调用 AI 服务时发生异常', {
+        logger.error('调用聪明对话服务时发生异常', {
             service: service.key,
             url: service.base_url,
             error: err instanceof Error ? err.message : String(err),
         });
         return {
             type: 'text' as const,
-            content: 'AI 服务暂时不可用，请稍后再试。',
+            content: '聪明对话服务暂时不可用，请稍后再试。',
         };
     }
 }

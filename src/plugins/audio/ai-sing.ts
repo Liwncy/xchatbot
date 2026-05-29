@@ -6,16 +6,24 @@ import {generateOriginalLyrics, normalizeLyrics} from './lyrics.js';
 import {AI_SING_PRESET_VOICES, buildAiSingBaseConfig, loadAiSingPersistedConfig, loadAiSingRuntimeConfig, maskSensitiveValue, resolveAiSingService, saveAiSingConfig} from './config.js';
 import {requestMimoTts} from './mimo-tts-client.js';
 
-const AI_SING_COMMAND_PREFIX = 'AI唱歌';
+const AI_SING_COMMAND_PREFIX = '聪明唱歌';
+const AI_SING_COMMAND_ALIASES = [AI_SING_COMMAND_PREFIX, 'AI唱歌'] as const;
 
 function isAiSingCommand(content: string): boolean {
     const trimmed = content.trim();
-    return trimmed === AI_SING_COMMAND_PREFIX || trimmed.startsWith(`${AI_SING_COMMAND_PREFIX} `);
+    return AI_SING_COMMAND_ALIASES.some((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `));
+}
+
+function stripAiSingCommandPrefix(content: string): string {
+    const trimmed = content.trim();
+    const matchedPrefix = AI_SING_COMMAND_ALIASES.find((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `));
+    if (!matchedPrefix) return trimmed;
+    return trimmed.slice(matchedPrefix.length).trim();
 }
 
 function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
-    if (!owner) return 'BOT_OWNER_WECHAT_ID 未配置，无法使用 AI唱歌 管理命令';
+    if (!owner) return 'BOT_OWNER_WECHAT_ID 未配置，无法使用 聪明唱歌 管理命令';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
@@ -54,25 +62,25 @@ function parseStyleTags(value: string): string[] {
 
 function formatHelpText(): string {
     return [
-        'AI唱歌 命令：',
-        '- AI唱歌 帮助',
-        '- AI唱歌 声音列表',
-        '- AI唱歌 唱 你想让它唱的话',
-        '- AI唱歌 唱 <<<多行歌词/文案>>>',
-        '- AI唱歌 主题 主题/场景描述（让它自己写原创短歌词再唱）',
-        '- AI唱歌 试音 一段想朗读的话',
+        '聪明唱歌 命令：',
+        '- 聪明唱歌 帮助',
+        '- 聪明唱歌 声音列表',
+        '- 聪明唱歌 唱 你想让它唱的话',
+        '- 聪明唱歌 唱 <<<多行歌词/文案>>>',
+        '- 聪明唱歌 主题 主题/场景描述（让它自己写原创短歌词再唱）',
+        '- 聪明唱歌 试音 一段想朗读的话',
         '',
         '主人管理命令：',
-        '- AI唱歌 配置',
-        '- AI唱歌 设置开关 开|关',
-        '- AI唱歌 设置音色 冰糖/茉莉/苏打/...',
-        '- AI唱歌 设置风格 活泼,轻快',
-        '- AI唱歌 设置最大字数 120',
-        '- AI唱歌 设置单段秒数 25',
+        '- 聪明唱歌 配置',
+        '- 聪明唱歌 设置开关 开|关',
+        '- 聪明唱歌 设置音色 冰糖/茉莉/苏打/...',
+        '- 聪明唱歌 设置风格 活泼,轻快',
+        '- 聪明唱歌 设置最大字数 120',
+        '- 聪明唱歌 设置单段秒数 25',
         '',
         '说明：',
         '- 「唱」命令默认按你发的内容原样唱，不再自己发挥',
-        '- 想让它自己写原创短歌词，请用「AI唱歌 主题 ...」',
+        '- 想让它自己写原创短歌词，请用「聪明唱歌 主题 ...」',
         '- 默认人设参考“小聪明儿”：自然、灵动、别太端着',
     ].join('\n');
 }
@@ -91,7 +99,7 @@ function formatVoiceList(): string {
 
 function formatConfigOverview(config: Awaited<ReturnType<typeof loadAiSingRuntimeConfig>>) {
     return [
-        'AI唱歌 配置：',
+        '聪明唱歌 配置：',
         `- 开关：${config.enabled ? '开启' : '关闭'}`,
         `- 默认音色：${config.default_voice}`,
         `- 默认风格：${config.default_style_tags.length ? config.default_style_tags.join('、') : '(无)'}`,
@@ -111,10 +119,10 @@ function formatConfigOverview(config: Awaited<ReturnType<typeof loadAiSingRuntim
 
 function ensureSceneAllowed(config: Awaited<ReturnType<typeof loadAiSingRuntimeConfig>>, source?: string) {
     if (source === 'group' && !config.allow_group_use) {
-        throw new Error('当前配置未开放群聊使用 AI唱歌');
+        throw new Error('当前配置未开放群聊使用 聪明唱歌');
     }
     if (source !== 'group' && !config.allow_private_use) {
-        throw new Error('当前配置未开放私聊使用 AI唱歌');
+        throw new Error('当前配置未开放私聊使用 聪明唱歌');
     }
 }
 
@@ -167,7 +175,7 @@ async function handleSing(
 ) {
     const config = await loadAiSingRuntimeConfig(env);
     if (!config.enabled) {
-        return {type: 'text' as const, content: 'AI唱歌 目前已关闭。'};
+        return {type: 'text' as const, content: '聪明唱歌 目前已关闭。'};
     }
     ensureSceneAllowed(config, message.source);
 
@@ -204,7 +212,7 @@ async function handleThemeSing(
 ) {
     const config = await loadAiSingRuntimeConfig(env);
     if (!config.enabled) {
-        return {type: 'text' as const, content: 'AI唱歌 目前已关闭。'};
+        return {type: 'text' as const, content: '聪明唱歌 目前已关闭。'};
     }
     ensureSceneAllowed(config, message.source);
 
@@ -245,7 +253,7 @@ async function handleTrialVoice(
 ) {
     const config = await loadAiSingRuntimeConfig(env);
     if (!config.enabled) {
-        return {type: 'text' as const, content: 'AI唱歌 目前已关闭。'};
+        return {type: 'text' as const, content: '聪明唱歌 目前已关闭。'};
     }
     ensureSceneAllowed(config, message.source);
 
@@ -290,13 +298,13 @@ async function handleConfigCommand(
     if (body.startsWith('设置开关 ')) {
         editableConfig.enabled = parseToggleValue(body.replace(/^设置开关\s+/u, '').trim());
         await saveAiSingConfig(env, editableConfig);
-        return {type: 'text' as const, content: `已${editableConfig.enabled ? '开启' : '关闭'} AI唱歌。`};
+        return {type: 'text' as const, content: `已${editableConfig.enabled ? '开启' : '关闭'}聪明唱歌。`};
     }
 
     if (body.startsWith('设置音色 ')) {
         const voice = body.replace(/^设置音色\s+/u, '').trim();
         if (!AI_SING_PRESET_VOICES.includes(voice as typeof AI_SING_PRESET_VOICES[number])) {
-            throw new Error(`不支持的音色：${voice}，可发送「AI唱歌 声音列表」查看可选项`);
+            throw new Error(`不支持的音色：${voice}，可发送「聪明唱歌 声音列表」查看可选项`);
         }
         editableConfig.default_voice = voice;
         await saveAiSingConfig(env, editableConfig);
@@ -340,7 +348,7 @@ export const aiSingPlugin: TextMessage = {
     match: (content) => isAiSingCommand(content),
     handle: async (message, env) => {
         const content = (message.content ?? '').trim();
-        const body = content.slice(AI_SING_COMMAND_PREFIX.length).trim();
+        const body = stripAiSingCommandPrefix(content);
 
         try {
             if (!body || body === '帮助') {
@@ -360,13 +368,13 @@ export const aiSingPlugin: TextMessage = {
             }
             return await handleConfigCommand(message, env, body);
         } catch (error) {
-            logger.warn('AI唱歌 命令执行失败', {
+            logger.warn('聪明唱歌 命令执行失败', {
                 content,
                 error: error instanceof Error ? error.message : String(error),
             });
             return {
                 type: 'text' as const,
-                content: `AI唱歌 执行失败：${error instanceof Error ? error.message : String(error)}`,
+                content: `聪明唱歌 执行失败：${error instanceof Error ? error.message : String(error)}`,
             };
         }
     },
