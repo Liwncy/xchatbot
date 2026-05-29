@@ -45,10 +45,8 @@ function normalizeBase64(value?: string): string {
     return matched?.[1]?.trim() || trimmed;
 }
 
-function buildStylePrefix(styleTags: string[], singing: boolean): string {
-    const normalized = [...new Set(styleTags.map((item) => item.trim()).filter(Boolean))].slice(0, 5);
-    const tags = singing ? ['唱歌', ...normalized] : normalized;
-    return tags.map((item) => `(${item})`).join('');
+function buildAssistantPrefix(singing: boolean): string {
+    return singing ? '(唱歌)' : '';
 }
 
 function estimateDurationMs(text: string, singing: boolean): number {
@@ -59,14 +57,14 @@ function estimateDurationMs(text: string, singing: boolean): number {
     return Math.min(60_000, Math.max(singing ? 8_000 : 2_000, estimated));
 }
 
-function buildMessages(text: string, styleTags: string[], instruction?: string, singing?: boolean): MimoTtsMessage[] {
+function buildMessages(text: string, instruction?: string, singing?: boolean): MimoTtsMessage[] {
     const messages: MimoTtsMessage[] = [];
     const normalizedInstruction = instruction?.trim();
     if (normalizedInstruction) {
         messages.push({role: 'user', content: normalizedInstruction});
     }
 
-    const assistantContent = `${buildStylePrefix(styleTags, Boolean(singing))}${text}`;
+    const assistantContent = `${buildAssistantPrefix(Boolean(singing))}${text}`;
     messages.push({role: 'assistant', content: assistantContent});
     return messages;
 }
@@ -95,7 +93,7 @@ export async function requestMimoTts(options: MimoTtsRequestOptions): Promise<Mi
         headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const messages = buildMessages(spokenText, options.styleTags ?? [], options.instruction, options.singing);
+    const messages = buildMessages(spokenText, options.instruction, options.singing);
     const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
