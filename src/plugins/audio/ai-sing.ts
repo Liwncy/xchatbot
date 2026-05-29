@@ -2,7 +2,7 @@ import type {TextMessage} from '../types.js';
 import {NO_PERMISSION_REPLY} from '../../constants/messages.js';
 import {logger} from '../../utils/logger.js';
 import {FileUploader} from '../../utils/file-uploader.js';
-import {generateOriginalLyrics, looksLikeDirectLyrics, normalizeLyrics} from './lyrics.js';
+import {generateOriginalLyrics, normalizeLyrics} from './lyrics.js';
 import {AI_SING_PRESET_VOICES, buildAiSingBaseConfig, loadAiSingPersistedConfig, loadAiSingRuntimeConfig, maskSensitiveValue, resolveAiSingService, saveAiSingConfig} from './config.js';
 import {requestMimoTts} from './mimo-tts-client.js';
 
@@ -57,8 +57,9 @@ function formatHelpText(): string {
         'AI唱歌 命令：',
         '- AI唱歌 帮助',
         '- AI唱歌 声音列表',
-        '- AI唱歌 唱 主题/场景描述',
-        '- AI唱歌 唱 <<<多行原创歌词>>>',
+        '- AI唱歌 唱 你想让它唱的话',
+        '- AI唱歌 唱 <<<多行歌词/文案>>>',
+        '- AI唱歌 主题 主题/场景描述（让它自己写原创短歌词再唱）',
         '- AI唱歌 试音 一段想朗读的话',
         '',
         '主人管理命令：',
@@ -70,8 +71,8 @@ function formatHelpText(): string {
         '- AI唱歌 设置单段秒数 25',
         '',
         '说明：',
-        '- 单行默认按“主题生成原创短歌词”处理',
-        '- 多行块默认按“直接唱你给的原创短歌词”处理',
+        '- 「唱」命令默认按你发的内容原样唱，不再自己发挥',
+        '- 想让它自己写原创短歌词，请用「AI唱歌 主题 ...」',
         '- 默认人设参考“小聪明儿”：自然、灵动、别太端着',
     ].join('\n');
 }
@@ -172,26 +173,55 @@ async function handleSing(
 
     const normalizedPayload = unwrapBlockPayload(payload);
     if (!normalizedPayload) {
-        throw new Error('请提供主题，或使用 <<< >>> 包裹多行原创歌词');
+        throw new Error('请提供想让它唱的内容');
     }
 
-    const directLyrics = looksLikeDirectLyrics(normalizedPayload);
-    let lyrics: string;
-    if (directLyrics) {
-        if (!config.allow_user_direct_lyrics) {
-            throw new Error('当前未开放“直接提供歌词”模式');
-        }
-        lyrics = normalizeLyrics(normalizedPayload, config.max_lyrics_chars);
-    } else {
-        if (!config.allow_theme_generate) {
-            throw new Error('当前未开放“主题生成歌词”模式');
-        }
-        lyrics = await generateOriginalLyrics(env, {
-            theme: normalizedPayload,
-            maxChars: config.max_lyrics_chars,
-            targetSeconds: config.target_segment_seconds,
-        });
+    if (!config.allow_user_direct_lyrics) {
+        throw new Error('当前未开放“直接提供歌词”模式');
     }
+
+    const lyrics = normalizeLyrics(normalizedPayload, config.max_lyrics_chars);
+
+    const service = resolveAiSingService(env, config);
+    const result = await requestMimoTts({
+        apiUrl: service.base_url,
+        apiKey: service.resolvedApiKey,
+        model: service.model,
+        voice: config.default_voice,
+        text: lyrics,
+        styleTags: config.default_style_tags,
+        instruction: buildSingInstruction(config.default_style_tags),
+        singing: true,
+    });
+
+    return buildVoiceReply(result.audioBase64, result.durationMs);
+}
+
+async function handleThemeSing(
+    message: Parameters<TextMessage['handle']>[0],
+    env: Parameters<TextMessage['handle']>[1],
+    payload: string,
+) {
+    const config = await loadAiSingRuntimeConfig(env);
+    if (!config.enabled) {
+        return {type: 'text' as const, content: 'AI唱歌 目前已关闭。'};
+    }
+    ensureSceneAllowed(config, message.source);
+
+    const normalizedPayload = unwrapBlockPayload(payload);
+    if (!normalizedPayload) {
+        throw new Error('请提供一个主题、情绪或场景');
+    }
+
+    if (!config.allow_theme_generate) {
+        throw new Error('当前未开放“主题生成歌词”模式');
+    }
+
+    const lyrics = await generateOriginalLyrics(env, {
+        theme: normalizedPayload,
+        maxChars: config.max_lyrics_chars,
+        targetSeconds: config.target_segment_seconds,
+    });
 
     const service = resolveAiSingService(env, config);
     const result = await requestMimoTts({
@@ -321,6 +351,9 @@ export const aiSingPlugin: TextMessage = {
             }
             if (body.startsWith('唱 ')) {
                 return await handleSing(message, env, body.replace(/^唱\s+/u, ''));
+            }
+            if (body.startsWith('主题 ')) {
+                return await handleThemeSing(message, env, body.replace(/^主题\s+/u, ''));
             }
             if (body.startsWith('试音 ')) {
                 return await handleTrialVoice(message, env, body.replace(/^试音\s+/u, ''));
