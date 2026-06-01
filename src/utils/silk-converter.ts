@@ -54,18 +54,28 @@ export class AudioToSilkConverter {
     }
 
     async convertToSilkBase64(source: ConversionSource): Promise<string | null> {
-        const formData = new FormData();
-        if (source.audioUrl?.trim()) formData.append('audioUrl', source.audioUrl.trim());
-        if (source.base64Audio?.trim()) formData.append('base64Audio', normalizeBase64(source.base64Audio));
-        if (!formData.has('audioUrl') && !formData.has('base64Audio')) return null;
+        const payload = source.audioUrl?.trim()
+            ? {audioUrl: source.audioUrl.trim()}
+            : source.base64Audio?.trim()
+                ? {base64Audio: normalizeBase64(source.base64Audio)}
+                : null;
+        if (!payload) return null;
 
         try {
             const response = await fetchWithTimeout(this.apiUrl, {
                 method: 'POST',
-                body: formData,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/octet-stream, audio/*, application/json;q=0.9, */*;q=0.8',
+                },
+                body: JSON.stringify(payload),
             });
             if (!response.ok) {
-                logger.warn('audio->silk conversion request failed', {status: response.status, apiUrl: this.apiUrl});
+                logger.warn('audio->silk conversion request failed', {
+                    status: response.status,
+                    apiUrl: this.apiUrl,
+                    sourceType: source.sourceType,
+                });
                 return null;
             }
 
