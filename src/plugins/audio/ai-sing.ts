@@ -158,6 +158,13 @@ async function buildVoiceReply(
     durationMs: number,
 ) {
     const deliveryUrl = await uploadAudioForDelivery(audioBase64);
+    logger.info('聪明唱歌语音已生成', {
+        durationMs,
+        audioBase64Length: audioBase64.length,
+        audioEstimatedBytes: Math.max(0, Math.floor((audioBase64.length * 3) / 4)),
+        hasDeliveryUrl: Boolean(deliveryUrl),
+        deliveryUrl,
+    });
     return {
         type: 'voice' as const,
         mediaId: audioBase64,
@@ -188,7 +195,11 @@ async function handleSing(
         throw new Error('当前未开放“直接提供歌词”模式');
     }
 
-    const lyrics = normalizeLyrics(normalizedPayload, config.max_lyrics_chars);
+    const lyrics = normalizeLyrics(
+        normalizedPayload,
+        config.max_lyrics_chars,
+        config.target_segment_seconds,
+    );
 
     const service = resolveAiSingService(env, config);
     const result = await requestMimoTts({

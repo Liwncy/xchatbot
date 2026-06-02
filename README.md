@@ -74,35 +74,19 @@ npm run dev:scheduled
 如果你要在本地使用 KV 里的通用插件配置，先执行：
 
 ```bash
-npm run kv:seed:local
+npm run data -- run kv:seed:local
 ```
 
-一键写入本地 KV 后再启动：
+KV / D1 / 同步命令速查请直接运行：
 
 ```bash
-npm run dev:seed
+npm run help:data
 ```
 
-查看本地 KV 当前配置：
+如果你想查看某一条命令的实际执行内容：
 
 ```bash
-npm run kv:get:local:common
-npm run kv:get:local:dynamic
-npm run kv:get:local:workflow
-```
-
-写入线上 KV（Cloudflare）：
-
-```bash
-npm run kv:seed:remote
-```
-
-查看线上 KV 当前配置：
-
-```bash
-npm run kv:get:remote:common
-npm run kv:get:remote:dynamic
-npm run kv:get:remote:workflow
+npm run data -- show kv:seed:local
 ```
 
 ### 4) 部署
@@ -123,64 +107,20 @@ npm run deploy:safe
 npm run deploy:safe:push
 ```
 
-### 数据同步（KV / D1）
+### 数据同步（KV / D1）与 D1 初始化
 
-远端 -> 本地（推荐日常使用）：
+这类命令较多，不再直接展开在主文档里。
+
+请直接运行下面的速查脚本查看分组说明：
 
 ```bash
-npm run sync:pull
+npm run help:data
 ```
 
-本地 -> 远端（默认带确认，且会先备份远端到 `.tmp/sync-backups/`）：
+执行某条具体命令时，统一使用：
 
 ```bash
-npm run sync:push
-```
-
-> 注意：D1 同步会先清空目标端 D1 的业务表再导入，避免 `table already exists` 类冲突。
-> 如需跳过重置，可直接调用脚本并传 `-SkipResetTarget`。
-
-无交互强制推送（脚本/CI）：
-
-```bash
-npm run sync:push:force
-```
-
-回滚到最近一次 push 的远端备份（默认会二次确认）：
-
-```bash
-npm run sync:rollback:last
-```
-
-无交互强制回滚：
-
-```bash
-npm run sync:rollback:last:force
-```
-
-开发时先拉取远端再本地启动：
-
-```bash
-npm run dev:pull
-```
-
-同步日志会写入 `.tmp/sync-logs/`。
-同步备份会写入 `.tmp/sync-backups/`。
-
-> 说明：`sync:rollback:last` 依赖 `sync:push` 产生的同批次备份（含 `manifest.json`）。
-
-### 5) 定时任务表初始化
-
-本地初始化调度中心表：
-
-```bash
-npm run d1:migrate:local:scheduler
-```
-
-远程初始化调度中心表：
-
-```bash
-npm run d1:migrate:remote:scheduler
+npm run data -- run <命令名>
 ```
 
 ## 路由
@@ -233,7 +173,7 @@ npm run d1:migrate:remote:scheduler
 典型本地联调顺序：
 
 ```bash
-npm run d1:migrate:local:scheduler
+npm run data -- run d1:migrate:local:scheduler
 npm run dev:scheduled
 ```
 

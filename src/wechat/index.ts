@@ -11,6 +11,7 @@ import {WechatApi} from './api.js';
 import {logger} from '../utils/logger.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from './constants.js';
 import {normalizeVoiceForWechat} from '../utils/silk-converter.js';
+import {FileUploader} from '../utils/file-uploader.js';
 import {ContactRepository} from '../plugins/system/contact-admin/repository.js';
 
 export {
@@ -36,6 +37,45 @@ export {
 const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 function isHttpUrl(value?: string): boolean {
     return /^https?:\/\//i.test(value?.trim() ?? '');
+}
+
+function normalizeBase64(value?: string): string {
+    const trimmed = (value ?? '').trim();
+    const match = trimmed.match(/^data:[^;]+;base64,(.+)$/i);
+    return match?.[1] ?? trimmed;
+}
+
+function estimateBase64Bytes(value?: string): number {
+    const normalized = normalizeBase64(value);
+    if (!normalized) return 0;
+    const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
+    return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
+}
+
+function resolveVoiceUploadMeta(format: number): {fileName: string; contentType: string} {
+    switch (format) {
+        case 0:
+            return {fileName: `voice-${Date.now()}.amr`, contentType: 'audio/amr'};
+        case 1:
+            return {fileName: `voice-${Date.now()}.spx`, contentType: 'audio/x-speex'};
+        case 2:
+            return {fileName: `voice-${Date.now()}.mp3`, contentType: 'audio/mpeg'};
+        case 3:
+            return {fileName: `voice-${Date.now()}.wav`, contentType: 'audio/wav'};
+        case 4:
+            return {fileName: `voice-${Date.now()}.silk`, contentType: 'application/octet-stream'};
+        default:
+            return {fileName: `voice-${Date.now()}.dat`, contentType: 'application/octet-stream'};
+    }
+}
+
+async function uploadVoiceForWechatDelivery(data: Blob | string, format: number): Promise<string | undefined> {
+    const meta = resolveVoiceUploadMeta(format);
+    const fileUrl = await FileUploader.upload(data, {
+        fileName: meta.fileName,
+        contentType: meta.contentType,
+    });
+    return fileUrl ?? undefined;
 }
 
 function resolveReplyMediaUrl(reply: {mediaId: string; originalUrl?: string}): string {
@@ -456,11 +496,25 @@ export async function sendWechatReply(
         case 'voice': {
             const requestedFormat = Number.isFinite(reply.format) ? Number(reply.format) : 4;
             const duration = Number.isFinite(reply.duration) ? Math.max(0, Number(reply.duration)) : 5000;
+            const originalUrl = reply.originalUrl?.trim() || (isHttpUrl(reply.mediaId) ? reply.mediaId.trim() : '');
+            const inlineBase64 = isHttpUrl(reply.mediaId) ? '' : normalizeBase64(reply.mediaId);
 
             const fallbackText = reply.fallbackText?.trim()
-                || (reply.originalUrl ? `语音发送失败，可尝试打开原链接：${reply.originalUrl}` : '语音发送失败，请稍后重试');
+                || (originalUrl ? `语音发送失败，可尝试打开原链接：${originalUrl}` : '语音发送失败，请稍后重试');
+
+            logger.info('微信语音发送开始', {
+                receiver: effectiveReceiver,
+                requestedFormat,
+                duration,
+                hasOriginalUrl: Boolean(originalUrl),
+                originalUrl,
+                mediaIsUrl: isHttpUrl(reply.mediaId),
+                mediaBase64Length: inlineBase64.length,
+                mediaEstimatedBytes: estimateBase64Bytes(inlineBase64),
+            });
 
             try {
+
                 const normalizedVoice = await normalizeVoiceForWechat(
                     {
                         format: requestedFormat,
@@ -484,14 +538,74 @@ export async function sendWechatReply(
                 const voiceUrl = !normalizedVoice.converted && isHttpUrl(normalizedVoice.mediaData)
                     ? normalizedVoice.mediaData.trim()
                     : '';
-                const result = await api.sendVoice({
+                const inlineVoiceBase64 = voiceUrl ? '' : normalizeBase64(normalizedVoice.mediaData);
+                const inlineVoiceBlob = normalizedVoice.mediaBlob;
+                logger.info('微信语音准备调用 sendVoice', {
                     receiver: effectiveReceiver,
-                    voice: voiceUrl ? undefined : normalizedVoice.mediaData,
-                    voice_url: voiceUrl || undefined,
+                    requestedFormat,
+                    sendFormat: normalizedVoice.format,
+                    converted: normalizedVoice.converted,
                     duration: normalizedVoice.durationMs,
-                    format: normalizedVoice.format,
+                    sendBy: voiceUrl ? 'voice_url' : (inlineVoiceBlob ? 'voice-blob' : 'voice-base64'),
+                    voiceUrl,
+                    hasVoiceBlob: Boolean(inlineVoiceBlob),
+                    voiceBlobSize: inlineVoiceBlob?.size,
+                    voiceBase64Length: voiceUrl ? 0 : inlineVoiceBase64.length,
+                    voiceEstimatedBytes: voiceUrl ? 0 : estimateBase64Bytes(inlineVoiceBase64),
                 });
-                ensureWechatApiSuccess('sendVoice', result);
+                let result;
+                if (voiceUrl) {
+                    result = await api.sendVoice({
+                        receiver: effectiveReceiver,
+                        voice_url: voiceUrl,
+                        duration: normalizedVoice.durationMs,
+                        format: normalizedVoice.format,
+                    });
+                    ensureWechatApiSuccess('sendVoice', result);
+                } else {
+                    try {
+                        result = await api.sendVoice({
+                            receiver: effectiveReceiver,
+                            voice: inlineVoiceBlob ?? inlineVoiceBase64,
+                            duration: normalizedVoice.durationMs,
+                            format: normalizedVoice.format,
+                        });
+                        ensureWechatApiSuccess('sendVoice', result);
+                    } catch (directVoiceErr) {
+                        if (normalizedVoice.format !== 4 || !inlineVoiceBase64) {
+                            throw directVoiceErr;
+                        }
+                        const uploadedVoiceUrl = (await uploadVoiceForWechatDelivery(inlineVoiceBlob ?? inlineVoiceBase64, normalizedVoice.format))?.trim() || '';
+                        logger.info('微信语音直发失败，已尝试上传 SILK 外链重试', {
+                            receiver: effectiveReceiver,
+                            requestedFormat,
+                            sendFormat: normalizedVoice.format,
+                            uploadedVoiceUrl,
+                            uploaded: Boolean(uploadedVoiceUrl),
+                            uploadedFromBlob: Boolean(inlineVoiceBlob),
+                            voiceBlobSize: inlineVoiceBlob?.size,
+                            voiceBase64Length: inlineVoiceBase64.length,
+                            voiceEstimatedBytes: estimateBase64Bytes(inlineVoiceBase64),
+                            directError: directVoiceErr instanceof Error ? directVoiceErr.message : String(directVoiceErr),
+                        });
+                        if (!uploadedVoiceUrl) {
+                            throw directVoiceErr;
+                        }
+                        result = await api.sendVoice({
+                            receiver: effectiveReceiver,
+                            voice_url: uploadedVoiceUrl,
+                            duration: normalizedVoice.durationMs,
+                            format: normalizedVoice.format,
+                        });
+                        ensureWechatApiSuccess('sendVoice(uploaded voice_url)', result);
+                    }
+                }
+                logger.info('微信语音 sendVoice 成功', {
+                    receiver: effectiveReceiver,
+                    requestedFormat,
+                    sendFormat: normalizedVoice.format,
+                    converted: normalizedVoice.converted,
+                });
             } catch (voiceErr) {
                 logger.warn('语音发送失败，降级为文本提示', {
                     receiver: effectiveReceiver,

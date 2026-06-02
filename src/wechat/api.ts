@@ -133,6 +133,7 @@ import type {
     WakeupLoginResult,
     PasswordLoginResult,
 } from './api-types.js';
+import {logger} from '../utils/logger.js';
 
 const BROWSER_LIKE_HEADERS: Record<string, string> = {
     Accept: 'application/json, text/plain, */*',
@@ -147,6 +148,24 @@ type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 type QueryInput = object;
 type BinaryLike = Blob | string;
+const MULTIPART_ENCODER = new TextEncoder();
+
+function resolveVoiceBinaryMeta(format: number): {fileName: string; mimeType: string} {
+    switch (format) {
+        case 0:
+            return {fileName: 'voice.amr', mimeType: 'audio/amr'};
+        case 1:
+            return {fileName: 'voice.spx', mimeType: 'audio/x-speex'};
+        case 2:
+            return {fileName: 'voice.mp3', mimeType: 'audio/mpeg'};
+        case 3:
+            return {fileName: 'voice.wav', mimeType: 'audio/wav'};
+        case 4:
+            return {fileName: 'voice.silk', mimeType: 'application/octet-stream'};
+        default:
+            return {fileName: 'voice.dat', mimeType: 'application/octet-stream'};
+    }
+}
 
 export class WechatApi {
     private readonly baseUrl: string;
@@ -256,6 +275,16 @@ export class WechatApi {
         return this.parseApiResponse<T>(path, res);
     }
 
+    private async postMultipartBody<T>(path: string, body: Blob, boundary: string): Promise<ApiResponse<T>> {
+        const res = await this.requestRaw('POST', path, {
+            body,
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            },
+        });
+        return this.parseApiResponse<T>(path, res);
+    }
+
     /** 发送 GET 请求（可附带查询参数）并返回解析后的 JSON。 */
     private async get<T>(path: string, params?: QueryInput): Promise<ApiResponse<T>> {
         const res = await this.requestRaw('GET', path, {query: params});
@@ -304,6 +333,45 @@ export class WechatApi {
         }
         const blob = this.base64ToBlob(String(input), mimeType);
         formData.set(fieldName, blob, fileName);
+    }
+
+    private async buildMultipartBody(
+        fields: Array<[string, string | number | undefined]>,
+        binary?: {
+            fieldName: string;
+            input?: BinaryLike;
+            fileName: string;
+            mimeType: string;
+        },
+    ): Promise<{body: Blob; boundary: string}> {
+        const boundary = `----xchatbot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const chunks: Array<Blob | Uint8Array | string> = [];
+
+        for (const [key, value] of fields) {
+            if (value === undefined || value === null) continue;
+            chunks.push(MULTIPART_ENCODER.encode(`--${boundary}\r\n`));
+            chunks.push(MULTIPART_ENCODER.encode(`Content-Disposition: form-data; name="${key}"\r\n\r\n`));
+            chunks.push(MULTIPART_ENCODER.encode(`${String(value)}\r\n`));
+        }
+
+        if (binary?.input != null) {
+            const fileBlob = typeof binary.input === 'string'
+                ? this.base64ToBlob(binary.input, binary.mimeType)
+                : binary.input;
+            chunks.push(MULTIPART_ENCODER.encode(`--${boundary}\r\n`));
+            chunks.push(MULTIPART_ENCODER.encode(
+                `Content-Disposition: form-data; name="${binary.fieldName}"; filename="${binary.fileName}"\r\n`,
+            ));
+            chunks.push(MULTIPART_ENCODER.encode(`Content-Type: ${fileBlob.type || binary.mimeType}\r\n\r\n`));
+            chunks.push(fileBlob);
+            chunks.push(MULTIPART_ENCODER.encode('\r\n'));
+        }
+
+        chunks.push(MULTIPART_ENCODER.encode(`--${boundary}--\r\n`));
+        return {
+            body: new Blob(chunks, {type: `multipart/form-data; boundary=${boundary}`}),
+            boundary,
+        };
     }
 
     private base64ToBlob(base64: string, mimeType: string): Blob {
@@ -423,15 +491,42 @@ export class WechatApi {
 
     /** 发送语音消息。POST /api/message/voice */
     async sendVoice(params: SendVoiceParam): Promise<ApiResponse<UploadVoiceResponse>> {
-        const formData = this.buildMultipartFormData([
+        const voiceBinaryMeta = resolveVoiceBinaryMeta(params.format);
+        const voiceUrl = params.voice_url?.trim() || '';
+        logger.info('WechatApi.sendVoice request build', {
+            receiver: params.receiver,
+            format: params.format,
+            duration: params.duration,
+            hasInlineVoice: params.voice != null,
+            inlineVoiceType: typeof params.voice,
+            inlineVoiceBlobSize: typeof Blob !== 'undefined' && params.voice instanceof Blob ? params.voice.size : undefined,
+            inlineVoiceLength: typeof params.voice === 'string' ? params.voice.length : undefined,
+            hasVoiceUrl: Boolean(voiceUrl),
+            hasVoiceUrlAlias: Boolean(voiceUrl),
+            voiceUrl,
+            fileName: voiceBinaryMeta.fileName,
+            mimeType: voiceBinaryMeta.mimeType,
+        });
+        const multipart = await this.buildMultipartBody([
             ['receiver', params.receiver],
-            ['voice_url', params.voice_url],
+            ['voice_url', voiceUrl || undefined],
+            ['voice_url_url', voiceUrl || undefined],
             ['duration', params.duration],
             ['format', params.format],
-        ], (data) => {
-            this.appendBinaryInput(data, 'voice', params.voice, 'voice.dat', 'application/octet-stream');
+        ], {
+            fieldName: 'voice',
+            input: params.voice,
+            fileName: voiceBinaryMeta.fileName,
+            mimeType: voiceBinaryMeta.mimeType,
         });
-        return this.postForm<UploadVoiceResponse>('/api/message/voice', formData);
+        logger.info('WechatApi.sendVoice multipart body ready', {
+            receiver: params.receiver,
+            boundary: multipart.boundary,
+            bodySize: multipart.body.size,
+            hasBinaryVoice: params.voice != null,
+            hasVoiceUrl: Boolean(voiceUrl),
+        });
+        return this.postMultipartBody<UploadVoiceResponse>('/api/message/voice', multipart.body, multipart.boundary);
     }
 
     /** 发送表情消息。POST /api/message/emoji */

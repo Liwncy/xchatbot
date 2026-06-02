@@ -118,8 +118,8 @@ export function buildAiSingBaseConfig(): AiSingConfig {
         auto_upload_audio: false,
         default_voice: '冰糖',
         default_style_tags: [...DEFAULT_STYLE_TAGS],
-        max_lyrics_chars: 120,
-        target_segment_seconds: 25,
+        max_lyrics_chars: 64,
+        target_segment_seconds: 18,
         service: normalizeServiceConfig(null),
     };
 }
