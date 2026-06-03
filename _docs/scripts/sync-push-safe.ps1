@@ -18,12 +18,12 @@ if (-not $Force) {
 
 Write-Host "[SAFE PUSH] Run tag: $runTag" -ForegroundColor Cyan
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/sync-d1-local-to-remote.ps1" -RunTag $runTag
+& powershell -NoProfile -ExecutionPolicy Bypass -File "./_docs/scripts/sync-d1-local-to-remote.ps1" -RunTag $runTag
 if ($LASTEXITCODE -ne 0) {
     throw "D1 push failed."
 }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/sync-kv-local-to-remote.ps1" -RunTag $runTag
+& powershell -NoProfile -ExecutionPolicy Bypass -File "./_docs/scripts/sync-kv-local-to-remote.ps1" -RunTag $runTag
 if ($LASTEXITCODE -ne 0) {
     throw "KV push failed."
 }

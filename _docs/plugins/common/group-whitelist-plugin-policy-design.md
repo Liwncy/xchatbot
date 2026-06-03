@@ -1,6 +1,6 @@
 # 联系人白名单与插件权限设计稿（D1 主源）
 
-相关入口：[`README.md`](../../README.md) · [`_docs/README.md`](../README.md)
+相关入口：[`README.md`](../../../README.md) · [`_docs/README.md`](../../README.md)
 
 ## 1. 背景
 

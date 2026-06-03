@@ -74,8 +74,15 @@ npm run dev:scheduled
 如果你要在本地使用 KV 里的通用插件配置，先执行：
 
 ```bash
+npm run config:init
 npm run data -- run kv:seed:local
 ```
+
+说明：
+
+- `npm run config:init` 会把仓库里的样例 JSON 初始化到 `.config/`；如果检测到旧的 `.local-config/`，会自动迁移。
+- 后续请优先修改 `.config/` 里的配置文件。
+- `.config/` 默认已加入 Git 忽略，不会参与后续提交推送。
 
 KV / D1 / 同步命令速查请直接运行：
 
@@ -204,7 +211,7 @@ npm run dev:scheduled
 - `我是人类吗`
 - `验证结果`
 
-> 具体插件的配置字段、规则示例与指令清单不在本文档中展开，请参考对应插件目录下的说明或 `_docs/` 下的示例配置文件。
+> 具体插件的配置字段、规则示例与指令清单不在本文档中展开，请参考对应插件目录下的说明，或 `_docs/plugins/` 下的设计文档与 `_docs/templates/` 下的示例配置文件。
 
 管理接口（需 `Authorization: Bearer <ADMIN_TOKEN>`，未配置 `ADMIN_TOKEN` 时不鉴权）：
 
@@ -266,7 +273,7 @@ debug-link https://httpbin.org/get?foo=bar
 {"from":"xchatbot","debug":true}
 ```
 
-仓库内置样例规则名为 `proxy-api-debug-text` / `proxy-api-debug-link` / `proxy-api-debug-post-text`，定义在 [`_docs/plugin-config/common-plugins-dynamic.json`](_docs/plugin-config/common-plugins-dynamic.json)。
+仓库内置样例规则名为 `proxy-api-debug-text` / `proxy-api-debug-link` / `proxy-api-debug-post-text`，定义在 [`_docs/templates/plugin-config/common-plugins-dynamic.json`](_docs/templates/plugin-config/common-plugins-dynamic.json)。
 
 接口调试规则说明：
 
@@ -289,13 +296,16 @@ debug-link https://httpbin.org/get?foo=bar
 - 较长的帮助 / 详情 / JSON / 预览回显会优先折叠成聊天记录式 app 卡片，避免大段文本刷屏。
 - 折叠后的详情类回显会尽量展示完整 `headers / body / appXml / 原始配置`，不再只给摘要占位。
 - `详情 / 步骤详情 / 步骤JSON / 规则JSON` 这类查看命令会优先稳定使用折叠卡片回复，即使文本长度刚好不算很长。
-- 完整字段说明、更多示例与设计细节可参考：[`_docs/plugin-config/rule-plugin-admin-design.md`](_docs/plugin-config/rule-plugin-admin-design.md)
+- 完整字段说明、更多示例与设计细节可参考：[`_docs/plugins/common/rule-plugin-admin-design.md`](_docs/plugins/common/rule-plugin-admin-design.md)
 - 运行时也可直接发送 `插件管理 帮助` 查看最新命令分区与示例。
 
 相关文档：
 
 - 文档索引：[`_docs/README.md`](_docs/README.md)
-- 插件管理设计稿：[`_docs/plugin-config/rule-plugin-admin-design.md`](_docs/plugin-config/rule-plugin-admin-design.md)
+- 插件管理设计稿：[`_docs/plugins/common/rule-plugin-admin-design.md`](_docs/plugins/common/rule-plugin-admin-design.md)
+- AI 唱歌 / MiMo TTS 设计稿：[`_docs/plugins/ai/mimo-tts-plugin-design.md`](_docs/plugins/ai/mimo-tts-plugin-design.md)
+- 修仙玩法路线图：[`_docs/plugins/xiuxian/xiuxian-roadmap.md`](_docs/plugins/xiuxian/xiuxian-roadmap.md)
+- 修仙玩法建表 SQL：[`_docs/plugins/xiuxian/xiuxian-mvp.sql`](_docs/plugins/xiuxian/xiuxian-mvp.sql)
 
 ## 项目结构
 

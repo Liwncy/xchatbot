@@ -1,6 +1,6 @@
 # 规则插件命令管理设计稿
 
-相关入口：[`README.md`](../../README.md) · [`_docs/README.md`](../README.md)
+相关入口：[`README.md`](../../../README.md) · [`_docs/README.md`](../../README.md)
 
 ## 1. 背景
 

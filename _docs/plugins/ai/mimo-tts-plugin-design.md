@@ -669,7 +669,7 @@ MVP 应明确避免：
 - `src/plugins/audio/ai-sing.ts`
 - `src/plugins/audio/mimo-tts-client.ts`
 - `src/plugins/audio/config.ts`
-- `_docs/ai/mimo-tts-config.sample.json`
+- `_docs/templates/ai/mimo-tts-config.sample.json`
 
 ### Phase 1.5：可运维化
 

@@ -8,3 +8,4 @@ dist/
 .tmp/
 .tmp-plugin-admin-smoke/
 .tmp-xz/
+.config/
