@@ -1,8 +1,8 @@
 import type {
     IncomingMessage,
-    ReplyMessage,
-    Env,
 } from '../types/message.js';
+import type {Env} from '../types/env.js';
+import type {ReplyMessage} from '../types/reply.js';
 import type {WechatPushMessage} from './types.js';
 import {WechatApi} from './api.js';
 import {verifyWechatSignature} from './inbound/verify.js';

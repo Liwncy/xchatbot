@@ -1,4 +1,4 @@
-import type {TextReply} from '../../types/message.js';
+import type {TextReply} from '../../types/reply.js';
 import {WechatApi} from '../../wechat/api.js';
 import {sendWechatReply} from '../../wechat/index.js';
 import type {SchedulerExecutor} from './types.js';

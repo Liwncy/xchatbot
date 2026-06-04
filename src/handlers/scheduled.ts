@@ -1,6 +1,6 @@
 import type {ExecutionContext, ScheduledController} from '@cloudflare/workers-types';
 import {handleScheduledDispatch} from '../scheduler/index.js';
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 
 export async function handleScheduled(
     controller: ScheduledController,

@@ -1,4 +1,4 @@
-import type {ReplyMessage} from '../../types/message.js';
+import type {ReplyMessage} from '../../types/reply.js';
 import {logger} from '../../utils/logger.js';
 import {normalizeVoiceForWechat} from '../../utils/silk-converter.js';
 import {FileUploader} from '../../utils/file-uploader.js';

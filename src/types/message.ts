@@ -1,3 +1,20 @@
+export type {Env} from './env.js';
+export type {
+    ReplyType,
+    ReplyBase,
+    TextReply,
+    ImageReply,
+    VoiceReply,
+    VideoReply,
+    NewsArticle,
+    NewsReply,
+    MarkdownReply,
+    CardReply,
+    AppReply,
+    ReplyMessage,
+    HandlerResponse,
+} from './reply.js';
+
 /** 支持的消息平台 */
 export type Platform = 'wechat';
 
@@ -75,122 +92,8 @@ export interface IncomingMessage {
     raw: unknown;
 }
 
-/** 回复消息类型 */
-export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'app' | 'unknown';
-
-/**
- * 所有回复类型共享的可选字段。
- *
- * - `to` 覆盖默认接收者（默认为原始发送者，群消息时为群会话）。
- * - `mentions` 列出需要 @提及的用户 ID（仅在群聊中生效）。
- */
-export interface ReplyBase {
-    /** 覆盖默认接收者。省略时回复原始发送者/群。 */
-    to?: string;
-    /** 群聊回复中需要 @提及的用户 ID 列表。 */
-    mentions?: string[];
-}
-
-/** 文本回复 */
-export interface TextReply extends ReplyBase {
-    type: 'text';
-    content: string;
-}
-
-/** 图片回复 */
-export interface ImageReply extends ReplyBase {
-    type: 'image';
-    /** 图片 URL 或 base64 媒体内容。 */
-    mediaId: string;
-    /** 图片原始链接，可用于微信网关直接传 `image_url`。 */
-    originalUrl?: string;
-}
-
-/** 语音回复 */
-export interface VoiceReply extends ReplyBase {
-    type: 'voice';
-    /** 语音 URL 或 base64 媒体内容。 */
-    mediaId: string;
-    /** 语音时长（毫秒）。 */
-    duration?: number;
-    /** 音频格式：0=AMR,1=SPEEX,2=MP3,3=WAVE,4=SILK。 */
-    format?: number;
-    /** 语音原始链接（发送失败时可用于降级提示）。 */
-    originalUrl?: string;
-    /** 语音发送失败时降级文案。 */
-    fallbackText?: string;
-}
-
-/** 视频回复 */
-export interface VideoReply extends ReplyBase {
-    type: 'video';
-    /** 视频 URL 或 base64 媒体内容。 */
-    mediaId: string;
-    title?: string;
-    description?: string;
-    /** 视频封面图 base64，省略时使用默认封面。 */
-    thumbData?: string;
-    /** 视频封面图 URL，可用于直传 `thumb_url`，也可在失败时降级为链接卡片封面。 */
-    linkPicUrl?: string;
-    /** 视频时长（秒），省略时使用默认时长。 */
-    duration?: number;
-    /** 视频原始链接，可用于发送失败时降级为链接消息。 */
-    originalUrl?: string;
-}
-
-/** 图文回复（支持多篇文章） */
-export interface NewsArticle {
-    title: string;
-    description?: string;
-    url?: string;
-    picUrl?: string;
-}
-
-export interface NewsReply extends ReplyBase {
-    type: 'news';
-    articles: NewsArticle[];
-}
-
-/** Markdown 回复 */
-export interface MarkdownReply extends ReplyBase {
-    type: 'markdown';
-    title?: string;
-    content: string;
-}
-
-/** 卡片 / 交互式消息回复 */
-export interface CardReply extends ReplyBase {
-    type: 'card';
-    cardContent: {
-        card_username: string;
-        card_nickname: string;
-        card_alias: string;
-    };
-}
-
-/** 微信 app 消息（富 XML）。 */
-export interface AppReply extends ReplyBase {
-    type: 'app';
-    appType: number;
-    appXml: string;
-}
-
-/** 所有回复类型的联合类型 */
-export type ReplyMessage =
-    | TextReply
-    | ImageReply
-    | VoiceReply
-    | VideoReply
-    | NewsReply
-    | MarkdownReply
-    | CardReply
-    | AppReply;
-
-/**
- * 处理器可能返回的结果：单条回复、多条回复或不回复。
- * 返回数组可以对一条消息发送多条回复。
- */
-export type HandlerResponse = ReplyMessage | ReplyMessage[] | null;
+import type {Env} from './env.js';
+import type {HandlerResponse} from './reply.js';
 
 /** 处理器函数签名 */
 export type MessageHandler = (
@@ -198,75 +101,3 @@ export type MessageHandler = (
     env: Env,
 ) => Promise<HandlerResponse>;
 
-/** Cloudflare Workers 环境变量绑定 */
-export interface Env {
-    // ── 存储绑定 ──
-    /** KV 命名空间（XBOT_KV） */
-    XBOT_KV: KVNamespace;
-    /** D1 数据库（xbotdata） */
-    XBOT_DB: D1Database;
-
-    // ── 调试透传（从 KV 动态读取，无需重新部署） ──
-    // KV key: "debug:forward:enabled"  value: "true" | "false"
-    // KV key: "debug:forward:url"      value: "https://your-local-tunnel-url"
-    // 通过 POST /admin/debug 接口控制
-
-    /** 管理接口鉴权 Token（wrangler secret put ADMIN_TOKEN）。未设置时 /admin/debug 无鉴权保护。 */
-    ADMIN_TOKEN?: string;
-
-    // 微信个人号（通过网关/桥接服务）
-    WECHAT_TOKEN?: string;
-    /** 微信网关 API 基础 URL（如 http://gateway:8080）。 */
-    WECHAT_API_BASE_URL?: string;
-    /** 机器人主人的微信 ID，可作为默认定时通知目标。 */
-    BOT_OWNER_WECHAT_ID?: string;
-    // 插件
-    COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
-    /** 通用插件 JSON 配置数组字符串。 */
-    COMMON_PLUGINS_CONFIG?: string;
-    /** 通用插件远程配置接口地址（GET）。 */
-    COMMON_PLUGINS_CONFIG_URL?: string;
-    /**
-     * 通用插件配置加载顺序：
-     * 1) COMMON_PLUGINS_CONFIG / COMMON_PLUGINS_MAPPING（内联）
-     * 2) KV: plugins:common:mapping
-     * 3) COMMON_PLUGINS_CONFIG_URL（远程）
-     */
-    /** 拉取通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_PLUGINS_CLIENT_ID?: string;
-    /** 通用插件规则缓存毫秒数（0 表示禁用缓存，实时读取）。 */
-    COMMON_PLUGINS_CACHE_MS?: string;
-    /** KV: plugins:parameterized:mapping（动态参数规则）。 */
-    /** 拉取动态通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;
-    /** KV: plugins:workflow:mapping（多步骤 workflow 规则）。 */
-    /** 拉取 workflow 通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_WORKFLOW_PLUGINS_CLIENT_ID?: string;
-    /** 兼容旧变量名：拉取动态通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_ADVANCED_PLUGINS_CLIENT_ID?: string;
-    /** 通用音频转 SILK 服务地址（可选，默认使用内置 convert 地址）。 */
-    VOICE_CONVERT_API_URL?: string;
-    /** 兼容旧变量名：MP3 转 SILK 服务地址。 */
-    VOICE_TOSILK_API_URL?: string;
-    /** 兼容旧变量名：MP3 转 SILK 服务密钥（当前 convert 接口不需要）。 */
-    VOICE_TOSILK_APP_SECRET?: string;
-    // AI 插件
-    /** AI 插件使用的聊天接口 URL。 */
-    AI_API_URL?: string;
-    /** AI 接口认证用的 Bearer Token（可选）。 */
-    AI_API_KEY?: string;
-    /** 传给 AI 接口的模型名称（可选）。 */
-    AI_MODEL?: string;
-    AI_SYSTEM_PROMPT?: string;
-
-    /** Turnstile 页面使用的公开 site key。 */
-    TURNSTILE_SITE_KEY?: string;
-    /** Turnstile 服务端校验 secret key。 */
-    TURNSTILE_SECRET_KEY?: string;
-    /** 对外可访问的 Worker 基础地址，用于拼接验证链接。 */
-    TURNSTILE_BASE_URL?: string;
-    /** 外部静态验证页面地址（如 GitHub Pages），优先于 TURNSTILE_BASE_URL。 */
-    TURNSTILE_PAGE_URL?: string;
-    /** 允许跨域访问 /turnstile/api/verify 的来源，逗号分隔，例如 https://yourname.github.io。留空则允许所有来源。 */
-    TURNSTILE_CORS_ORIGINS?: string;
-}

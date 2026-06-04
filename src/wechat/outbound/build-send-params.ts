@@ -1,4 +1,4 @@
-import type {ReplyMessage} from '../../types/message.js';
+import type {ReplyMessage} from '../../types/reply.js';
 
 function resolveReplyMediaUrl(reply: {mediaId: string; originalUrl?: string}): string {
     const originalUrl = reply.originalUrl?.trim();

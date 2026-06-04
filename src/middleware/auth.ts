@@ -1,4 +1,4 @@
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 
 /** 管理接口统一鉴权：校验 Authorization: Bearer <ADMIN_TOKEN>。 */
 export function authorizeAdmin(request: Request, env: Env): Response | null {

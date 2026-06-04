@@ -1,4 +1,4 @@
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 import {authorizeAdmin} from '../middleware/auth.js';
 import {KV_DEBUG_ENABLED, KV_DEBUG_URL} from '../constants/kv.js';
 import {DEBUG_FORWARDED_HEADER, DEBUG_TTL_SECONDS} from '../constants/debug.js';

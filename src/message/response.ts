@@ -1,4 +1,4 @@
-import type {HandlerResponse, ReplyMessage} from '../types/message.js';
+import type {HandlerResponse, ReplyMessage} from '../types/reply.js';
 
 /**
  * 将 {@link HandlerResponse} 标准化为扁平的回复数组。

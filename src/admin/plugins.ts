@@ -1,4 +1,4 @@
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 import {authorizeAdmin} from '../middleware/auth.js';
 import {clearRemoteRulesCache, getRemoteRulesCacheSize} from '../plugins/common/remote-config.js';
 import {

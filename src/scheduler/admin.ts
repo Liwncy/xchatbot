@@ -1,4 +1,4 @@
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 import {computeNextRunAt} from './cron.js';
 import {
     createSchedulerCenter,

@@ -1,7 +1,7 @@
 import {handleAdminRequest} from '../admin/index.js';
 import {forwardDebugRequest, loadDebugForwardConfig} from '../admin/debug.js';
 import {handleWechat} from '../wechat/index.js';
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 import {DEBUG_FORWARDED_HEADER} from '../constants/debug.js';
 import {handleTurnstileRequest} from '../turnstile/handler.js';
 

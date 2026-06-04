@@ -1,5 +1,5 @@
 import type {ScheduledController, ExecutionContext} from '@cloudflare/workers-types';
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 import {logger} from '../utils/logger.js';
 import {computeNextRunAt, resolveSchedulerTimezone, validateCronExpression} from './cron.js';
 import {SchedulerCenter} from './center.js';
