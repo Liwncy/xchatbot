@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {XIUXIAN_PAGE_SIZE} from '../../core/constants/index.js';
 import {enhanceItemsWithRefine} from '../../core/refine/index.js';
 import {XiuxianRepository} from '../../core/repository/index.js';

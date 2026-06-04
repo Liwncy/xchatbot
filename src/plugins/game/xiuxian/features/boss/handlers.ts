@@ -1,4 +1,5 @@
-import type {IncomingMessage, HandlerResponse} from '../../../../../types/message.js';
+import type {IncomingMessage} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {applyExpProgress, bossEnemy, bossRewards, rollExploreLoot, runBossBattle} from '../../core/balance/index.js';
 import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE, XIUXIAN_WORLD_BOSS} from '../../core/constants/index.js';
 import type {CombatPower, XiuxianCommand, XiuxianPlayer, XiuxianWorldBossState} from '../../core/types/index.js';

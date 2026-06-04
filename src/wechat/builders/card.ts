@@ -1,4 +1,4 @@
-import type {TextReply} from '../../types/message.js';
+import type {TextReply} from '../../types/reply.js';
 import type {ApiResponse, SendAppMessageResponse, SendMessageResponse} from '../api-types.js';
 import type {WechatApi} from '../api.js';
 

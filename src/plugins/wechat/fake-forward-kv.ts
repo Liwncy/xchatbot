@@ -1,4 +1,4 @@
-import type {Env} from '../../types/message.js';
+import type {Env} from '../../types/env.js';
 import type {FakeForwardDraft} from './fake-forward-types.js';
 import {FAKE_FORWARD_DRAFT_TTL_SECONDS} from './fake-forward-types.js';
 

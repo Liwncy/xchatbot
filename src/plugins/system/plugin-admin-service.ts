@@ -12,7 +12,9 @@ import type {DynamicCommonRule} from '../common/dynamic.js';
 import type {WorkflowCommonRule} from '../common/workflow.js';
 import {normalizeKeyword as normalizeMatchKeywords} from '../common/matcher.js';
 import type {ArgsConfig, ArgsMode, MatchMode} from '../common/matcher.js';
-import type {Env, IncomingMessage, TextReply} from '../../types/message.js';
+import type {IncomingMessage} from '../../types/message.js';
+import type {Env} from '../../types/env.js';
+import type {TextReply} from '../../types/reply.js';
 import {NO_PERMISSION_REPLY} from '../../constants/messages.js';
 import type {
     CommonRuleInputPatch,

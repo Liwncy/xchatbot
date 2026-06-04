@@ -7,7 +7,8 @@ import {renderTableImageUrl, renderTableSvgDataUrl} from '../lib/table-image.js'
 import type {BaziParsedResult} from '../parsers/bazi.js';
 import type {HeHunParsedResult, HeHunPersonInfo} from '../parsers/hehun.js';
 import type {XuanxueRule} from '../types.js';
-import type {IncomingMessage, ImageReply} from '../../../types/message.js';
+import type {IncomingMessage} from '../../../types/message.js';
+import type {ImageReply} from '../../../types/reply.js';
 
 // 不截断文字，将完整内容返回
 

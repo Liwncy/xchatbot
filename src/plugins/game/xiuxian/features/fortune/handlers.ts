@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import type {XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
 import {XiuxianRepository} from '../../core/repository/index.js';
 import {

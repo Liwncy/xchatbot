@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {applyExpProgress, cultivateReward, exploreDropHintText, exploreStoneReward, rollExploreLoot} from '../../core/balance/index.js';
 import {XIUXIAN_ACTIONS, XIUXIAN_CHECKIN_REWARD, XIUXIAN_COOLDOWN_MS, XIUXIAN_TASK_DEFAULT_LIMIT} from '../../core/constants/index.js';
 import type {XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';

@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {applyExpProgress, challengeEnemy, runSimpleBattle} from '../../core/balance/index.js';
 import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE} from '../../core/constants/index.js';
 import type {CombatPower, XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';

@@ -1,4 +1,5 @@
-import type {IncomingMessage, HandlerResponse} from '../../../../types/message.js';
+import type {IncomingMessage} from '../../../../types/message.js';
+import type {HandlerResponse} from '../../../../types/reply.js';
 import {logger} from '../../../../utils/logger.js';
 import {asText} from './context.js';
 

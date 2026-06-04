@@ -1,4 +1,4 @@
-import type {Env} from '../types/message.js';
+import type {Env} from '../types/env.js';
 import {WechatApi} from '../wechat/api.js';
 import {logger} from '../utils/logger.js';
 import {

@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {calcSellPrice, calcShopPrice, generateShopItems} from '../../core/balance/index.js';
 import {XIUXIAN_AUCTION, XIUXIAN_LEDGER_DEFAULT_LIMIT, XIUXIAN_LEDGER_MAX_LIMIT, XIUXIAN_SHOP_OFFER_COUNT, XIUXIAN_SHOP_REFRESH_MS} from '../../core/constants/index.js';
 import {

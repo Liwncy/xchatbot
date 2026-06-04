@@ -1,4 +1,6 @@
-import type {AppReply, Env, IncomingMessage} from '../../types/message.js';
+import type {IncomingMessage} from '../../types/message.js';
+import type {Env} from '../../types/env.js';
+import type {AppReply} from '../../types/reply.js';
 import {buildWechatChatRecordAppReply, sendWechatReply} from '../../wechat/index.js';
 import {WechatApi} from '../../wechat/api.js';
 import {createSchedulerRepository} from '../../scheduler/index.js';

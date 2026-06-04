@@ -1,4 +1,6 @@
-import type {IncomingMessage, HandlerResponse, Env} from '../../types/message.js';
+import type {IncomingMessage} from '../../types/message.js';
+import type {Env} from '../../types/env.js';
+import type {HandlerResponse} from '../../types/reply.js';
 
 /**
  * 处理事件消息（关注、取消关注、扫描二维码等）。

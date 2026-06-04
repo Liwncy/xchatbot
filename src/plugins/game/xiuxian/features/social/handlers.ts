@@ -1,4 +1,5 @@
-import type {IncomingMessage, HandlerResponse} from '../../../../../types/message.js';
+import type {IncomingMessage} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {applyExpProgress, runSimpleBattle} from '../../core/balance/index.js';
 import {XIUXIAN_ACTIONS, XIUXIAN_BOND_MILESTONE_REWARDS, XIUXIAN_NPC_ENCOUNTER_POOL, XIUXIAN_PAGE_SIZE, XIUXIAN_PVP} from '../../core/constants/index.js';
 import {XiuxianRepository} from '../../core/repository/index.js';

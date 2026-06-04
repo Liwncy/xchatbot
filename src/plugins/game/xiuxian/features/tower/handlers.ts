@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {applyExpProgress, runSimpleBattle} from '../../core/balance/index.js';
 import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE, XIUXIAN_TOWER, XIUXIAN_TOWER_SEASON_REWARDS} from '../../core/constants/index.js';
 import {formatCountdown} from '../../core/utils/time.js';

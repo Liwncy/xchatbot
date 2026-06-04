@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {calcCombatPower, calcSetBonusSummary, mergeCombatPower, petCombatBonus} from '../../core/balance/index.js';
 import {XIUXIAN_DEFAULTS, XIUXIAN_TERMS} from '../../core/constants/index.js';
 import {enhanceItemsWithRefine} from '../../core/refine/index.js';

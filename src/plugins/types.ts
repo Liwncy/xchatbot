@@ -1,4 +1,6 @@
-import type {IncomingMessage, HandlerResponse, Env} from '../types/message.js';
+import type {IncomingMessage} from '../types/message.js';
+import type {Env} from '../types/env.js';
+import type {HandlerResponse} from '../types/reply.js';
 
 /** 所有消息事件处理器共享的基础字段。 */
 interface BaseMessageEvent {

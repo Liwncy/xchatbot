@@ -1,4 +1,4 @@
-import type {HandlerResponse} from '../../../../../types/message.js';
+import type {HandlerResponse} from '../../../../../types/reply.js';
 import {applyExpProgress} from '../../core/balance/index.js';
 import {XIUXIAN_PAGE_SIZE, XIUXIAN_PET_GACHA, XIUXIAN_PET_GROWTH, XIUXIAN_PET_MILESTONE_REWARDS, XIUXIAN_TERMS} from '../../core/constants/index.js';
 import type {XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
