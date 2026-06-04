@@ -1,7 +1,7 @@
 import type {IncomingMessage} from '../../types/message.js';
 import type {Env} from '../../types/env.js';
 import {logger} from '../../utils/logger.js';
-import {ContactRepository} from '../../plugins/system/contact-admin/repository.js';
+import {ContactRepository} from '../../plugins/system/contact-admin';
 
 export async function shouldAllowWechatMessage(
     message: IncomingMessage,
