@@ -18,6 +18,8 @@
   - 看：[`scheduler/cloudflare-scheduler-design.md`](scheduler/cloudflare-scheduler-design.md)
   - 再看：[`scheduler/scheduler-api-draft.md`](scheduler/scheduler-api-draft.md)
   - 落库时看：[`scheduler/scheduler-mvp.sql`](scheduler/scheduler-mvp.sql)
+- **想了解后续目录重构与迁移路线**
+  - 看：[`architecture/xchatbot-structure-refactor-plan.md`](architecture/xchatbot-structure-refactor-plan.md)
 - **想了解 AI 对话 / AI 唱歌相关设计**
   - 看：[`templates/ai/ai-dialog-config.sample.json`](templates/ai/ai-dialog-config.sample.json)
   - 看：[`templates/ai/mimo-tts-config.sample.json`](templates/ai/mimo-tts-config.sample.json)
@@ -32,6 +34,7 @@
 ```text
 _docs/
   README.md
+  architecture/    # 架构演进、目录重构、迁移方案
   plugins/        # 插件相关设计文档（按插件领域再分层）
     ai/           # AI 对话 / TTS / 唱歌相关设计
     common/       # 通用插件 / 插件管理设计文档
@@ -43,6 +46,10 @@ _docs/
 ```
 
 ## 各目录说明
+
+### `architecture/`
+
+- [`architecture/xchatbot-structure-refactor-plan.md`](architecture/xchatbot-structure-refactor-plan.md)：当前仓库的结构重构蓝图、目标目录与分阶段迁移顺序
 
 ### `plugins/`
 
