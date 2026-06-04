@@ -1,4 +1,5 @@
-import type {HandlerResponse, IncomingMessage, ReplyMessage, TextReply} from '../../../../types/message.js';
+import type {IncomingMessage} from '../../../../types/message.js';
+import type {HandlerResponse, ReplyMessage, TextReply} from '../../../../types/reply.js';
 import {buildWechatChatRecordAppReply} from '../../../../wechat/builders/chat-record.js';
 import type {XiuxianCommand} from '../core/types/index.js';
 

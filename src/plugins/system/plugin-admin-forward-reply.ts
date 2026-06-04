@@ -1,4 +1,5 @@
-import type {HandlerResponse, IncomingMessage, ReplyMessage, TextReply} from '../../types/message.js';
+import type {IncomingMessage} from '../../types/message.js';
+import type {HandlerResponse, ReplyMessage, TextReply} from '../../types/reply.js';
 import {buildWechatChatRecordAppReply} from '../../wechat/index.js';
 import type {PluginAdminCommand} from './plugin-admin-types.js';
 
