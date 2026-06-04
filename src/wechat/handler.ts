@@ -7,16 +7,11 @@ import type {WechatPushMessage} from './types.js';
 import {WechatApi} from './api.js';
 import {verifyWechatSignature} from './inbound/verify.js';
 import {parseWechatMessages} from './inbound/parse-payload.js';
+import {filterExpiredWechatMessages} from './inbound/filter-messages.js';
+import {shouldAllowWechatMessage} from './inbound/whitelist.js';
 import {buildWechatReply} from './outbound/build-send-params.js';
 import {sendWechatReply} from './outbound/send-reply.js';
 import {logger} from '../utils/logger.js';
-import {ContactRepository} from '../plugins/system/contact-admin/repository.js';
-
-const MESSAGE_EXPIRE_SECONDS = 3 * 60;
-
-function isExpiredMessage(message: IncomingMessage, nowUnixSeconds: number): boolean {
-    return nowUnixSeconds - message.timestamp > MESSAGE_EXPIRE_SECONDS;
-}
 
 function resolveVoiceConversionOptions(env: Env): {
     voiceConvertApiUrl?: string;
@@ -83,12 +78,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         });
     }
 
-    const nowUnixSeconds = Math.floor(Date.now() / 1000);
-    const activeMessages = messages.filter((message) => !isExpiredMessage(message, nowUnixSeconds));
-    const expiredCount = messages.length - activeMessages.length;
-    if (expiredCount > 0) {
-        logger.debug('跳过过期微信消息', {expiredCount, thresholdSeconds: MESSAGE_EXPIRE_SECONDS});
-    }
+    const {activeMessages} = filterExpiredWechatMessages(messages);
 
     if (activeMessages.length === 0) {
         return new Response(JSON.stringify({success: true, skipped: true, reason: 'expired'}), {
@@ -100,36 +90,10 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     const {routeMessage} = await import('../message/router.js');
     const {toReplyArray} = await import('../message/response.js');
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
-    const ownerWxid = env.BOT_OWNER_WECHAT_ID?.trim() ?? '';
-
     for (const message of activeMessages) {
-        if (!ownerWxid || message.from !== ownerWxid) {
-            if (message.source === 'private') {
-                // pass
-            } else if (message.source === 'group') {
-                if (!apiBaseUrl || !message.room?.id) {
-                    logger.debug('消息被白名单过滤（群聊缺少配置或群ID）', {
-                        source: message.source,
-                        roomId: message.room?.id,
-                        hasApiBaseUrl: Boolean(apiBaseUrl),
-                    });
-                    continue;
-                }
-                const allowed = await ContactRepository.isGroupContactAllowed(env.XBOT_DB, message.room.id);
-                if (!allowed) {
-                    logger.debug('消息被白名单过滤（群聊不在联系人列表）', {
-                        source: message.source,
-                        roomId: message.room.id,
-                    });
-                    continue;
-                }
-            } else {
-                logger.debug('消息被白名单过滤（非私聊且非联系人群聊）', {
-                    source: message.source,
-                    from: message.from,
-                });
-                continue;
-            }
+        const allowed = await shouldAllowWechatMessage(message, env, {apiBaseUrl});
+        if (!allowed) {
+            continue;
         }
 
         console.log('处理微信消息', {routeMessage, toReplyArray, message});
