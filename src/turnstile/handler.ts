@@ -1,5 +1,5 @@
 import type {Env} from '../types/env.js';
-import {WechatApi} from '../wechat/api.js';
+import {WechatApi} from '../wechat';
 import {logger} from '../utils/logger.js';
 import {
     HUMAN_VERIFY_SESSION_TTL_SECONDS,
@@ -8,6 +8,7 @@ import {
 } from './shared.js';
 
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+const TURNSTILE_API_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 
 function htmlResponse(body: string, status = 200): Response {
     return new Response(body, {
@@ -113,7 +114,7 @@ async function notifyUser(env: Env, session: HumanVerifySession): Promise<void> 
 
     try {
         const result = await api.sendText({receiver, content, remind});
-        if (typeof result.code === 'number' && result.code !== 0) {
+        if (result.code !== 0) {
             logger.warn('Turnstile 验证结果通知发送失败', {
                 receiver,
                 remind,
@@ -157,7 +158,7 @@ async function handleCheckPage(request: Request, env: Env): Promise<Response> {
             '<button type="submit">提交验证</button>',
             '</form>',
             '<p class="tip">验证完成后，会自动通知到微信。</p>',
-            '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>',
+            `<script src="${TURNSTILE_API_SCRIPT_URL}" async defer></script>`,
         ].join(''),
     );
     return htmlResponse(html);
