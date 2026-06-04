@@ -1,7 +1,7 @@
-import type {SchedulerExecutor} from '../scheduler/executors/types.js';
-import {ensurePlainObject} from '../scheduler/utils.js';
-import {FakeForwardService} from '../plugins/wechat/fake-forward-service.js';
-import type {FakeForwardFlushPayload} from '../plugins/wechat/fake-forward-types.js';
+import type {SchedulerExecutor} from './types.js';
+import {ensurePlainObject} from '../utils.js';
+import {FakeForwardService} from '../../plugins/wechat/fake-forward-service.js';
+import type {FakeForwardFlushPayload} from '../../plugins/wechat/fake-forward-types.js';
 
 const fakeForwardService = new FakeForwardService();
 
