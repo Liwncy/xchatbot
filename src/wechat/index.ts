@@ -859,7 +859,8 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     }
 
     // 分发到路由（逐条处理批量消息）
-    const {routeMessage, toReplyArray} = await import('../bot/index.js');
+    const {routeMessage} = await import('../message/router.js');
+    const {toReplyArray} = await import('../message/response.js');
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
     const ownerWxid = env.BOT_OWNER_WECHAT_ID?.trim() ?? '';
 
