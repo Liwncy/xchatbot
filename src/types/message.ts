@@ -1,19 +1,3 @@
-export type {Env} from './env.js';
-export type {
-    ReplyType,
-    ReplyBase,
-    TextReply,
-    ImageReply,
-    VoiceReply,
-    VideoReply,
-    NewsArticle,
-    NewsReply,
-    MarkdownReply,
-    CardReply,
-    AppReply,
-    ReplyMessage,
-    HandlerResponse,
-} from './reply.js';
 
 /** 支持的消息平台 */
 export type Platform = 'wechat';
