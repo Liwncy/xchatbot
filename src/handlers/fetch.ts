@@ -1,9 +1,9 @@
-import {handleAdminRequest} from '../admin/index.js';
+import {handleAdminRequest} from '../admin';
 import {forwardDebugRequest, loadDebugForwardConfig} from '../admin/debug.js';
-import {handleWechat} from '../wechat/index.js';
+import {handleWechat} from '../wechat';
 import type {Env} from '../types/env.js';
 import {DEBUG_FORWARDED_HEADER} from '../constants/debug.js';
-import {handleTurnstileRequest} from '../turnstile/handler.js';
+import {handleTurnstileRequest} from '../turnstile';
 
 export async function handleFetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
