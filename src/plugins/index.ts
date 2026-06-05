@@ -2,7 +2,11 @@
  * 插件入口。
  *
  * 导入本模块以确保所有内置插件注册到全局注册表。
- * 插件注册 API 经由 `registry.ts` 暴露；消息分发入口位于 `dispatcher.ts`。
+ *
+ * 推荐职责边界：
+ * - `registry.ts`：插件注册表门面与查询 API
+ * - `dispatcher.ts`：消息分发查询入口
+ * - `manager.ts`：底层容器实现（通常无需直接依赖）
  */
 
 import {registerPlugin} from './registry';

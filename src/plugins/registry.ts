@@ -2,9 +2,15 @@ import type {IncomingMessage} from '../types/message.js';
 import {PluginManager} from './manager.js';
 import type {MessageEvent} from './types.js';
 
+/**
+ * 插件运行时的推荐入口。
+ *
+ * - 对外提供注册、注销、枚举与查询等语义化 API
+ * - 屏蔽底层 `PluginManager` 单例的直接使用细节
+ */
 const pluginRegistry = new PluginManager();
 
-/** 兼容导出：保留全局插件注册表单例。 */
+/** 兼容导出：保留全局插件注册表单例。新代码优先使用下方门面函数。 */
 export const pluginManager = pluginRegistry;
 
 /** 注册一个插件到全局注册表。 */
@@ -32,5 +38,6 @@ export function findFirstRegisteredPlugin(message: IncomingMessage): MessageEven
 	return pluginRegistry.findPlugin(message);
 }
 
+/** 底层容器实现类型导出；常规运行时访问仍推荐使用本文件门面函数。 */
 export {PluginManager};
 
