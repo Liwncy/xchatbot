@@ -62,7 +62,7 @@
 ### 3.4 HTTP 控制面与聊天命令面分离
 
 - `admin/`：HTTP 管理接口
-- `plugins/impl/*`：聊天消息触发的插件命令
+- `plugins/*`：聊天消息触发的插件命令，继续按能力域子目录组织（如 `system/`、`game/`、`wechat/`）
 
 ### 3.5 承认规则系统的独立复杂度
 
@@ -139,7 +139,15 @@ src/
 │   ├── registry.ts
 │   ├── dispatcher.ts
 │   ├── plugin-context.ts
-│   ├── impl/
+│   ├── system/
+│   ├── game/
+│   ├── wechat/
+│   ├── image/
+│   ├── video/
+│   ├── audio/
+│   ├── ai/
+│   ├── xuanxue/
+│   ├── demo/
 │   └── rule-engine/
 │       ├── base/
 │       ├── dynamic/
@@ -200,7 +208,7 @@ flowchart TD
     O --> P[message/router.ts]
     P --> Q[message/handlers/*.ts]
     Q --> R[plugins/dispatcher.ts]
-    R --> S[plugins/impl/* 或 plugins/rule-engine/*]
+    R --> S[plugins/system|game|wechat|image|video|audio|ai|xuanxue|demo|rule-engine]
     S --> T[message/response.ts]
     T --> U[wechat/outbound/build-send-params.ts]
     U --> V[wechat/outbound/send-reply.ts]
@@ -364,9 +372,9 @@ Worker 原生入口层。
 - `dispatcher.ts`：插件匹配与执行
 - `plugin-context.ts`：插件执行上下文
 
-### `impl/`
+### 普通插件目录
 
-只放具体插件实现，例如：
+普通插件继续保留在 `plugins/` 根目录下，并按能力域子目录组织，例如：
 
 - `system/`
 - `ai/`
@@ -376,6 +384,13 @@ Worker 原生入口层。
 - `wechat/`
 - `xuanxue/`
 - `game/`
+- `demo/`
+
+这样做是为了：
+
+1. 保持现有目录认知连续性
+2. 降低迁移路径噪音
+3. 让规则系统的复杂度提升只体现在 `rule-engine/`，而不是强行把所有普通插件再包一层 `impl/`
 
 ### `rule-engine/`
 
@@ -449,7 +464,7 @@ Worker 原生入口层。
 | `src/handlers/*.ts` | `src/message/handlers/*.ts` | `handlers` 让位给 Worker 入口语义 |
 | `src/wechat/index.ts` | `src/wechat/inbound/*` + `src/wechat/outbound/*` + 保留薄 `src/wechat/index.ts` | 拆平台适配层 |
 | `src/wechat/api.ts` | `src/wechat/api/*.ts` | 按能力域拆分 |
-| `src/plugins/index.ts` | `src/plugins/registry.ts` | 结束副作用式集中注册 |
+| `src/plugins/index.ts` | 保留聚合注册入口，并逐步下沉到 `src/plugins/registry.ts` / `src/plugins/dispatcher.ts` | 结束单点耦合 |
 | `src/plugins/manager.ts` | `src/plugins/dispatcher.ts`（必要时拆 registry 能力） | 运行时显式化 |
 | `src/plugins/types.ts` | `src/plugins/types.ts` / `src/types/plugin.ts` | 视最终类型落位调整 |
 | `src/plugins/common/*` | `src/plugins/rule-engine/*` | 规则系统迁移 |
@@ -539,7 +554,7 @@ Worker 原生入口层。
 
 ## Phase 5：规则系统迁移（中高风险）
 
-目标：将当前 `plugins/common` 提升为显式规则引擎层。
+目标：将当前 `plugins/common` 提升为显式规则引擎层，并统一通过 `plugins/rule-engine/` 暴露。
 
 建议动作：
 
@@ -598,7 +613,7 @@ Worker 原生入口层。
 3. **微信发送链路行为变化**
    - 语音 / 视频 / 图片的降级逻辑不要在重构时顺手改行为。
 4. **规则引擎缓存策略偏移**
-   - `plugins/common/remote-config.ts` 当前缓存逻辑应在迁移时保持等价。
+   - `plugins/common/remote-config.ts` 当前缓存逻辑应在迁移时保持等价，并在迁移后由 `plugins/rule-engine/remote-config.ts` 继续对外暴露。
 
 ---
 

@@ -1,6 +1,6 @@
 import type {Env} from '../types/env.js';
 import {authorizeAdmin} from '../middleware/auth.js';
-import {clearRemoteRulesCache, getRemoteRulesCacheSize} from '../plugins/common/remote-config.js';
+import {clearRemoteRulesCache, getRemoteRulesCacheSize} from '../plugins/rule-engine/remote-config';
 import {
     KV_COMMON_BASE_RULES,
     KV_COMMON_DYNAMIC_RULES,

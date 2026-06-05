@@ -6,12 +6,12 @@ import {
     KV_COMMON_WORKFLOW_RULES,
     KV_COMMON_WORKFLOW_RULES_BACKUP,
 } from '../../constants/kv.js';
-import {clearRemoteRulesCache} from '../common/remote-config.js';
-import type {CommonPluginRule} from '../common/base.js';
-import type {DynamicCommonRule} from '../common/dynamic.js';
-import type {WorkflowCommonRule} from '../common/workflow.js';
-import {normalizeKeyword as normalizeMatchKeywords} from '../common/matcher.js';
-import type {ArgsConfig, ArgsMode, MatchMode} from '../common/matcher.js';
+import {clearRemoteRulesCache} from '../rule-engine/remote-config';
+import type {CommonPluginRule} from '../rule-engine/base';
+import type {DynamicCommonRule} from '../rule-engine/dynamic';
+import type {WorkflowCommonRule} from '../rule-engine/workflow';
+import {normalizeKeyword as normalizeMatchKeywords} from '../rule-engine/matcher';
+import type {ArgsConfig, ArgsMode, MatchMode} from '../rule-engine/matcher';
 import type {IncomingMessage} from '../../types/message.js';
 import type {Env} from '../../types/env.js';
 import type {TextReply} from '../../types/reply.js';

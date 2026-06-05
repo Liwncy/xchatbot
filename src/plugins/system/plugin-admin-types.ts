@@ -1,4 +1,4 @@
-import type {WorkflowCommonRule} from '../common/workflow.js';
+import type {WorkflowCommonRule} from '../rule-engine/workflow';
 
 export type RulePluginCategory = 'common' | 'dynamic' | 'workflow';
 
