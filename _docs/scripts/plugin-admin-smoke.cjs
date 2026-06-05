@@ -2030,7 +2030,7 @@ async function main() {
         global.fetch = originalFetch;
     }
 
-    console.log('plugin-admin smoke ok (common/dynamic/workflow)');
+    console.log('plugin-admin smoke ok (rule-engine categories: common/dynamic/workflow)');
 }
 
 main().catch((error) => {

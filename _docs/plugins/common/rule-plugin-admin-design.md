@@ -6,9 +6,9 @@
 
 当前仓库中的“通用插件”并不是运行时动态加载的 TS 代码插件，而是由以下三个规则引擎负责解释执行：
 
-- `src/plugins/common/base.ts`：基础通用规则（`common`）
-- `src/plugins/common/dynamic.ts`：带参数提取的动态规则（`dynamic`）
-- `src/plugins/common/workflow.ts`：多步骤编排规则（`workflow`）
+- `src/plugins/rule-engine/base.ts`：基础通用规则（分类：`common`）
+- `src/plugins/rule-engine/dynamic.ts`：带参数提取的动态规则（分类：`dynamic`）
+- `src/plugins/rule-engine/workflow.ts`：多步骤编排规则（分类：`workflow`）
 
 因此，“通过命令新增 / 删除 / 修改插件”的正确落点，不是去改 `pluginManager.register(...)`，而是：
 
@@ -60,7 +60,7 @@
 inline env > KV > remote
 ```
 
-对应代码：`src/plugins/common/remote-config.ts` 中的 `loadRulesFromSources(...)`。
+对应代码：`src/plugins/rule-engine/remote-config.ts` 中的 `loadRulesFromSources(...)`。
 
 这意味着：
 
@@ -83,10 +83,10 @@ inline env > KV > remote
 
 写入前应复用现有解析 / 归一化思路做校验，避免把错误规则写入 live config：
 
-- `src/plugins/common/parser.ts`
-- `src/plugins/common/base.ts`
-- `src/plugins/common/dynamic.ts`
-- `src/plugins/common/workflow.ts`
+- `src/plugins/rule-engine/parser.ts`
+- `src/plugins/rule-engine/base.ts`
+- `src/plugins/rule-engine/dynamic.ts`
+- `src/plugins/rule-engine/workflow.ts`
 
 ## 5. 权限模型
 

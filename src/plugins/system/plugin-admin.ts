@@ -445,7 +445,7 @@ export function parsePluginAdminCommand(content: string): PluginAdminCommand {
 export const pluginAdminPlugin: TextMessage = {
     type: 'text',
     name: 'plugin-admin',
-    description: '通过“插件管理 ...”命令管理规则插件（common/dynamic/workflow 完整管理）',
+    description: '通过“插件管理 ...”命令管理规则插件（common / dynamic / workflow 三类规则完整管理）',
     match: (content) => content.trim().startsWith(PLUGIN_ADMIN_PREFIX),
     async handle(message, env) {
         let command: PluginAdminCommand | null = null;

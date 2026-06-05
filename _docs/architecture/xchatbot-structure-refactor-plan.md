@@ -613,7 +613,7 @@ Worker 原生入口层。
 3. **微信发送链路行为变化**
    - 语音 / 视频 / 图片的降级逻辑不要在重构时顺手改行为。
 4. **规则引擎缓存策略偏移**
-   - `plugins/common/remote-config.ts` 当前缓存逻辑应在迁移时保持等价，并在迁移后由 `plugins/rule-engine/remote-config.ts` 继续对外暴露。
+   - `plugins/rule-engine/remote-config.ts` 需要继续保持原 `common` 阶段的缓存行为等价，避免规则热更新与缓存命中策略发生偏移。
 
 ---
 
