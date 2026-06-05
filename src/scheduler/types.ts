@@ -1,14 +1,28 @@
+import type {
+    SchedulerConcurrencyPolicy,
+    SchedulerJobStatus,
+    SchedulerRunStatus,
+    SchedulerScheduleType,
+    SchedulerTriggerSource,
+} from '../types/scheduler.js';
+
 export const DEFAULT_SCHEDULER_TIMEZONE = 'Asia/Shanghai';
 export const DEFAULT_SCHEDULER_SCAN_LIMIT = 20;
 export const DEFAULT_SCHEDULER_LEASE_SECONDS = 55;
 export const DEFAULT_SCHEDULER_RETRY_BACKOFF_SECONDS = 60;
 export const MAX_SCHEDULER_LIST_LIMIT = 100;
 
-export type SchedulerJobStatus = 'active' | 'paused' | 'disabled';
-export type SchedulerScheduleType = 'cron' | 'once' | 'delay';
-export type SchedulerRunStatus = 'running' | 'success' | 'failed' | 'skipped';
-export type SchedulerTriggerSource = 'scheduled' | 'manual' | 'retry';
-export type SchedulerConcurrencyPolicy = 'forbid';
+export type {
+    SchedulerConcurrencyPolicy,
+    SchedulerCreateJobRequest,
+    SchedulerJobRunView,
+    SchedulerJobStatus,
+    SchedulerJobView,
+    SchedulerListResult,
+    SchedulerRunStatus,
+    SchedulerScheduleType,
+    SchedulerTriggerSource,
+} from '../types/scheduler.js';
 
 export interface SchedulerJobRecord {
     id: number;
@@ -53,19 +67,6 @@ export interface SchedulerJobRunRecord {
     createdAt: number;
 }
 
-export interface SchedulerJobView extends Omit<SchedulerJobRecord, 'payloadJson'> {
-    payload: unknown;
-}
-
-export interface SchedulerJobRunView extends Omit<SchedulerJobRunRecord, 'resultJson'> {
-    result: unknown;
-}
-
-export interface SchedulerListResult<T> {
-    total: number;
-    items: T[];
-}
-
 export interface SchedulerCreateJobInput {
     namespace: string;
     jobKey: string;
@@ -82,23 +83,6 @@ export interface SchedulerCreateJobInput {
     misfirePolicy?: string;
 }
 
-export interface SchedulerCreateJobRequest {
-    namespace?: unknown;
-    jobKey?: unknown;
-    name?: unknown;
-    executorKey?: unknown;
-    scheduleType?: unknown;
-    cronExpr?: unknown;
-    timezone?: unknown;
-    payload?: unknown;
-    runAt?: unknown;
-    delaySeconds?: unknown;
-    retryLimit?: unknown;
-    retryBackoffSec?: unknown;
-    concurrencyPolicy?: unknown;
-    misfirePolicy?: unknown;
-}
-
 export interface SchedulerDispatchSummary {
     startedAt: number;
     finishedAt: number;
@@ -110,8 +94,4 @@ export interface SchedulerDispatchSummary {
     cron?: string;
 }
 
-export interface SchedulerManualTriggerResult {
-    job: SchedulerJobView;
-    run: SchedulerJobRunView;
-}
 

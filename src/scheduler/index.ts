@@ -1,21 +1,23 @@
 import type {ScheduledController, ExecutionContext} from '@cloudflare/workers-types';
 import type {Env} from '../types/env.js';
+import type {
+    SchedulerConcurrencyPolicy,
+    SchedulerCreateJobRequest,
+    SchedulerJobRunView,
+    SchedulerJobView,
+} from '../types/scheduler.js';
 import {logger} from '../utils/logger.js';
 import {computeNextRunAt, resolveSchedulerTimezone, validateCronExpression} from './cron.js';
 import {SchedulerCenter} from './center.js';
-import {schedulerExecutorRegistry} from './executors/registry.js';
+import {schedulerExecutorRegistry} from './executors/index.js';
 import {SchedulerRepository} from './repository.js';
 import {
     DEFAULT_SCHEDULER_RETRY_BACKOFF_SECONDS,
     DEFAULT_SCHEDULER_TIMEZONE,
     MAX_SCHEDULER_LIST_LIMIT,
     type SchedulerCreateJobInput,
-    type SchedulerCreateJobRequest,
-    type SchedulerConcurrencyPolicy,
     type SchedulerJobRecord,
     type SchedulerJobRunRecord,
-    type SchedulerJobRunView,
-    type SchedulerJobView,
 } from './types.js';
 import {
     asNonNegativeInteger,

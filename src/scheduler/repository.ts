@@ -1,11 +1,13 @@
 import type {
     SchedulerConcurrencyPolicy,
-    SchedulerCreateJobInput,
-    SchedulerJobRecord,
-    SchedulerJobRunRecord,
     SchedulerListResult,
     SchedulerRunStatus,
     SchedulerTriggerSource,
+} from '../types/scheduler.js';
+import type {
+    SchedulerCreateJobInput,
+    SchedulerJobRecord,
+    SchedulerJobRunRecord,
 } from './types.js';
 import {stringifyJson, truncateText} from './utils.js';
 
@@ -27,8 +29,7 @@ function toStringValue(value: unknown, fallback = ''): string {
 
 function toNullableString(value: unknown): string | null {
     if (value == null) return null;
-    const text = String(value);
-    return text;
+    return String(value);
 }
 
 function mapJobRow(row: Record<string, unknown>): SchedulerJobRecord {
