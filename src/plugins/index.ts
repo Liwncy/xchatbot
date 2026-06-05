@@ -1,11 +1,11 @@
 /**
  * 插件入口。
  *
- * 导入本模块以确保所有内置插件注册到全局 {@link pluginManager}。
+ * 导入本模块以确保所有内置插件注册到全局注册表。
  * 插件注册 API 经由 `registry.ts` 暴露；消息分发入口位于 `dispatcher.ts`。
  */
 
-import {pluginManager, registerPlugin} from './registry';
+import {registerPlugin} from './registry';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {videoLinkParserPlugin} from './video/video-link-parser';
 import {videoRecommendationPlugin} from './video/video-recommendation';
@@ -57,7 +57,6 @@ export {
 	findFirstRegisteredPlugin,
 	findRegisteredPlugins,
 	listRegisteredPlugins,
-	pluginManager,
 	registerPlugin,
 	unregisterPlugin,
 } from './registry';

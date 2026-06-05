@@ -1,5 +1,5 @@
 import type {TextMessage} from '../types.js';
-import {pluginManager} from '../manager.js';
+import {listRegisteredPlugins} from '../registry.js';
 
 const HELP_KEYWORDS = new Set([
     '帮助',
@@ -28,8 +28,7 @@ function parseHelpQuery(content: string): string {
 }
 
 function listPlugins() {
-    return pluginManager
-        .getPlugins()
+    return listRegisteredPlugins()
         .map((plugin) => ({
             type: plugin.type,
             name: plugin.name,
