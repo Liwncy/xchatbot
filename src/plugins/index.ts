@@ -2,10 +2,10 @@
  * 插件入口。
  *
  * 导入本模块以确保所有内置插件注册到全局 {@link pluginManager}。
- * 通过在此处调用 `pluginManager.register(yourPlugin)` 来添加新插件。
+ * 插件注册表单例经由 `registry.ts` 暴露；消息分发入口位于 `dispatcher.ts`。
  */
 
-import {pluginManager} from './manager.js';
+import {pluginManager} from './registry';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {videoLinkParserPlugin} from './video/video-link-parser';
 import {videoRecommendationPlugin} from './video/video-recommendation';
@@ -53,5 +53,5 @@ pluginManager.register(imageIntentProcessPlugin);
 pluginManager.register(fakeForwardPlugin);
 
 // 重新导出以便外部使用
-export {pluginManager} from './manager.js';
+export {pluginManager} from './registry';
 export type {MessageEvent, TextMessage, ImageMessage} from './types.js';
