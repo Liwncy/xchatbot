@@ -5,4 +5,5 @@ export * from './matcher.js';
 export * from './remote-config.js';
 export * from './parser.js';
 export * from './reply-builder.js';
+export * from './shared.js';
 

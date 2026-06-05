@@ -1,4 +1,4 @@
-import {isHttpUrl, toLinkReply, toMediaPayloadResult} from '../common/shared';
+import {isHttpUrl, toLinkReply, toMediaPayloadResult} from './shared';
 
 export type CommonReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 

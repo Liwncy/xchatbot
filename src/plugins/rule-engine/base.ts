@@ -4,7 +4,7 @@ import {
     fetchTemplatedValue,
     renderTemplateString,
     toLinkReply,
-} from '../common/shared';
+} from './shared';
 import {loadRulesFromSources} from './remote-config';
 import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';

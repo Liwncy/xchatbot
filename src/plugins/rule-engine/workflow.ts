@@ -3,7 +3,7 @@ import {logger} from '../../utils/logger';
 import {
     fetchTemplatedValue,
     mergeTemplateParams,
-} from '../common/shared';
+} from './shared';
 import {
     type ArgsConfig,
     findMatchContext,

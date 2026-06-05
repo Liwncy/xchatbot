@@ -4,7 +4,7 @@ import {
     fetchTemplatedValue,
     renderTemplateString,
     toLinkReply,
-} from '../common/shared';
+} from './shared';
 import {
     type ArgsConfig,
     findMatchContext,
