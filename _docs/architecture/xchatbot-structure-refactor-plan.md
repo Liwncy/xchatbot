@@ -208,7 +208,7 @@ flowchart TD
     O --> P[message/router.ts]
     P --> Q[message/handlers/*.ts]
     Q --> R[plugins/dispatcher.ts]
-    R --> S[plugins/system|game|wechat|image|video|audio|ai|xuanxue|demo|rule-engine]
+    R --> S[plugins/system<br/>game<br/>wechat<br/>image<br/>video<br/>audio<br/>ai<br/>xuanxue<br/>demo<br/>rule-engine]
     S --> T[message/response.ts]
     T --> U[wechat/outbound/build-send-params.ts]
     U --> V[wechat/outbound/send-reply.ts]
@@ -552,9 +552,9 @@ Worker 原生入口层。
 
 ---
 
-## Phase 5：规则系统迁移（中高风险）
+## Phase 5：规则系统迁移（中高风险，已完成）
 
-目标：将当前 `plugins/common` 提升为显式规则引擎层，并统一通过 `plugins/rule-engine/` 暴露。
+结果：原 `plugins/common` 中承载规则系统的实现已迁移至 `plugins/rule-engine/`，`common` 仅保留非规则引擎公共能力与历史文档命名。
 
 建议动作：
 

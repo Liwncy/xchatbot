@@ -12,7 +12,7 @@
   - 看：[`templates/plugin-config/common-plugins-dynamic.json`](templates/plugin-config/common-plugins-dynamic.json)
   - 看：[`templates/plugin-config/common-plugins-workflow.json`](templates/plugin-config/common-plugins-workflow.json)
 - **想通过“插件管理 ...”聊天命令管理规则**
-  - 先看：[`plugins/common/rule-plugin-admin-design.md`](plugins/common/rule-plugin-admin-design.md)
+  - 先看：[`plugins/common/rule-plugin-admin-design.md`](plugins/common/rule-plugin-admin-design.md)（规则引擎文档，当前仍存放在 `plugins/common/` 文档目录）
   - 运行中机器人可直接发送：`插件管理 帮助`
 - **想了解定时任务中心**
   - 看：[`scheduler/cloudflare-scheduler-design.md`](scheduler/cloudflare-scheduler-design.md)
@@ -37,7 +37,7 @@ _docs/
   architecture/    # 架构演进、目录重构、迁移方案
   plugins/        # 插件相关设计文档（按插件领域再分层）
     ai/           # AI 对话 / TTS / 唱歌相关设计
-    common/       # 通用插件 / 插件管理设计文档
+    common/       # 历史公共文档目录（含规则引擎 / 插件管理设计稿）
     xiuxian/      # 修仙玩法设计、SQL
   scheduler/      # 定时任务中心设计、API 草案、SQL
   templates/      # 可复制到 .config/ 的配置样例模板
@@ -73,7 +73,9 @@ _docs/
 
 #### `plugins/common/`
 
-- [`rule-plugin-admin-design.md`](plugins/common/rule-plugin-admin-design.md)：插件管理（主人命令）设计稿与命令说明
+> 说明：这里只是文档存放目录；对应规则实现已迁移到 `src/plugins/rule-engine/`。
+
+- [`rule-plugin-admin-design.md`](plugins/common/rule-plugin-admin-design.md)：规则引擎插件管理（主人命令）设计稿与命令说明
 - [`group-whitelist-plugin-policy-design.md`](plugins/common/group-whitelist-plugin-policy-design.md)：群白名单插件策略设计稿
 
 这一组文档可分成两类：

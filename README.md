@@ -296,13 +296,13 @@ debug-link https://httpbin.org/get?foo=bar
 - 较长的帮助 / 详情 / JSON / 预览回显会优先折叠成聊天记录式 app 卡片，避免大段文本刷屏。
 - 折叠后的详情类回显会尽量展示完整 `headers / body / appXml / 原始配置`，不再只给摘要占位。
 - `详情 / 步骤详情 / 步骤JSON / 规则JSON` 这类查看命令会优先稳定使用折叠卡片回复，即使文本长度刚好不算很长。
-- 完整字段说明、更多示例与设计细节可参考：[`_docs/plugins/common/rule-plugin-admin-design.md`](_docs/plugins/common/rule-plugin-admin-design.md)
+- 完整字段说明、更多示例与设计细节可参考：[`_docs/plugins/common/rule-plugin-admin-design.md`](_docs/plugins/common/rule-plugin-admin-design.md)（规则引擎插件管理文档，当前仍存放在历史 `common` 文档目录）
 - 运行时也可直接发送 `插件管理 帮助` 查看最新命令分区与示例。
 
 相关文档：
 
 - 文档索引：[`_docs/README.md`](_docs/README.md)
-- 插件管理设计稿：[`_docs/plugins/common/rule-plugin-admin-design.md`](_docs/plugins/common/rule-plugin-admin-design.md)
+- 规则引擎插件管理设计稿：[`_docs/plugins/common/rule-plugin-admin-design.md`](_docs/plugins/common/rule-plugin-admin-design.md)
 - AI 唱歌 / MiMo TTS 设计稿：[`_docs/plugins/ai/mimo-tts-plugin-design.md`](_docs/plugins/ai/mimo-tts-plugin-design.md)
 - 修仙玩法路线图：[`_docs/plugins/xiuxian/xiuxian-roadmap.md`](_docs/plugins/xiuxian/xiuxian-roadmap.md)
 - 修仙玩法建表 SQL：[`_docs/plugins/xiuxian/xiuxian-mvp.sql`](_docs/plugins/xiuxian/xiuxian-mvp.sql)
