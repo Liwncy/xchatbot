@@ -1,3 +1,14 @@
+/**
+ * 调度运行时聚合入口。
+ *
+ * 对外暴露：
+ * - Worker scheduled 入口处理
+ * - 调度仓储 / 中心构造函数
+ * - 调度任务视图转换与输入归一化工具
+ *
+ * 不包含 HTTP 控制面；管理接口仍由 `scheduler/admin.ts` 独立承载。
+ */
+
 import type {ScheduledController, ExecutionContext} from '@cloudflare/workers-types';
 import type {Env} from '../types/env.js';
 import type {
@@ -15,9 +26,9 @@ import {
     DEFAULT_SCHEDULER_RETRY_BACKOFF_SECONDS,
     DEFAULT_SCHEDULER_TIMEZONE,
     MAX_SCHEDULER_LIST_LIMIT,
-    type SchedulerCreateJobInput,
-    type SchedulerJobRecord,
-    type SchedulerJobRunRecord,
+    type SchedulerCreateJobInput as SchedulerCreateJobInputModel,
+    type SchedulerJobRecord as SchedulerJobRecordModel,
+    type SchedulerJobRunRecord as SchedulerJobRunRecordModel,
 } from './types.js';
 import {
     asNonNegativeInteger,
@@ -29,6 +40,15 @@ import {
     nowUnixSeconds,
     parseJsonValue,
 } from './utils.js';
+
+export type {
+    SchedulerConcurrencyPolicy,
+    SchedulerCreateJobRequest,
+    SchedulerJobRunView,
+    SchedulerJobView,
+    SchedulerListResult,
+    SchedulerManualTriggerResult,
+} from '../types/scheduler.js';
 
 function normalizeConcurrencyPolicy(value: unknown): SchedulerConcurrencyPolicy {
     const policy = (
@@ -50,14 +70,14 @@ export function createSchedulerCenter(env: Env): SchedulerCenter {
     return new SchedulerCenter(createSchedulerRepository(env));
 }
 
-export function toSchedulerJobView(job: SchedulerJobRecord): SchedulerJobView {
+export function toSchedulerJobView(job: SchedulerJobRecordModel): SchedulerJobView {
     return {
         ...job,
         payload: parseJsonValue(job.payloadJson),
     };
 }
 
-export function toSchedulerRunView(run: SchedulerJobRunRecord): SchedulerJobRunView {
+export function toSchedulerRunView(run: SchedulerJobRunRecordModel): SchedulerJobRunView {
     return {
         ...run,
         result: parseJsonValue(run.resultJson),
@@ -102,13 +122,13 @@ export function normalizeListPagination(url: URL): {limit: number; offset: numbe
     return {limit, offset};
 }
 
-export function normalizeCreateJobInput(body: unknown, now = nowUnixSeconds()): SchedulerCreateJobInput & {nextRunAt: number} {
+export function normalizeCreateJobInput(body: unknown, now = nowUnixSeconds()): SchedulerCreateJobInputModel & {nextRunAt: number} {
     const request = ensurePlainObject(body, 'request') as SchedulerCreateJobRequest;
     const namespace = asTrimmedString(request.namespace, 'namespace', {maxLength: 80});
     const jobKey = asTrimmedString(request.jobKey, 'jobKey', {maxLength: 120});
     const name = asTrimmedString(request.name, 'name', {maxLength: 120});
     const executorKey = asTrimmedString(request.executorKey, 'executorKey', {maxLength: 80});
-    const scheduleType = asTrimmedString(request.scheduleType, 'scheduleType', {maxLength: 20}) as SchedulerCreateJobInput['scheduleType'];
+    const scheduleType = asTrimmedString(request.scheduleType, 'scheduleType', {maxLength: 20}) as SchedulerCreateJobInputModel['scheduleType'];
     if (!['cron', 'once', 'delay'].includes(scheduleType)) {
         throw new Error('scheduleType must be one of cron/once/delay');
     }
@@ -166,10 +186,10 @@ export function normalizeCreateJobInput(body: unknown, now = nowUnixSeconds()): 
 }
 
 export function normalizeUpdateJobInput(
-    existingJob: SchedulerJobRecord,
+    existingJob: SchedulerJobRecordModel,
     body: unknown,
     now = nowUnixSeconds(),
-): SchedulerCreateJobInput & {nextRunAt: number | null} {
+): SchedulerCreateJobInputModel & {nextRunAt: number | null} {
     const request = ensurePlainObject(body, 'request') as SchedulerCreateJobRequest;
     const existingPayload = parseJsonValue(existingJob.payloadJson) ?? {};
     const namespace = request.namespace == null
@@ -186,7 +206,7 @@ export function normalizeUpdateJobInput(
         : asTrimmedString(request.executorKey, 'executorKey', {maxLength: 80});
     const scheduleType = request.scheduleType == null
         ? existingJob.scheduleType
-        : asTrimmedString(request.scheduleType, 'scheduleType', {maxLength: 20}) as SchedulerCreateJobInput['scheduleType'];
+        : asTrimmedString(request.scheduleType, 'scheduleType', {maxLength: 20}) as SchedulerCreateJobInputModel['scheduleType'];
     if (!['cron', 'once', 'delay'].includes(scheduleType)) {
         throw new Error('scheduleType must be one of cron/once/delay');
     }
