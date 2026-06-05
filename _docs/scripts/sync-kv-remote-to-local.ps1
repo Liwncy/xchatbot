@@ -28,22 +28,9 @@ foreach ($item in $keys) {
         continue
     }
 
-    # Use --text because current project KV values are text/json configs.
-    $value = & npx wrangler kv key get --binding $Binding $key --remote --text
+    & node ./_docs/scripts/kv-utf8-copy.cjs copy --binding $Binding --key $key --from remote --to local | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to read remote KV key: $key"
-    }
-
-    $tmpFile = New-TemporaryFile
-    try {
-        Set-Content -Path $tmpFile -Value $value -Encoding UTF8
-        & npx wrangler kv key put --binding $Binding $key --path $tmpFile --local | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to write local KV key: $key"
-        }
-    }
-    finally {
-        Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue
+        throw "Failed to sync remote KV key to local: $key"
     }
 
     Write-Host "[$index/$total] synced: $key" -ForegroundColor DarkGray

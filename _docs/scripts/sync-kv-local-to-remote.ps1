@@ -46,14 +46,12 @@ try {
                     continue
                 }
 
-                $remoteValue = & npx wrangler kv key get --binding $Binding $remoteKey --remote --text
+                $safeFileName = ("item-{0:D5}.txt" -f $backupIndex)
+                $remoteFilePath = Join-Path $backupRoot $safeFileName
+                & node ./_docs/scripts/kv-utf8-copy.cjs export --binding $Binding --key $remoteKey --from remote --out $remoteFilePath | Out-Null
                 if ($LASTEXITCODE -ne 0) {
                     throw "Failed to back up remote KV key: $remoteKey"
                 }
-
-                $safeFileName = ("item-{0:D5}.txt" -f $backupIndex)
-                $remoteFilePath = Join-Path $backupRoot $safeFileName
-                Set-Content -Path $remoteFilePath -Value $remoteValue -Encoding UTF8
 
                 $manifest += [pscustomobject]@{
                     key = $remoteKey
@@ -86,22 +84,9 @@ try {
             continue
         }
 
-        # Use --text because current project KV values are text/json configs.
-        $value = & npx wrangler kv key get --binding $Binding $key --local --text
+        & node ./_docs/scripts/kv-utf8-copy.cjs copy --binding $Binding --key $key --from local --to remote | Out-Null
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to read local KV key: $key"
-        }
-
-        $tmpFile = New-TemporaryFile
-        try {
-            Set-Content -Path $tmpFile -Value $value -Encoding UTF8
-            & npx wrangler kv key put --binding $Binding $key --path $tmpFile --remote | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to write remote KV key: $key"
-            }
-        }
-        finally {
-            Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue
+            throw "Failed to sync local KV key to remote: $key"
         }
 
         Write-Host "[$index/$total] synced: $key" -ForegroundColor DarkGray

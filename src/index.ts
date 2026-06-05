@@ -1,4 +1,5 @@
 import './scheduler/executors';
+import './plugins/index.js';
 
 import {handleFetch} from './handlers/fetch.js';
 import {handleScheduled} from './handlers/scheduled.js';

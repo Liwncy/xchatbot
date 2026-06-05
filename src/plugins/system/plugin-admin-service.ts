@@ -7,6 +7,7 @@ import {
     KV_COMMON_WORKFLOW_RULES_BACKUP,
 } from '../../constants/kv.js';
 import {clearRemoteRulesCache} from '../rule-engine/remote-config';
+import {normalizeRuleConfigText, parseRuleConfigList} from '../rule-engine/parser';
 import type {CommonPluginRule} from '../rule-engine/base';
 import type {DynamicCommonRule} from '../rule-engine/dynamic';
 import type {WorkflowCommonRule} from '../rule-engine/workflow';
@@ -604,17 +605,22 @@ function ensureNoInlineOverrideForWrite(env: Env, category: RulePluginCategory):
 }
 
 function parseRuleArray(rawText: string | null, keyName: string): Record<string, unknown>[] {
-    if (!rawText?.trim()) return [];
+    const normalizedText = normalizeRuleConfigText(rawText ?? undefined);
+    if (!normalizedText) return [];
 
     let parsed: unknown;
     try {
-        parsed = JSON.parse(rawText);
-    } catch {
+        parsed = parseRuleConfigList(normalizedText);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message === '配置不是数组/keywordMapping') {
+            throw new Error(`${keyName} 中保存的规则不是数组/keywordMapping，无法继续管理`);
+        }
         throw new Error(`${keyName} 中保存的规则不是合法 JSON，无法继续管理`);
     }
 
     if (!Array.isArray(parsed)) {
-        throw new Error(`${keyName} 中保存的规则不是数组，无法继续管理`);
+        throw new Error(`${keyName} 中保存的规则不是数组/keywordMapping，无法继续管理`);
     }
 
     return parsed.map((item, index) => {

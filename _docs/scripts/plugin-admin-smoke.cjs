@@ -22,8 +22,8 @@ function resolveCompiledModule(relativePath) {
 
 const {parsePluginAdminCommand, pluginAdminPlugin} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin.js')));
 const {PluginAdminService} = require(resolveCompiledModule(path.join('plugins', 'system', 'plugin-admin-service.js')));
-const {dynamicCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'common', 'dynamic.js')));
-const {workflowCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'common', 'workflow.js')));
+const {dynamicCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'rule-engine', 'dynamic.js')));
+const {workflowCommonPluginsEngine} = require(resolveCompiledModule(path.join('plugins', 'rule-engine', 'workflow.js')));
 
 const COMMON_LIVE_KEY = 'plugins:common:mapping';
 const DYNAMIC_LIVE_KEY = 'plugins:parameterized:mapping';
@@ -31,6 +31,7 @@ const WORKFLOW_LIVE_KEY = 'plugins:workflow:mapping';
 const COMMON_BACKUP_KEY = 'plugins:common:mapping:backup';
 const DYNAMIC_BACKUP_KEY = 'plugins:parameterized:mapping:backup';
 const WORKFLOW_BACKUP_KEY = 'plugins:workflow:mapping:backup';
+const BOM = '\uFEFF';
 
 class MemoryKV {
     constructor(seedEntries = {}) {
@@ -513,6 +514,32 @@ async function main() {
             },
         ],
     });
+
+    const keywordMappingDynamicEnv = createEnv();
+    await keywordMappingDynamicEnv.XBOT_KV.put(DYNAMIC_LIVE_KEY, JSON.stringify({
+        keywordMapping: [
+            {
+                name: 'wrapped-dynamic',
+                keyword: 'wrapped',
+                matchMode: 'prefix',
+                args: {
+                    mode: 'tail',
+                    names: ['query'],
+                    required: ['query'],
+                },
+                url: 'https://example.com/wrapped?q={{query}}',
+                mode: 'text',
+                rType: 'text',
+            },
+        ],
+    }, null, 4));
+    const wrappedDynamicListReply = await service.handleCommand(
+        createOwnerMessage(),
+        keywordMappingDynamicEnv,
+        parsePluginAdminCommand('插件管理 列表 dynamic'),
+    );
+    assert.equal(wrappedDynamicListReply.type, 'text');
+    assert.match(wrappedDynamicListReply.content, /wrapped-dynamic/);
 
     const checkDynamicReply = await service.handleCommand(
         createOwnerMessage(),
@@ -1786,7 +1813,7 @@ async function main() {
 
     const dynamicRuntimeEnv = {
         XBOT_KV: new MemoryKV({
-            [DYNAMIC_LIVE_KEY]: JSON.stringify([
+            [DYNAMIC_LIVE_KEY]: `${BOM}${JSON.stringify([
                 {
                     name: 'proxy-api-debug-text',
                     matchMode: 'regex',
@@ -1832,7 +1859,7 @@ async function main() {
                     mode: 'text',
                     rType: 'text',
                 },
-            ], null, 4),
+            ], null, 4)}`,
         }),
         XBOT_DB: {},
         BOT_OWNER_WECHAT_ID: 'owner-wechat-id',

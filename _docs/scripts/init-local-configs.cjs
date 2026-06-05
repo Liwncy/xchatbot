@@ -7,18 +7,18 @@ const legacyConfigRoot = path.join(projectRoot, '.local-config');
 
 const mappings = [
     {
-        sample: path.join(projectRoot, '_docs', 'templates', 'common', 'common-plugins.json'),
-        target: path.join(configRoot, 'common', 'common-plugins.json'),
+        sample: path.join(projectRoot, '_docs', 'templates', 'plugin-config', 'common-plugins.json'),
+        target: path.join(configRoot, 'plugin-config', 'common-plugins.json'),
         description: '通用插件基础规则',
     },
     {
-        sample: path.join(projectRoot, '_docs', 'templates', 'common', 'common-plugins-dynamic.json'),
-        target: path.join(configRoot, 'common', 'common-plugins-dynamic.json'),
+        sample: path.join(projectRoot, '_docs', 'templates', 'plugin-config', 'common-plugins-dynamic.json'),
+        target: path.join(configRoot, 'plugin-config', 'common-plugins-dynamic.json'),
         description: '通用插件动态规则',
     },
     {
-        sample: path.join(projectRoot, '_docs', 'templates', 'common', 'common-plugins-workflow.json'),
-        target: path.join(configRoot, 'common', 'common-plugins-workflow.json'),
+        sample: path.join(projectRoot, '_docs', 'templates', 'plugin-config', 'common-plugins-workflow.json'),
+        target: path.join(configRoot, 'plugin-config', 'common-plugins-workflow.json'),
         description: '通用插件工作流规则',
     },
     {

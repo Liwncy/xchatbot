@@ -13,27 +13,37 @@ interface ParserOptions<T> {
  * - 支持数组或 `{ keywordMapping: [] }` 结构
  * - 输入字符串未变化时复用上次解析结果
  */
+export function normalizeRuleConfigText(raw: string | undefined): string {
+    return (raw ?? '').replace(/^\uFEFF/, '').trim();
+}
+
+export function parseRuleConfigList(raw: string | undefined): unknown[] {
+    const source = normalizeRuleConfigText(raw);
+    if (!source) return [];
+
+    const parsed = JSON.parse(source) as unknown;
+    const list = Array.isArray(parsed)
+        ? parsed
+        : (parsed as {keywordMapping?: unknown})?.keywordMapping;
+
+    if (!Array.isArray(list)) {
+        throw new Error('配置不是数组/keywordMapping');
+    }
+
+    return list;
+}
+
 export function createCachedRuleParser<T>(options: ParserOptions<T>): (raw: string | undefined) => T[] {
     let cachedRaw = '';
     let cachedRules: T[] = [];
 
     return (raw: string | undefined): T[] => {
-        const source = (raw ?? '').trim();
+        const source = normalizeRuleConfigText(raw);
         if (!source) return [];
         if (source === cachedRaw) return cachedRules;
 
         try {
-            const parsed = JSON.parse(source) as unknown;
-            const list = Array.isArray(parsed)
-                ? parsed
-                : (parsed as { keywordMapping?: unknown })?.keywordMapping;
-
-            if (!Array.isArray(list)) {
-                logger.warn(`${options.logPrefix}配置不是数组/keywordMapping，已忽略`);
-                cachedRaw = source;
-                cachedRules = [];
-                return cachedRules;
-            }
+            const list = parseRuleConfigList(source);
 
             cachedRaw = source;
             cachedRules = list
@@ -42,7 +52,9 @@ export function createCachedRuleParser<T>(options: ParserOptions<T>): (raw: stri
 
             return cachedRules;
         } catch (err) {
-            logger.error(`${options.logPrefix}配置 JSON 解析失败`, err);
+            const message = err instanceof Error ? err.message : String(err);
+            const logMethod = message === '配置不是数组/keywordMapping' ? logger.warn : logger.error;
+            logMethod(`${options.logPrefix}${message === '配置不是数组/keywordMapping' ? message : '配置 JSON 解析失败'}`, message === '配置不是数组/keywordMapping' ? undefined : err);
             cachedRaw = source;
             cachedRules = [];
             return cachedRules;
