@@ -1,6 +1,5 @@
 import type {TextReply} from '../../types/reply.js';
-import {WechatApi} from '../../wechat/api.js';
-import {sendWechatReply} from '../../wechat/index.js';
+import {sendWechatReply, WechatApi} from '../../wechat';
 import type {SchedulerExecutor} from './types.js';
 import {ensurePlainObject} from '../utils.js';
 

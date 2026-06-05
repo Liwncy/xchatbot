@@ -1,7 +1,7 @@
 import type {Env} from '../types/env.js';
 import {logger} from '../utils/logger.js';
 import {computeNextRunAt} from './cron.js';
-import {schedulerExecutorRegistry} from './executors/index.js';
+import {schedulerExecutorRegistry} from './executors';
 import type {SchedulerExecutionResult} from './executors/types.js';
 import {SchedulerRepository} from './repository.js';
 import {

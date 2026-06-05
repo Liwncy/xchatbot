@@ -20,7 +20,7 @@ import type {
 import {logger} from '../utils/logger.js';
 import {computeNextRunAt, resolveSchedulerTimezone, validateCronExpression} from './cron.js';
 import {SchedulerCenter} from './center.js';
-import {schedulerExecutorRegistry} from './executors/index.js';
+import {schedulerExecutorRegistry} from './executors';
 import {SchedulerRepository} from './repository.js';
 import {
     DEFAULT_SCHEDULER_RETRY_BACKOFF_SECONDS,

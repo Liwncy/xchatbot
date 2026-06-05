@@ -1,4 +1,4 @@
-import './scheduler/executors/index.js';
+import './scheduler/executors';
 
 import {handleFetch} from './handlers/fetch.js';
 import {handleScheduled} from './handlers/scheduled.js';
