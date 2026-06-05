@@ -1,5 +1,5 @@
-import {WechatApi} from '../wechat/api.js';
-import type {UploadImageResponse} from '../wechat/api-types.js';
+import {WechatApi} from '../wechat/api';
+import type {UploadImageResponse} from '../wechat/api/types.js';
 import {logger} from './logger.js';
 
 /** 机器人自身的 wxid，用于 CDN 上传时作为 receiver（仅上传，不对外发送）。 */

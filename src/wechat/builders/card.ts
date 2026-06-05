@@ -1,6 +1,6 @@
 import type {TextReply} from '../../types/reply.js';
-import type {ApiResponse, SendAppMessageResponse, SendMessageResponse} from '../api-types.js';
-import type {WechatApi} from '../api.js';
+import type {ApiResponse, SendAppMessageResponse, SendMessageResponse} from '../api/types.js';
+import type {WechatApi} from '../api';
 
 const DEFAULT_CARD_SCENE = 17;
 const DEFAULT_IMAGE_STATUS = 3;

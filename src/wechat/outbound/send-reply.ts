@@ -3,7 +3,7 @@ import {logger} from '../../utils/logger.js';
 import {normalizeVoiceForWechat} from '../../utils/silk-converter.js';
 import {FileUploader} from '../../utils/file-uploader.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from '../constants.js';
-import {WechatApi} from '../api.js';
+import {WechatApi} from '../api';
 
 function isHttpUrl(value?: string): boolean {
     return /^https?:\/\//i.test(value?.trim() ?? '');

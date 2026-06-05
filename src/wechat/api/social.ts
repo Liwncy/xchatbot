@@ -76,7 +76,7 @@ import type {
     PushConfig,
     StorageConfig,
     MomentMediaUploadParam,
-} from '../api-types.js';
+ } from './types.js';
 import {WechatMessageApi} from './message.js';
 
 export class WechatSocialApi extends WechatMessageApi {

@@ -1,4 +1,4 @@
-﻿export {WechatApi} from './api.js';
+﻿export {WechatApi} from './api';
 export {handleWechat} from './handler.js';
 export {verifyWechatSignature} from './inbound/verify.js';
 export {

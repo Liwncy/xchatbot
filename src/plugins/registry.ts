@@ -10,8 +10,6 @@ import type {MessageEvent} from './types.js';
  */
 const pluginRegistry = new PluginManager();
 
-/** 兼容导出：保留全局插件注册表单例。新代码优先使用下方门面函数。 */
-export const pluginManager = pluginRegistry;
 
 /** 注册一个插件到全局注册表。 */
 export function registerPlugin(plugin: MessageEvent): void {

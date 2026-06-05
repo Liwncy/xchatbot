@@ -2,10 +2,12 @@ import type {MessageEvent} from './types.js';
 import type {IncomingMessage} from '../types/message.js';
 
 /**
- * 消息事件处理器的中央注册表。
+ * 消息事件处理器注册表的底层容器实现。
  *
- * 处理器按注册顺序进行匹配。
- * 使用导出的单例 {@link pluginManager} 进行常规操作。
+ * - 负责保存插件顺序与基础匹配逻辑
+ * - 不直接作为推荐运行时入口对外暴露
+ *
+ * 常规注册/查询请优先通过 `registry.ts` 暴露的门面 API 访问。
  */
 export class PluginManager {
     private plugins: MessageEvent[] = [];
@@ -54,5 +56,3 @@ export class PluginManager {
     }
 }
 
-/** 应用全局单例。 */
-export const pluginManager = new PluginManager();

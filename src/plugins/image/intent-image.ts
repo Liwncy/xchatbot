@@ -1,6 +1,6 @@
 import type {ImageMessage, TextMessage} from '../types.js';
 import {logger} from '../../utils/logger.js';
-import {WechatApi} from '../../wechat/api.js';
+import {WechatApi} from '../../wechat/api';
 import type {WechatPushItem, WechatPushMessage} from '../../wechat/types.js';
 
 const WAIT_IMAGE_TTL_MS = 2 * 60 * 1000;

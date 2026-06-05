@@ -1,5 +1,5 @@
-import type {ApiResponse} from '../api-types.js';
-import type {WechatApi} from '../api.js';
+import type {ApiResponse} from '../api/types.js';
+import type {WechatApi} from '../api';
 
 export interface WechatChatRecordUploadedImage {
     /** 原图 CDN URL（对应 cdndataurl）。 */

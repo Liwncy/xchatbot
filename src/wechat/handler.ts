@@ -4,7 +4,7 @@ import type {
 import type {Env} from '../types/env.js';
 import type {ReplyMessage} from '../types/reply.js';
 import type {WechatPushMessage} from './types.js';
-import {WechatApi} from './api.js';
+import {WechatApi} from './api';
 import {verifyWechatSignature} from './inbound/verify.js';
 import {parseWechatMessages} from './inbound/parse-payload.js';
 import {filterExpiredWechatMessages} from './inbound/filter-messages.js';

@@ -3,7 +3,7 @@ import type {
     CdnDownloadImageParam,
     CdnDownloadMomentsVideoParam,
     CdnDownloadVideoParam,
-} from '../api-types.js';
+} from './types.js';
 
 const BROWSER_LIKE_HEADERS: Record<string, string> = {
     Accept: 'application/json, text/plain, */*',

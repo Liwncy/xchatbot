@@ -45,7 +45,7 @@ import type {
     UploadImageResponse,
     UploadVideoResponse,
     UploadVoiceResponse,
-} from '../api-types.js';
+ } from './types.js';
 import {logger} from '../../utils/logger.js';
 import {WechatApiClient, resolveVoiceBinaryMeta} from './client.js';
 

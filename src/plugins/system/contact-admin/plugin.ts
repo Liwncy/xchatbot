@@ -2,7 +2,7 @@ import type {TextMessage} from '../../types.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {ContactRepository} from './repository.js';
 import {WechatApi} from '../../../wechat';
-import type {VerifyFriendRequest} from '../../../wechat/api-types.js';
+import type {VerifyFriendRequest} from '../../../wechat/api/types.js';
 
 const COMMAND_PREFIX = '/cm';
 const COMMAND_LIST = 'list';
