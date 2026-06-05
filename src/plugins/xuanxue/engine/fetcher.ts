@@ -1,6 +1,6 @@
 /** HTTP 请求器：根据规则 + 参数 fetch 页面 */
 
-import {renderTemplateString} from '../../common/shared.js';
+import {renderTemplateString} from '../../rule-engine/shared.js';
 import type {XuanxueRule} from '../types.js';
 
 const REQUEST_TIMEOUT_MS = 15_000;

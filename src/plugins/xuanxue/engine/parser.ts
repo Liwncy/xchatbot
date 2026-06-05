@@ -1,6 +1,6 @@
 /** 解析分发器：根据 rule.parse.mode 调用对应解析器 */
 
-import {getByJsonPath} from '../../common/shared.js';
+import {getByJsonPath} from '../../rule-engine/shared.js';
 import {stripHtml} from '../lib/html.js';
 import {parseBaziHtml} from '../parsers/bazi.js';
 import {parseHeHunHtml} from '../parsers/hehun.js';
