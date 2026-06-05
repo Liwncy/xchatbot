@@ -1,12 +1,12 @@
 import type {IncomingMessage} from '../types/message.js';
-import {pluginManager} from './registry';
+import {findFirstRegisteredPlugin, findRegisteredPlugins} from './registry';
 
 export function findMatchingPlugins(message: IncomingMessage) {
-    return pluginManager.findPlugins(message);
+    return findRegisteredPlugins(message);
 }
 
 export function findFirstMatchingPlugin(message: IncomingMessage) {
-    return pluginManager.findPlugin(message);
+    return findFirstRegisteredPlugin(message);
 }
 
 

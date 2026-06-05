@@ -2,10 +2,10 @@
  * 插件入口。
  *
  * 导入本模块以确保所有内置插件注册到全局 {@link pluginManager}。
- * 插件注册表单例经由 `registry.ts` 暴露；消息分发入口位于 `dispatcher.ts`。
+ * 插件注册 API 经由 `registry.ts` 暴露；消息分发入口位于 `dispatcher.ts`。
  */
 
-import {pluginManager} from './registry';
+import {pluginManager, registerPlugin} from './registry';
 import {aiDialogPlugin} from './ai/ai-dialog';
 import {videoLinkParserPlugin} from './video/video-link-parser';
 import {videoRecommendationPlugin} from './video/video-recommendation';
@@ -14,9 +14,9 @@ import {pluginAdminPlugin} from './system/plugin-admin';
 import {contactAdminPlugin} from './system/contact-admin';
 import {humanVerifyPlugin} from './system/human-verify';
 import {randomFriendPlugin} from './system/random-friend';
-import {commonPluginsEngine} from './rule-engine/base.js';
-import {dynamicCommonPluginsEngine} from './rule-engine/dynamic.js';
-import {workflowCommonPluginsEngine} from './rule-engine/workflow.js';
+import {commonPluginsEngine} from './rule-engine/base';
+import {dynamicCommonPluginsEngine} from './rule-engine/dynamic';
+import {workflowCommonPluginsEngine} from './rule-engine/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
 import {imageRecommendationPlugin} from './image/image-recommendation';
 import {smartDrawPlugin} from './image/smart-draw';
@@ -28,30 +28,37 @@ import {xuanxuePlugin} from './xuanxue';
 import {aiSingPlugin} from './audio/ai-sing';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
-pluginManager.register(helpPlugin);
-pluginManager.register(contactAdminPlugin);
-pluginManager.register(humanVerifyPlugin);
-pluginManager.register(randomFriendPlugin);
-pluginManager.register(wechatChatRecordDemoPlugin);
-pluginManager.register(videoRecommendationPlugin);
-pluginManager.register(imageRecommendationPlugin);
-pluginManager.register(smartDrawPlugin);
-pluginManager.register(yinguoImagePlugin);
-pluginManager.register(pluginAdminPlugin);
+registerPlugin(helpPlugin);
+registerPlugin(contactAdminPlugin);
+registerPlugin(humanVerifyPlugin);
+registerPlugin(randomFriendPlugin);
+registerPlugin(wechatChatRecordDemoPlugin);
+registerPlugin(videoRecommendationPlugin);
+registerPlugin(imageRecommendationPlugin);
+registerPlugin(smartDrawPlugin);
+registerPlugin(yinguoImagePlugin);
+registerPlugin(pluginAdminPlugin);
 // 通用插件配置
-pluginManager.register(commonPluginsEngine);
-pluginManager.register(dynamicCommonPluginsEngine);
-pluginManager.register(workflowCommonPluginsEngine);
-pluginManager.register(xiuxianPlugin);
-pluginManager.register(xuanxuePlugin);
+registerPlugin(commonPluginsEngine);
+registerPlugin(dynamicCommonPluginsEngine);
+registerPlugin(workflowCommonPluginsEngine);
+registerPlugin(xiuxianPlugin);
+registerPlugin(xuanxuePlugin);
 // 自定义插件
-pluginManager.register(aiDialogPlugin);
-pluginManager.register(aiSingPlugin);
-pluginManager.register(videoLinkParserPlugin);
-pluginManager.register(imageIntentTriggerPlugin);
-pluginManager.register(imageIntentProcessPlugin);
-pluginManager.register(fakeForwardPlugin);
+registerPlugin(aiDialogPlugin);
+registerPlugin(aiSingPlugin);
+registerPlugin(videoLinkParserPlugin);
+registerPlugin(imageIntentTriggerPlugin);
+registerPlugin(imageIntentProcessPlugin);
+registerPlugin(fakeForwardPlugin);
 
 // 重新导出以便外部使用
-export {pluginManager} from './registry';
+export {
+	findFirstRegisteredPlugin,
+	findRegisteredPlugins,
+	listRegisteredPlugins,
+	pluginManager,
+	registerPlugin,
+	unregisterPlugin,
+} from './registry';
 export type {MessageEvent, TextMessage, ImageMessage} from './types.js';
