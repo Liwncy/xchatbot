@@ -1,4 +1,4 @@
-import type {XiuxianPlayer} from '../types/index.js';
+import type {XiuxianPlayer} from '../types';
 import type {ProgressResult} from './models.js';
 
 function expNeed(level: number): number {

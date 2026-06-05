@@ -1,5 +1,5 @@
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import type {XiuxianCommand} from '../../core/types/index.js';
+import type {XiuxianCommand} from '../../core/types';
 import {helpText} from './reply.js';
 
 function asText(content: string): HandlerResponse {

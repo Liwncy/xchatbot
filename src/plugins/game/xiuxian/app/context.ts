@@ -7,11 +7,11 @@ import {
     getFortuneConfig,
     type XiuxianFortuneBuff,
     type XiuxianFortuneLevel,
-} from '../features/fortune/index.js';
-import {calcCombatPower, mergeCombatPower, petCombatBonus, petCultivateStoneBonus} from '../core/balance/index.js';
-import {enhanceItemsWithRefine} from '../core/refine/index.js';
-import {XiuxianRepository} from '../core/repository/index.js';
-import type {CombatPower, XiuxianIdentity, XiuxianItem, XiuxianPlayer} from '../core/types/index.js';
+} from '../features/fortune';
+import {calcCombatPower, mergeCombatPower, petCombatBonus, petCultivateStoneBonus} from '../core/balance';
+import {enhanceItemsWithRefine} from '../core/refine';
+import {XiuxianRepository} from '../core/repository';
+import type {CombatPower, XiuxianIdentity, XiuxianItem, XiuxianPlayer} from '../core/types';
 
 type CombatCache = {
     playerId: number;
@@ -58,8 +58,7 @@ export function fortuneHintLine(buff: XiuxianFortuneBuff, level?: XiuxianFortune
     const hasBuff = buff.cultivateRate || buff.exploreRate || buff.battleAttack || buff.battleCrit || buff.battleReward;
     if (!hasBuff && !level) return '';
     const cfg = level ? getFortuneConfig(level) : null;
-    const label = cfg ? `${cfg.emoji} 今日卦象：${cfg.title}` : '🔮 今日运势已生效';
-    return label;
+    return cfg ? `${cfg.emoji} 今日卦象：${cfg.title}` : '🔮 今日运势已生效';
 }
 
 export async function loadPlayerCombatPower(repo: XiuxianRepository, player: XiuxianPlayer): Promise<CombatPower> {

@@ -2,9 +2,9 @@ import type {TextMessage} from '../../../types.js';
 import type {IncomingMessage} from '../../../../types/message.js';
 import type {Env} from '../../../../types/env.js';
 import type {HandlerResponse} from '../../../../types/reply.js';
-import {parseXiuxianCommand} from './commands/index.js';
+import {parseXiuxianCommand} from './commands';
 import {finalizeXiuxianReply} from './forward-reply.js';
-import {unknownCommandText} from './reply/index.js';
+import {unknownCommandText} from './reply';
 import {handleXiuxianCommand} from './service.js';
 
 export function matchXiuxianContent(content: string): boolean {

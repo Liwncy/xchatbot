@@ -1,5 +1,5 @@
-import type {XiuxianAuction, XiuxianAuctionBid, XiuxianEconomyLog, XiuxianShopOffer} from '../../core/types/index.js';
-import {formatBeijingTime} from '../../core/utils/time.js';
+import type {XiuxianAuction, XiuxianAuctionBid, XiuxianEconomyLog, XiuxianShopOffer} from '../../core/types';
+import {formatBeijingTime} from '../../core/utils';
 
 function qualityLabel(raw: string): string {
     if (raw === 'mythic') return '神话(红)';

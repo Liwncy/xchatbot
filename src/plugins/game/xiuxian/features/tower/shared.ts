@@ -1,7 +1,7 @@
-import {applyExpProgress} from '../../core/balance/index.js';
-import {XIUXIAN_TOWER, XIUXIAN_TOWER_SEASON_REWARDS} from '../../core/constants/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {XiuxianPlayer} from '../../core/types/index.js';
+import {applyExpProgress} from '../../core/balance';
+import {XIUXIAN_TOWER, XIUXIAN_TOWER_SEASON_REWARDS} from '../../core/constants';
+import {XiuxianRepository} from '../../core/repository';
+import type {XiuxianPlayer} from '../../core/types';
 import {realmName} from '../../core/utils/realm.js';
 
 export type TowerSeasonReward = {spiritStone: number; exp: number; cultivation: number};

@@ -1,9 +1,9 @@
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {applyExpProgress, cultivateReward, exploreDropHintText, exploreStoneReward, rollExploreLoot} from '../../core/balance/index.js';
-import {XIUXIAN_ACTIONS, XIUXIAN_CHECKIN_REWARD, XIUXIAN_COOLDOWN_MS, XIUXIAN_TASK_DEFAULT_LIMIT} from '../../core/constants/index.js';
-import type {XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import {applyCultivateRate, applyExploreRate} from '../fortune/index.js';
+import {applyExpProgress, cultivateReward, exploreDropHintText, exploreStoneReward, rollExploreLoot} from '../../core/balance';
+import {XIUXIAN_ACTIONS, XIUXIAN_CHECKIN_REWARD, XIUXIAN_COOLDOWN_MS, XIUXIAN_TASK_DEFAULT_LIMIT} from '../../core/constants';
+import type {XiuxianCommand, XiuxianPlayer} from '../../core/types';
+import {XiuxianRepository} from '../../core/repository';
+import {applyCultivateRate, applyExploreRate} from '../fortune';
 import {achievementText, checkinText, claimTaskBatchText, claimTaskText, cultivateText, exploreLootText, exploreStoneText, taskText} from './reply.js';
 import {dayKeyOf, rewardFromJson, syncAchievements, syncDailyTasks} from './shared.js';
 

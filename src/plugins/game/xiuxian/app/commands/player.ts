@@ -1,4 +1,4 @@
-import type {XiuxianCommand} from '../../core/types/index.js';
+import type {XiuxianCommand} from '../../core/types';
 
 export function parsePlayerCommand(text: string): XiuxianCommand | null {
     const createMatch = text.match(/^修仙创建(?:\s+(.+))?$/);

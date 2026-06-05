@@ -1,4 +1,4 @@
-import type {CombatPower, XiuxianItem, XiuxianPlayer} from '../types/index.js';
+import type {CombatPower, XiuxianItem, XiuxianPlayer} from '../types';
 import type {PrefixSetConfig, SetBonusSummary, SetStatMod} from './models.js';
 import {findPrefixSetByKey} from './prefix-set.js';
 

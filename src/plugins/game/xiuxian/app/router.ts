@@ -10,21 +10,21 @@ import {
     loadTodayFortuneBuff,
     mustPlayer,
 } from './context.js';
-import {petCombatBonus} from '../core/balance/index.js';
-import {XiuxianRepository} from '../core/repository/index.js';
-import type {XiuxianCommand, XiuxianIdentity} from '../core/types/index.js';
-import {handleBattleReplyCommand} from '../features/battle/index.js';
-import {ensureWorldBossState, handleBossReplyCommand} from '../features/boss/index.js';
-import {handleEconomyCommand} from '../features/economy/index.js';
-import {handleFortuneCommand} from '../features/fortune/index.js';
-import {handleGrowthCommand} from '../features/growth/index.js';
-import {handleHelpCommand} from '../features/help/index.js';
-import {handleInventoryCommand} from '../features/inventory/index.js';
-import {handlePetCommand} from '../features/pet/index.js';
-import {handlePlayerCommand, handlePlayerEntryCommand} from '../features/player/index.js';
-import {handleSocialCommand} from '../features/social/index.js';
-import {handleTowerReplyCommand} from '../features/tower/index.js';
-import {cooldownText} from './reply/index.js';
+import {petCombatBonus} from '../core/balance';
+import {XiuxianRepository} from '../core/repository';
+import type {XiuxianCommand, XiuxianIdentity} from '../core/types';
+import {handleBattleReplyCommand} from '../features/battle';
+import {ensureWorldBossState, handleBossReplyCommand} from '../features/boss';
+import {handleEconomyCommand} from '../features/economy';
+import {handleFortuneCommand} from '../features/fortune';
+import {handleGrowthCommand} from '../features/growth';
+import {handleHelpCommand} from '../features/help';
+import {handleInventoryCommand} from '../features/inventory';
+import {handlePetCommand} from '../features/pet';
+import {handlePlayerCommand, handlePlayerEntryCommand} from '../features/player';
+import {handleSocialCommand} from '../features/social';
+import {handleTowerReplyCommand} from '../features/tower';
+import {cooldownText} from './reply';
 
 type XiuxianRouterContext = {
     identity: XiuxianIdentity;

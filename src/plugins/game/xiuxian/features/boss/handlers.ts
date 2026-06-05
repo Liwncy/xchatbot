@@ -1,10 +1,10 @@
 import type {IncomingMessage} from '../../../../../types/message.js';
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {applyExpProgress, bossEnemy, bossRewards, rollExploreLoot, runBossBattle} from '../../core/balance/index.js';
-import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE, XIUXIAN_WORLD_BOSS} from '../../core/constants/index.js';
-import type {CombatPower, XiuxianCommand, XiuxianPlayer, XiuxianWorldBossState} from '../../core/types/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import {applyBattleRewardRate} from '../fortune/index.js';
+import {applyExpProgress, bossEnemy, bossRewards, rollExploreLoot, runBossBattle} from '../../core/balance';
+import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE, XIUXIAN_WORLD_BOSS} from '../../core/constants';
+import type {CombatPower, XiuxianCommand, XiuxianPlayer, XiuxianWorldBossState} from '../../core/types';
+import {XiuxianRepository} from '../../core/repository';
+import {applyBattleRewardRate} from '../fortune';
 import {bossDetailText, bossLogText, bossRaidText, worldBossRankText, worldBossSelfRankText, worldBossStatusText} from './reply.js';
 
 type BossFortuneBuff = Parameters<typeof applyBattleRewardRate>[1];

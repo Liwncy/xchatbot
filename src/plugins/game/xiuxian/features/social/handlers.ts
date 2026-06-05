@@ -1,10 +1,10 @@
 import type {IncomingMessage} from '../../../../../types/message.js';
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {applyExpProgress, runSimpleBattle} from '../../core/balance/index.js';
-import {XIUXIAN_ACTIONS, XIUXIAN_BOND_MILESTONE_REWARDS, XIUXIAN_NPC_ENCOUNTER_POOL, XIUXIAN_PAGE_SIZE, XIUXIAN_PVP} from '../../core/constants/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {CombatPower, XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
-import {applyBattleRewardRate, applyFortuneToPower, type XiuxianFortuneBuff} from '../fortune/index.js';
+import {applyExpProgress, runSimpleBattle} from '../../core/balance';
+import {XIUXIAN_ACTIONS, XIUXIAN_BOND_MILESTONE_REWARDS, XIUXIAN_NPC_ENCOUNTER_POOL, XIUXIAN_PAGE_SIZE, XIUXIAN_PVP} from '../../core/constants';
+import {XiuxianRepository} from '../../core/repository';
+import type {CombatPower, XiuxianCommand, XiuxianPlayer} from '../../core/types';
+import {applyBattleRewardRate, applyFortuneToPower, type XiuxianFortuneBuff} from '../fortune';
 import {bondActivatedText, bondBreakText, bondLogText, bondRequestText, bondStatusText, bondTravelText, npcEncounterLogText, npcEncounterText, pvpBattleResultText, pvpSparRejectText, pvpSparRequestText} from './reply.js';
 
 type SocialCommandContext = {

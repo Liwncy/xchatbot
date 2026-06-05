@@ -1,5 +1,5 @@
-import type {XiuxianTowerRankRow, XiuxianTowerSeasonRankRow} from '../../core/types/index.js';
-import {formatBeijingTime} from '../../core/utils/time.js';
+import type {XiuxianTowerRankRow, XiuxianTowerSeasonRankRow} from '../../core/types';
+import {formatBeijingTime} from '../../core/utils';
 
 export function towerClimbText(params: {
     floor: number;

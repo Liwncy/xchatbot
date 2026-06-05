@@ -1,6 +1,6 @@
-import {XIUXIAN_PET_GACHA} from '../../core/constants/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {XiuxianPetBanner, XiuxianPetBannerEntry} from '../../core/types/index.js';
+import {XIUXIAN_PET_GACHA} from '../../core/constants';
+import {XiuxianRepository} from '../../core/repository';
+import type {XiuxianPetBanner, XiuxianPetBannerEntry} from '../../core/types';
 import {towerSeasonKey, weekStartOf} from '../tower/shared.js';
 
 const XIUXIAN_LIMITED_PET_POOL = [

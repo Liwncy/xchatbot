@@ -1,8 +1,8 @@
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {XIUXIAN_PAGE_SIZE} from '../../core/constants/index.js';
-import {enhanceItemsWithRefine} from '../../core/refine/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {XiuxianBagQuery, XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
+import {XIUXIAN_PAGE_SIZE} from '../../core/constants';
+import {enhanceItemsWithRefine} from '../../core/refine';
+import {XiuxianRepository} from '../../core/repository';
+import type {XiuxianBagQuery, XiuxianCommand, XiuxianPlayer} from '../../core/types';
 import {bagText, equipText, unequipText} from './reply.js';
 
 type InventoryCommandContext = {

@@ -1,6 +1,6 @@
-import type {XiuxianPetBagItem, XiuxianPetBanner} from '../../core/types/index.js';
-import {XIUXIAN_TERMS} from '../../core/constants/index.js';
-import {formatBeijingTime} from '../../core/utils/time.js';
+import type {XiuxianPetBagItem, XiuxianPetBanner} from '../../core/types';
+import {XIUXIAN_TERMS} from '../../core/constants';
+import {formatBeijingTime} from '../../core/utils';
 
 export function petAdoptText(pet: {petName: string; petType: string; level: number}): string {
     return [

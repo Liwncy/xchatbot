@@ -1,7 +1,7 @@
 import type {TextMessage} from '../../types.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {ContactRepository} from './repository.js';
-import {WechatApi} from '../../../wechat/api.js';
+import {WechatApi} from '../../../wechat';
 import type {VerifyFriendRequest} from '../../../wechat/api-types.js';
 
 const COMMAND_PREFIX = '/cm';
@@ -60,6 +60,10 @@ function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
     if (!owner) return '未配置 BOT_OWNER_WECHAT_ID，无法执行联系人管理';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
+}
+
+function buildChatroomContactListFailureText(result: {code: number; message?: unknown}): string {
+    return `联系人管理失败：setChatroomContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`;
 }
 
 export const contactAdminPlugin: TextMessage = {
@@ -169,8 +173,8 @@ export const contactAdminPlugin: TextMessage = {
                 }
                 const api = new WechatApi(apiBaseUrl);
                 const result = await api.setChatroomContactList(groupId, false);
-                if (typeof result.code === 'number' && result.code !== 0) {
-                    throw new Error(`setChatroomContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
+                if (result.code !== 0) {
+                    return {type: 'text', content: buildChatroomContactListFailureText(result)};
                 }
                 await ContactRepository.setContactEnabled(env.XBOT_DB, groupId, false);
                 return {type: 'text', content: `✅ 已将群移出联系人：${groupId}`};
@@ -185,8 +189,8 @@ export const contactAdminPlugin: TextMessage = {
                 // 群联系人不删会话，只取消保存到通讯录。
                 const api = new WechatApi(apiBaseUrl);
                 const result = await api.setChatroomContactList(contactId, false);
-                if (typeof result.code === 'number' && result.code !== 0) {
-                    throw new Error(`setChatroomContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`);
+                if (result.code !== 0) {
+                    return {type: 'text', content: buildChatroomContactListFailureText(result)};
                 }
             } else {
                 await ContactRepository.removeContact(apiBaseUrl, contactId);

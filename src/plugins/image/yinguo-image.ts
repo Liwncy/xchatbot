@@ -1,8 +1,7 @@
 import type {TextMessage} from '../types.js';
 import {logger} from '../../utils/logger.js';
 import {FileUploader} from '../../utils/file-uploader.js';
-import {WechatApi} from '../../wechat/api.js';
-import {buildWechatChatRecordAppReply, WechatChatRecordImageTool} from '../../wechat/index.js';
+import {buildWechatChatRecordAppReply, WechatApi, WechatChatRecordImageTool} from '../../wechat';
 
 const DIRECT_FORWARD_KEYWORDS = ['我与赌毒不共戴天', '佛祖心中坐'] as const;
 const REVIEW_MODE_KEYWORDS = ['因果循环', '人之初，性本色', '人之初,性本色', '人之初性本色'] as const;

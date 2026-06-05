@@ -1,7 +1,6 @@
-import type {XiuxianBossLog, XiuxianWorldBossContribution, XiuxianWorldBossState} from '../../core/types/index.js';
-import {XIUXIAN_TERMS} from '../../core/constants/index.js';
-import {formatRealm} from '../../core/utils/realm.js';
-import {formatBeijingTime} from '../../core/utils/time.js';
+import type {XiuxianBossLog, XiuxianWorldBossContribution, XiuxianWorldBossState} from '../../core/types';
+import {XIUXIAN_TERMS} from '../../core/constants';
+import {formatBeijingTime, formatRealm} from '../../core/utils';
 
 export function bossRaidText(params: {
     bossName: string;

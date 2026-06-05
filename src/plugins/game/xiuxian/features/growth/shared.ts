@@ -1,6 +1,6 @@
-import {XIUXIAN_ACTIONS} from '../../core/constants/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {XiuxianAchievementDef, XiuxianPlayer, XiuxianTaskDef} from '../../core/types/index.js';
+import {XIUXIAN_ACTIONS} from '../../core/constants';
+import {XiuxianRepository} from '../../core/repository';
+import type {XiuxianAchievementDef, XiuxianPlayer, XiuxianTaskDef} from '../../core/types';
 
 export function dayKeyOf(now: number): string {
     return new Date(now + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);

@@ -1,5 +1,5 @@
-import {XiuxianRepository} from '../repository/index.js';
-import type {XiuxianItem, XiuxianItemQuality} from '../types/index.js';
+import {XiuxianRepository} from '../repository';
+import type {XiuxianItem, XiuxianItemQuality} from '../types';
 
 export const XIUXIAN_REFINE_MATERIAL_KEY = 'refine_essence';
 export const XIUXIAN_REFINE_MATERIAL_LABEL = '玄铁精华';

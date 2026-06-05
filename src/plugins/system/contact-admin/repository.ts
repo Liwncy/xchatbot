@@ -1,4 +1,4 @@
-import {WechatApi} from '../../../wechat/api.js';
+import {WechatApi} from '../../../wechat';
 import type {VerifyFriendRequest} from '../../../wechat/api-types.js';
 
 type ContactType = 'user' | 'group' | 'system';

@@ -1,6 +1,6 @@
-import {XIUXIAN_AUCTION} from '../../core/constants/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {XiuxianAuction, XiuxianItem, XiuxianItemQuality} from '../../core/types/index.js';
+import {XIUXIAN_AUCTION} from '../../core/constants';
+import {XiuxianRepository} from '../../core/repository';
+import type {XiuxianAuction, XiuxianItem, XiuxianItemQuality} from '../../core/types';
 import {auctionSettleNoBidText, auctionSettleText} from './reply.js';
 
 export function parseAuctionItemPayload(itemPayloadJson: string): Omit<XiuxianItem, 'id' | 'playerId' | 'createdAt'> | null {

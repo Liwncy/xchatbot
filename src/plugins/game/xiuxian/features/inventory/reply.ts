@@ -1,4 +1,4 @@
-import type {EquipmentSlot, XiuxianItem} from '../../core/types/index.js';
+import type {EquipmentSlot, XiuxianItem} from '../../core/types';
 
 function qualityLabel(raw: string): string {
     if (raw === 'mythic') return '神话(红)';

@@ -1,4 +1,4 @@
-import type {XiuxianCommand} from '../../core/types/index.js';
+import type {XiuxianCommand} from '../../core/types';
 
 export function parseSocialCommand(text: string): XiuxianCommand | null {
     const sparMatch = text.match(/^修仙切磋(?:\s*(.+))?$/);

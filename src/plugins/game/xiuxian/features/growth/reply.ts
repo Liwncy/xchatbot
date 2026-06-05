@@ -1,6 +1,6 @@
-import type {XiuxianAchievementDef, XiuxianItem, XiuxianItemQuality, XiuxianPlayerAchievement, XiuxianPlayerTask, XiuxianTaskDef} from '../../core/types/index.js';
-import {XIUXIAN_TERMS} from '../../core/constants/index.js';
-import {formatRealm} from '../../core/utils/realm.js';
+import type {XiuxianAchievementDef, XiuxianItem, XiuxianItemQuality, XiuxianPlayerAchievement, XiuxianPlayerTask, XiuxianTaskDef} from '../../core/types';
+import {XIUXIAN_TERMS} from '../../core/constants';
+import {formatRealm} from '../../core/utils';
 
 function qualityLabel(quality: XiuxianItemQuality): string {
     if (quality === 'mythic') return '神话(红)';

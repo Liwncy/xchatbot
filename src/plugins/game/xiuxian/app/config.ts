@@ -1,5 +1,5 @@
 import {logger} from '../../../../utils/logger.js';
-import {getDefaultPrefixSetConfig, setPrefixSetConfig} from '../core/balance/index.js';
+import {getDefaultPrefixSetConfig, setPrefixSetConfig} from '../core/balance';
 
 const XIUXIAN_SET_CONFIG_KV_KEY = 'xiuxian:equipment:set-config';
 const XIUXIAN_SET_CONFIG_CACHE_MS = 60_000;

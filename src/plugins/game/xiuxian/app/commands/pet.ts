@@ -1,4 +1,4 @@
-import type {XiuxianCommand} from '../../core/types/index.js';
+import type {XiuxianCommand} from '../../core/types';
 import {parsePositiveInt} from './common.js';
 
 export function parsePetCommand(text: string): XiuxianCommand | null {

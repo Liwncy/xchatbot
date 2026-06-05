@@ -1,10 +1,10 @@
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {applyExpProgress, runSimpleBattle} from '../../core/balance/index.js';
-import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE, XIUXIAN_TOWER, XIUXIAN_TOWER_SEASON_REWARDS} from '../../core/constants/index.js';
+import {applyExpProgress, runSimpleBattle} from '../../core/balance';
+import {XIUXIAN_ACTIONS, XIUXIAN_COOLDOWN_MS, XIUXIAN_PAGE_SIZE, XIUXIAN_TOWER, XIUXIAN_TOWER_SEASON_REWARDS} from '../../core/constants';
 import {formatCountdown} from '../../core/utils/time.js';
-import type {CombatPower, XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import {applyBattleRewardRate} from '../fortune/index.js';
+import type {CombatPower, XiuxianCommand, XiuxianPlayer} from '../../core/types';
+import {XiuxianRepository} from '../../core/repository';
+import {applyBattleRewardRate} from '../fortune';
 import {
     towerClimbText,
     towerDetailText,

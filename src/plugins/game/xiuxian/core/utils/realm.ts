@@ -1,4 +1,4 @@
-import {XIUXIAN_TERMS} from '../constants/index.js';
+import {XIUXIAN_TERMS} from '../constants';
 
 const MAX_REALM_LEVEL = 144;
 const LEVELS_PER_STAGE = 9;

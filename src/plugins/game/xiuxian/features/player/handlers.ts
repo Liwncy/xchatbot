@@ -1,9 +1,9 @@
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {calcCombatPower, calcSetBonusSummary, mergeCombatPower, petCombatBonus} from '../../core/balance/index.js';
-import {XIUXIAN_DEFAULTS, XIUXIAN_TERMS} from '../../core/constants/index.js';
-import {enhanceItemsWithRefine} from '../../core/refine/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
-import type {XiuxianCommand, XiuxianIdentity, XiuxianPlayer} from '../../core/types/index.js';
+import {calcCombatPower, calcSetBonusSummary, mergeCombatPower, petCombatBonus} from '../../core/balance';
+import {XIUXIAN_DEFAULTS, XIUXIAN_TERMS} from '../../core/constants';
+import {enhanceItemsWithRefine} from '../../core/refine';
+import {XiuxianRepository} from '../../core/repository';
+import type {XiuxianCommand, XiuxianIdentity, XiuxianPlayer} from '../../core/types';
 import {createdText, statusText} from './reply.js';
 
 type PlayerEntryCommandContext = {

@@ -1,8 +1,8 @@
 import type {HandlerResponse} from '../../../../../types/reply.js';
-import {applyExpProgress} from '../../core/balance/index.js';
-import {XIUXIAN_PAGE_SIZE, XIUXIAN_PET_GACHA, XIUXIAN_PET_GROWTH, XIUXIAN_PET_MILESTONE_REWARDS, XIUXIAN_TERMS} from '../../core/constants/index.js';
-import type {XiuxianCommand, XiuxianPlayer} from '../../core/types/index.js';
-import {XiuxianRepository} from '../../core/repository/index.js';
+import {applyExpProgress} from '../../core/balance';
+import {XIUXIAN_PAGE_SIZE, XIUXIAN_PET_GACHA, XIUXIAN_PET_GROWTH, XIUXIAN_PET_MILESTONE_REWARDS, XIUXIAN_TERMS} from '../../core/constants';
+import type {XiuxianCommand, XiuxianPlayer} from '../../core/types';
+import {XiuxianRepository} from '../../core/repository';
 import {petAdoptText, petBagText, petBattleStateText, petDrawResultText, petFeedText, petPityText, petPoolText, petStatusText} from './reply.js';
 import {ensureWeeklyPetBanner, limitedPetProfileOf, rarityLabel, rollPetDrawEntry} from './shared.js';
 

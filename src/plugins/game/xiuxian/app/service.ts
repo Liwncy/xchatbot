@@ -8,8 +8,8 @@ import {handleXiuxianError} from './errors.js';
 import {routeXiuxianCommand} from './router.js';
 import type {
     XiuxianCommand,
-} from '../core/types/index.js';
-import {XiuxianRepository} from '../core/repository/index.js';
+} from '../core/types';
+import {XiuxianRepository} from '../core/repository';
 
 export async function handleXiuxianCommand(
     db: D1Database,
