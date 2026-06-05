@@ -1,6 +1,5 @@
 import type {IncomingMessage} from '../types/message.js';
-import type {Env} from '../types/env.js';
-import type {HandlerResponse} from '../types/reply.js';
+import type {MessageHandler} from '../types/plugin.js';
 
 /** 所有消息事件处理器共享的基础字段。 */
 interface BaseMessageEvent {
@@ -13,7 +12,7 @@ interface BaseMessageEvent {
      * @param message - 标准化后的完整消息。
      * @param env     - Cloudflare Workers 环境变量绑定。
      */
-    handle: (message: IncomingMessage, env: Env) => Promise<HandlerResponse>;
+    handle: MessageHandler;
 }
 
 /**

@@ -1,4 +1,5 @@
-import type {IncomingMessage, MessageHandler} from '../types/message.js';
+import type {IncomingMessage} from '../types/message.js';
+import type {MessageHandler} from '../types/plugin.js';
 import type {Env} from '../types/env.js';
 import type {HandlerResponse} from '../types/reply.js';
 import {handleTextMessage} from './handlers/text.js';

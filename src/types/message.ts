@@ -1,4 +1,3 @@
-
 /** 支持的消息平台 */
 export type Platform = 'wechat';
 
@@ -76,12 +75,4 @@ export interface IncomingMessage {
     raw: unknown;
 }
 
-import type {Env} from './env.js';
-import type {HandlerResponse} from './reply.js';
-
-/** 处理器函数签名 */
-export type MessageHandler = (
-    message: IncomingMessage,
-    env: Env,
-) => Promise<HandlerResponse>;
 
