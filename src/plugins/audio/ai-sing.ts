@@ -23,7 +23,7 @@ function stripAiSingCommandPrefix(content: string): string {
 
 function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
-    if (!owner) return 'BOT_OWNER_WECHAT_ID 未配置，无法使用 聪明唱歌 管理命令';
+    if (!owner) return '唱歌功能还没找到主人，暂时不能管理哦';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
@@ -119,10 +119,10 @@ function formatConfigOverview(config: Awaited<ReturnType<typeof loadAiSingRuntim
 
 function ensureSceneAllowed(config: Awaited<ReturnType<typeof loadAiSingRuntimeConfig>>, source?: string) {
     if (source === 'group' && !config.allow_group_use) {
-        throw new Error('当前配置未开放群聊使用 聪明唱歌');
+        throw new Error('群里暂时还不能唱歌哦');
     }
     if (source !== 'group' && !config.allow_private_use) {
-        throw new Error('当前配置未开放私聊使用 聪明唱歌');
+        throw new Error('私聊暂时还不能唱歌哦');
     }
 }
 
@@ -182,7 +182,7 @@ async function handleSing(
 ) {
     const config = await loadAiSingRuntimeConfig(env);
     if (!config.enabled) {
-        return {type: 'text' as const, content: '聪明唱歌 目前已关闭。'};
+        return {type: 'text' as const, content: '唱歌功能暂时休息中，等主人开启后再来吧'};
     }
     ensureSceneAllowed(config, message.source);
 
@@ -223,7 +223,7 @@ async function handleThemeSing(
 ) {
     const config = await loadAiSingRuntimeConfig(env);
     if (!config.enabled) {
-        return {type: 'text' as const, content: '聪明唱歌 目前已关闭。'};
+        return {type: 'text' as const, content: '唱歌功能暂时休息中，等主人开启后再来吧'};
     }
     ensureSceneAllowed(config, message.source);
 
@@ -264,7 +264,7 @@ async function handleTrialVoice(
 ) {
     const config = await loadAiSingRuntimeConfig(env);
     if (!config.enabled) {
-        return {type: 'text' as const, content: '聪明唱歌 目前已关闭。'};
+        return {type: 'text' as const, content: '唱歌功能暂时休息中，等主人开启后再来吧'};
     }
     ensureSceneAllowed(config, message.source);
 
@@ -385,7 +385,7 @@ export const aiSingPlugin: TextMessage = {
             });
             return {
                 type: 'text' as const,
-                content: `聪明唱歌 执行失败：${error instanceof Error ? error.message : String(error)}`,
+                content: '嗓子有点哑了，等一会儿再点歌吧',
             };
         }
     },

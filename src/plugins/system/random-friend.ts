@@ -378,7 +378,7 @@ export const randomFriendPlugin: TextMessage = {
     handle: async (message, env) => {
         const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
         if (!apiBaseUrl) {
-            return {type: 'text', content: 'WECHAT_API_BASE_URL 未配置，无法执行随机朋友'};
+            return {type: 'text', content: '找人功能还没接好线，稍等一下吧'};
         }
 
         const api = new WechatApi(apiBaseUrl);
@@ -387,7 +387,7 @@ export const randomFriendPlugin: TextMessage = {
             if (!candidate) {
                 return {
                     type: 'text',
-                    content: `随机拨号 ${attempts} 次都没搜到可用联系人，最后一个号码是 ${phone}，稍后再试试手气吧。`,
+                    content: `翻了 ${attempts} 个号码都没人在线，最后拨的是 ${phone}，下次再来碰碰运气嘛 🎲`,
                 };
             }
 
@@ -409,7 +409,7 @@ export const randomFriendPlugin: TextMessage = {
             });
             return {
                 type: 'text',
-                content: error instanceof Error ? `随机朋友插件异常：${error.message}` : '随机朋友插件异常，请稍后重试。',
+                content: '哎呀找人功能卡住了，过一会儿再帮你找找看吧 🫠',
             };
         }
     },

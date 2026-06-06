@@ -71,7 +71,7 @@ export const xuanxuePlugin: TextMessage = {
             argParams = normalizeParamsByConvention(extractArgs(context.rule, context.query));
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
-            return {type: 'text', content: context.rule.usage ?? `参数格式错误：${errMsg}`};
+            return {type: 'text', content: context.rule.usage ?? '参数格式不太对，再试一次？'};
         }
 
         const mergedParams = {...params, ...argParams};
@@ -79,7 +79,7 @@ export const xuanxuePlugin: TextMessage = {
         try {
             const page = await fetchPage(context.rule, mergedParams);
             const parsed = parsePage(context.rule, page);
-            if (!parsed) return {type: 'text', content: '玄学插件未解析到有效结果。'};
+            if (!parsed) return {type: 'text', content: '这次没算出结果，再试一次？'};
 
             if (context.rule.replyMode === 'forward') {
                 if (typeof parsed === 'string') {
@@ -109,7 +109,7 @@ export const xuanxuePlugin: TextMessage = {
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             logger.error('玄学插件处理异常', {rule: context.rule.name, error: errMsg});
-            return {type: 'text', content: '玄学插件请求或解析失败，请稍后重试。'};
+            return {type: 'text', content: '卦象太乱没看明白，过一会儿再来算一次吧。'};
         }
     },
 };

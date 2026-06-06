@@ -543,7 +543,7 @@ export const yinguoImagePlugin: TextMessage = {
             });
             return {
                 type: 'text',
-                content: '因果图片服务暂时不可用，请稍后再试。',
+                content: '图片还没画好，等一会儿再问我要吧。',
             };
         }
     },

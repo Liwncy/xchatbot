@@ -163,7 +163,7 @@ export async function sendWechatReply(
             const inlineBase64 = isHttpUrl(reply.mediaId) ? '' : normalizeBase64(reply.mediaId);
 
             const fallbackText = reply.fallbackText?.trim()
-                || (originalUrl ? `语音发送失败，可尝试打开原链接：${originalUrl}` : '语音发送失败，请稍后重试');
+                || (originalUrl ? `语音发不出去了，你可以直接打开这个链接听：${originalUrl}` : '语音没发出去，等下再试试');
 
             logger.info('微信语音发送开始', {
                 receiver: effectiveReceiver,

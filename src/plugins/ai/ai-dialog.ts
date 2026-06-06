@@ -41,7 +41,7 @@ function stripAiDialogCommandPrefix(content: string): string {
 
 function ensureAiDialogCommandOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
-    if (!owner) return 'BOT_OWNER_WECHAT_ID 未配置，无法使用 聪明对话配置命令';
+    if (!owner) return '对话功能还没找到主人，暂时不能配置哦';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
@@ -570,7 +570,7 @@ async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[
         });
         return {
             type: 'text' as const,
-            content: `聪明对话配置操作失败：${error instanceof Error ? error.message : String(error)}`,
+            content: `配置没改成功，检查一下格式再来一次吧。`,
         };
     }
 }
@@ -608,7 +608,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
         });
         return {
             type: 'text' as const,
-            content: `聪明对话暂未配置完成：${error instanceof Error ? error.message : String(error)}\n可发送「聪明对话 帮助」查看配置命令。`,
+            content: '对话功能还没配置好，可发送「聪明对话 帮助」查看设置方法',
         };
     }
 
@@ -662,7 +662,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
         });
         return {
             type: 'text' as const,
-            content: '聪明对话服务暂时不可用，请稍后再试。',
+            content: '我脑子有点乱，缓一缓再找我聊吧。',
         };
     }
 }

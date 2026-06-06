@@ -564,7 +564,7 @@ function isOwner(message: IncomingMessage, env: Env): boolean {
 function ensureOwner(message: IncomingMessage, env: Env): void {
     const ownerId = env.BOT_OWNER_WECHAT_ID?.trim();
     if (!ownerId) {
-        throw new Error('BOT_OWNER_WECHAT_ID 未配置，无法使用插件管理命令');
+        throw new Error('插件管理功能还没找到主人，暂时不能使用哦');
     }
     if (!isOwner(message, env)) {
         throw new Error(NO_PERMISSION_REPLY);

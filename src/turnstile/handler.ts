@@ -25,7 +25,7 @@ async function handleCheckPage(request: Request, env: Env): Promise<Response> {
 
     const siteKey = env.TURNSTILE_SITE_KEY?.trim() ?? '';
     if (!siteKey) {
-        return htmlResponse(renderPage('配置缺失', '<h1>服务配置缺失</h1><p>未配置 TURNSTILE_SITE_KEY。</p>'), 500);
+        return htmlResponse(renderPage('配置缺失', '<h1>服务配置缺失</h1><p>验证功能尚未配置完成，请联系管理员。</p>'), 500);
     }
 
     return htmlResponse(renderCheckPage(session, siteKey));

@@ -13,7 +13,7 @@ export async function handleLocationMessage(
 ): Promise<HandlerResponse> {
 	const loc = message.location;
 	if (!loc) {
-		return {type: 'text', content: '收到位置信息，但解析失败。'};
+		return {type: 'text', content: '看到你的位置了，但地图加载不出来。'};
 	}
 	logger.info(`收到位置消息：纬度=${loc.latitude} 经度=${loc.longitude}` +
 		(loc.label ? ` 地址=${loc.label}` : ''));

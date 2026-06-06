@@ -632,7 +632,7 @@ export const videoRecommendationPlugin: TextMessage = {
         if (!route) {
             return {
                 type: 'text',
-                content: `暂时还没找到「${keywordText}」对应的视频分类。\n\n${buildCategoryHelpText()}`,
+                content: `没有找到「${keywordText}」这个分类，看看下面的分类有没有你想要的？\n\n${buildCategoryHelpText()}`,
             };
         }
 
@@ -642,7 +642,7 @@ export const videoRecommendationPlugin: TextMessage = {
                 logger.warn('视频推荐插件未解析到有效视频地址', {route: route.name, endpoint: route.endpoint});
                 return {
                     type: 'text',
-                    content: `这次没有拿到可用的【${route.name}】视频，你再试一次吧。`,
+                    content: `这次没拿到【${route.name}】的视频，你再试一次看看吧`,
                 };
             }
 
@@ -655,7 +655,7 @@ export const videoRecommendationPlugin: TextMessage = {
             });
             return {
                 type: 'text',
-                content: `获取【${route.name}】视频失败了，请稍后再试。`,
+                content: '视频还没找到，过一会儿再来看看吧',
             };
         }
     },

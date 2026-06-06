@@ -74,14 +74,14 @@ export const humanVerifyPlugin: TextMessage = {
         if (!publicBaseUrl && !pageUrl) {
             return {
                 type: 'text',
-                content: 'TURNSTILE_PAGE_URL 未配置，无法生成验证链接。',
+                content: '验证功能还没设置好，稍等一下吧',
             };
         }
 
         if (!env.TURNSTILE_SITE_KEY?.trim() || !env.TURNSTILE_SECRET_KEY?.trim()) {
             return {
                 type: 'text',
-                content: 'Turnstile 未配置完成（缺少 SITE_KEY 或 SECRET_KEY）。',
+                content: '验证功能还没设置好，稍等一下吧',
             };
         }
 

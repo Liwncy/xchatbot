@@ -181,7 +181,7 @@ export const imageIntentProcessPlugin: ImageMessage = {
                 logger.error('AI 识图接口请求失败', {status: res.status});
                 return {
                     type: 'text',
-                    content: '识图失败了，请稍后重试。',
+                    content: '这张图我没认出来，换一张试试？',
                 };
             }
 
@@ -191,7 +191,7 @@ export const imageIntentProcessPlugin: ImageMessage = {
                 logger.warn('AI 识图接口未返回 result', {payload: data});
                 return {
                     type: 'text',
-                    content: '识图完成，但没有拿到有效描述。',
+                    content: '看了半天没看出个所以然，换一张再试试？',
                 };
             }
 
@@ -203,7 +203,7 @@ export const imageIntentProcessPlugin: ImageMessage = {
             logger.error('调用 AI 识图接口异常', error);
             return {
                 type: 'text',
-                content: '识图时发生异常，请稍后再试。',
+                content: '看图的时候眼睛有点花，再发一次试试？',
             };
         }
     },

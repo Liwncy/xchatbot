@@ -13,7 +13,7 @@ export async function handleLinkMessage(
 ): Promise<HandlerResponse> {
 	const link = message.link;
 	if (!link) {
-		return {type: 'text', content: '收到链接消息，但解析失败。'};
+		return {type: 'text', content: '收到链接了，但内容打不开。'};
 	}
 	logger.info(`收到链接消息：${link.title} ${link.url}`);
 	return null;

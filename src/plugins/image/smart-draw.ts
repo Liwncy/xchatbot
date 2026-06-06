@@ -51,7 +51,7 @@ export const smartDrawPlugin: TextMessage = {
             });
             return {
                 type: 'text',
-                content: '绘图失败了，换个描述再试试吧。',
+                content: '这张没画出来，换个描述试试？',
             };
         }
     },

@@ -50,20 +50,20 @@ function buildHelpText(): string {
         '10) /cm sync',
         '',
         '说明：',
-        '- 仅机器人主人（BOT_OWNER_WECHAT_ID）可执行',
+        '- 仅机器人主人可执行',
         '- 群聊仅在群ID属于联系人列表时才回复',
     ].join('\n');
 }
 
 function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
-    if (!owner) return '未配置 BOT_OWNER_WECHAT_ID，无法执行联系人管理';
+    if (!owner) return '联系人管理功能还没找到主人，暂时不能操作哦';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
 
 function buildChatroomContactListFailureText(result: {code: number; message?: unknown}): string {
-    return `联系人管理失败：setChatroomContactList(false) failed: code=${result.code}, message=${String(result.message ?? '')}`;
+    return `联系人操作没成功（code=${result.code}），稍后再试试吧`;
 }
 
 export const contactAdminPlugin: TextMessage = {
@@ -81,7 +81,7 @@ export const contactAdminPlugin: TextMessage = {
 
             const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
             if (!apiBaseUrl) {
-                return {type: 'text', content: 'WECHAT_API_BASE_URL 未配置，无法执行联系人管理'};
+                return {type: 'text', content: '联系人功能还没接好线，稍等一下吧'};
             }
             await ContactRepository.ensureSchema(env.XBOT_DB);
 
@@ -199,7 +199,7 @@ export const contactAdminPlugin: TextMessage = {
             return {type: 'text', content: `✅ 已移除联系人：${contactId}`};
         } catch (error) {
             const messageText = error instanceof Error ? error.message : String(error);
-            return {type: 'text', content: `联系人管理失败：${messageText}`};
+            return {type: 'text', content: '联系人操作没成功，再试一次吧？'};
         }
     },
 };
