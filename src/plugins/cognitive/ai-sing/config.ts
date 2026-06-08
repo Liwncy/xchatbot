@@ -1,6 +1,6 @@
-import type {Env} from '../../types/env.js';
-import {KV_AI_SING_CONFIG} from '../../constants/kv.js';
-import {logger} from '../../utils/logger.js';
+import type {Env} from '../../../types/env.js';
+import {KV_AI_SING_CONFIG} from '../../../constants/kv.js';
+import {logger} from '../../../utils/logger.js';
 
 export interface AiSingServiceConfig {
     base_url: string;

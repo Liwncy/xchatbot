@@ -1,5 +1,5 @@
-import type {TextMessage} from '../types.js';
-import type {IncomingMessage} from '../../types/message.js';
+import type {TextMessage} from '../../types.js';
+import type {IncomingMessage} from '../../../types/message.js';
 import {FakeForwardService, parseFakeForwardTimeInput} from './fake-forward-service.js';
 import {FAKE_FORWARD_PREFIX, type ParsedFakeForwardCommand} from './fake-forward-types.js';
 

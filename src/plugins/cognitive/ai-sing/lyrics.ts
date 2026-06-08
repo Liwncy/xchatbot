@@ -1,5 +1,5 @@
-import type {Env} from '../../types/env.js';
-import {requestAiText} from '../common/ai-client.js';
+import type {Env} from '../../../types/env.js';
+import {requestAiText} from '../../common/ai-client.js';
 
 export interface GenerateOriginalLyricsOptions {
     theme: string;

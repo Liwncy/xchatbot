@@ -1,14 +1,14 @@
 /** 回复构建器：text 回退 + forward 卡片（八字 / 合婚） */
 
-import {renderTemplateString} from '../../rule-engine/shared.js';
-import {buildWechatChatRecordAppReply} from '../../../wechat/builders/chat-record.js';
+import {renderTemplateString} from '../../../rule-engine/shared.js';
+import {buildWechatChatRecordAppReply} from '../../../../wechat/builders/chat-record.js';
 import {withSectionEmoji, withSummaryEmoji, beautifySectionContent, HEHUN_SCORE_EMOJI} from '../lib/format.js';
 import {renderTableImageUrl, renderTableSvgDataUrl} from '../lib/table-image.js';
 import type {BaziParsedResult} from '../parsers/bazi.js';
 import type {HeHunParsedResult, HeHunPersonInfo} from '../parsers/hehun.js';
 import type {XuanxueRule} from '../types.js';
-import type {IncomingMessage} from '../../../types/message.js';
-import type {ImageReply} from '../../../types/reply.js';
+import type {IncomingMessage} from '../../../../types/message.js';
+import type {ImageReply} from '../../../../types/reply.js';
 
 // 不截断文字，将完整内容返回
 

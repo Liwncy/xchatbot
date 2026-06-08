@@ -1,4 +1,4 @@
-import type {MessageSource} from '../../types/message.js';
+import type {MessageSource} from '../../../types/message.js';
 
 export const FAKE_FORWARD_PREFIX = '伪转发';
 export const FAKE_FORWARD_DRAFT_TTL_SECONDS = 1800;

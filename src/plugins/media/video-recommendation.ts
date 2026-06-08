@@ -1,7 +1,7 @@
 import type {TextMessage} from '../types.js';
 import type {HandlerResponse, NewsArticle, VideoReply} from '../../types/reply.js';
 import {logger} from '../../utils/logger.js';
-import {DrawService} from '../ai/draw-service.js';
+import {DrawService} from '../common/draw-service.js';
 import {requestAiText} from '../common/ai-client.js';
 
 type VideoApiParser = 'yujn-json' | 'redirect-url' | 'nested-video-json';

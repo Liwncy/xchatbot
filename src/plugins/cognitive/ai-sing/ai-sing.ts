@@ -1,7 +1,7 @@
-import type {TextMessage} from '../types.js';
-import {NO_PERMISSION_REPLY} from '../../constants/messages.js';
-import {logger} from '../../utils/logger.js';
-import {FileUploader} from '../../utils/file-uploader.js';
+import type {TextMessage} from '../../types.js';
+import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
+import {logger} from '../../../utils/logger.js';
+import {FileUploader} from '../../../utils/file-uploader.js';
 import {generateOriginalLyrics, normalizeLyrics} from './lyrics.js';
 import {AI_SING_PRESET_VOICES, buildAiSingBaseConfig, loadAiSingPersistedConfig, loadAiSingRuntimeConfig, maskSensitiveValue, resolveAiSingService, saveAiSingConfig} from './config.js';
 import {requestMimoTts} from './mimo-tts-client.js';

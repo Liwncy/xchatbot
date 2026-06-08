@@ -10,26 +10,26 @@
  */
 
 import {registerPlugin} from './registry';
-import {aiDialogPlugin} from './ai/ai-dialog';
-import {videoLinkParserPlugin} from './video/video-link-parser';
-import {videoRecommendationPlugin} from './video/video-recommendation';
+import {aiDialogPlugin} from './cognitive/ai-dialog';
+import {videoLinkParserPlugin} from './media/video-link-parser';
+import {videoRecommendationPlugin} from './media/video-recommendation';
 import {helpPlugin} from './system/help';
 import {pluginAdminPlugin} from './system/plugin-admin';
 import {contactAdminPlugin} from './system/contact-admin';
-import {humanVerifyPlugin} from './system/human-verify';
-import {randomFriendPlugin} from './system/random-friend';
+import {humanVerifyPlugin} from './toolkits/human-verify';
+import {randomFriendPlugin} from './toolkits/random-friend';
 import {commonPluginsEngine} from './rule-engine/base';
 import {dynamicCommonPluginsEngine} from './rule-engine/dynamic';
 import {workflowCommonPluginsEngine} from './rule-engine/workflow';
-import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './image/intent-image';
-import {imageRecommendationPlugin} from './image/image-recommendation';
-import {smartDrawPlugin} from './image/smart-draw';
-import {yinguoImagePlugin} from './image/yinguo-image';
-import {xiuxianPlugin} from './game/xiuxian';
-import {wechatChatRecordDemoPlugin} from './demo/wechat-chat-record';
-import {fakeForwardPlugin} from './wechat/fake-forward';
-import {xuanxuePlugin} from './xuanxue';
-import {aiSingPlugin} from './audio/ai-sing';
+import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './cognitive/intent-image';
+import {imageRecommendationPlugin} from './media/image-recommendation';
+import {smartDrawPlugin} from './cognitive/smart-draw';
+import {yinguoImagePlugin} from './media/yinguo-image';
+import {xiuxianPlugin} from './scenarios/xiuxian';
+import {wechatChatRecordDemoPlugin} from './toolkits/wechat-chat-record';
+import {fakeForwardPlugin} from './toolkits/fake-forward/fake-forward';
+import {xuanxuePlugin} from './scenarios/xuanxue';
+import {aiSingPlugin} from './cognitive/ai-sing/ai-sing';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 registerPlugin(helpPlugin);

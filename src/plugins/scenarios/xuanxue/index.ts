@@ -14,8 +14,8 @@
  *   types.ts           公共类型定义
  */
 
-import type {TextMessage} from '../types.js';
-import {logger} from '../../utils/logger.js';
+import type {TextMessage} from '../../types.js';
+import {logger} from '../../../utils/logger.js';
 import {findMatch, buildTemplateParams, extractArgs, normalizeParamsByConvention} from './engine/matcher.js';
 import {fetchPage} from './engine/fetcher.js';
 import {parsePage} from './engine/parser.js';
