@@ -69,8 +69,7 @@ export const xuanxuePlugin: TextMessage = {
         let argParams: Record<string, string>;
         try {
             argParams = normalizeParamsByConvention(extractArgs(context.rule, context.query));
-        } catch (error) {
-            const errMsg = error instanceof Error ? error.message : String(error);
+        } catch {
             return {type: 'text', content: context.rule.usage ?? '参数格式不太对，再试一次？'};
         }
 

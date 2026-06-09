@@ -1,6 +1,6 @@
-import type {IncomingMessage} from '../../types/message.js';
-import type {HandlerResponse, ReplyMessage, TextReply} from '../../types/reply.js';
-import {buildWechatChatRecordAppReply} from '../../wechat';
+import type {IncomingMessage} from '../../../types/message.js';
+import type {HandlerResponse, ReplyMessage, TextReply} from '../../../types/reply.js';
+import {buildWechatChatRecordAppReply} from '../../../wechat';
 import type {PluginAdminCommand} from './plugin-admin-types.js';
 
 const LONG_TEXT_MIN_LENGTH = 260;

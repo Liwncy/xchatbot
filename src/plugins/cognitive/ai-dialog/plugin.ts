@@ -1,7 +1,7 @@
-import type {TextMessage} from '../types.js';
-import {NO_PERMISSION_REPLY} from '../../constants/messages.js';
-import {logger} from '../../utils/logger.js';
-import {requestAiText} from '../common/ai-client.js';
+import type {TextMessage} from '../../types.js';
+import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
+import {logger} from '../../../utils/logger.js';
+import {requestAiText} from '../../common/ai-client.js';
 import {
     AI_DIALOG_DEFAULT_PROMPT_KEY,
     buildAiDialogBaseConfig,

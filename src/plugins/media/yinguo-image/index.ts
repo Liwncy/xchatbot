@@ -1,7 +1,7 @@
-import type {TextMessage} from '../types.js';
-import {logger} from '../../utils/logger.js';
-import {FileUploader} from '../../utils/file-uploader.js';
-import {buildWechatChatRecordAppReply, WechatApi, WechatChatRecordImageTool} from '../../wechat';
+import type {TextMessage} from '../../types.js';
+import {logger} from '../../../utils/logger.js';
+import {FileUploader} from '../../../utils/file-uploader.js';
+import {buildWechatChatRecordAppReply, WechatApi, WechatChatRecordImageTool} from '../../../wechat';
 
 const DIRECT_FORWARD_KEYWORDS = ['我与赌毒不共戴天', '佛祖心中坐'] as const;
 const REVIEW_MODE_KEYWORDS = ['因果循环', '人之初，性本色', '人之初,性本色', '人之初性本色'] as const;
@@ -25,8 +25,8 @@ function getAuthHeaders(): HeadersInit {
 }
 
 function assertRequiredConfig(): void {
-    if (!YINGUO_IMAGE_API_URL.trim()) throw new Error('请在 yinguo-image.ts 中设置 YINGUO_IMAGE_API_URL');
-    if (!YINGUO_VERIFY_API_URL.trim()) throw new Error('请在 yinguo-image.ts 中设置 YINGUO_VERIFY_API_URL');
+    if (!YINGUO_IMAGE_API_URL.trim()) throw new Error('请在 yinguo-image 插件配置中设置 YINGUO_IMAGE_API_URL');
+    if (!YINGUO_VERIFY_API_URL.trim()) throw new Error('请在 yinguo-image 插件配置中设置 YINGUO_VERIFY_API_URL');
 }
 
 function resolveYinguoMode(content: string): 'direct-forward' | 'review-mode' | null {

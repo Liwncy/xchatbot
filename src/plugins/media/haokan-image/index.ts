@@ -1,7 +1,7 @@
-import type {TextMessage} from '../types.js';
-import {logger} from '../../utils/logger.js';
-import {DrawService} from '../common/draw-service.js';
-import {requestAiText} from '../common/ai-client.js';
+import type {TextMessage} from '../../types.js';
+import {logger} from '../../../utils/logger.js';
+import {DrawService} from '../../common/draw-service.js';
+import {requestAiText} from '../../common/ai-client.js';
 
 type ImageReplyScale = '1:1' | '3:4' | '4:3' | '16:9' | '9:16';
 
@@ -336,9 +336,9 @@ async function fetchImageByRoute(route: ImageRoute): Promise<string | null> {
     return null;
 }
 
-export const imageRecommendationPlugin: TextMessage = {
+export const haokanImagePlugin: TextMessage = {
     type: 'text',
-    name: 'image-recommendation',
+    name: 'haokan-image',
     description: '以"看看 / 来点 / 爱看 / 想看"开头优先走分类 API，未命中再 AI 绘图',
     match: (content) => TRIGGER_PREFIXES.some((prefix) => content.trim().startsWith(prefix)),
     handle: async (message, env) => {

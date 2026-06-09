@@ -9,8 +9,8 @@
  * roomId 格式示例：12345678@chatroom
  */
 
-import type {TextMessage} from '../types.js';
-import {RoomFilter} from './room-filter.js';
+import type {TextMessage} from '../../types.js';
+import {RoomFilter} from '../room-filter.js';
 
 const COMMANDS = ['加群', '移群', '群列表'] as const;
 

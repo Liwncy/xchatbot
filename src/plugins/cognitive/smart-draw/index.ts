@@ -1,6 +1,6 @@
-import type {TextMessage} from '../types.js';
-import {logger} from '../../utils/logger.js';
-import {DrawService} from '../common/draw-service.js';
+import type {TextMessage} from '../../types.js';
+import {logger} from '../../../utils/logger.js';
+import {DrawService} from '../../common/draw-service.js';
 
 type ImageReplyScale = '1:1' | '3:4' | '4:3' | '16:9' | '9:16';
 

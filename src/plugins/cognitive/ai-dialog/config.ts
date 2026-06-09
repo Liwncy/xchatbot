@@ -1,7 +1,7 @@
-import type {IncomingMessage} from '../../types/message.js';
-import type {Env} from '../../types/env.js';
-import {KV_AI_DIALOG_CONFIG, KV_AI_DIALOG_GROUP_AUTO_REPLY_PREFIX, KV_AI_DIALOG_MEMORY_PREFIX, KV_AI_DIALOG_USER_ACTIVATION_PREFIX} from '../../constants/kv.js';
-import {logger} from '../../utils/logger.js';
+import type {IncomingMessage} from '../../../types/message.js';
+import type {Env} from '../../../types/env.js';
+import {KV_AI_DIALOG_CONFIG, KV_AI_DIALOG_GROUP_AUTO_REPLY_PREFIX, KV_AI_DIALOG_MEMORY_PREFIX, KV_AI_DIALOG_USER_ACTIVATION_PREFIX} from '../../../constants/kv.js';
+import {logger} from '../../../utils/logger.js';
 
 export interface AiDialogServiceConfig {
     base_url: string;

@@ -1,5 +1,5 @@
-import type {TextMessage} from '../types.js';
-import {logger} from '../../utils/logger.js';
+import type {TextMessage} from '../../types.js';
+import {logger} from '../../../utils/logger.js';
 
 interface VideoParseApiResponse {
     code?: number;

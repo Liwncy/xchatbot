@@ -12,7 +12,7 @@
 import {registerPlugin} from './registry';
 import {aiDialogPlugin} from './cognitive/ai-dialog';
 import {videoLinkParserPlugin} from './media/video-link-parser';
-import {videoRecommendationPlugin} from './media/video-recommendation';
+import {haokanVideoPlugin} from './media/haokan-video';
 import {helpPlugin} from './system/help';
 import {pluginAdminPlugin} from './system/plugin-admin';
 import {contactAdminPlugin} from './system/contact-admin';
@@ -22,14 +22,14 @@ import {commonPluginsEngine} from './rule-engine/base';
 import {dynamicCommonPluginsEngine} from './rule-engine/dynamic';
 import {workflowCommonPluginsEngine} from './rule-engine/workflow';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './cognitive/intent-image';
-import {imageRecommendationPlugin} from './media/image-recommendation';
+import {haokanImagePlugin} from './media/haokan-image';
 import {smartDrawPlugin} from './cognitive/smart-draw';
 import {yinguoImagePlugin} from './media/yinguo-image';
 import {xiuxianPlugin} from './scenarios/xiuxian';
 import {wechatChatRecordDemoPlugin} from './toolkits/wechat-chat-record';
-import {fakeForwardPlugin} from './toolkits/fake-forward/fake-forward';
+import {fakeForwardPlugin} from './toolkits/fake-forward';
 import {xuanxuePlugin} from './scenarios/xuanxue';
-import {aiSingPlugin} from './cognitive/ai-sing/ai-sing';
+import {aiSingPlugin} from './cognitive/ai-sing';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 registerPlugin(helpPlugin);
@@ -37,8 +37,8 @@ registerPlugin(contactAdminPlugin);
 registerPlugin(humanVerifyPlugin);
 registerPlugin(randomFriendPlugin);
 registerPlugin(wechatChatRecordDemoPlugin);
-registerPlugin(videoRecommendationPlugin);
-registerPlugin(imageRecommendationPlugin);
+registerPlugin(haokanVideoPlugin);
+registerPlugin(haokanImagePlugin);
 registerPlugin(smartDrawPlugin);
 registerPlugin(yinguoImagePlugin);
 registerPlugin(pluginAdminPlugin);

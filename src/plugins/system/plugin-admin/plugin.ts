@@ -1,4 +1,4 @@
-import type {TextMessage} from '../types.js';
+import type {TextMessage} from '../../types.js';
 import {finalizePluginAdminReply} from './plugin-admin-forward-reply.js';
 import {PluginAdminService} from './plugin-admin-service.js';
 import type {CommonRuleInputPatch, DynamicRuleInputPatch, PluginAdminCommand, RulePluginCategory, RuleInputPatch, WorkflowRuleInputPatch, WorkflowStepSelectorInput} from './plugin-admin-types.js';

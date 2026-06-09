@@ -1,8 +1,8 @@
-import type {TextMessage} from '../types.js';
-import {WechatApi} from '../../wechat/api';
-import {buildWechatChatRecordAppReply} from '../../wechat/builders/chat-record.js';
-import {logger} from '../../utils/logger.js';
-import type {ApiResponse, SearchContactResponse} from '../../wechat/api/types.js';
+import type {TextMessage} from '../../types.js';
+import {WechatApi} from '../../../wechat/api';
+import {buildWechatChatRecordAppReply} from '../../../wechat/builders/chat-record.js';
+import {logger} from '../../../utils/logger.js';
+import type {ApiResponse, SearchContactResponse} from '../../../wechat/api/types.js';
 
 const RANDOM_FRIEND_KEYWORDS = [
     '随机朋友',

@@ -5,18 +5,18 @@ import {
     KV_COMMON_DYNAMIC_RULES_BACKUP,
     KV_COMMON_WORKFLOW_RULES,
     KV_COMMON_WORKFLOW_RULES_BACKUP,
-} from '../../constants/kv.js';
-import {clearRemoteRulesCache} from '../rule-engine/remote-config';
-import {normalizeRuleConfigText, parseRuleConfigList} from '../rule-engine/parser';
-import type {CommonPluginRule} from '../rule-engine/base';
-import type {DynamicCommonRule} from '../rule-engine/dynamic';
-import type {WorkflowCommonRule} from '../rule-engine/workflow';
-import {normalizeKeyword as normalizeMatchKeywords} from '../rule-engine/matcher';
-import type {ArgsConfig, ArgsMode, MatchMode} from '../rule-engine/matcher';
-import type {IncomingMessage} from '../../types/message.js';
-import type {Env} from '../../types/env.js';
-import type {TextReply} from '../../types/reply.js';
-import {NO_PERMISSION_REPLY} from '../../constants/messages.js';
+} from '../../../constants/kv.js';
+import {clearRemoteRulesCache} from '../../rule-engine/remote-config';
+import {normalizeRuleConfigText, parseRuleConfigList} from '../../rule-engine/parser';
+import type {CommonPluginRule} from '../../rule-engine/base';
+import type {DynamicCommonRule} from '../../rule-engine/dynamic';
+import type {WorkflowCommonRule} from '../../rule-engine/workflow';
+import {normalizeKeyword as normalizeMatchKeywords} from '../../rule-engine/matcher';
+import type {ArgsConfig, ArgsMode, MatchMode} from '../../rule-engine/matcher';
+import type {IncomingMessage} from '../../../types/message.js';
+import type {Env} from '../../../types/env.js';
+import type {TextReply} from '../../../types/reply.js';
+import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import type {
     CommonRuleInputPatch,
     DynamicRuleInputPatch,

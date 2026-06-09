@@ -20,12 +20,14 @@
   - 落库时看：[`scheduler/scheduler-mvp.sql`](scheduler/scheduler-mvp.sql)
 - **想了解后续目录重构与迁移路线**
   - 看：[`architecture/xchatbot-structure-refactor-plan.md`](architecture/xchatbot-structure-refactor-plan.md)
+- **想了解单个插件目录怎么组织（插件包规范）**
+  - 看：[`plugins/plugin-package-convention.md`](plugins/plugin-package-convention.md)
 - **想了解 AI 对话 / AI 唱歌相关设计**
   - 看：[`templates/ai/ai-dialog-config.sample.json`](templates/ai/ai-dialog-config.sample.json)
   - 看：[`templates/ai/mimo-tts-config.sample.json`](templates/ai/mimo-tts-config.sample.json)
   - 看：[`plugins/ai/mimo-tts-plugin-design.md`](plugins/ai/mimo-tts-plugin-design.md)
 - **想了解修仙玩法**
-  - 先看：[`../src/plugins/game/xiuxian/README.md`](../src/plugins/game/xiuxian/README.md)
+  - 先看：[`../src/plugins/scenarios/xiuxian/README.md`](../src/plugins/scenarios/xiuxian/README.md)
   - 再看：[`plugins/xiuxian/xiuxian-roadmap.md`](plugins/xiuxian/xiuxian-roadmap.md)
   - 落库时看：[`plugins/xiuxian/xiuxian-mvp.sql`](plugins/xiuxian/xiuxian-mvp.sql)
 
@@ -54,6 +56,8 @@ _docs/
 ### `plugins/`
 
 插件相关设计文档已统一收拢到 `plugins/` 目录下，便于和调度、模板、脚本类文档区分。
+
+- [`plugin-package-convention.md`](plugins/plugin-package-convention.md)：插件包目录规范（S/M/L/XL 分档、命名、依赖方向、迁移清单）
 
 #### `plugins/ai/`
 

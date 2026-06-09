@@ -1,5 +1,5 @@
-import type {TextMessage} from '../types.js';
-import {listRegisteredPlugins} from '../registry.js';
+import type {TextMessage} from '../../types.js';
+import {listRegisteredPlugins} from '../../registry.js';
 
 const HELP_KEYWORDS = new Set([
     '帮助',

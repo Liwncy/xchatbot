@@ -1,8 +1,8 @@
-import type {TextMessage} from '../types.js';
-import type {HandlerResponse, NewsArticle, VideoReply} from '../../types/reply.js';
-import {logger} from '../../utils/logger.js';
-import {DrawService} from '../common/draw-service.js';
-import {requestAiText} from '../common/ai-client.js';
+import type {TextMessage} from '../../types.js';
+import type {HandlerResponse, NewsArticle, VideoReply} from '../../../types/reply.js';
+import {logger} from '../../../utils/logger.js';
+import {DrawService} from '../../common/draw-service.js';
+import {requestAiText} from '../../common/ai-client.js';
 
 type VideoApiParser = 'yujn-json' | 'redirect-url' | 'nested-video-json';
 type VideoReplyMode = 'video' | 'link' | 'auto';
@@ -614,9 +614,9 @@ async function buildSuccessReply(route: VideoRoute, result: ParsedVideoResult): 
     };
 }
 
-export const videoRecommendationPlugin: TextMessage = {
+export const haokanVideoPlugin: TextMessage = {
     type: 'text',
-    name: 'video-recommendation',
+    name: 'haokan-video',
     description: '以"我想看 / 我爱看 / 我要看"开头，先由 AI 提炼分类，再推荐对应视频',
     match: (content) => TRIGGER_PREFIXES.some((prefix) => content.trim().startsWith(prefix)),
     handle: async (message, env) => {

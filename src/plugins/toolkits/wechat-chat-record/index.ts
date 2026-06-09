@@ -1,5 +1,5 @@
-import type {TextMessage} from '../types.js';
-import {buildSingleWechatChatRecordAppReply} from '../../wechat/builders/chat-record.js';
+import type {TextMessage} from '../../types.js';
+import {buildSingleWechatChatRecordAppReply} from '../../../wechat/builders/chat-record.js';
 
 const TRIGGERS = new Set([
     '聊天记录演示',
