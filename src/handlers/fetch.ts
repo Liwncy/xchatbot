@@ -4,6 +4,7 @@ import {handleWechat} from '../wechat';
 import type {Env} from '../types/env.js';
 import {DEBUG_FORWARDED_HEADER} from '../constants/debug.js';
 import {handleTurnstileRequest} from '../turnstile';
+import {handleWechatImageProxy} from '../proxy/wechat-image.js';
 
 export async function handleFetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -16,6 +17,10 @@ export async function handleFetch(request: Request, env: Env): Promise<Response>
     if (pathname.startsWith('/turnstile/')) {
         const response = await handleTurnstileRequest(request, env);
         if (response) return response;
+    }
+
+    if (pathname === '/proxy/wechat-image') {
+        return handleWechatImageProxy(request, env);
     }
 
     if (!request.headers.get(DEBUG_FORWARDED_HEADER)) {

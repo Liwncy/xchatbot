@@ -1,6 +1,6 @@
 import type {Env} from '../../../types/env.js';
 import {logger} from '../../../utils/logger.js';
-import type {RecognizeImageInput} from '../intent-image/types.js';
+import type {RecognizeImageInput, WechatCdnImageMeta} from '../intent-image/types.js';
 import {createAgnesVideoTask} from './client.js';
 import type {AgnesVideoConfig} from './config.js';
 import {generateTextVideoThumbUrl} from './cover.js';
@@ -12,6 +12,8 @@ export interface SubmitAgnesVideoTaskParams {
     env: Env;
     prompt: string;
     sourceImage?: RecognizeImageInput;
+    /** 引用图片已有的微信 CDN 参数，跳过下载与重复上传。 */
+    sourceImageMeta?: WechatCdnImageMeta;
     from: string;
     roomId?: string;
     mode: AgnesVideoTaskMode;
@@ -20,10 +22,13 @@ export interface SubmitAgnesVideoTaskParams {
 export async function submitAgnesVideoTask(
     params: SubmitAgnesVideoTaskParams,
 ): Promise<AgnesVideoTicketRecord> {
-    const isImageToVideo = Boolean(params.sourceImage);
+    const isImageToVideo = Boolean(params.sourceImage || params.sourceImageMeta);
 
     const [taskResult, textThumbUrl] = await Promise.all([
-        createAgnesVideoTask(params.config, params.prompt, params.sourceImage),
+        createAgnesVideoTask(params.env, params.config, params.prompt, {
+            sourceImage: params.sourceImage,
+            sourceImageMeta: params.sourceImageMeta,
+        }),
         isImageToVideo ? Promise.resolve(undefined) : generateTextVideoThumbUrl(params.prompt),
     ]);
 

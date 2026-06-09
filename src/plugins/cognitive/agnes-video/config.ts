@@ -1,7 +1,6 @@
 import type {Env} from '../../../types/env.js';
 import {
     AGNES_API_BASE_URL,
-    AGNES_VIDEO_CREATE_TIMEOUT_MS,
     DEFAULT_FRAME_RATE,
     DEFAULT_NUM_FRAMES,
     DEFAULT_VIDEO_HEIGHT,
@@ -15,7 +14,6 @@ export interface AgnesVideoConfig {
     height: number;
     numFrames: number;
     frameRate: number;
-    createTimeoutMs: number;
 }
 
 export function resolveAgnesVideoConfig(env: Env): AgnesVideoConfig | null {
@@ -29,6 +27,5 @@ export function resolveAgnesVideoConfig(env: Env): AgnesVideoConfig | null {
         height: DEFAULT_VIDEO_HEIGHT,
         numFrames: DEFAULT_NUM_FRAMES,
         frameRate: DEFAULT_FRAME_RATE,
-        createTimeoutMs: AGNES_VIDEO_CREATE_TIMEOUT_MS,
     };
 }

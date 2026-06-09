@@ -10,6 +10,9 @@ export const AGNES_QUOTE_VIDEO_KEYWORDS = ['聪明图绘影', SMART_QUOTE_VIDEO_
 /** 查询任务进度，例如：查绘影 123456 */
 export const AGNES_VIDEO_QUERY_PREFIX = '查绘影';
 
+/** xchatbot Worker 公网域名，用于拼 GET 图片代理 URL（与 wrangler routes 一致）。 */
+export const XCHATBOT_PUBLIC_BASE_URL = 'https://xbot.lwcfworker.dpdns.org';
+
 export const AGNES_VIDEO_MODEL = 'agnes-video-v2.0';
 
 export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.com';

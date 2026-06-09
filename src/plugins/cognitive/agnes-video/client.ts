@@ -1,7 +1,8 @@
+import type {Env} from '../../../types/env.js';
 import {logger} from '../../../utils/logger.js';
-import {FileUploader} from '../../../utils/file-uploader.js';
-import type {RecognizeImageInput} from '../intent-image/types.js';
+import type {RecognizeImageInput, WechatCdnImageMeta} from '../intent-image/types.js';
 import {
+    AGNES_VIDEO_CREATE_TIMEOUT_MS,
     AGNES_VIDEO_MODEL,
 } from './constants.js';
 import type {AgnesVideoConfig} from './config.js';
@@ -10,24 +11,7 @@ import type {
     AgnesVideoCreateResponse,
     AgnesVideoQueryResponse,
 } from './types.js';
-
-async function toPublicImageUrl(input: RecognizeImageInput): Promise<string | null> {
-    if (input.kind === 'url' && /^https?:\/\//i.test(input.value)) {
-        return input.value;
-    }
-
-    if (input.kind === 'blob') {
-        return FileUploader.upload(input.value, {
-            fileName: `agnes-video-ref-${Date.now()}.png`,
-            contentType: 'image/png',
-        });
-    }
-
-    return FileUploader.upload(input.value, {
-        fileName: `agnes-video-ref-${Date.now()}.png`,
-        contentType: 'image/png',
-    });
-}
+import {resolveWechatCdnImageUrl} from './wechat-cdn-image.js';
 
 function buildCreateBody(
     config: AgnesVideoConfig,
@@ -48,25 +32,37 @@ function buildCreateBody(
 
 export interface CreateAgnesVideoTaskResult {
     created: AgnesVideoCreateResponse;
-    /** 图生视频时上传到 CDN 的引用图 URL，用作封面。 */
+    /** 图生视频时微信 CDN 图片的可访问 URL，用作封面。 */
     sourceImageUrl?: string;
 }
 
+export interface CreateAgnesVideoTaskOptions {
+    sourceImage?: RecognizeImageInput;
+    /** 引用消息已有的 CDN 参数，可跳过下载与重复上传。 */
+    sourceImageMeta?: WechatCdnImageMeta;
+}
+
 export async function createAgnesVideoTask(
+    env: Env,
     config: AgnesVideoConfig,
     prompt: string,
-    sourceImage?: RecognizeImageInput,
+    options?: CreateAgnesVideoTaskOptions,
 ): Promise<CreateAgnesVideoTaskResult> {
     let sourceImageUrl: string | undefined;
-    if (sourceImage) {
-        sourceImageUrl = (await toPublicImageUrl(sourceImage)) ?? undefined;
+    const sourceImage = options?.sourceImage;
+    const sourceImageMeta = options?.sourceImageMeta;
+    if (sourceImage || sourceImageMeta) {
+        sourceImageUrl = (await resolveWechatCdnImageUrl(env, {
+            sourceImage,
+            sourceImageMeta,
+        })) ?? undefined;
         if (!sourceImageUrl) {
             throw new Error('引用图片未能转换为可访问 URL');
         }
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config.createTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(), AGNES_VIDEO_CREATE_TIMEOUT_MS);
 
     try {
         const res = await fetch(`${config.baseUrl}/v1/videos`, {
@@ -104,7 +100,7 @@ export async function createAgnesVideoTask(
             (error instanceof Error && /aborted/i.test(error.message));
         if (aborted) {
             throw new Error(
-                `聪明绘影任务提交超时（${Math.round(config.createTimeoutMs / 1000)}s），请稍后重试`,
+                `聪明绘影任务提交超时（${Math.round(AGNES_VIDEO_CREATE_TIMEOUT_MS / 1000)}s），请稍后重试`,
             );
         }
         throw error;

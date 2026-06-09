@@ -2,7 +2,6 @@ import type {IncomingMessage} from '../../../types/message.js';
 import type {Env} from '../../../types/env.js';
 import type {HandlerResponse} from '../../../types/reply.js';
 import {logger} from '../../../utils/logger.js';
-import {resolveImageDataFromMeta} from '../intent-image/recognize.js';
 import {
     AGNES_QUOTE_VIDEO_KEYWORDS,
     DEFAULT_IMG2VIDEO_PROMPT,
@@ -18,7 +17,6 @@ import {
 import {
     buildConfigMissingReply,
     buildQuoteEmptyTextReply,
-    buildQuoteImageDownloadFailedReply,
     buildQuoteSubmitFailedReply,
     buildQuoteUnsupportedReferReply,
     buildSubmittedReply,
@@ -52,16 +50,12 @@ export async function handleAgnesQuoteVideo(
     try {
         if (quote.referType === WECHAT_REFER_TYPE_IMAGE && quote.imageMeta) {
             const prompt = buildImageToVideoPrompt(titleExtra, DEFAULT_IMG2VIDEO_PROMPT);
-            const sourceImage = await resolveImageDataFromMeta(quote.imageMeta, env);
-            if (!sourceImage) {
-                return buildQuoteImageDownloadFailedReply();
-            }
 
             const record = await submitAgnesVideoTask({
                 config,
                 env,
                 prompt,
-                sourceImage,
+                sourceImageMeta: quote.imageMeta,
                 from: message.from,
                 roomId: message.room?.id,
                 mode: 'quote',
