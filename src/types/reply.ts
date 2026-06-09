@@ -1,5 +1,5 @@
 /** 回复消息类型 */
-export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'app' | 'unknown';
+export type ReplyType = 'text' | 'image' | 'voice' | 'video' | 'news' | 'markdown' | 'card' | 'app' | 'emoji' | 'unknown';
 
 /**
  * 所有回复类型共享的可选字段。
@@ -98,6 +98,15 @@ export interface AppReply extends ReplyBase {
     appXml: string;
 }
 
+/** 微信表情回复（type 47，通过网关 sendEmoji 发送）。 */
+export interface EmojiReply extends ReplyBase {
+    type: 'emoji';
+    /** 表情 MD5（与 emojiUrl 一并发送）。 */
+    md5: string;
+    /** 微信 CDN URL，作为 emoji_url 传给网关。 */
+    emojiUrl: string;
+}
+
 /** 所有回复类型的联合类型 */
 export type ReplyMessage =
     | TextReply
@@ -107,7 +116,8 @@ export type ReplyMessage =
     | NewsReply
     | MarkdownReply
     | CardReply
-    | AppReply;
+    | AppReply
+    | EmojiReply;
 
 /**
  * 处理器可能返回的结果：单条回复、多条回复或不回复。

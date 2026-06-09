@@ -36,7 +36,7 @@ export class PluginManager {
             if (p.type === 'text') {
                 return p.match((message.content ?? '').trim(), message);
             }
-            if (p.type === 'image') {
+            if (p.type === 'image' || p.type === 'emoji') {
                 return p.match(message);
             }
             return false;

@@ -1,4 +1,5 @@
 import type {IncomingMessage} from '../../types/message.js';
+import {parseWechatEmojiFromContent} from './parse-emoji.js';
 
 export interface ParsedWechatReferMessage {
     title: string;
@@ -7,6 +8,7 @@ export interface ParsedWechatReferMessage {
     referFrom?: string;
     referSenderName?: string;
     imageMeta?: NonNullable<IncomingMessage['quote']>['imageMeta'];
+    emojiMeta?: NonNullable<IncomingMessage['quote']>['emojiMeta'];
 }
 
 function decodeHtmlEntities(text: string): string {
@@ -94,6 +96,12 @@ export function parseWechatReferMessage(rawContent: string): ParsedWechatReferMe
     };
     if (referType === 3) {
         parsed.imageMeta = extractImageMetaFromXml(referContent);
+    }
+    if (referType === 47) {
+        const emojiMeta = parseWechatEmojiFromContent(referContent);
+        if (emojiMeta) {
+            parsed.emojiMeta = emojiMeta;
+        }
     }
     return parsed;
 }

@@ -6,6 +6,8 @@ import {
 } from '../../plugins/cognitive/intent-image/quote.js';
 import {handleAgnesQuoteDraw} from '../../plugins/cognitive/agnes-draw/quote.js';
 import {handleAgnesQuoteVideo} from '../../plugins/cognitive/agnes-video/quote.js';
+import {handleAgnesTextQuote} from '../../plugins/cognitive/agnes-text/quote.js';
+import {handleEmojiStashQuote} from '../../plugins/toolkits/emoji-stash/quote.js';
 import {logger} from '../../utils/logger.js';
 
 /**
@@ -16,6 +18,12 @@ export async function handleLinkMessage(
 	message: IncomingMessage,
 	env: Env,
 ): Promise<HandlerResponse> {
+	const agnesTextQuoteResponse = await handleAgnesTextQuote(message, env);
+	if (agnesTextQuoteResponse) return agnesTextQuoteResponse;
+
+	const emojiStashQuoteResponse = await handleEmojiStashQuote(message, env);
+	if (emojiStashQuoteResponse) return emojiStashQuoteResponse;
+
 	const agnesQuoteVideoResponse = await handleAgnesQuoteVideo(message, env);
 	if (agnesQuoteVideoResponse) return agnesQuoteVideoResponse;
 

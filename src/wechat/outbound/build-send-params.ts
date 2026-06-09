@@ -82,6 +82,15 @@ export function buildWechatReply(
         return {...target, type: 'text', content: reply.content};
     }
 
+    if (reply.type === 'emoji') {
+        return {
+            ...target,
+            type: 'emoji',
+            md5: reply.md5,
+            emojiUrl: reply.emojiUrl,
+        };
+    }
+
     return {};
 }
 

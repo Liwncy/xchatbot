@@ -3,6 +3,7 @@ import type {MessageHandler} from '../types/plugin.js';
 import type {Env} from '../types/env.js';
 import type {HandlerResponse} from '../types/reply.js';
 import {handleTextMessage} from './handlers/text.js';
+import {handleEmojiMessage} from './handlers/emoji.js';
 import {handleImageMessage} from './handlers/image.js';
 import {handleVoiceMessage} from './handlers/voice.js';
 import {handleVideoMessage} from './handlers/video.js';
@@ -18,6 +19,7 @@ import {handleDefault} from './handlers/default.js';
 const handlerRegistry: Record<string, MessageHandler> = {
     text: handleTextMessage,
     image: handleImageMessage,
+    emoji: handleEmojiMessage,
     voice: handleVoiceMessage,
     video: handleVideoMessage,
     location: handleLocationMessage,

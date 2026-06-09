@@ -1,10 +1,20 @@
 /** 支持的消息平台 */
 export type Platform = 'wechat';
 
+/** 微信 type 47 表情消息解析结果。 */
+export interface WechatInboundEmoji {
+    md5: string;
+    cdnurl: string;
+    size?: number;
+    width?: number;
+    height?: number;
+}
+
 /** 标准化消息类型 */
 export type MessageType =
     | 'text'
     | 'image'
+    | 'emoji'
     | 'voice'
     | 'video'
     | 'location'
@@ -47,6 +57,8 @@ export interface IncomingMessage {
     content?: string;
     /** 媒体 URL 或 media_id（图片 / 语音 / 视频消息） */
     mediaId?: string;
+    /** 表情字段（微信 type 47） */
+    emoji?: WechatInboundEmoji;
     /** 群聊信息（群消息时存在） */
     room?: {
         id: string;
@@ -78,6 +90,8 @@ export interface IncomingMessage {
             fileId: string;
             fileAesKey: string;
         };
+        /** 被引用表情（refermsg type 47） */
+        emojiMeta?: WechatInboundEmoji;
     };
     /** 事件详情（事件消息） */
     event?: {

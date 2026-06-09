@@ -4,6 +4,7 @@ import type {
     MessageType,
 } from '../../types/message.js';
 import type {WechatPushItem, WechatPushMessage} from '../types.js';
+import {parseWechatEmojiFromPushItem} from './parse-emoji.js';
 import {parseWechatReferMessage} from './parse-refer-msg.js';
 
 function getWechatItemSource(item: WechatPushItem): string {
@@ -24,8 +25,9 @@ function mapWechatType(type: number): MessageType {
         case 1:
             return 'text';
         case 3:
-        case 47:
             return 'image';
+        case 47:
+            return 'emoji';
         case 34:
             return 'voice';
         case 43:
@@ -172,6 +174,15 @@ export function parseWechatPushItem(
         };
     }
 
+    if (msgType === 'emoji') {
+        const emoji = parseWechatEmojiFromPushItem(item);
+        return {
+            ...base,
+            type: 'emoji',
+            ...(emoji ? {emoji} : {}),
+        };
+    }
+
     if (msgType === 'voice') {
         return {...base, type: 'voice'};
     }
@@ -211,6 +222,7 @@ export function parseWechatPushItem(
                 ...(parsedRefer.referFrom ? {referFrom: parsedRefer.referFrom} : {}),
                 ...(parsedRefer.referSenderName ? {referSenderName: parsedRefer.referSenderName} : {}),
                 ...(parsedRefer.imageMeta ? {imageMeta: parsedRefer.imageMeta} : {}),
+                ...(parsedRefer.emojiMeta ? {emojiMeta: parsedRefer.emojiMeta} : {}),
             };
         }
         return message;

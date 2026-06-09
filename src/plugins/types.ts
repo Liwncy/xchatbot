@@ -45,9 +45,21 @@ export interface ImageMessage extends BaseMessageEvent {
 }
 
 /**
+ * 表情消息的事件处理器（微信 type 47）。
+ */
+export interface EmojiMessage extends BaseMessageEvent {
+    type: 'emoji';
+    /**
+     * 判断是否应处理给定的表情消息。
+     * @param message - 标准化后的完整消息。
+     */
+    match: (message: IncomingMessage) => boolean;
+}
+
+/**
  * 所有消息事件类型的联合类型。
  *
  * 事件处理器按注册顺序检查。
  * 第一个 {@link TextMessage.match | match} 返回 `true` 的处理器将处理该消息。
  */
-export type MessageEvent = TextMessage | ImageMessage;
+export type MessageEvent = TextMessage | ImageMessage | EmojiMessage;

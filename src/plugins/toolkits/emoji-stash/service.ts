@@ -1,0 +1,254 @@
+import type {IncomingMessage} from '../../../types/message.js';
+import type {Env} from '../../../types/env.js';
+import type {HandlerResponse} from '../../../types/reply.js';
+import {resolvePublicImageUrlFromEmojiCdnurl} from '../../cognitive/agnes-text/resolve-image.js';
+import {isEmojiStashCategory} from './categories.js';
+import {
+    buildFallbackEmojiMetadata,
+    requestEmojiAiMetadata,
+    resolveUniqueEmojiName,
+} from './ai-metadata.js';
+import {
+    EMOJI_STASH_AI_FAIL_REPLY,
+    EMOJI_STASH_AUTO_COLLECT,
+    EMOJI_STASH_AUTO_OK_REPLY,
+    EMOJI_STASH_DELETE_OK_REPLY,
+    EMOJI_STASH_NOT_FOUND_REPLY,
+    EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY,
+    EMOJI_STASH_SAVE_OK_REPLY,
+    EMOJI_STASH_SAVE_REPLY,
+} from './constants.js';
+import {buildEmojiStashListReply} from './list-reply.js';
+import type {EmojiBracketSendCommand} from './parse-send.js';
+import {parseInboundEmojiFromMessage} from './parser.js';
+import {
+    buildEmojiStashSessionKey,
+    deleteEmojiStashPending,
+    getEmojiStashPending,
+    isEmojiStashAutoCollectOnCooldown,
+    listStoredEmojis,
+    markEmojiStashAutoCollectCooldown,
+    putEmojiStashPending,
+    saveStoredEmojis,
+} from './storage.js';
+import type {EmojiAiMetadata, ParsedInboundEmoji, StoredEmoji} from './types.js';
+
+function toStoredEmoji(
+    metadata: EmojiAiMetadata,
+    parsed: ParsedInboundEmoji,
+    source: 'auto' | 'manual',
+): StoredEmoji {
+    return {
+        name: metadata.name,
+        md5: parsed.md5,
+        cdnurl: parsed.cdnurl,
+        category: metadata.category,
+        tags: metadata.tags,
+        ...(parsed.size ? {size: parsed.size} : {}),
+        ...(parsed.width ? {width: parsed.width} : {}),
+        ...(parsed.height ? {height: parsed.height} : {}),
+        createdAt: Date.now(),
+        source,
+    };
+}
+
+async function resolveAiMetadata(
+    env: Env,
+    parsed: ParsedInboundEmoji,
+): Promise<{metadata: EmojiAiMetadata; aiFailed: boolean}> {
+    const imageUrl = await resolvePublicImageUrlFromEmojiCdnurl(parsed.cdnurl);
+    if (!imageUrl) {
+        return {metadata: buildFallbackEmojiMetadata(parsed.md5), aiFailed: true};
+    }
+
+    const metadata = await requestEmojiAiMetadata(env, imageUrl);
+    if (!metadata) {
+        return {metadata: buildFallbackEmojiMetadata(parsed.md5), aiFailed: true};
+    }
+    return {metadata, aiFailed: false};
+}
+
+async function persistEmojiWithAi(
+    _message: IncomingMessage,
+    env: Env,
+    parsed: ParsedInboundEmoji,
+    source: 'auto' | 'manual',
+): Promise<HandlerResponse | null> {
+    const emojis = await listStoredEmojis(env);
+    const existingByMd5 = emojis.find((item) => item.md5 === parsed.md5);
+
+    const {metadata: aiMeta, aiFailed} = await resolveAiMetadata(env, parsed);
+    if (source === 'auto' && aiFailed) return null;
+    const existingNames = emojis
+        .filter((item) => item.md5 !== parsed.md5)
+        .map((item) => item.name);
+    const uniqueName = resolveUniqueEmojiName(aiMeta.name, existingNames, parsed.md5);
+    const metadata: EmojiAiMetadata = {
+        ...aiMeta,
+        name: uniqueName,
+    };
+
+    const stored = toStoredEmoji(metadata, parsed, source);
+    const next = existingByMd5
+        ? emojis.map((item) => (item.md5 === parsed.md5 ? stored : item))
+        : [...emojis, stored];
+
+    await saveStoredEmojis(env, next);
+
+    if (source === 'auto') {
+        await markEmojiStashAutoCollectCooldown(env);
+        return {type: 'text', content: EMOJI_STASH_AUTO_OK_REPLY};
+    }
+
+    const prefix = aiFailed ? `${EMOJI_STASH_AI_FAIL_REPLY}\n` : '';
+    return {
+        type: 'text',
+        content: prefix + EMOJI_STASH_SAVE_OK_REPLY(stored.name, stored.category, stored.tags),
+    };
+}
+
+export async function markEmojiStashPending(
+    message: IncomingMessage,
+    env: Env,
+): Promise<HandlerResponse> {
+    const sessionKey = buildEmojiStashSessionKey(message);
+    await putEmojiStashPending(env, {
+        ownerId: message.from,
+        sessionKey,
+        createdAt: Date.now(),
+    });
+    return {type: 'text', content: EMOJI_STASH_SAVE_REPLY};
+}
+
+export async function saveEmojiFromMessage(
+    message: IncomingMessage,
+    env: Env,
+): Promise<HandlerResponse> {
+    const sessionKey = buildEmojiStashSessionKey(message);
+    const pending = await getEmojiStashPending(env, sessionKey);
+    if (!pending || pending.ownerId !== message.from) {
+        return null;
+    }
+
+    await deleteEmojiStashPending(env, sessionKey);
+
+    const parsed = parseInboundEmojiFromMessage(message);
+    if (!parsed?.md5 || !parsed.cdnurl) {
+        return {type: 'text', content: EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY};
+    }
+
+    return persistEmojiWithAi(message, env, parsed, 'manual');
+}
+
+export async function saveEmojiFromQuote(
+    message: IncomingMessage,
+    env: Env,
+    parsed: ParsedInboundEmoji,
+): Promise<HandlerResponse> {
+    if (!parsed.md5 || !parsed.cdnurl) {
+        return {type: 'text', content: EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY};
+    }
+    return persistEmojiWithAi(message, env, parsed, 'manual');
+}
+
+export async function autoCollectEmojiFromMessage(
+    message: IncomingMessage,
+    env: Env,
+): Promise<HandlerResponse | null> {
+    if (!EMOJI_STASH_AUTO_COLLECT) return null;
+
+    const sessionKey = buildEmojiStashSessionKey(message);
+    const pending = await getEmojiStashPending(env, sessionKey);
+    if (pending?.ownerId === message.from) return null;
+
+    if (await isEmojiStashAutoCollectOnCooldown(env)) return null;
+
+    const parsed = parseInboundEmojiFromMessage(message);
+    if (!parsed?.md5 || !parsed.cdnurl) return null;
+
+    return persistEmojiWithAi(message, env, parsed, 'auto');
+}
+
+function pickRandom<T>(items: T[]): T | undefined {
+    if (items.length === 0) return undefined;
+    return items[Math.floor(Math.random() * items.length)];
+}
+
+function findStoredEmojiByName(emojis: StoredEmoji[], name: string): StoredEmoji | undefined {
+    const normalized = name.trim().toLowerCase();
+    return emojis.find((item) => item.name === normalized);
+}
+
+function findRandomByCategory(emojis: StoredEmoji[], category: string): StoredEmoji | undefined {
+    const normalized = category.trim().toLowerCase();
+    if (!isEmojiStashCategory(normalized)) return undefined;
+    return pickRandom(emojis.filter((item) => item.category === normalized));
+}
+
+function findRandomByTag(emojis: StoredEmoji[], tag: string): StoredEmoji | undefined {
+    const normalized = tag.trim().toLowerCase();
+    return pickRandom(emojis.filter((item) => item.tags.includes(normalized)));
+}
+
+function toEmojiSendReply(target: StoredEmoji): HandlerResponse {
+    return {
+        type: 'emoji',
+        md5: target.md5,
+        emojiUrl: target.cdnurl,
+    };
+}
+
+export async function sendStoredEmojiByBracket(
+    _message: IncomingMessage,
+    env: Env,
+    command: EmojiBracketSendCommand,
+): Promise<HandlerResponse | null> {
+    if (!env.WECHAT_API_BASE_URL?.trim()) {
+        return null;
+    }
+
+    const emojis = await listStoredEmojis(env);
+    let target: StoredEmoji | undefined;
+
+    if (command.type === 'name') {
+        target = findStoredEmojiByName(emojis, command.value);
+    } else if (command.type === 'category') {
+        target = findRandomByCategory(emojis, command.value);
+    } else {
+        target = findRandomByTag(emojis, command.value);
+    }
+
+    if (!target) return null;
+
+    return toEmojiSendReply(target);
+}
+
+export async function listEmojiStash(message: IncomingMessage, env: Env): Promise<HandlerResponse> {
+    return buildEmojiStashListReply(message, env);
+}
+
+export async function deleteStoredEmoji(
+    _message: IncomingMessage,
+    env: Env,
+    name: string,
+): Promise<HandlerResponse> {
+    const normalizedName = name.trim().toLowerCase();
+    if (!normalizedName) {
+        return {type: 'text', content: '请指定要删除的表情名称，例如：删表情 no_java_cat'};
+    }
+
+    const emojis = await listStoredEmojis(env);
+    const next = emojis.filter((item) => item.name !== normalizedName);
+    if (next.length === emojis.length) {
+        return {type: 'text', content: EMOJI_STASH_NOT_FOUND_REPLY(normalizedName)};
+    }
+
+    await saveStoredEmojis(env, next);
+    return {type: 'text', content: EMOJI_STASH_DELETE_OK_REPLY(normalizedName)};
+}
+
+export async function hasEmojiStashPending(message: IncomingMessage, env: Env): Promise<boolean> {
+    const sessionKey = buildEmojiStashSessionKey(message);
+    const pending = await getEmojiStashPending(env, sessionKey);
+    return Boolean(pending && pending.ownerId === message.from);
+}

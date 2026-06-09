@@ -389,6 +389,21 @@ export async function sendWechatReply(
             ensureWechatApiSuccess('sendApp', result);
             break;
         }
+        case 'emoji': {
+            const emojiUrl = reply.emojiUrl.trim();
+            logger.info('发送表情消息（sendEmoji）', {
+                receiver: effectiveReceiver,
+                md5: reply.md5,
+                emojiUrl,
+            });
+            const result = await api.sendEmoji({
+                receiver: effectiveReceiver,
+                md5: reply.md5,
+                emoji_url: emojiUrl,
+            });
+            ensureWechatApiSuccess('sendEmoji', result);
+            break;
+        }
         default:
             break;
     }

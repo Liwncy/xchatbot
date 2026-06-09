@@ -26,10 +26,16 @@ import {haokanImagePlugin} from './media/haokan-image';
 import {smartDrawPlugin} from './cognitive/smart-draw';
 import {agnesDrawPlugin} from './cognitive/agnes-draw';
 import {agnesVideoPlugin} from './cognitive/agnes-video';
+import {
+    agnesTextEmojiProcessPlugin,
+    agnesTextImageProcessPlugin,
+    agnesTextTriggerPlugin,
+} from './cognitive/agnes-text';
 import {yinguoImagePlugin} from './media/yinguo-image';
 import {xiuxianPlugin} from './scenarios/xiuxian';
 import {wechatChatRecordDemoPlugin} from './toolkits/wechat-chat-record';
 import {fakeForwardPlugin} from './toolkits/fake-forward';
+import {emojiStashProcessPlugin, emojiStashTriggerPlugin} from './toolkits/emoji-stash';
 import {xuanxuePlugin} from './scenarios/xuanxue';
 import {aiSingPlugin} from './cognitive/ai-sing';
 
@@ -43,6 +49,9 @@ registerPlugin(haokanVideoPlugin);
 registerPlugin(haokanImagePlugin);
 registerPlugin(agnesDrawPlugin);
 registerPlugin(agnesVideoPlugin);
+registerPlugin(agnesTextTriggerPlugin);
+registerPlugin(agnesTextEmojiProcessPlugin);
+registerPlugin(agnesTextImageProcessPlugin);
 registerPlugin(smartDrawPlugin);
 registerPlugin(yinguoImagePlugin);
 registerPlugin(pluginAdminPlugin);
@@ -57,7 +66,9 @@ registerPlugin(aiDialogPlugin);
 registerPlugin(aiSingPlugin);
 registerPlugin(videoLinkParserPlugin);
 registerPlugin(imageIntentTriggerPlugin);
+registerPlugin(emojiStashProcessPlugin);
 registerPlugin(imageIntentProcessPlugin);
+registerPlugin(emojiStashTriggerPlugin);
 registerPlugin(fakeForwardPlugin);
 
 // 重新导出以便外部使用
@@ -68,4 +79,4 @@ export {
 	registerPlugin,
 	unregisterPlugin,
 } from './registry';
-export type {MessageEvent, TextMessage, ImageMessage} from './types.js';
+export type {MessageEvent, TextMessage, ImageMessage, EmojiMessage} from './types.js';
