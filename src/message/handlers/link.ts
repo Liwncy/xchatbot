@@ -4,6 +4,8 @@ import type {HandlerResponse} from '../../types/reply.js';
 import {
 	handleQuoteIntent,
 } from '../../plugins/cognitive/intent-image/quote.js';
+import {handleAgnesQuoteDraw} from '../../plugins/cognitive/agnes-draw/quote.js';
+import {handleAgnesQuoteVideo} from '../../plugins/cognitive/agnes-video/quote.js';
 import {logger} from '../../utils/logger.js';
 
 /**
@@ -14,6 +16,12 @@ export async function handleLinkMessage(
 	message: IncomingMessage,
 	env: Env,
 ): Promise<HandlerResponse> {
+	const agnesQuoteVideoResponse = await handleAgnesQuoteVideo(message, env);
+	if (agnesQuoteVideoResponse) return agnesQuoteVideoResponse;
+
+	const agnesQuoteResponse = await handleAgnesQuoteDraw(message, env);
+	if (agnesQuoteResponse) return agnesQuoteResponse;
+
 	const quoteResponse = await handleQuoteIntent(message, env);
 	if (quoteResponse) return quoteResponse;
 

@@ -4,7 +4,7 @@ import {DrawService} from '../../common/draw-service.js';
 
 type ImageReplyScale = '1:1' | '3:4' | '4:3' | '16:9' | '9:16';
 
-const SMART_DRAW_PREFIX = '聪明绘图';
+const SMART_DRAW_PREFIX = '百度绘图';
 const DEFAULT_DRAW_SCALE: ImageReplyScale = '1:1';
 
 function extractPrompt(content: string): string {
@@ -24,14 +24,14 @@ function buildFallbackPrompt(requestText: string): string {
 export const smartDrawPlugin: TextMessage = {
     type: 'text',
     name: 'smart-draw',
-    description: '以"聪明绘图"开头，直接走 AI 绘图',
+    description: '以"百度绘图"开头，走百度 AI 绘图',
     match: (content) => content.trim().startsWith(SMART_DRAW_PREFIX),
     handle: async (message) => {
         const promptText = extractPrompt(message.content ?? '');
         if (!promptText) {
             return {
                 type: 'text',
-                content: '请在“聪明绘图”后面加上描述，例如：聪明绘图 一个戴草帽的机器人在海边看日落',
+                content: '请在“百度绘图”后面加上描述，例如：百度绘图 一个戴草帽的机器人在海边看日落',
             };
         }
 
@@ -44,7 +44,7 @@ export const smartDrawPlugin: TextMessage = {
                 originalUrl: imageUrl,
             };
         } catch (error) {
-            logger.error('聪明绘图插件生成失败', {
+            logger.error('百度绘图插件生成失败', {
                 promptText,
                 prompt,
                 error: error instanceof Error ? error.message : String(error),
@@ -56,4 +56,3 @@ export const smartDrawPlugin: TextMessage = {
         }
     },
 };
-

@@ -59,6 +59,9 @@ export interface Env {
     AI_MODEL?: string;
     AI_SYSTEM_PROMPT?: string;
 
+    /** Agnes 图像/视频生成 API Key（聪明绘图、聪明绘影）。 */
+    AGNES_API_KEY?: string;
+
     /** Turnstile 页面使用的公开 site key。 */
     TURNSTILE_SITE_KEY?: string;
     /** Turnstile 服务端校验 secret key。 */
