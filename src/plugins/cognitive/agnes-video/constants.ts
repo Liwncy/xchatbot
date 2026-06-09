@@ -27,6 +27,15 @@ export const DEFAULT_IMG2VIDEO_PROMPT = '让画面主体自然动起来，保持
 /** 创建任务 HTTP 等待上限；Agnes 接口可能较慢才返回 video_id。 */
 export const AGNES_VIDEO_CREATE_TIMEOUT_MS = 300_000;
 
+/**
+ * 引用图传给 Agnes 的 URL 策略（改此常量切换对比）：
+ * - `upfile`：微信 CDN 下载 → 上传 file.upfile.live 公网 URL（Agnes 可直接 GET）
+ * - `worker-proxy`：拼 Worker `/proxy/wechat-image` GET 代理 URL
+ */
+export type AgnesVideoQuoteImageUrlMode = 'upfile' | 'worker-proxy';
+
+export const AGNES_VIDEO_QUOTE_IMAGE_URL_MODE: AgnesVideoQuoteImageUrlMode = 'upfile';
+
 /** KV 任务记录保留 7 天 */
 export const AGNES_VIDEO_TICKET_TTL_SECONDS = 7 * 24 * 60 * 60;
 
