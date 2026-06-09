@@ -128,6 +128,16 @@ export class WechatApiClient {
         return res.arrayBuffer();
     }
 
+    protected async postBinary(path: string, params?: QueryInput): Promise<ArrayBuffer> {
+        const res = await this.requestRaw('POST', path, {query: params});
+        if (!res.ok) {
+            const raw = await res.text();
+            const compact = raw.replace(/\s+/g, ' ').trim();
+            throw new Error(`WechatApi ${path} returned status ${res.status}: ${compact}`);
+        }
+        return res.arrayBuffer();
+    }
+
     protected async post<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
         const res = await this.requestRaw('POST', path, {body});
         return this.parseApiResponse<T>(path, res);

@@ -65,6 +65,20 @@ export interface IncomingMessage {
         description: string;
         url: string;
     };
+    /** 微信引用消息（appmsg type 57） */
+    quote?: {
+        title: string;
+        referType: number;
+        referContent?: string;
+        /** 被引用消息的发送者 wxid（群聊优先取 chatusr） */
+        referFrom?: string;
+        /** 被引用消息的发送者显示名 */
+        referSenderName?: string;
+        imageMeta?: {
+            fileId: string;
+            fileAesKey: string;
+        };
+    };
     /** 事件详情（事件消息） */
     event?: {
         type: EventType;

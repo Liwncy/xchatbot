@@ -274,49 +274,49 @@ export class WechatMessageApi extends WechatApiClient {
         return this.postForm('/api/cdn/upload/moments/video', formData);
     }
 
-    /** CDN 下载高清图片原始数据。GET /api/cdn/download/image */
+    /** CDN 下载高清图片原始数据。POST /api/cdn/download/image */
     async cdnDownloadImageRaw(params: CdnDownloadImageParam): Promise<ArrayBuffer> {
         const query = this.resolveImageDownloadQuery(params);
-        return this.getBinary('/api/cdn/download/image', query);
+        return this.postBinary('/api/cdn/download/image', query);
     }
 
-    /** CDN 下载高清图片并返回 base64 包装结果。GET /api/cdn/download/image */
+    /** CDN 下载高清图片并返回 base64 包装结果。POST /api/cdn/download/image */
     async cdnDownloadImage(params: CdnDownloadImageParam): Promise<ApiResponse<string>> {
         const raw = await this.cdnDownloadImageRaw(params);
         return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
     }
 
-    /** CDN 下载视频封面原始数据。GET /api/cdn/download/video/cover */
+    /** CDN 下载视频封面原始数据。POST /api/cdn/download/video/cover */
     async cdnDownloadVideoCoverRaw(params: CdnDownloadVideoParam): Promise<ArrayBuffer> {
         const query = this.resolveVideoDownloadQuery(params);
-        return this.getBinary('/api/cdn/download/video/cover', query);
+        return this.postBinary('/api/cdn/download/video/cover', query);
     }
 
-    /** CDN 下载视频封面并返回 base64 包装结果。GET /api/cdn/download/video/cover */
+    /** CDN 下载视频封面并返回 base64 包装结果。POST /api/cdn/download/video/cover */
     async cdnDownloadVideoCover(params: CdnDownloadVideoParam): Promise<ApiResponse<string>> {
         const raw = await this.cdnDownloadVideoCoverRaw(params);
         return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
     }
 
-    /** CDN 下载聊天视频原始数据。GET /api/cdn/download/video */
+    /** CDN 下载聊天视频原始数据。POST /api/cdn/download/video */
     async cdnDownloadChatVideoRaw(params: CdnDownloadVideoParam): Promise<ArrayBuffer> {
         const query = this.resolveVideoDownloadQuery(params);
-        return this.getBinary('/api/cdn/download/video', query);
+        return this.postBinary('/api/cdn/download/video', query);
     }
 
-    /** CDN 下载聊天视频并返回 base64 包装结果。GET /api/cdn/download/video */
+    /** CDN 下载聊天视频并返回 base64 包装结果。POST /api/cdn/download/video */
     async cdnDownloadChatVideo(params: CdnDownloadVideoParam): Promise<ApiResponse<string>> {
         const raw = await this.cdnDownloadChatVideoRaw(params);
         return {code: 0, message: 'OK', data: this.encodeBase64(raw)};
     }
 
-    /** CDN 下载朋友圈视频原始数据。GET /api/cdn/download/moments/video */
+    /** CDN 下载朋友圈视频原始数据。POST /api/cdn/download/moments/video */
     async cdnDownloadMomentsVideoRaw(params: CdnDownloadMomentsVideoParam): Promise<ArrayBuffer> {
         const query = this.resolveMomentsVideoDownloadQuery(params);
-        return this.getBinary('/api/cdn/download/moments/video', query);
+        return this.postBinary('/api/cdn/download/moments/video', query);
     }
 
-    /** CDN 下载朋友圈视频并返回 base64 包装结果。GET /api/cdn/download/moments/video */
+    /** CDN 下载朋友圈视频并返回 base64 包装结果。POST /api/cdn/download/moments/video */
     async cdnDownloadMomentsVideo(params: CdnDownloadMomentsVideoParam): Promise<ApiResponse<string>> {
         const raw = await this.cdnDownloadMomentsVideoRaw(params);
         return {code: 0, message: 'OK', data: this.encodeBase64(raw)};

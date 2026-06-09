@@ -1,7 +1,6 @@
 import type {TextMessage} from '../../types.js';
+import {TRIGGER_KEYWORDS, WAIT_FOR_IMAGE_REPLY} from './constants.js';
 import {markPendingIntent} from './session.js';
-
-const TRIGGER_KEYWORDS = ['聪明识图', '聪明认图', '聪明看图'];
 
 export const imageIntentTriggerPlugin: TextMessage = {
     type: 'text',
@@ -12,7 +11,7 @@ export const imageIntentTriggerPlugin: TextMessage = {
         markPendingIntent(message);
         return {
             type: 'text',
-            content: '请在2分钟内发送一张图片，我会按识图流程处理。',
+            content: WAIT_FOR_IMAGE_REPLY,
         };
     },
 };

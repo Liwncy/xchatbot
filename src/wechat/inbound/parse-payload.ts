@@ -4,6 +4,7 @@ import type {
     MessageType,
 } from '../../types/message.js';
 import type {WechatPushItem, WechatPushMessage} from '../types.js';
+import {parseWechatReferMessage} from './parse-refer-msg.js';
 
 function getWechatItemSource(item: WechatPushItem): string {
     return item.source ?? item.msg_source ?? '';
@@ -191,15 +192,28 @@ export function parseWechatPushItem(
     }
 
     if (msgType === 'link') {
-        return {
+        const rawContent = item.content?.value ?? '';
+        const parsedRefer = parseWechatReferMessage(rawContent);
+        const message: IncomingMessage = {
             ...base,
             type: 'link',
             link: {
-                title: item.content?.value ?? '',
+                title: parsedRefer?.title ?? rawContent,
                 description: '',
                 url: '',
             },
         };
+        if (parsedRefer) {
+            message.quote = {
+                title: parsedRefer.title,
+                referType: parsedRefer.referType,
+                referContent: parsedRefer.referContent,
+                ...(parsedRefer.referFrom ? {referFrom: parsedRefer.referFrom} : {}),
+                ...(parsedRefer.referSenderName ? {referSenderName: parsedRefer.referSenderName} : {}),
+                ...(parsedRefer.imageMeta ? {imageMeta: parsedRefer.imageMeta} : {}),
+            };
+        }
+        return message;
     }
 
     return {...base, type: 'text', content: item.content?.value ?? item.push_content ?? ''};

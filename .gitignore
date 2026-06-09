@@ -9,3 +9,7 @@ dist/
 .tmp-plugin-admin-smoke/
 .tmp-xz/
 .config/
+.doc/
+.github/
+.qoder/
+.tmp-parse-refer-smoke/

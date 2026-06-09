@@ -3,7 +3,7 @@ import {logger} from '../../../utils/logger';
 import {arrayBufferToBase64} from '../../../utils/binary';
 import {mapToStableRange} from '../../../utils/id';
 
-const API_URL = 'https://api.pearktrue.cn/api/today_wife';
+const API_URL = 'https://api.pearapi.ai/api/today_wife';
 const MIN_ID = 10001;
 const MAX_ID = 19999;
 
