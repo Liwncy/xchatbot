@@ -17,7 +17,7 @@ export const EMOJI_STASH_NAME_MAX_LENGTH = 32;
 /** 是否自动收藏用户发送的表情（无需指令）。 */
 export const EMOJI_STASH_AUTO_COLLECT = true;
 
-/** 自动收藏冷却时间（秒），全局共用，冷却期内不会再次自动收藏。 */
+/** 自动收藏回复冷却（秒），全局共用；冷却期内仍入库，仅不重复发回复文案。 */
 export const EMOJI_STASH_AUTO_COLLECT_COOLDOWN_SECONDS = 60;
 
 export const EMOJI_STASH_SAVE_REPLY = '请发送要收藏的表情，或引用表情后发送「存表情」。';

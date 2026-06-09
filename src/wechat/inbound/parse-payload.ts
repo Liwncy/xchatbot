@@ -77,18 +77,32 @@ function resolveRoomId(item: WechatPushItem): string {
  */
 function parseGroupTextSender(rawContent: string): { senderId?: string; content: string } {
     const text = rawContent ?? '';
-    const separatorIndex = text.indexOf(':\n');
+    const newlineIndex = text.indexOf(':\n');
+    const crlfIndex = text.indexOf(':\r\n');
+    const separatorIndex = newlineIndex > 0 ? newlineIndex : crlfIndex;
+    const separatorLength = newlineIndex > 0 ? 2 : 3;
+
     if (separatorIndex <= 0) {
         return {content: text};
     }
 
     const senderId = text.slice(0, separatorIndex).trim();
-    const content = text.slice(separatorIndex + 2);
+    const content = text.slice(separatorIndex + separatorLength);
     if (!senderId) {
         return {content: text};
     }
 
     return {senderId, content};
+}
+
+function resolveGroupMessageFrom(
+    item: WechatPushItem,
+    groupMeta: {senderId?: string},
+): string {
+    if (groupMeta.senderId?.trim()) return groupMeta.senderId.trim();
+    const sender = item.sender?.value?.trim() ?? '';
+    if (sender && !sender.endsWith('@chatroom')) return sender;
+    return '';
 }
 
 /**
@@ -144,7 +158,7 @@ export function parseWechatPushItem(
     const base: Omit<IncomingMessage, 'type'> = {
         platform: 'wechat' as const,
         source,
-        from: source === 'group' ? (groupMeta.senderId ?? item.sender?.value ?? '') : (item.sender?.value ?? ''),
+        from: source === 'group' ? resolveGroupMessageFrom(item, groupMeta) : (item.sender?.value ?? ''),
         senderName: parseSenderNameFromPushContent(item.push_content),
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),

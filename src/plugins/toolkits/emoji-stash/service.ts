@@ -77,8 +77,9 @@ async function persistEmojiWithAi(
     const emojis = await listStoredEmojis(env);
     const existingByMd5 = emojis.find((item) => item.md5 === parsed.md5);
 
+    if (source === 'auto' && existingByMd5) return null;
+
     const {metadata: aiMeta, aiFailed} = await resolveAiMetadata(env, parsed);
-    if (source === 'auto' && aiFailed) return null;
     const existingNames = emojis
         .filter((item) => item.md5 !== parsed.md5)
         .map((item) => item.name);
@@ -96,6 +97,7 @@ async function persistEmojiWithAi(
     await saveStoredEmojis(env, next);
 
     if (source === 'auto') {
+        if (aiFailed || await isEmojiStashAutoCollectOnCooldown(env)) return null;
         await markEmojiStashAutoCollectCooldown(env);
         return {type: 'text', content: EMOJI_STASH_AUTO_OK_REPLY};
     }
@@ -160,8 +162,6 @@ export async function autoCollectEmojiFromMessage(
     const sessionKey = buildEmojiStashSessionKey(message);
     const pending = await getEmojiStashPending(env, sessionKey);
     if (pending?.ownerId === message.from) return null;
-
-    if (await isEmojiStashAutoCollectOnCooldown(env)) return null;
 
     const parsed = parseInboundEmojiFromMessage(message);
     if (!parsed?.md5 || !parsed.cdnurl) return null;
