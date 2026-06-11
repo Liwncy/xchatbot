@@ -11,6 +11,10 @@ import {filterExpiredWechatMessages} from './inbound/filter-messages.js';
 import {shouldAllowWechatMessage} from './inbound/whitelist.js';
 import {buildWechatReply} from './outbound/build-send-params.js';
 import {sendWechatReply} from './outbound/send-reply.js';
+import {
+    markStoredEmojiStatusFailed,
+    markStoredEmojiStatusOk,
+} from '../plugins/toolkits/emoji-stash/service.js';
 import {logger} from '../utils/logger.js';
 
 function resolveVoiceConversionOptions(env: Env): {
@@ -118,6 +122,9 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
             const receiver = task.message.room?.id ?? task.message.from;
             try {
                 await sendWechatReply(api, task.reply, receiver, voiceOptions);
+                if (task.reply.type === 'emoji') {
+                    await markStoredEmojiStatusOk(env, task.reply.md5);
+                }
             } catch (err) {
                 logger.error('微信 API 发送回复失败', {
                     replyType: task.reply.type,
@@ -125,6 +132,9 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
                     apiBaseUrl,
                     error: err instanceof Error ? err.message : String(err),
                 });
+                if (task.reply.type === 'emoji') {
+                    await markStoredEmojiStatusFailed(env, task.reply.md5);
+                }
             }
         }
 

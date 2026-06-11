@@ -34,10 +34,16 @@ function formatCategoryRecordNickname(category: EmojiStashCategory, count: numbe
     return `${meta.emoji}${meta.label}·${count}`;
 }
 
+function formatEmojiSendStatus(item: StoredEmoji): string {
+    return item.status === 'failed' ? '❌' : '✅';
+}
+
 function formatEmojiListLine(index: number, item: StoredEmoji): string {
     const tags = item.tags.map((tag) => `#${tag}`).join(' ');
     const namePart = `[${item.name}]`;
-    return tags ? `${index}. ${namePart} ${tags}` : `${index}. ${namePart}`;
+    const status = formatEmojiSendStatus(item);
+    const prefix = `${index}. ${status}`;
+    return tags ? `${prefix} ${namePart} ${tags}` : `${prefix} ${namePart}`;
 }
 
 function buildCategoryContent(category: EmojiStashCategory, bucket: StoredEmoji[]): string {

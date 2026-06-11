@@ -30,6 +30,7 @@ import {
     markEmojiStashAutoCollectCooldown,
     putEmojiStashPending,
     saveStoredEmojis,
+    updateStoredEmojiStatus,
 } from './storage.js';
 import type {EmojiAiMetadata, ParsedInboundEmoji, StoredEmoji} from './types.js';
 
@@ -179,15 +180,19 @@ function findStoredEmojiByName(emojis: StoredEmoji[], name: string): StoredEmoji
     return emojis.find((item) => item.name === normalized);
 }
 
+function isSendableForRandomPick(item: StoredEmoji): boolean {
+    return item.status !== 'failed';
+}
+
 function findRandomByCategory(emojis: StoredEmoji[], category: string): StoredEmoji | undefined {
     const normalized = category.trim().toLowerCase();
     if (!isEmojiStashCategory(normalized)) return undefined;
-    return pickRandom(emojis.filter((item) => item.category === normalized));
+    return pickRandom(emojis.filter((item) => item.category === normalized && isSendableForRandomPick(item)));
 }
 
 function findRandomByTag(emojis: StoredEmoji[], tag: string): StoredEmoji | undefined {
     const normalized = tag.trim().toLowerCase();
-    return pickRandom(emojis.filter((item) => item.tags.includes(normalized)));
+    return pickRandom(emojis.filter((item) => item.tags.includes(normalized) && isSendableForRandomPick(item)));
 }
 
 function toEmojiSendReply(target: StoredEmoji): HandlerResponse {
@@ -251,4 +256,12 @@ export async function hasEmojiStashPending(message: IncomingMessage, env: Env): 
     const sessionKey = buildEmojiStashSessionKey(message);
     const pending = await getEmojiStashPending(env, sessionKey);
     return Boolean(pending && pending.ownerId === message.from);
+}
+
+export async function markStoredEmojiStatusFailed(env: Env, md5: string): Promise<void> {
+    await updateStoredEmojiStatus(env, md5, 'failed');
+}
+
+export async function markStoredEmojiStatusOk(env: Env, md5: string): Promise<void> {
+    await updateStoredEmojiStatus(env, md5, 'ok');
 }

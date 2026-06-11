@@ -7,7 +7,7 @@ import {
     EMOJI_STASH_SHARED_KV_KEY,
 } from './constants.js';
 import {normalizeEmojiStashCategory} from './categories.js';
-import type {EmojiStashPending, StoredEmoji} from './types.js';
+import type {EmojiStashPending, StoredEmoji, StoredEmojiStatus} from './types.js';
 
 export function buildEmojiStashPendingKey(sessionKey: string): string {
     return `${EMOJI_STASH_PENDING_KV_PREFIX}${sessionKey}`;
@@ -30,14 +30,20 @@ export function buildEmojiStashSessionKey(message: {from: string; room?: {id: st
     return message.room?.id ? `${message.room.id}:${message.from}` : message.from;
 }
 
-function normalizeStoredEmoji(raw: StoredEmoji): StoredEmoji {
+function normalizeStoredEmoji(raw: StoredEmoji & {sendFailed?: boolean}): StoredEmoji {
+    const {sendFailed: legacySendFailed, status: rawStatus, ...rest} = raw;
+    const status: StoredEmojiStatus | undefined = rawStatus === 'failed' || legacySendFailed
+        ? 'failed'
+        : undefined;
+
     return {
-        ...raw,
+        ...rest,
         name: raw.name.trim().toLowerCase(),
         category: normalizeEmojiStashCategory(raw.category ?? 'misc'),
         tags: Array.isArray(raw.tags)
             ? raw.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)
             : [],
+        ...(status ? {status} : {}),
     };
 }
 
@@ -77,4 +83,31 @@ export async function putEmojiStashPending(env: Env, pending: EmojiStashPending)
 
 export async function deleteEmojiStashPending(env: Env, sessionKey: string): Promise<void> {
     await env.XBOT_KV.delete(buildEmojiStashPendingKey(sessionKey));
+}
+
+export async function updateStoredEmojiStatus(
+    env: Env,
+    md5: string,
+    status: StoredEmojiStatus,
+): Promise<void> {
+    const normalizedMd5 = md5.trim();
+    if (!normalizedMd5) return;
+
+    const emojis = await listStoredEmojis(env);
+    const index = emojis.findIndex((item) => item.md5 === normalizedMd5);
+    if (index < 0) return;
+
+    const current = emojis[index];
+    const next = [...emojis];
+
+    if (status === 'failed') {
+        if (current.status === 'failed') return;
+        next[index] = {...current, status: 'failed'};
+    } else {
+        if (!current.status) return;
+        const {status: _removed, ...rest} = current;
+        next[index] = rest;
+    }
+
+    await saveStoredEmojis(env, next);
 }

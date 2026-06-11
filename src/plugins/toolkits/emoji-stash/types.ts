@@ -1,5 +1,8 @@
 import type {EmojiStashCategory} from './categories.js';
 
+/** 表情发表情结果；未设置视为 ok。 */
+export type StoredEmojiStatus = 'ok' | 'failed';
+
 /** KV 中保存的单条表情记录。 */
 export interface StoredEmoji {
     /** 英文 slug，AI 生成。 */
@@ -13,6 +16,8 @@ export interface StoredEmoji {
     height?: number;
     createdAt: number;
     source?: 'auto' | 'manual';
+    /** 发表情状态；未设置或 ok 表示可正常发送。 */
+    status?: StoredEmojiStatus;
 }
 
 /** 从 type 47 消息解析出的表情字段。 */
