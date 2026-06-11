@@ -16,7 +16,7 @@ export interface StoredEmoji {
     height?: number;
     createdAt: number;
     source?: 'auto' | 'manual';
-    /** 发表情状态；未设置或 ok 表示可正常发送。 */
+    /** 发表情状态：未设置=未发送，ok=成功，failed=失败。 */
     status?: StoredEmojiStatus;
 }
 

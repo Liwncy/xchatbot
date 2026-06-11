@@ -34,7 +34,9 @@ function normalizeStoredEmoji(raw: StoredEmoji & {sendFailed?: boolean}): Stored
     const {sendFailed: legacySendFailed, status: rawStatus, ...rest} = raw;
     const status: StoredEmojiStatus | undefined = rawStatus === 'failed' || legacySendFailed
         ? 'failed'
-        : undefined;
+        : rawStatus === 'ok'
+            ? 'ok'
+            : undefined;
 
     return {
         ...rest,
@@ -104,9 +106,8 @@ export async function updateStoredEmojiStatus(
         if (current.status === 'failed') return;
         next[index] = {...current, status: 'failed'};
     } else {
-        if (!current.status) return;
-        const {status: _removed, ...rest} = current;
-        next[index] = rest;
+        if (current.status === 'ok') return;
+        next[index] = {...current, status: 'ok'};
     }
 
     await saveStoredEmojis(env, next);

@@ -26,6 +26,7 @@ function buildIntroContent(total: number): string {
         '💡 发 [/分类] 随机分类',
         '💡 发 [#标签] 随机标签',
         '💡 对话里也可以：哈哈哈哈[/funny]',
+        '⚪ 未发送  ✅ 可发送  ❌ 发送失败',
     ].join('\n');
 }
 
@@ -35,7 +36,9 @@ function formatCategoryRecordNickname(category: EmojiStashCategory, count: numbe
 }
 
 function formatEmojiSendStatus(item: StoredEmoji): string {
-    return item.status === 'failed' ? '❌' : '✅';
+    if (item.status === 'failed') return '❌';
+    if (item.status === 'ok') return '✅';
+    return '⚪';
 }
 
 function formatEmojiListLine(index: number, item: StoredEmoji): string {
