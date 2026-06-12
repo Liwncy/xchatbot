@@ -78,13 +78,8 @@ function buildIntroContent(total: number): string {
     ].join('\n');
 }
 
-function buildCategoryContent(category: HelpPluginCategory, bucket: ListedPlugin[]): string {
-    const meta = HELP_PLUGIN_CATEGORY_META[category];
-    return [
-        `${meta.emoji} ${meta.label}类插件`,
-        '',
-        ...bucket.map((plugin, index) => formatPluginLine(index + 1, plugin)),
-    ].join('\n');
+function buildCategoryContent(bucket: ListedPlugin[]): string {
+    return bucket.map((plugin, index) => formatPluginLine(index + 1, plugin)).join('\n');
 }
 
 function buildCategorySummary(plugins: ListedPlugin[]): string {
@@ -133,7 +128,7 @@ function buildListItems(plugins: ListedPlugin[], baseTimestampMs: number): Wecha
         items.push({
             nickname: formatCategoryRecordNickname(category, bucket.length),
             avatarUrl: HELP_AVATAR_URL,
-            content: buildCategoryContent(category, bucket),
+            content: buildCategoryContent(bucket),
             timestampMs: baseTimestampMs + offsetMs,
         });
         offsetMs += 1000;
