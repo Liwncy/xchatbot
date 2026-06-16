@@ -1,6 +1,7 @@
 import type {IncomingMessage} from '../../types/message.js';
 import type {Env} from '../../types/env.js';
 import type {HandlerResponse} from '../../types/reply.js';
+import {setChatLogHandleMeta} from '../../chat-log/index.js';
 import {findMatchingPlugins} from '../../plugins/dispatcher.js';
 import {logger} from '../../utils/logger.js';
 
@@ -15,7 +16,10 @@ export async function handleImageMessage(
 	const plugins = findMatchingPlugins(message);
 	for (const plugin of plugins) {
 		const result = await plugin.handle(message, env);
-		if (result) return result;
+		if (result) {
+			setChatLogHandleMeta(message, {pluginName: plugin.name});
+			return result;
+		}
 	}
 
 	logger.info('收到图片消息，但未命中图片插件。');

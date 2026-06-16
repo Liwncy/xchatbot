@@ -20,6 +20,12 @@ export interface Env {
     WECHAT_API_BASE_URL?: string;
     /** 机器人主人的微信 ID，可作为默认定时通知目标。 */
     BOT_OWNER_WECHAT_ID?: string;
+    /** 机器人自己的微信 ID（全局）。 */
+    BOT_WECHAT_ID?: string;
+    /** 机器人显示名称（全局，默认「小聪明儿」）。 */
+    BOT_WECHAT_NAME?: string;
+    /** 会话记录开关（默认开启；设为 false/0/关 可关闭）。 */
+    CHAT_LOG_ENABLE?: string;
     // 插件
     COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
     /** 通用插件 JSON 配置数组字符串。 */

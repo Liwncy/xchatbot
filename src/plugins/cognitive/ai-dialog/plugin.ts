@@ -1,5 +1,6 @@
 import type {TextMessage} from '../../types.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
+import {buildAiDialogMessagesFromChatLog, isChatLogEnabled} from '../../../chat-log/index.js';
 import {logger} from '../../../utils/logger.js';
 import {requestAiText} from '../../common/ai-client.js';
 import {
@@ -614,8 +615,15 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
 
     const systemPrompt = getAiDialogPrompt(runtimeConfig);
     const userContent = buildAiUserMessage(message, prompt);
-    const history = runtimeConfig.max_history_count > 0 ? await loadAiDialogHistory(env, message) : [];
-    const messages = [...history, {role: 'user' as const, content: userContent}];
+    const useChatLog = isChatLogEnabled(env) && runtimeConfig.max_history_count > 0;
+    const messages = useChatLog
+        ? await buildAiDialogMessagesFromChatLog(env, message, prompt, {
+            maxHistoryCount: runtimeConfig.max_history_count,
+        })
+        : [
+            ...(runtimeConfig.max_history_count > 0 ? await loadAiDialogHistory(env, message) : []),
+            {role: 'user' as const, content: userContent},
+        ];
 
     try {
         const reply = await requestAiText(env, {
@@ -639,7 +647,10 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
             };
         }
 
-        if (runtimeConfig.max_history_count > 0) {
+        if (useChatLog) {
+            // 出站回复由 chat_message 统一记录。
+        } else if (runtimeConfig.max_history_count > 0) {
+            const history = await loadAiDialogHistory(env, message);
             await saveAiDialogHistory(env, message, [...history, {role: 'user', content: userContent}, {role: 'assistant', content: reply}], runtimeConfig.max_history_count);
         } else {
             await clearAiDialogHistory(env, message);

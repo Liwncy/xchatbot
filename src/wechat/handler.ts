@@ -15,6 +15,7 @@ import {
     markStoredEmojiStatusFailed,
     markStoredEmojiStatusOk,
 } from '../plugins/toolkits/emoji-stash/service.js';
+import {recordInboundChatMessage, recordOutboundChatMessage} from '../chat-log/index.js';
 import {logger} from '../utils/logger.js';
 
 function resolveVoiceConversionOptions(env: Env): {
@@ -93,19 +94,19 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
 
     const {routeMessage} = await import('../message/router.js');
     const {toReplyArray} = await import('../message/response.js');
-    const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage }> = [];
+    const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage; replyIndex: number }> = [];
     for (const message of activeMessages) {
         const allowed = await shouldAllowWechatMessage(message, env, {apiBaseUrl});
         if (!allowed) {
             continue;
         }
 
-        console.log('处理微信消息', {routeMessage, toReplyArray, message});
+        await recordInboundChatMessage(env, message);
         const response = await routeMessage(message, env);
         const replies = toReplyArray(response);
-        for (const reply of replies) {
-            replyTasks.push({message, reply});
-        }
+        replies.forEach((reply, replyIndex) => {
+            replyTasks.push({message, reply, replyIndex});
+        });
     }
 
     if (replyTasks.length === 0) {
@@ -122,10 +123,20 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
             const receiver = task.message.room?.id ?? task.message.from;
             try {
                 await sendWechatReply(api, task.reply, receiver, voiceOptions);
+                await recordOutboundChatMessage(env, task.message, task.reply, {
+                    causedByMessageId: task.message.messageId,
+                    replyIndex: task.replyIndex,
+                    replyStatus: 'sent',
+                });
                 if (task.reply.type === 'emoji') {
                     await markStoredEmojiStatusOk(env, task.reply.md5);
                 }
             } catch (err) {
+                await recordOutboundChatMessage(env, task.message, task.reply, {
+                    causedByMessageId: task.message.messageId,
+                    replyIndex: task.replyIndex,
+                    replyStatus: 'failed',
+                });
                 logger.error('微信 API 发送回复失败', {
                     replyType: task.reply.type,
                     receiver,
@@ -147,6 +158,13 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     const replyPayloads = replyTasks.map((task) =>
         buildWechatReply(task.reply, task.message.from, task.message.room?.id),
     );
+    for (const task of replyTasks) {
+        await recordOutboundChatMessage(env, task.message, task.reply, {
+            causedByMessageId: task.message.messageId,
+            replyIndex: task.replyIndex,
+            replyStatus: 'sent',
+        });
+    }
     const responseBody = replyPayloads.length === 1 ? replyPayloads[0] : replyPayloads;
     return new Response(JSON.stringify(responseBody), {
         status: 200,
