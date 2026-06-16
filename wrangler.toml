@@ -33,7 +33,7 @@ head_sampling_rate = 1
 # WECHAT_TOKEN = "your_webhook_hmac_token"
 WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
 BOT_OWNER_WECHAT_ID = "wxid_5jfnhtqy74xr22"  # 机器人主人的微信ID，用于识别消息来源
-BOT_WECHAT_ID = ""  # 机器人自己的微信 ID（建议填写；私聊入站也可从 message.to 推断）
+BOT_WECHAT_ID = "wxid_ahl9az25aljx22"  # 机器人自己的微信 ID（建议填写；私聊入站也可从 message.to 推断）
 BOT_WECHAT_NAME = "小聪明儿"
 CHAT_LOG_ENABLE = "true"
 
