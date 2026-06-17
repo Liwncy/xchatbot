@@ -607,10 +607,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
         logger.warn('聪明对话服务解析失败', {
             error: error instanceof Error ? error.message : String(error),
         });
-        return {
-            type: 'text' as const,
-            content: '对话功能还没配置好，可发送「聪明对话 帮助」查看设置方法',
-        };
+        return null;
     }
 
     const systemPrompt = getAiDialogPrompt(runtimeConfig);
@@ -641,10 +638,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
                 service: service.key,
                 url: service.base_url,
             });
-            return {
-                type: 'text' as const,
-                content: '我刚刚没想好怎么回复你，要不换个说法再试试？',
-            };
+            return null;
         }
 
         if (useChatLog) {
@@ -671,10 +665,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
             url: service.base_url,
             error: err instanceof Error ? err.message : String(err),
         });
-        return {
-            type: 'text' as const,
-            content: '我脑子有点乱，缓一缓再找我聊吧。',
-        };
+        return null;
     }
 }
 
