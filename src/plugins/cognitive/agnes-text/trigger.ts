@@ -12,9 +12,9 @@ function matchesTextTrigger(content: string): boolean {
 function buildUsageHint(): string {
     return [
         '用法示例：',
-        '· Agnes 介绍一下 Cloudflare Workers（纯文字）',
-        '· Agnes 这个报错什么意思（再发截图，或引用图片后发送）',
-        '· 引用图片/表情 + Agnes 帮我看看这是什么',
+        '· 聪明闪答 介绍一下 Cloudflare Workers（纯文字）',
+        '· 聪明闪答 这个报错什么意思（再发截图，或引用图片后发送）',
+        '· 引用图片/表情 + 聪明闪答 帮我看看这是什么',
     ].join('\n');
 }
 

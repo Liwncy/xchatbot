@@ -52,6 +52,6 @@ export async function handleAgnesTextQuote(
 
     return {
         type: 'text',
-        content: 'Agnes 目前支持引用文字、图片或表情一起提问。',
+        content: '聪明闪答目前支持引用文字、图片或表情一起提问。',
     };
 }

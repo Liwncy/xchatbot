@@ -1,5 +1,5 @@
 /** 统一触发词（前缀匹配纯文本；引用标题用子串匹配） */
-export const AGNES_TEXT_TRIGGER_KEYWORDS = ['聪明闪答', 'Agnes问答', 'Agnes'] as const;
+export const AGNES_TEXT_TRIGGER_KEYWORDS = ['聪明闪答'] as const;
 
 export const AGNES_TEXT_MODEL = 'agnes-2.0-flash';
 
@@ -13,7 +13,7 @@ export const AGNES_TEXT_REQUEST_TIMEOUT_MS = 60_000;
 export const AGNES_TEXT_DEFAULT_MEDIA_PROMPT = '请根据这张图片回答用户可能关心的问题，并给出清晰说明。';
 
 export const AGNES_TEXT_WAIT_MEDIA_REPLY =
-    '请在 2 分钟内发送图片或表情；也可引用文件后带上「Agnes 你的问题」一次发送。';
+    '请在 2 分钟内发送图片或表情；也可引用文件后带上「聪明闪答 你的问题」一次发送。';
 
 export const AGNES_TEXT_PENDING_TTL_MS = 2 * 60 * 1000;
 
