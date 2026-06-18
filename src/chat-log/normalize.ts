@@ -17,17 +17,32 @@ function truncateText(value: string, maxLength = MAX_CONTENT_TEXT_LENGTH): strin
     return `${value.slice(0, maxLength)}...`;
 }
 
-function buildMemberPrefix(senderName: string): string {
-    const displayName = senderName.trim() || '未知成员';
-    return `群成员「${displayName}」`;
+export function formatSpeakerIdentity(senderId: string, senderName?: string): string {
+    const id = senderId.trim();
+    const name = senderName?.trim();
+    if (id && name && name !== id) {
+        return `${name}(${id})`;
+    }
+    if (id) return id;
+    if (name) return name;
+    return '未知成员';
+}
+
+function buildMemberPrefix(senderId: string, senderName?: string): string {
+    return `群成员「${formatSpeakerIdentity(senderId, senderName)}」`;
+}
+
+function buildPrivateUserPrefix(senderId: string, senderName?: string): string {
+    return `用户「${formatSpeakerIdentity(senderId, senderName)}」`;
 }
 
 export function buildInboundSpeakerLine(message: IncomingMessage, contentText: string): string {
-    const speaker = message.senderName?.trim() || message.from.trim() || '未知成员';
+    const senderId = message.from.trim();
+    const senderName = message.senderName?.trim();
     if (message.room?.id?.trim()) {
-        return `${buildMemberPrefix(speaker)}说：${contentText}`;
+        return `${buildMemberPrefix(senderId, senderName)}说：${contentText}`;
     }
-    return `用户「${speaker}」说：${contentText}`;
+    return `${buildPrivateUserPrefix(senderId, senderName)}说：${contentText}`;
 }
 
 function normalizeInboundActorType(message: IncomingMessage): ChatActorType {
@@ -191,6 +206,7 @@ export function createOutboundMessageId(): string {
 export function toAiDialogLine(record: {
     actorType: ChatActorType;
     direction: 'inbound' | 'outbound';
+    senderId: string;
     senderName: string;
     contentText: string;
     sessionType: 'group' | 'private';
@@ -205,18 +221,14 @@ export function toAiDialogLine(record: {
         return null;
     }
 
-    const speaker = record.senderName.trim() || '未知成员';
-    if (record.sessionType === 'group') {
-        if (record.contentText.startsWith('[') && !record.contentText.includes('说：')) {
-            return {role: 'user', content: `${buildMemberPrefix(speaker)}发了${record.contentText}`};
-        }
-        return {role: 'user', content: `${buildMemberPrefix(speaker)}说：${record.contentText}`};
-    }
+    const speakerPrefix = record.sessionType === 'group'
+        ? buildMemberPrefix(record.senderId, record.senderName)
+        : buildPrivateUserPrefix(record.senderId, record.senderName);
 
     if (record.contentText.startsWith('[') && !record.contentText.includes('说：')) {
-        return {role: 'user', content: `用户「${speaker}」发了${record.contentText}`};
+        return {role: 'user', content: `${speakerPrefix}发了${record.contentText}`};
     }
-    return {role: 'user', content: `用户「${speaker}」说：${record.contentText}`};
+    return {role: 'user', content: `${speakerPrefix}说：${record.contentText}`};
 }
 
 export function isAiContextMsgType(msgType: ChatMsgType): boolean {

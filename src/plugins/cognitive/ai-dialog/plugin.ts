@@ -1,6 +1,6 @@
 import type {TextMessage} from '../../types.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
-import {buildAiDialogMessagesFromChatLog, isChatLogEnabled} from '../../../chat-log/index.js';
+import {buildAiDialogMessagesFromChatLog, buildInboundSpeakerLine, isChatLogEnabled} from '../../../chat-log/index.js';
 import {logger} from '../../../utils/logger.js';
 import {requestAiText} from '../../common/ai-client.js';
 import {
@@ -8,7 +8,6 @@ import {
     buildAiDialogBaseConfig,
     buildServicePatch,
     clearAiDialogHistory,
-    getAiDialogPrompt,
     isAiDialogGroupAutoReplyCoolingDown,
     isAiDialogUserActivationActive,
     listSortedKeys,
@@ -23,6 +22,7 @@ import {
     saveAiDialogConfig,
     saveAiDialogHistory,
 } from './config.js';
+import {resolveAiDialogSystemPrompt} from './system-prompt.js';
 
 const AI_DIALOG_COMMAND_PREFIX = '聪明对话';
 const AI_DIALOG_COMMAND_ALIASES = [AI_DIALOG_COMMAND_PREFIX, 'AI对话'] as const;
@@ -333,20 +333,6 @@ function extractUserPrompt(content: string): string {
     return withoutLeadingTrigger || trimmed;
 }
 
-function getConversationSpeaker(message: Parameters<TextMessage['handle']>[0]): string {
-    const displayName = message.senderName?.trim();
-    if (displayName) return displayName;
-    return message.from.trim() || '未知成员';
-}
-
-function buildAiUserMessage(message: Parameters<TextMessage['handle']>[0], prompt: string): string {
-    const speaker = getConversationSpeaker(message);
-    if (message.room?.id?.trim()) {
-        return `群成员「${speaker}」说：${prompt}`;
-    }
-    return `用户「${speaker}」说：${prompt}`;
-}
-
 async function shouldUseAmbientGroupReply(
     message: Parameters<TextMessage['handle']>[0],
     env: Parameters<TextMessage['handle']>[1],
@@ -610,8 +596,8 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
         return null;
     }
 
-    const systemPrompt = getAiDialogPrompt(runtimeConfig);
-    const userContent = buildAiUserMessage(message, prompt);
+    const systemPrompt = resolveAiDialogSystemPrompt(env, runtimeConfig);
+    const userContent = buildInboundSpeakerLine(message, prompt);
     const useChatLog = isChatLogEnabled(env) && runtimeConfig.max_history_count > 0;
     const messages = useChatLog
         ? await buildAiDialogMessagesFromChatLog(env, message, prompt, {

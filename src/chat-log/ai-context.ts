@@ -42,6 +42,7 @@ export async function loadAiDialogContextFromChatLog(
         const converted = toAiDialogLine({
             actorType: row.actorType,
             direction: row.direction,
+            senderId: row.senderId,
             senderName: row.senderName,
             contentText: row.contentText,
             sessionType: row.sessionType,

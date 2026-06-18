@@ -20,6 +20,8 @@ export interface Env {
     WECHAT_API_BASE_URL?: string;
     /** 机器人主人的微信 ID，可作为默认定时通知目标。 */
     BOT_OWNER_WECHAT_ID?: string;
+    /** 机器人主人显示名称（用于 AI 身份识别，如「李芈仙」）。 */
+    BOT_OWNER_WECHAT_NAME?: string;
     /** 机器人自己的微信 ID（全局）。 */
     BOT_WECHAT_ID?: string;
     /** 机器人显示名称（全局，默认「小聪明儿」）。 */
