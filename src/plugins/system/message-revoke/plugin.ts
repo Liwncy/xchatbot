@@ -36,9 +36,8 @@ export const messageRevokePlugin: TextMessage = {
             const count = parseRevokeCount(content, quoteTitle || undefined);
             const result = await revokeBotMessages(message, env, count);
             return {type: 'text', content: result};
-        } catch (error) {
-            const detail = error instanceof Error ? error.message : String(error);
-            return {type: 'text', content: `撤回操作没成功：${detail}`};
+        } catch {
+            return {type: 'text', content: '没撤成，再试下 🙏'};
         }
     },
 };

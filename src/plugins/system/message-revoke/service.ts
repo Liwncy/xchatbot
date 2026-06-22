@@ -12,7 +12,7 @@ const MAX_REVOKE_COUNT = 10;
 
 export function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
     const owner = ownerWxid?.trim() ?? '';
-    if (!owner) return '撤回功能还没找到主人，暂时不能操作哦';
+    if (!owner) return '这个我还不能听你的';
     if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
     return null;
 }
@@ -60,12 +60,12 @@ export async function revokeBotMessages(
     count: number,
 ): Promise<string> {
     if (!isChatLogEnabled(env)) {
-        return '会话记录功能未开启，无法查找可撤回的消息。请开启 CHAT_LOG_ENABLE 后重试';
+        return '我这边记不太清，撤不了';
     }
 
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
     if (!apiBaseUrl) {
-        return '撤回功能还没接好线，稍等一下吧';
+        return '这会儿撤不了，等一下';
     }
 
     const session = resolveChatSession(message);
@@ -75,7 +75,7 @@ export async function revokeBotMessages(
     if (message.quote && isQuotedBotMessage(message, env)) {
         const referMessageId = message.quote.referMessageId;
         if (!referMessageId?.newId) {
-            return '引用的消息缺少撤回所需的信息，请改用「撤回」撤回最近发送的内容';
+            return '这条对不上，你直接发「撤回」就行';
         }
 
         const tracked = await ChatLogRepository.findRevokableOutboundByNewId(
@@ -92,19 +92,19 @@ export async function revokeBotMessages(
                 referMessageId.createTime,
             );
         if (!param) {
-            return '无法解析引用消息的撤回参数';
+            return '这条撤不了，你直接发「撤回」试试';
         }
 
         const ok = await revokeOne(api, param);
         if (ok && tracked) {
             await ChatLogRepository.clearWechatRevokeMeta(env.XBOT_DB, tracked.messageId);
         }
-        return ok ? '✅ 已撤回引用的机器人消息' : '撤回失败了，这条消息可能已超过撤回时限';
+        return ok ? '嗯，这条撤了 👌' : '撤不了，太久了 😅';
     }
 
     const records = await ChatLogRepository.listRevokableOutbound(env.XBOT_DB, session.sessionId, count);
     if (records.length === 0) {
-        return '没有找到可撤回的机器人消息。只能撤回机器人最近发送、且已被会话记录保存的消息';
+        return '没找着能撤的 🤔';
     }
 
     let success = 0;
@@ -135,25 +135,24 @@ export async function revokeBotMessages(
     }
 
     if (success === 0) {
-        return '撤回失败了，这些消息可能已超过撤回时限';
+        return '撤不了，可能太久了 😅';
     }
     if (failed > 0) {
-        return `✅ 已撤回 ${success} 条消息，另有 ${failed} 条撤回失败`;
+        return `撤了 ${success} 条，还有 ${failed} 条不行 😅`;
     }
-    return `✅ 已撤回 ${success} 条机器人消息`;
+    if (success === 1) {
+        return '好了，撤了 👌';
+    }
+    return `好了，${success} 条都撤了 👌`;
 }
 
 export function buildRevokeHelpText(): string {
     return [
-        '机器人消息撤回（仅主人可用）：',
-        '1) 撤回 — 撤回当前会话里机器人最近 1 条消息',
-        '2) 撤回 3 — 撤回最近 3 条（最多 10 条）',
-        '3) 引用机器人消息后发送「撤回」— 撤回指定消息',
+        '撤我说的：',
+        '「撤回」— 最近一条',
+        '「撤回 3」— 最近三条（最多十条）',
+        '引用那条再发「撤回」— 指定某一条',
         '',
-        '说明：',
-        '- 私聊和群聊均可使用',
-        '- 只能撤回机器人自己发出的消息',
-        '- 依赖会话记录（chat log）保存的微信消息 ID',
-        '- 受微信撤回时限限制，过久的历史消息可能撤不回',
+        '太久的不行哈',
     ].join('\n');
 }
