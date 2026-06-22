@@ -2,6 +2,8 @@ import type {TextMessage} from '../../types.js';
 import {logger} from '../../../utils/logger.js';
 import {FileUploader} from '../../../utils/file-uploader.js';
 import {buildWechatChatRecordAppReply, WechatApi, WechatChatRecordImageTool} from '../../../wechat';
+import type {Env} from '../../../types/env.js';
+import {ContactRepository} from '../../system/contact-admin';
 
 const DIRECT_FORWARD_KEYWORDS = ['我与赌毒不共戴天', '佛祖心中坐'] as const;
 const REVIEW_MODE_KEYWORDS = ['因果循环', '人之初，性本色', '人之初,性本色', '人之初性本色'] as const;
@@ -437,7 +439,7 @@ async function buildDirectForwardReply(
     }
 
     const api = new WechatApi(apiBaseUrl);
-    const {roleA, roleB, senderAvatarUrl, senderName} = await resolveDirectForwardRoles(api, message.room?.id, message.from);
+    const {roleA, roleB, senderAvatarUrl, senderName} = await resolveDirectForwardRoles(env, api, message.room?.id, message.from);
     const uploaded = await WechatChatRecordImageTool.uploadImage(api, {
         imageBase64: sourceBase64,
     });
@@ -556,7 +558,10 @@ interface DirectForwardRole {
 }
 
 function asNonEmptyText(value: unknown): string {
-    return typeof value === 'string' ? value.trim() : '';
+    if (typeof value === 'string') return value.trim();
+    if (!value || typeof value !== 'object') return '';
+    const wrapped = (value as Record<string, unknown>).value;
+    return typeof wrapped === 'string' ? wrapped.trim() : '';
 }
 
 function pickFirstText(source: Record<string, unknown>, keys: string[]): string {
@@ -594,7 +599,15 @@ function extractGroupMemberRoles(payload: unknown): DirectForwardRole[] {
         const id = pickFirstText(obj, ['username', 'user_name', 'wxid', 'id', 'userName']);
         if (!id) continue;
         const name = pickFirstText(obj, ['display_name', 'nickname']) || id;
-        const avatarUrl = pickFirstText(obj, ['big_avatar_url', 'small_avatar_url']);
+        const avatarUrl = pickFirstText(obj, [
+            'big_avatar_url',
+            'small_avatar_url',
+            'avatar_url',
+            'head_img_url',
+            'headimgurl',
+            'big_head_img_url',
+            'small_head_img_url',
+        ]);
         roles.push({id, name, avatarUrl: avatarUrl || undefined});
     }
 
@@ -613,7 +626,35 @@ function pickRandomPair(items: DirectForwardRole[]): [DirectForwardRole, DirectF
     return [copy[0], copy[1]];
 }
 
+async function loadDirectForwardRolesFromDb(env: Env, roomId: string, senderId: string): Promise<{
+    roles: DirectForwardRole[];
+    senderAvatarUrl?: string;
+    senderName?: string;
+}> {
+    try {
+        const rows = await ContactRepository.listGroupMembersFromDb(env.XBOT_DB, roomId);
+        const roles = rows.map((row) => ({
+            id: row.memberId,
+            name: row.memberDisplayName || row.memberNickname || row.memberId,
+            avatarUrl: row.bigAvatarUrl || row.smallAvatarUrl || undefined,
+        }));
+        const sender = roles.find((role) => role.id === senderId);
+        return {
+            roles,
+            senderAvatarUrl: sender?.avatarUrl,
+            senderName: sender?.name,
+        };
+    } catch (error) {
+        logger.warn('因果诱惑读取 D1 群成员失败，改用网关兜底', {
+            roomId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return {roles: []};
+    }
+}
+
 async function resolveDirectForwardRoles(
+    env: Env,
     api: WechatApi,
     roomId: string | undefined,
     senderId: string,
@@ -636,6 +677,25 @@ async function resolveDirectForwardRoles(
     if (!roomId) return fallback;
 
     try {
+        const fromDb = await loadDirectForwardRolesFromDb(env, roomId, senderId);
+        const dbMembers = fromDb.roles.filter((member) => member.id !== senderId);
+        const dbPair = pickRandomPair(dbMembers);
+        if (dbPair) {
+            logger.info('因果诱惑使用 D1 群成员生成角色', {
+                roomId,
+                totalMembers: fromDb.roles.length,
+                hasRoleAAvatar: Boolean(dbPair[0].avatarUrl),
+                hasRoleBAvatar: Boolean(dbPair[1].avatarUrl),
+                hasSenderAvatar: Boolean(fromDb.senderAvatarUrl),
+            });
+            return {
+                roleA: dbPair[0],
+                roleB: dbPair[1],
+                senderAvatarUrl: fromDb.senderAvatarUrl,
+                senderName: fromDb.senderName,
+            };
+        }
+
         const detailResp = await api.getContactDetail([roomId]);
         if (typeof detailResp.code === 'number' && detailResp.code !== 0) {
             logger.warn('因果诱惑随机角色获取失败：getContactDetail 返回异常', {

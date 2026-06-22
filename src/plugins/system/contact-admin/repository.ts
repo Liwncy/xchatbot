@@ -357,6 +357,33 @@ export class ContactRepository {
         }));
     }
 
+    static async listGroupMembersFromDb(db: D1Database, groupId: string): Promise<Array<{
+        memberId: string;
+        memberNickname: string;
+        memberDisplayName: string;
+        bigAvatarUrl: string;
+        smallAvatarUrl: string;
+    }>> {
+        const normalizedGroupId = groupId.trim();
+        if (!normalizedGroupId) return [];
+
+        await ContactRepository.ensureSchema(db);
+        const rows = await db.prepare(
+            `SELECT member_id, member_nickname, member_display_name, big_avatar_url, small_avatar_url
+             FROM group_member
+             WHERE group_id = ?1
+             ORDER BY member_display_name ASC, member_nickname ASC, member_id ASC`,
+        ).bind(normalizedGroupId).all<Record<string, unknown>>();
+
+        return (rows.results ?? []).map((row) => ({
+            memberId: String(row.member_id ?? '').trim(),
+            memberNickname: String(row.member_nickname ?? '').trim(),
+            memberDisplayName: String(row.member_display_name ?? '').trim(),
+            bigAvatarUrl: String(row.big_avatar_url ?? '').trim(),
+            smallAvatarUrl: String(row.small_avatar_url ?? '').trim(),
+        })).filter((row) => Boolean(row.memberId));
+    }
+
     static async setContactEnabled(db: D1Database, contactId: string, enabled: boolean): Promise<void> {
         await ContactRepository.ensureSchema(db);
         await db.prepare(
