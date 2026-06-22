@@ -9,6 +9,7 @@ export interface ParsedWechatReferMessage {
     referSenderName?: string;
     imageMeta?: NonNullable<IncomingMessage['quote']>['imageMeta'];
     emojiMeta?: NonNullable<IncomingMessage['quote']>['emojiMeta'];
+    referMessageId?: NonNullable<IncomingMessage['quote']>['referMessageId'];
 }
 
 function decodeHtmlEntities(text: string): string {
@@ -36,6 +37,17 @@ function pickXmlAttr(xml: string, attr: string): string | undefined {
     const regex = new RegExp(`${attr}="([^"]+)"`, 'i');
     const match = xml.match(regex);
     return match?.[1]?.trim() || undefined;
+}
+
+function extractReferMessageId(refermsg: string): ParsedWechatReferMessage['referMessageId'] | undefined {
+    const svrid = pickXmlTagValue(refermsg, 'svrid');
+    const createtime = pickXmlTagValue(refermsg, 'createtime');
+    const newId = svrid ? Number.parseInt(svrid, 10) : Number.NaN;
+    const createTime = createtime ? Number.parseInt(createtime, 10) : Number.NaN;
+    if (!Number.isFinite(newId) || !Number.isFinite(createTime)) {
+        return undefined;
+    }
+    return {newId, createTime};
 }
 
 function extractReferSender(refermsg: string): Pick<ParsedWechatReferMessage, 'referFrom' | 'referSenderName'> {
@@ -93,6 +105,7 @@ export function parseWechatReferMessage(rawContent: string): ParsedWechatReferMe
         referType,
         referContent,
         ...extractReferSender(refermsg),
+        referMessageId: extractReferMessageId(refermsg),
     };
     if (referType === 3) {
         parsed.imageMeta = extractImageMetaFromXml(referContent);

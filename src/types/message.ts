@@ -92,6 +92,11 @@ export interface IncomingMessage {
         };
         /** 被引用表情（refermsg type 47） */
         emojiMeta?: WechatInboundEmoji;
+        /** 被引用消息的微信 ID（用于撤回等操作） */
+        referMessageId?: {
+            newId: number;
+            createTime: number;
+        };
     };
     /** 事件详情（事件消息） */
     event?: {

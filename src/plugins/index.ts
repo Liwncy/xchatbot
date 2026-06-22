@@ -16,6 +16,7 @@ import {haokanVideoPlugin} from './media/haokan-video';
 import {helpPlugin} from './system/help';
 import {pluginAdminPlugin} from './system/plugin-admin';
 import {contactAdminPlugin} from './system/contact-admin';
+import {messageRevokePlugin} from './system/message-revoke';
 import {humanVerifyPlugin} from './toolkits/human-verify';
 import {randomFriendPlugin} from './toolkits/random-friend';
 import {commonPluginsEngine} from './rule-engine/base';
@@ -42,6 +43,7 @@ import {aiSingPlugin} from './cognitive/ai-sing';
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 registerPlugin(helpPlugin);
 registerPlugin(contactAdminPlugin);
+registerPlugin(messageRevokePlugin);
 registerPlugin(humanVerifyPlugin);
 registerPlugin(randomFriendPlugin);
 registerPlugin(wechatChatRecordDemoPlugin);

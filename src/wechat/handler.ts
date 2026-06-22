@@ -122,11 +122,12 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
         for (const task of replyTasks) {
             const receiver = task.message.room?.id ?? task.message.from;
             try {
-                await sendWechatReply(api, task.reply, receiver, voiceOptions);
+                const sentRecord = await sendWechatReply(api, task.reply, receiver, voiceOptions);
                 await recordOutboundChatMessage(env, task.message, task.reply, {
                     causedByMessageId: task.message.messageId,
                     replyIndex: task.replyIndex,
                     replyStatus: 'sent',
+                    wechatRevoke: sentRecord ?? undefined,
                 });
                 if (task.reply.type === 'emoji') {
                     await markStoredEmojiStatusOk(env, task.reply.md5);

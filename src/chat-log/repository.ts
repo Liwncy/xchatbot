@@ -8,6 +8,7 @@ import {
     normalizeInboundMessage,
     normalizeOutboundReply,
 } from './normalize.js';
+import {mergeWechatRevokeIntoPayload, stripWechatRevokeFromPayload} from './revoke-meta.js';
 import {getBotWechatId, getBotWechatName} from '../utils/bot.js';
 import {getChatLogHandleMeta} from './context.js';
 import type {
@@ -169,6 +170,7 @@ export class ChatLogRepository {
 
         const session = resolveChatSession(message);
         const normalized = normalizeOutboundReply(reply);
+        const payloadJson = mergeWechatRevokeIntoPayload(normalized.payloadJson, options.wechatRevoke);
         const now = Math.floor(Date.now() / 1000);
         const meta = getChatLogHandleMeta(message);
         const botSenderId = options.botSenderId?.trim() || getBotWechatId(env, message);
@@ -193,7 +195,7 @@ export class ChatLogRepository {
             botSenderName,
             normalized.msgType,
             normalized.contentText,
-            normalized.payloadJson,
+            payloadJson,
             [...normalized.contentText].length,
             options.causedByMessageId,
             options.replyIndex ?? 0,
@@ -202,6 +204,65 @@ export class ChatLogRepository {
             now,
             now,
         ).run();
+    }
+
+    static async listRevokableOutbound(
+        db: D1Database,
+        sessionId: string,
+        limit: number,
+    ): Promise<ChatMessageRecord[]> {
+        await ChatLogRepository.ensureSchema(db);
+
+        const safeLimit = Math.max(1, Math.min(limit, 50));
+        const result = await db.prepare(
+            `SELECT *
+             FROM chat_message
+             WHERE session_id = ?1
+               AND direction = 'outbound'
+               AND actor_type = 'bot'
+               AND reply_status = 'sent'
+               AND json_extract(payload_json, '$.wechat_revoke.new_id') IS NOT NULL
+             ORDER BY id DESC
+             LIMIT ?2`,
+        ).bind(sessionId.trim(), safeLimit).all<ChatMessageRow>();
+
+        return (result.results ?? []).map(mapRow);
+    }
+
+    static async findRevokableOutboundByNewId(
+        db: D1Database,
+        sessionId: string,
+        newId: number,
+    ): Promise<ChatMessageRecord | null> {
+        await ChatLogRepository.ensureSchema(db);
+
+        const result = await db.prepare(
+            `SELECT *
+             FROM chat_message
+             WHERE session_id = ?1
+               AND direction = 'outbound'
+               AND actor_type = 'bot'
+               AND reply_status = 'sent'
+               AND json_extract(payload_json, '$.wechat_revoke.new_id') = ?2
+             ORDER BY id DESC
+             LIMIT 1`,
+        ).bind(sessionId.trim(), newId).first<ChatMessageRow>();
+
+        return result ? mapRow(result) : null;
+    }
+
+    static async clearWechatRevokeMeta(db: D1Database, messageId: string): Promise<void> {
+        await ChatLogRepository.ensureSchema(db);
+
+        const row = await db.prepare(
+            'SELECT payload_json FROM chat_message WHERE message_id = ?1',
+        ).bind(messageId.trim()).first<{payload_json: string}>();
+        if (!row?.payload_json) return;
+
+        const payloadJson = stripWechatRevokeFromPayload(row.payload_json);
+        await db.prepare(
+            'UPDATE chat_message SET payload_json = ?1 WHERE message_id = ?2',
+        ).bind(payloadJson, messageId.trim()).run();
     }
 
     static async getRecentMessages(

@@ -4,6 +4,17 @@ import {normalizeVoiceForWechat} from '../../utils/silk-converter.js';
 import {FileUploader} from '../../utils/file-uploader.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from '../constants.js';
 import {WechatApi} from '../api';
+import type {ApiResponse, UploadImageResponse, UploadVideoResponse} from '../api/types.js';
+import {
+    extractRevokeFromSendAppMessageResponse,
+    extractRevokeFromSendMessageResponse,
+    extractRevokeFromUploadEmojiResponse,
+    extractRevokeFromUploadImageResponse,
+    extractRevokeFromUploadVideoResponse,
+    extractRevokeFromUploadVoiceResponse,
+    toSentMessageRecord,
+    type SentMessageRecord,
+} from './extract-revoke-param.js';
 
 function isHttpUrl(value?: string): boolean {
     return /^https?:\/\//i.test(value?.trim() ?? '');
@@ -87,6 +98,30 @@ function detectMediaSignature(base64?: string): string {
     return `unknown(${head})`;
 }
 
+function buildReplyPreview(reply: ReplyMessage): string | undefined {
+    switch (reply.type) {
+        case 'text':
+        case 'markdown':
+            return reply.content.slice(0, 80);
+        case 'image':
+            return '[图片]';
+        case 'voice':
+            return '[语音]';
+        case 'video':
+            return reply.title?.trim() || '[视频]';
+        case 'news':
+            return reply.articles[0]?.title?.trim() || '[链接]';
+        case 'card':
+            return reply.cardContent.card_nickname?.trim() || '[名片]';
+        case 'app':
+            return '[应用消息]';
+        case 'emoji':
+            return '[表情]';
+        default:
+            return undefined;
+    }
+}
+
 /**
  * 通过微信网关 API 发送回复。
  *
@@ -103,8 +138,9 @@ export async function sendWechatReply(
     options?: {
         voiceConvertApiUrl?: string;
     },
-): Promise<void> {
+): Promise<SentMessageRecord | null> {
     const effectiveReceiver = reply.to ?? receiver;
+    let sentRecord: SentMessageRecord | null = null;
 
     switch (reply.type) {
         case 'text':
@@ -115,6 +151,12 @@ export async function sendWechatReply(
                 remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
             });
             ensureWechatApiSuccess('sendText', result);
+            sentRecord = toSentMessageRecord(
+                effectiveReceiver,
+                reply.type,
+                buildReplyPreview(reply),
+                extractRevokeFromSendMessageResponse(effectiveReceiver, result),
+            );
             break;
         }
         case 'image': {
@@ -135,6 +177,12 @@ export async function sendWechatReply(
                     ? await api.cdnUploadImage({receiver: effectiveReceiver, image_url: imageUrl})
                     : await api.cdnUploadImage({receiver: effectiveReceiver, image: reply.mediaId});
                 ensureWechatApiSuccess('cdnUploadImage', result);
+                sentRecord = toSentMessageRecord(
+                    effectiveReceiver,
+                    reply.type,
+                    buildReplyPreview(reply),
+                    extractRevokeFromUploadImageResponse(effectiveReceiver, result as ApiResponse<UploadImageResponse>),
+                );
             } catch (imgErr) {
                 const originalUrl = imageUrl || reply.originalUrl;
                 if (originalUrl) {
@@ -150,6 +198,12 @@ export async function sendWechatReply(
                         thumb_url: originalUrl,
                     });
                     ensureWechatApiSuccess('sendLink(fallback)', linkResult);
+                    sentRecord = toSentMessageRecord(
+                        effectiveReceiver,
+                        'link',
+                        '[图片链接]',
+                        extractRevokeFromSendAppMessageResponse(effectiveReceiver, linkResult),
+                    );
                 } else {
                     throw imgErr;
                 }
@@ -268,6 +322,12 @@ export async function sendWechatReply(
                     sendFormat: normalizedVoice.format,
                     converted: normalizedVoice.converted,
                 });
+                sentRecord = toSentMessageRecord(
+                    effectiveReceiver,
+                    reply.type,
+                    buildReplyPreview(reply),
+                    extractRevokeFromUploadVoiceResponse(effectiveReceiver, result),
+                );
             } catch (voiceErr) {
                 logger.warn('语音发送失败，降级为文本提示', {
                     receiver: effectiveReceiver,
@@ -281,6 +341,12 @@ export async function sendWechatReply(
                     remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
                 });
                 ensureWechatApiSuccess('sendText(fallback)', textResult);
+                sentRecord = toSentMessageRecord(
+                    effectiveReceiver,
+                    'text',
+                    fallbackText.slice(0, 80),
+                    extractRevokeFromSendMessageResponse(effectiveReceiver, textResult),
+                );
             }
             break;
         }
@@ -315,6 +381,12 @@ export async function sendWechatReply(
                     duration,
                 });
                 ensureWechatApiSuccess('cdnUploadVideo', result);
+                sentRecord = toSentMessageRecord(
+                    effectiveReceiver,
+                    reply.type,
+                    buildReplyPreview(reply),
+                    extractRevokeFromUploadVideoResponse(effectiveReceiver, result as ApiResponse<UploadVideoResponse>),
+                );
             } catch (videoErr) {
                 logger.warn('视频发送失败（CDN 上传）', {
                     receiver: effectiveReceiver,
@@ -342,6 +414,12 @@ export async function sendWechatReply(
                         thumb_url: linkPicUrl,
                     });
                     ensureWechatApiSuccess('sendLink(fallback)', linkResult);
+                    sentRecord = toSentMessageRecord(
+                        effectiveReceiver,
+                        'link',
+                        buildReplyPreview(reply),
+                        extractRevokeFromSendAppMessageResponse(effectiveReceiver, linkResult),
+                    );
                 } else {
                     throw videoErr;
                 }
@@ -359,6 +437,12 @@ export async function sendWechatReply(
                     thumb_url: first.picUrl ?? '',
                 });
                 ensureWechatApiSuccess('sendLink', result);
+                sentRecord = toSentMessageRecord(
+                    effectiveReceiver,
+                    reply.type,
+                    buildReplyPreview(reply),
+                    extractRevokeFromSendAppMessageResponse(effectiveReceiver, result),
+                );
             }
             break;
         }
@@ -370,6 +454,12 @@ export async function sendWechatReply(
                 card_alias: reply.cardContent.card_alias,
             });
             ensureWechatApiSuccess('sendCard', result);
+            sentRecord = toSentMessageRecord(
+                effectiveReceiver,
+                reply.type,
+                buildReplyPreview(reply),
+                extractRevokeFromSendMessageResponse(effectiveReceiver, result),
+            );
             break;
         }
         case 'app': {
@@ -387,6 +477,12 @@ export async function sendWechatReply(
             console.log('wechat app send payload', payload);
             const result = await api.sendApp(payload);
             ensureWechatApiSuccess('sendApp', result);
+            sentRecord = toSentMessageRecord(
+                effectiveReceiver,
+                reply.type,
+                buildReplyPreview(reply),
+                extractRevokeFromSendAppMessageResponse(effectiveReceiver, result),
+            );
             break;
         }
         case 'emoji': {
@@ -402,10 +498,18 @@ export async function sendWechatReply(
                 emoji_url: emojiUrl,
             });
             ensureWechatApiSuccess('sendEmoji', result);
+            sentRecord = toSentMessageRecord(
+                effectiveReceiver,
+                reply.type,
+                buildReplyPreview(reply),
+                extractRevokeFromUploadEmojiResponse(effectiveReceiver, result),
+            );
             break;
         }
         default:
             break;
     }
+
+    return sentRecord;
 }
 

@@ -1,5 +1,6 @@
 import type {MessageType} from '../types/message.js';
 import type {ReplyType} from '../types/reply.js';
+import type {RevokeParam} from '../wechat/api/types.js';
 
 export type ChatSessionType = 'group' | 'private';
 export type ChatDirection = 'inbound' | 'outbound';
@@ -49,6 +50,8 @@ export interface RecordOutboundOptions {
     replyStatus?: ChatReplyStatus;
     botSenderId?: string;
     botSenderName?: string;
+    /** 微信网关返回的撤回参数，写入 payload_json.wechat_revoke。 */
+    wechatRevoke?: RevokeParam;
 }
 
 export interface GetRecentMessagesOptions {

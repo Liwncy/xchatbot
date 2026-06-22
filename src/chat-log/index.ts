@@ -1,6 +1,7 @@
 export {setChatLogHandleMeta, getChatLogHandleMeta} from './context.js';
 export {resolveChatSession, resolveSessionIdFromReceiver} from './session.js';
 export {isChatLogEnabled, buildInboundSpeakerLine, formatSpeakerIdentity} from './normalize.js';
+export {parseWechatRevokeFromPayload} from './revoke-meta.js';
 export {getBotWechatId, getBotWechatName} from '../utils/bot.js';
 export {
     ChatLogRepository,

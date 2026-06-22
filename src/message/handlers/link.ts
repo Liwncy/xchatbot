@@ -8,6 +8,7 @@ import {handleAgnesQuoteDraw} from '../../plugins/cognitive/agnes-draw/quote.js'
 import {handleAgnesQuoteVideo} from '../../plugins/cognitive/agnes-video/quote.js';
 import {handleAgnesTextQuote} from '../../plugins/cognitive/agnes-text/quote.js';
 import {handleEmojiStashQuote} from '../../plugins/toolkits/emoji-stash/quote.js';
+import {handleMessageRevokeQuote} from '../../plugins/system/message-revoke/quote.js';
 import {logger} from '../../utils/logger.js';
 
 /**
@@ -18,6 +19,9 @@ export async function handleLinkMessage(
 	message: IncomingMessage,
 	env: Env,
 ): Promise<HandlerResponse> {
+	const revokeQuoteResponse = await handleMessageRevokeQuote(message, env);
+	if (revokeQuoteResponse) return revokeQuoteResponse;
+
 	const agnesTextQuoteResponse = await handleAgnesTextQuote(message, env);
 	if (agnesTextQuoteResponse) return agnesTextQuoteResponse;
 

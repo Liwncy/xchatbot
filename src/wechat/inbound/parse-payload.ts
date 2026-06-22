@@ -237,6 +237,7 @@ export function parseWechatPushItem(
                 ...(parsedRefer.referSenderName ? {referSenderName: parsedRefer.referSenderName} : {}),
                 ...(parsedRefer.imageMeta ? {imageMeta: parsedRefer.imageMeta} : {}),
                 ...(parsedRefer.emojiMeta ? {emojiMeta: parsedRefer.emojiMeta} : {}),
+                ...(parsedRefer.referMessageId ? {referMessageId: parsedRefer.referMessageId} : {}),
             };
         }
         return message;
