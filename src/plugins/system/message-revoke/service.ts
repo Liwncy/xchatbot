@@ -49,9 +49,69 @@ function isQuotedBotMessage(message: IncomingMessage, env: Env): boolean {
     return Boolean(botName && referSenderName && referSenderName === botName);
 }
 
+function hasCompleteReferRevokeIds(
+    referMessageId: NonNullable<NonNullable<IncomingMessage['quote']>['referMessageId']>,
+): boolean {
+    return referMessageId.newId > 0 && referMessageId.clientId != null && referMessageId.clientId > 0;
+}
+
+function buildRevokeParamFromQuote(
+    receiver: string,
+    referMessageId: NonNullable<NonNullable<IncomingMessage['quote']>['referMessageId']>,
+): RevokeParam | null {
+    if (!hasCompleteReferRevokeIds(referMessageId)) return null;
+    return buildRevokeParam(
+        receiver,
+        referMessageId.clientId,
+        referMessageId.newId,
+        referMessageId.createTime,
+    );
+}
+
 async function revokeOne(api: WechatApi, param: RevokeParam): Promise<boolean> {
     const result = await api.revokeMessage(param);
     return result.code === 0;
+}
+
+async function revokeQuotedMessage(
+    message: IncomingMessage,
+    env: Env,
+): Promise<string> {
+    if (!isQuotedBotMessage(message, env)) {
+        return '只能撤我发的，别人的撤不了 🤔';
+    }
+
+    const quote = message.quote!;
+    const referMessageId = quote.referMessageId;
+
+    if (!referMessageId?.newId) {
+        return '引用里没带消息 id，撤不了 🤔';
+    }
+    if (!hasCompleteReferRevokeIds(referMessageId)) {
+        return '引用里 id 不全，撤不了 🤔';
+    }
+
+    const session = resolveChatSession(message);
+    const receiver = resolveRevokeReceiver(message);
+    const api = new WechatApi(env.WECHAT_API_BASE_URL!.trim());
+
+    const tracked = await ChatLogRepository.findRevokableOutboundByNewId(
+        env.XBOT_DB,
+        session.sessionId,
+        referMessageId.newId,
+    );
+    const param = tracked
+        ? parseWechatRevokeFromPayload(tracked.payloadJson)
+        : buildRevokeParamFromQuote(receiver, referMessageId);
+    if (!param) {
+        return '这条撤不了，引用信息不对';
+    }
+
+    const ok = await revokeOne(api, param);
+    if (ok && tracked) {
+        await ChatLogRepository.clearWechatRevokeMeta(env.XBOT_DB, tracked.messageId);
+    }
+    return ok ? '嗯，这条撤了 👌' : '撤不了，太久了 😅';
 }
 
 export async function revokeBotMessages(
@@ -59,52 +119,31 @@ export async function revokeBotMessages(
     env: Env,
     count: number,
 ): Promise<string> {
-    if (!isChatLogEnabled(env)) {
-        return '我这边记不太清，撤不了';
-    }
-
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
     if (!apiBaseUrl) {
         return '这会儿撤不了，等一下';
+    }
+
+    if (message.quote) {
+        return revokeQuotedMessage(message, env);
+    }
+
+    if (!isChatLogEnabled(env)) {
+        return '我这边记不太清，撤不了';
     }
 
     const session = resolveChatSession(message);
     const receiver = resolveRevokeReceiver(message);
     const api = new WechatApi(apiBaseUrl);
 
-    if (message.quote && isQuotedBotMessage(message, env)) {
-        const referMessageId = message.quote.referMessageId;
-        if (!referMessageId?.newId) {
-            return '这条对不上，你直接发「撤回」就行';
-        }
-
-        const tracked = await ChatLogRepository.findRevokableOutboundByNewId(
-            env.XBOT_DB,
-            session.sessionId,
-            referMessageId.newId,
-        );
-        const param = tracked
-            ? parseWechatRevokeFromPayload(tracked.payloadJson)
-            : buildRevokeParam(
-                receiver,
-                referMessageId.newId,
-                referMessageId.newId,
-                referMessageId.createTime,
-            );
-        if (!param) {
-            return '这条撤不了，你直接发「撤回」试试';
-        }
-
-        const ok = await revokeOne(api, param);
-        if (ok && tracked) {
-            await ChatLogRepository.clearWechatRevokeMeta(env.XBOT_DB, tracked.messageId);
-        }
-        return ok ? '嗯，这条撤了 👌' : '撤不了，太久了 😅';
-    }
-
-    const records = await ChatLogRepository.listRevokableOutbound(env.XBOT_DB, session.sessionId, count);
+    const records = await ChatLogRepository.listRevokableOutbound(
+        env.XBOT_DB,
+        session.sessionId,
+        count,
+        {textOnly: true},
+    );
     if (records.length === 0) {
-        return '没找着能撤的 🤔';
+        return '没找着能撤的文字 🤔 图片那些要引用再撤';
     }
 
     let success = 0;
@@ -148,11 +187,11 @@ export async function revokeBotMessages(
 
 export function buildRevokeHelpText(): string {
     return [
-        '撤我说的：',
-        '「撤回」— 最近一条',
-        '「撤回 3」— 最近三条（最多十条）',
-        '引用那条再发「撤回」— 指定某一条',
+        '撤我发的：',
+        '「撤回」— 最近一条文字',
+        '「撤回 3」— 最近几条文字（最多十条）',
+        '图片、表情这类 — 引用我发的那条，再发「撤回」',
         '',
-        '太久的不行哈',
+        '只能撤我自己的，太久的不行哈',
     ].join('\n');
 }

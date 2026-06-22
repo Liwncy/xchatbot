@@ -4,12 +4,11 @@ import {normalizeVoiceForWechat} from '../../utils/silk-converter.js';
 import {FileUploader} from '../../utils/file-uploader.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from '../constants.js';
 import {WechatApi} from '../api';
-import type {ApiResponse, UploadImageResponse, UploadVideoResponse} from '../api/types.js';
+import type {ApiResponse, UploadVideoResponse} from '../api/types.js';
 import {
     extractRevokeFromSendAppMessageResponse,
     extractRevokeFromSendMessageResponse,
     extractRevokeFromUploadEmojiResponse,
-    extractRevokeFromUploadImageResponse,
     extractRevokeFromUploadVideoResponse,
     extractRevokeFromUploadVoiceResponse,
     toSentMessageRecord,
@@ -177,12 +176,6 @@ export async function sendWechatReply(
                     ? await api.cdnUploadImage({receiver: effectiveReceiver, image_url: imageUrl})
                     : await api.cdnUploadImage({receiver: effectiveReceiver, image: reply.mediaId});
                 ensureWechatApiSuccess('cdnUploadImage', result);
-                sentRecord = toSentMessageRecord(
-                    effectiveReceiver,
-                    reply.type,
-                    buildReplyPreview(reply),
-                    extractRevokeFromUploadImageResponse(effectiveReceiver, result as ApiResponse<UploadImageResponse>),
-                );
             } catch (imgErr) {
                 const originalUrl = imageUrl || reply.originalUrl;
                 if (originalUrl) {

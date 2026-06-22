@@ -210,10 +210,14 @@ export class ChatLogRepository {
         db: D1Database,
         sessionId: string,
         limit: number,
+        options: {textOnly?: boolean} = {},
     ): Promise<ChatMessageRecord[]> {
         await ChatLogRepository.ensureSchema(db);
 
         const safeLimit = Math.max(1, Math.min(limit, 50));
+        const textFilter = options.textOnly
+            ? " AND msg_type IN ('text', 'markdown')"
+            : '';
         const result = await db.prepare(
             `SELECT *
              FROM chat_message
@@ -221,7 +225,7 @@ export class ChatLogRepository {
                AND direction = 'outbound'
                AND actor_type = 'bot'
                AND reply_status = 'sent'
-               AND json_extract(payload_json, '$.wechat_revoke.new_id') IS NOT NULL
+               AND json_extract(payload_json, '$.wechat_revoke.new_id') IS NOT NULL${textFilter}
              ORDER BY id DESC
              LIMIT ?2`,
         ).bind(sessionId.trim(), safeLimit).all<ChatMessageRow>();

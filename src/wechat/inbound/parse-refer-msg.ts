@@ -39,15 +39,58 @@ function pickXmlAttr(xml: string, attr: string): string | undefined {
     return match?.[1]?.trim() || undefined;
 }
 
+function normalizeUnixSeconds(value: number): number {
+    if (!Number.isFinite(value)) return Math.floor(Date.now() / 1000);
+    return value > 1_000_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+}
+
+function parseReferNumericTag(refermsg: string, tags: string[]): number | undefined {
+    for (const tag of tags) {
+        const raw = pickXmlTagValue(refermsg, tag);
+        if (!raw) continue;
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
+}
+
+function extractClientIdFromMsgsource(msgsource: string): number | undefined {
+    const normalized = decodeHtmlEntities(msgsource).trim();
+    if (!normalized) return undefined;
+
+    const attrMatch = normalized.match(/clientmsgid="(\d+)"/i)
+        ?? normalized.match(/client_msgid="(\d+)"/i);
+    if (attrMatch?.[1]) {
+        const parsed = Number.parseInt(attrMatch[1], 10);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+
+    const tagMatch = normalized.match(/<clientmsgid>(\d+)<\/clientmsgid>/i)
+        ?? normalized.match(/<client_msgid>(\d+)<\/client_msgid>/i);
+    if (tagMatch?.[1]) {
+        const parsed = Number.parseInt(tagMatch[1], 10);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+
+    return undefined;
+}
+
 function extractReferMessageId(refermsg: string): ParsedWechatReferMessage['referMessageId'] | undefined {
-    const svrid = pickXmlTagValue(refermsg, 'svrid');
-    const createtime = pickXmlTagValue(refermsg, 'createtime');
-    const newId = svrid ? Number.parseInt(svrid, 10) : Number.NaN;
-    const createTime = createtime ? Number.parseInt(createtime, 10) : Number.NaN;
-    if (!Number.isFinite(newId) || !Number.isFinite(createTime)) {
+    const newId = parseReferNumericTag(refermsg, ['svrid', 'newmsgid', 'new_id']);
+    const createTimeRaw = parseReferNumericTag(refermsg, ['createtime', 'create_time']);
+    const clientIdFromTag = parseReferNumericTag(refermsg, ['msgid', 'frommsgid', 'client_id', 'clientid']);
+    const msgsource = pickXmlTagValue(refermsg, 'msgsource') ?? '';
+    const clientIdFromSource = extractClientIdFromMsgsource(msgsource);
+
+    if (newId == null || createTimeRaw == null) {
         return undefined;
     }
-    return {newId, createTime};
+
+    return {
+        newId,
+        clientId: clientIdFromTag ?? clientIdFromSource,
+        createTime: normalizeUnixSeconds(createTimeRaw),
+    };
 }
 
 function extractReferSender(refermsg: string): Pick<ParsedWechatReferMessage, 'referFrom' | 'referSenderName'> {

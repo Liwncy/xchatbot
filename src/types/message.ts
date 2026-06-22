@@ -94,7 +94,10 @@ export interface IncomingMessage {
         emojiMeta?: WechatInboundEmoji;
         /** 被引用消息的微信 ID（用于撤回等操作） */
         referMessageId?: {
+            /** 服务端消息 ID（refermsg svrid）。 */
             newId: number;
+            /** 客户端消息 ID（refermsg msgid / msgsource，缺省同 newId）。 */
+            clientId?: number;
             createTime: number;
         };
     };

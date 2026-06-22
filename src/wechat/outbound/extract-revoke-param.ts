@@ -59,6 +59,83 @@ function resolveResponseData<T>(response: ApiResponse<T>): T | undefined {
     return response.data;
 }
 
+function pickNumericField(record: Record<string, unknown>, keys: string[]): number | undefined {
+    for (const key of keys) {
+        const parsed = parseNumeric(record[key]);
+        if (parsed != null) return parsed;
+    }
+    return undefined;
+}
+
+function findRevokeFieldsInRecord(
+    source: unknown,
+    maxDepth = 3,
+): {
+    clientId?: number;
+    newId?: number;
+    createTime?: number;
+    receiver?: string;
+} | null {
+    if (!source || typeof source !== 'object' || maxDepth < 0) return null;
+
+    const queue: Array<{record: Record<string, unknown>; depth: number}> = [
+        {record: source as Record<string, unknown>, depth: 0},
+    ];
+    const seen = new Set<object>();
+
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || seen.has(current.record)) continue;
+        seen.add(current.record);
+
+        const newId = pickNumericField(current.record, ['new_id', 'new_msg_id', 'newId', 'msgid']);
+        const clientId = pickNumericField(current.record, ['client_id', 'clientId', 'id', 'msg_id']) ?? newId;
+        const createTime = pickNumericField(current.record, ['create_time', 'createTime', 'createtime', 'server_time']);
+        const nestedReceiver = parseReceiver(current.record.receiver, '');
+
+        if (newId != null && clientId != null) {
+            return {
+                clientId,
+                newId,
+                createTime: createTime ?? Math.floor(Date.now() / 1000),
+                ...(nestedReceiver ? {receiver: nestedReceiver} : {}),
+            };
+        }
+
+        if (current.depth >= maxDepth) continue;
+        for (const value of Object.values(current.record)) {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                queue.push({record: value as Record<string, unknown>, depth: current.depth + 1});
+            }
+        }
+    }
+
+    return null;
+}
+
+function extractRevokeFromResponsePayload(
+    receiver: string,
+    response: ApiResponse<unknown>,
+): RevokeParam | null {
+    const root = response as unknown as Record<string, unknown>;
+    const candidates: unknown[] = [];
+    if (root.data != null) candidates.push(root.data);
+    candidates.push(root);
+
+    for (const candidate of candidates) {
+        const fields = findRevokeFieldsInRecord(candidate);
+        if (!fields) continue;
+        return buildRevokeParam(
+            fields.receiver || receiver,
+            fields.clientId,
+            fields.newId,
+            fields.createTime,
+        );
+    }
+
+    return null;
+}
+
 export function extractRevokeFromSendMessageResponse(
     receiver: string,
     response: ApiResponse<SendMessageResponse>,
@@ -92,29 +169,35 @@ export function extractRevokeFromUploadImageResponse(
     receiver: string,
     response: ApiResponse<UploadImageResponse>,
 ): RevokeParam | null {
-    const data = resolveResponseData(response);
-    if (!data) return null;
-    return buildRevokeParam(
-        parseReceiver(data.receiver, receiver),
-        parseNumeric(data.client_id) ?? data.id,
-        data.new_id ?? data.id,
-        data.create_time,
-    );
+    return extractRevokeFromResponsePayload(receiver, response as ApiResponse<unknown>)
+        ?? (() => {
+            const data = resolveResponseData(response);
+            if (!data) return null;
+            return buildRevokeParam(
+                parseReceiver(data.receiver, receiver),
+                parseNumeric(data.client_id) ?? data.id,
+                data.new_id ?? data.id,
+                data.create_time ?? Math.floor(Date.now() / 1000),
+            );
+        })();
 }
 
 export function extractRevokeFromUploadVideoResponse(
     receiver: string,
     response: ApiResponse<UploadVideoResponse>,
 ): RevokeParam | null {
-    const data = resolveResponseData(response);
-    if (!data) return null;
-    const createTime = Math.floor(Date.now() / 1000);
-    return buildRevokeParam(
-        receiver,
-        parseNumeric(data.client_id) ?? data.id,
-        data.new_id ?? data.id,
-        createTime,
-    );
+    return extractRevokeFromResponsePayload(receiver, response as ApiResponse<unknown>)
+        ?? (() => {
+            const data = resolveResponseData(response);
+            if (!data) return null;
+            const createTime = Math.floor(Date.now() / 1000);
+            return buildRevokeParam(
+                receiver,
+                parseNumeric(data.client_id) ?? data.id,
+                data.new_id ?? data.id,
+                createTime,
+            );
+        })();
 }
 
 export function extractRevokeFromUploadVoiceResponse(

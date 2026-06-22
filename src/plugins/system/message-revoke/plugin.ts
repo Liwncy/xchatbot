@@ -18,7 +18,7 @@ function matchesRevokeCommand(content: string, hasQuote: boolean): boolean {
 export const messageRevokePlugin: TextMessage = {
     type: 'text',
     name: 'message-revoke',
-    description: '机器人消息撤回（仅主人）：撤回 / 撤回 N / 引用后撤回',
+    description: '撤回机器人自己发的消息（仅主人）：文字撤回 / 引用撤回图片等',
     match: (content, message) => matchesRevokeCommand(content, Boolean(message.quote)),
     handle: async (message, env) => {
         try {
