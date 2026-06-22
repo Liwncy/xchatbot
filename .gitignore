@@ -5,6 +5,7 @@ dist/
 *.tsbuildinfo
 .idea
 .vscode/
+.cursor/
 /_docs/vue-xiuxiangame-main/
 .tmp/
 .tmp-plugin-admin-smoke/
