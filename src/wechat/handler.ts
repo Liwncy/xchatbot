@@ -31,13 +31,52 @@ function resolveVoiceConversionOptions(env: Env): {
     };
 }
 
+async function sendReplyTasksInBackground(
+    env: Env,
+    apiBaseUrl: string,
+    replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage; replyIndex: number }>,
+): Promise<void> {
+    const api = new WechatApi(apiBaseUrl);
+    const voiceOptions = resolveVoiceConversionOptions(env);
+    for (const task of replyTasks) {
+        const receiver = task.message.room?.id ?? task.message.from;
+        try {
+            const sentRecord = await sendWechatReply(api, task.reply, receiver, voiceOptions);
+            await recordOutboundChatMessage(env, task.message, task.reply, {
+                causedByMessageId: task.message.messageId,
+                replyIndex: task.replyIndex,
+                replyStatus: 'sent',
+                wechatRevoke: sentRecord ?? undefined,
+            });
+            if (task.reply.type === 'emoji') {
+                await markStoredEmojiStatusOk(env, task.reply.md5);
+            }
+        } catch (err) {
+            await recordOutboundChatMessage(env, task.message, task.reply, {
+                causedByMessageId: task.message.messageId,
+                replyIndex: task.replyIndex,
+                replyStatus: 'failed',
+            });
+            logger.error('微信 API 发送回复失败', {
+                replyType: task.reply.type,
+                receiver,
+                apiBaseUrl,
+                error: err instanceof Error ? err.message : String(err),
+            });
+            if (task.reply.type === 'emoji') {
+                await markStoredEmojiStatusFailed(env, task.reply.md5);
+            }
+        }
+    }
+}
+
 /**
  * 微信请求主处理器。
  * 接收来自网关的 JSON 数据并处理消息。
  *
  * 通过类型化 API 客户端发送回复。
  */
-export async function handleWechat(request: Request, env: Env): Promise<Response> {
+export async function handleWechat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const token = env.WECHAT_TOKEN ?? '';
     const apiBaseUrl = env.WECHAT_API_BASE_URL ?? '';
 
@@ -117,38 +156,7 @@ export async function handleWechat(request: Request, env: Env): Promise<Response
     }
 
     if (apiBaseUrl) {
-        const api = new WechatApi(apiBaseUrl);
-        const voiceOptions = resolveVoiceConversionOptions(env);
-        for (const task of replyTasks) {
-            const receiver = task.message.room?.id ?? task.message.from;
-            try {
-                const sentRecord = await sendWechatReply(api, task.reply, receiver, voiceOptions);
-                await recordOutboundChatMessage(env, task.message, task.reply, {
-                    causedByMessageId: task.message.messageId,
-                    replyIndex: task.replyIndex,
-                    replyStatus: 'sent',
-                    wechatRevoke: sentRecord ?? undefined,
-                });
-                if (task.reply.type === 'emoji') {
-                    await markStoredEmojiStatusOk(env, task.reply.md5);
-                }
-            } catch (err) {
-                await recordOutboundChatMessage(env, task.message, task.reply, {
-                    causedByMessageId: task.message.messageId,
-                    replyIndex: task.replyIndex,
-                    replyStatus: 'failed',
-                });
-                logger.error('微信 API 发送回复失败', {
-                    replyType: task.reply.type,
-                    receiver,
-                    apiBaseUrl,
-                    error: err instanceof Error ? err.message : String(err),
-                });
-                if (task.reply.type === 'emoji') {
-                    await markStoredEmojiStatusFailed(env, task.reply.md5);
-                }
-            }
-        }
+        ctx.waitUntil(sendReplyTasksInBackground(env, apiBaseUrl, replyTasks));
 
         return new Response(JSON.stringify({success: true}), {
             status: 200,

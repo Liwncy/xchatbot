@@ -6,7 +6,7 @@ import {DEBUG_FORWARDED_HEADER} from '../constants/debug.js';
 import {handleTurnstileRequest} from '../turnstile';
 import {handleWechatImageProxy} from '../proxy/wechat-image.js';
 
-export async function handleFetch(request: Request, env: Env): Promise<Response> {
+export async function handleFetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
@@ -42,7 +42,7 @@ export async function handleFetch(request: Request, env: Env): Promise<Response>
     }
 
     if (pathname === '/webhook/wechat' || pathname.startsWith('/webhook/wechat/')) {
-        return handleWechat(request, env);
+        return handleWechat(request, env, ctx);
     }
 
     if (pathname === '/' || pathname === '/health') {
