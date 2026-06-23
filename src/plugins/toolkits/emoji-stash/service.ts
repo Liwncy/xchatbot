@@ -1,6 +1,6 @@
 import type {IncomingMessage} from '../../../types/message.js';
 import type {Env} from '../../../types/env.js';
-import type {HandlerResponse} from '../../../types/reply.js';
+import type {EmojiReply, HandlerResponse} from '../../../types/reply.js';
 import {resolvePublicImageUrlFromEmojiCdnurl} from '../../cognitive/agnes-text/resolve-image.js';
 import {isEmojiStashCategory} from './categories.js';
 import {
@@ -17,6 +17,10 @@ import {
     EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY,
     EMOJI_STASH_SAVE_OK_REPLY,
     EMOJI_STASH_SAVE_REPLY,
+    EMOJI_STASH_VERIFY_DEFAULT_BATCH,
+    EMOJI_STASH_VERIFY_EMPTY_REPLY,
+    EMOJI_STASH_VERIFY_MAX_BATCH,
+    EMOJI_STASH_VERIFY_START_REPLY,
 } from './constants.js';
 import {buildEmojiStashListReply} from './list-reply.js';
 import type {EmojiBracketSendCommand} from './parse-send.js';
@@ -175,27 +179,27 @@ function pickRandom<T>(items: T[]): T | undefined {
     return items[Math.floor(Math.random() * items.length)];
 }
 
-function findStoredEmojiByName(emojis: StoredEmoji[], name: string): StoredEmoji | undefined {
-    const normalized = name.trim().toLowerCase();
-    return emojis.find((item) => item.name === normalized);
+function isSendableEmoji(item: StoredEmoji): boolean {
+    return item.status !== 'failed';
 }
 
-function isSendableForRandomPick(item: StoredEmoji): boolean {
-    return item.status !== 'failed';
+function findStoredEmojiByName(emojis: StoredEmoji[], name: string): StoredEmoji | undefined {
+    const normalized = name.trim().toLowerCase();
+    return emojis.find((item) => item.name === normalized && isSendableEmoji(item));
 }
 
 function findRandomByCategory(emojis: StoredEmoji[], category: string): StoredEmoji | undefined {
     const normalized = category.trim().toLowerCase();
     if (!isEmojiStashCategory(normalized)) return undefined;
-    return pickRandom(emojis.filter((item) => item.category === normalized && isSendableForRandomPick(item)));
+    return pickRandom(emojis.filter((item) => item.category === normalized && isSendableEmoji(item)));
 }
 
 function findRandomByTag(emojis: StoredEmoji[], tag: string): StoredEmoji | undefined {
     const normalized = tag.trim().toLowerCase();
-    return pickRandom(emojis.filter((item) => item.tags.includes(normalized) && isSendableForRandomPick(item)));
+    return pickRandom(emojis.filter((item) => item.tags.includes(normalized) && isSendableEmoji(item)));
 }
 
-function toEmojiSendReply(target: StoredEmoji): HandlerResponse {
+function toEmojiSendReply(target: StoredEmoji): EmojiReply {
     return {
         type: 'emoji',
         md5: target.md5,
@@ -230,6 +234,50 @@ export async function sendStoredEmojiByBracket(
 
 export async function listEmojiStash(message: IncomingMessage, env: Env): Promise<HandlerResponse> {
     return buildEmojiStashListReply(message, env);
+}
+
+function normalizeVerifyBatchSize(count?: number): number {
+    if (!Number.isFinite(count) || (count ?? 0) <= 0) {
+        return EMOJI_STASH_VERIFY_DEFAULT_BATCH;
+    }
+    return Math.min(Math.floor(count!), EMOJI_STASH_VERIFY_MAX_BATCH);
+}
+
+function buildEmojiVerifyReplies(
+    items: StoredEmoji[],
+    mode: 'pending' | 'failed',
+    count?: number,
+): HandlerResponse {
+    if (items.length === 0) {
+        return {type: 'text', content: EMOJI_STASH_VERIFY_EMPTY_REPLY};
+    }
+
+    const batchSize = normalizeVerifyBatchSize(count);
+    const selected = items.slice(0, batchSize);
+    return [
+        {type: 'text', content: EMOJI_STASH_VERIFY_START_REPLY(mode, selected.length, items.length)},
+        ...selected.map((item) => toEmojiSendReply(item)),
+    ];
+}
+
+export async function verifyUnsentEmojis(
+    _message: IncomingMessage,
+    env: Env,
+    count?: number,
+): Promise<HandlerResponse> {
+    const emojis = await listStoredEmojis(env);
+    const pending = emojis.filter((item) => item.status == null);
+    return buildEmojiVerifyReplies(pending, 'pending', count);
+}
+
+export async function retryFailedEmojis(
+    _message: IncomingMessage,
+    env: Env,
+    count?: number,
+): Promise<HandlerResponse> {
+    const emojis = await listStoredEmojis(env);
+    const failed = emojis.filter((item) => item.status === 'failed');
+    return buildEmojiVerifyReplies(failed, 'failed', count);
 }
 
 export async function deleteStoredEmoji(

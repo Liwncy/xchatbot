@@ -19,6 +19,8 @@ export const EMOJI_STASH_AUTO_COLLECT = true;
 
 /** 自动收藏回复冷却（秒），全局共用；冷却期内仍入库，仅不重复发回复文案。 */
 export const EMOJI_STASH_AUTO_COLLECT_COOLDOWN_SECONDS = 60;
+export const EMOJI_STASH_VERIFY_DEFAULT_BATCH = 5;
+export const EMOJI_STASH_VERIFY_MAX_BATCH = 100;
 
 export const EMOJI_STASH_SAVE_REPLY = '请发送要收藏的表情，或引用表情后发送「存表情」。';
 export const EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY = '未能解析表情的 md5 或 cdnurl，无法保存。';
@@ -27,6 +29,18 @@ export const EMOJI_STASH_SAVE_OK_REPLY = (name: string, category: string, tags: 
 export const EMOJI_STASH_AUTO_OK_REPLY = '图很好，现在是我的啦[旺柴]';
 export const EMOJI_STASH_NOT_FOUND_REPLY = (query: string) => `未找到表情：${query}`;
 export const EMOJI_STASH_DELETE_OK_REPLY = (name: string) => `已删除表情 [${name}]。`;
+export const EMOJI_STASH_VERIFY_EMPTY_REPLY = '这会儿没啥要验的。';
+export const EMOJI_STASH_VERIFY_START_REPLY = (
+    mode: 'pending' | 'failed',
+    sendingCount: number,
+    totalCount: number,
+) => {
+    const label = mode === 'failed' ? '重验失败的' : '验没发过的';
+    const remaining = Math.max(0, totalCount - sendingCount);
+    return remaining > 0
+        ? `先帮你${label} ${sendingCount} 个，还剩 ${remaining} 个。`
+        : `先帮你${label} ${sendingCount} 个。`;
+};
 export const EMOJI_STASH_LIST_EMPTY_REPLY =
     '📭 聪明表情还是空的～\n发表情会自动收藏，或发送「存表情」手动收藏。';
 export const EMOJI_STASH_AI_FAIL_REPLY = 'AI 未能识别该表情，已使用默认名称保存。';
