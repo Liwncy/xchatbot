@@ -90,6 +90,25 @@ export interface IncomingMessage {
             fileId: string;
             fileAesKey: string;
         };
+        /** 被引用视频（refermsg type 43） */
+        videoMeta?: {
+            fileId: string;
+            fileAesKey: string;
+            thumbFileId?: string;
+            thumbAesKey?: string;
+            duration?: number;
+        };
+        /** 被引用语音（refermsg type 34） */
+        voiceMeta?: {
+            id: number;
+            newId: number;
+            bufferId: number;
+            length: number;
+            duration?: number;
+            format?: number;
+            voiceUrl?: string;
+            voiceAesKey?: string;
+        };
         /** 被引用表情（refermsg type 47） */
         emojiMeta?: WechatInboundEmoji;
         /** 被引用消息的微信 ID（用于撤回等操作） */

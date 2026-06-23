@@ -8,6 +8,8 @@ export interface ParsedWechatReferMessage {
     referFrom?: string;
     referSenderName?: string;
     imageMeta?: NonNullable<IncomingMessage['quote']>['imageMeta'];
+    videoMeta?: NonNullable<IncomingMessage['quote']>['videoMeta'];
+    voiceMeta?: NonNullable<IncomingMessage['quote']>['voiceMeta'];
     emojiMeta?: NonNullable<IncomingMessage['quote']>['emojiMeta'];
     referMessageId?: NonNullable<IncomingMessage['quote']>['referMessageId'];
 }
@@ -37,6 +39,13 @@ function pickXmlAttr(xml: string, attr: string): string | undefined {
     const regex = new RegExp(`${attr}="([^"]+)"`, 'i');
     const match = xml.match(regex);
     return match?.[1]?.trim() || undefined;
+}
+
+function pickXmlAttrInt(xml: string, attr: string): number | undefined {
+    const raw = pickXmlAttr(xml, attr);
+    if (!raw) return undefined;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function normalizeUnixSeconds(value: number): number {
@@ -122,6 +131,84 @@ function extractImageMetaFromXml(xml: string): ParsedWechatReferMessage['imageMe
     return {fileId, fileAesKey};
 }
 
+function extractVideoMetaFromXml(xml: string): ParsedWechatReferMessage['videoMeta'] | undefined {
+    const videoXml = stripGroupPrefix(xml).trim();
+    if (!videoXml.includes('<videomsg') && !videoXml.includes('<video')) return undefined;
+
+    const fileAesKey =
+        pickXmlAttr(videoXml, 'aeskey') ||
+        pickXmlAttr(videoXml, 'cdnvideokey') ||
+        pickXmlAttr(videoXml, 'cdndatakey');
+    const fileId =
+        pickXmlAttr(videoXml, 'cdnvideourl') ||
+        pickXmlAttr(videoXml, 'cdndataurl') ||
+        pickXmlAttr(videoXml, 'cdnurl');
+    const thumbFileId = pickXmlAttr(videoXml, 'cdnthumburl');
+    const thumbAesKey =
+        pickXmlAttr(videoXml, 'cdnthumbkey') ||
+        pickXmlAttr(videoXml, 'cdnthumbaeskey');
+    const duration = Number.parseInt(
+        pickXmlAttr(videoXml, 'playlength') ||
+        pickXmlAttr(videoXml, 'duration') ||
+        '',
+        10,
+    );
+
+    if (!fileAesKey || !fileId) return undefined;
+    return {
+        fileId,
+        fileAesKey,
+        ...(thumbFileId ? {thumbFileId} : {}),
+        ...(thumbAesKey ? {thumbAesKey} : {}),
+        ...(Number.isFinite(duration) && duration > 0 ? {duration} : {}),
+    };
+}
+
+function extractVoiceMetaFromXml(
+    refermsg: string,
+    referContent: string,
+    referMessageId?: ParsedWechatReferMessage['referMessageId'],
+): ParsedWechatReferMessage['voiceMeta'] | undefined {
+    const voiceXml = stripGroupPrefix(referContent).trim();
+    const source = `${refermsg}\n${voiceXml}`;
+    if (!source.includes('<voicemsg') && !source.includes('<voice')) return undefined;
+
+    const id =
+        parseReferNumericTag(refermsg, ['msgid', 'frommsgid', 'client_id', 'clientid']) ??
+        referMessageId?.clientId ??
+        referMessageId?.newId;
+    const newId = referMessageId?.newId ?? parseReferNumericTag(refermsg, ['svrid', 'newmsgid', 'new_id']);
+    const bufferId =
+        pickXmlAttrInt(voiceXml, 'bufid') ??
+        pickXmlAttrInt(voiceXml, 'bufferid') ??
+        pickXmlAttrInt(voiceXml, 'buffer_id') ??
+        parseReferNumericTag(source, ['bufid', 'bufferid', 'buffer_id', 'voiceid']);
+    const length =
+        pickXmlAttrInt(voiceXml, 'length') ??
+        pickXmlAttrInt(voiceXml, 'voicelength') ??
+        parseReferNumericTag(source, ['voicelength', 'length', 'size']);
+    const duration =
+        pickXmlAttrInt(voiceXml, 'voicelength') ??
+        pickXmlAttrInt(voiceXml, 'playlength') ??
+        pickXmlAttrInt(voiceXml, 'duration') ??
+        parseReferNumericTag(source, ['playlength', 'duration']);
+    const format = pickXmlAttrInt(voiceXml, 'voiceformat');
+    const voiceUrl = pickXmlAttr(voiceXml, 'voiceurl');
+    const voiceAesKey = pickXmlAttr(voiceXml, 'aeskey');
+
+    if (id == null || newId == null || bufferId == null || length == null || length <= 0) return undefined;
+    return {
+        id,
+        newId,
+        bufferId,
+        length,
+        ...(duration != null && duration > 0 ? {duration} : {}),
+        ...(format != null ? {format} : {}),
+        ...(voiceUrl ? {voiceUrl: decodeHtmlEntities(voiceUrl)} : {}),
+        ...(voiceAesKey ? {voiceAesKey} : {}),
+    };
+}
+
 /**
  * 解析微信 type 49 引用消息（appmsg type 57）。
  * 若引用内容为图片（refermsg type 3），提取 CDN 下载参数。
@@ -143,15 +230,22 @@ export function parseWechatReferMessage(rawContent: string): ParsedWechatReferMe
     const referType = Number.parseInt(pickXmlTagValue(refermsg, 'type') ?? '', 10);
     const referContent = decodeHtmlEntities(pickXmlTagValue(refermsg, 'content') ?? '');
 
+    const referMessageId = extractReferMessageId(refermsg);
     const parsed: ParsedWechatReferMessage = {
         title,
         referType,
         referContent,
         ...extractReferSender(refermsg),
-        referMessageId: extractReferMessageId(refermsg),
+        referMessageId,
     };
     if (referType === 3) {
         parsed.imageMeta = extractImageMetaFromXml(referContent);
+    }
+    if (referType === 43) {
+        parsed.videoMeta = extractVideoMetaFromXml(referContent);
+    }
+    if (referType === 34) {
+        parsed.voiceMeta = extractVoiceMetaFromXml(refermsg, referContent, referMessageId);
     }
     if (referType === 47) {
         const emojiMeta = parseWechatEmojiFromContent(referContent);
