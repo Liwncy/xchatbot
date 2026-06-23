@@ -236,9 +236,12 @@ export class ChatLogRepository {
     static async findRevokableOutboundByNewId(
         db: D1Database,
         sessionId: string,
-        newId: number,
+        newId: number | string,
+        clientId?: number | string,
     ): Promise<ChatMessageRecord | null> {
         await ChatLogRepository.ensureSchema(db);
+        const newIdText = String(newId);
+        const clientIdText = clientId == null ? null : String(clientId);
 
         const result = await db.prepare(
             `SELECT *
@@ -247,10 +250,15 @@ export class ChatLogRepository {
                AND direction = 'outbound'
                AND actor_type = 'bot'
                AND reply_status = 'sent'
-               AND json_extract(payload_json, '$.wechat_revoke.new_id') = ?2
+               AND (
+                   CAST(json_extract(payload_json, '$.wechat_revoke.new_id') AS TEXT) = ?2
+                   OR CAST(json_extract(payload_json, '$.wechat_revoke.client_id') AS TEXT) = ?2
+                   OR (?3 IS NOT NULL AND CAST(json_extract(payload_json, '$.wechat_revoke.client_id') AS TEXT) = ?3)
+                   OR (?3 IS NOT NULL AND CAST(json_extract(payload_json, '$.wechat_revoke.new_id') AS TEXT) = ?3)
+               )
              ORDER BY id DESC
              LIMIT 1`,
-        ).bind(sessionId.trim(), newId).first<ChatMessageRow>();
+        ).bind(sessionId.trim(), newIdText, clientIdText).first<ChatMessageRow>();
 
         return result ? mapRow(result) : null;
     }

@@ -7,6 +7,7 @@ import {getBotWechatId} from '../../../utils/bot.js';
 import {WechatApi} from '../../../wechat';
 import type {RevokeParam} from '../../../wechat/api/types.js';
 import {buildRevokeParam} from '../../../wechat/outbound/extract-revoke-param.js';
+import {logger} from '../../../utils/logger.js';
 
 const MAX_REVOKE_COUNT = 10;
 
@@ -49,27 +50,33 @@ function isQuotedBotMessage(message: IncomingMessage, env: Env): boolean {
     return Boolean(botName && referSenderName && referSenderName === botName);
 }
 
-function hasCompleteReferRevokeIds(
-    referMessageId: NonNullable<NonNullable<IncomingMessage['quote']>['referMessageId']>,
-): boolean {
-    return referMessageId.newId > 0 && referMessageId.clientId != null && referMessageId.clientId > 0;
-}
-
 function buildRevokeParamFromQuote(
     receiver: string,
     referMessageId: NonNullable<NonNullable<IncomingMessage['quote']>['referMessageId']>,
 ): RevokeParam | null {
-    if (!hasCompleteReferRevokeIds(referMessageId)) return null;
+    const newId = referMessageId.newIdText ?? referMessageId.newId;
+    const clientId = referMessageId.clientIdText ?? referMessageId.clientId;
+    if (!String(newId).trim()) return null;
     return buildRevokeParam(
         receiver,
-        referMessageId.clientId,
-        referMessageId.newId,
+        clientId,
+        newId,
         referMessageId.createTime,
     );
 }
 
 async function revokeOne(api: WechatApi, param: RevokeParam): Promise<boolean> {
     const result = await api.revokeMessage(param);
+    if (result.code !== 0) {
+        logger.warn('引用撤回接口返回失败', {
+            code: result.code,
+            message: result.message,
+            receiver: param.receiver,
+            clientId: param.client_id,
+            newId: param.new_id,
+            createTime: param.create_time,
+        });
+    }
     return result.code === 0;
 }
 
@@ -87,10 +94,6 @@ async function revokeQuotedMessage(
     if (!referMessageId?.newId) {
         return '引用里没带消息 id，撤不了 🤔';
     }
-    if (!hasCompleteReferRevokeIds(referMessageId)) {
-        return '引用里 id 不全，撤不了 🤔';
-    }
-
     const session = resolveChatSession(message);
     const receiver = resolveRevokeReceiver(message);
     const api = new WechatApi(env.WECHAT_API_BASE_URL!.trim());
@@ -98,15 +101,40 @@ async function revokeQuotedMessage(
     const tracked = await ChatLogRepository.findRevokableOutboundByNewId(
         env.XBOT_DB,
         session.sessionId,
-        referMessageId.newId,
+        referMessageId.newIdText ?? referMessageId.newId,
+        referMessageId.clientIdText ?? referMessageId.clientId,
     );
-    const param = tracked
-        ? parseWechatRevokeFromPayload(tracked.payloadJson)
+    if (!tracked) {
+        logger.warn('引用撤回未找到出站记录，尝试只用引用 new_id 兜底', {
+            receiver,
+            sessionId: session.sessionId,
+            newId: referMessageId.newId,
+            newIdText: referMessageId.newIdText,
+            clientIdText: referMessageId.clientIdText,
+            createTime: referMessageId.createTime,
+        });
+    }
+    const trackedParam = tracked ? parseWechatRevokeFromPayload(tracked.payloadJson) : null;
+    const param = trackedParam
+        ? {
+            ...trackedParam,
+            receiver: trackedParam.receiver || receiver,
+            create_time: trackedParam.create_time ?? referMessageId.createTime,
+        }
         : buildRevokeParamFromQuote(receiver, referMessageId);
     if (!param) {
-        return '这条撤不了，引用信息不对';
+        return '这条撤不了，引用信息不全 🤔';
     }
 
+    logger.info('准备引用撤回', {
+        receiver: param.receiver,
+        clientId: param.client_id,
+        newId: param.new_id,
+        referNewIdText: referMessageId.newIdText,
+        referClientIdText: referMessageId.clientIdText,
+        createTime: param.create_time,
+        tracked: Boolean(tracked),
+    });
     const ok = await revokeOne(api, param);
     if (ok && tracked) {
         await ChatLogRepository.clearWechatRevokeMeta(env.XBOT_DB, tracked.messageId);

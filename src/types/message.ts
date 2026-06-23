@@ -115,8 +115,12 @@ export interface IncomingMessage {
         referMessageId?: {
             /** 服务端消息 ID（refermsg svrid）。 */
             newId: number;
+            /** 服务端消息 ID 原文。大 ID 不能只依赖 JS number。 */
+            newIdText?: string;
             /** 客户端消息 ID（refermsg msgid / msgsource，缺省同 newId）。 */
             clientId?: number;
+            /** 客户端消息 ID 原文。 */
+            clientIdText?: string;
             createTime: number;
         };
     };

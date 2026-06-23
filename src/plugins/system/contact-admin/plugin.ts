@@ -197,8 +197,7 @@ export const contactAdminPlugin: TextMessage = {
             }
             await ContactRepository.setContactEnabled(env.XBOT_DB, contactId, false);
             return {type: 'text', content: `✅ 已移除联系人：${contactId}`};
-        } catch (error) {
-            const messageText = error instanceof Error ? error.message : String(error);
+        } catch {
             return {type: 'text', content: '联系人操作没成功，再试一次吧？'};
         }
     },

@@ -49,6 +49,35 @@ import type {
 import {logger} from '../../utils/logger.js';
 import {WechatApiClient, resolveVoiceBinaryMeta} from './client.js';
 
+function serializeJsonNumber(value: number | string): string {
+    if (typeof value === 'number') {
+        if (!Number.isFinite(value)) {
+            throw new Error('invalid JSON number');
+        }
+        return String(Math.floor(value));
+    }
+
+    const trimmed = value.trim();
+    if (!/^\d+$/.test(trimmed)) {
+        throw new Error('invalid JSON number string');
+    }
+    return trimmed;
+}
+
+function serializeRevokeParam(params: RevokeParam): string {
+    const fields = [
+        `"receiver":${JSON.stringify(params.receiver)}`,
+        `"new_id":${serializeJsonNumber(params.new_id)}`,
+    ];
+    if (params.client_id != null) {
+        fields.push(`"client_id":${serializeJsonNumber(params.client_id)}`);
+    }
+    if (params.create_time != null) {
+        fields.push(`"create_time":${serializeJsonNumber(params.create_time)}`);
+    }
+    return `{${fields.join(',')}}`;
+}
+
 export class WechatMessageApi extends WechatApiClient {
     /** 发送文本消息。POST /api/message/text */
     async sendText(params: SendTextParam): Promise<ApiResponse<SendMessageResponse>> {
@@ -164,7 +193,14 @@ export class WechatMessageApi extends WechatApiClient {
 
     /** 撤回已发送的消息。POST /api/message/revoke */
     async revokeMessage(params: RevokeParam): Promise<ApiResponse<RevokeMessageResponse>> {
-        return this.post<RevokeMessageResponse>('/api/message/revoke', params);
+        const body = serializeRevokeParam(params);
+        const res = await this.requestRaw('POST', '/api/message/revoke', {
+            body,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return this.parseApiResponse<RevokeMessageResponse>('/api/message/revoke', res);
     }
 
     /** 创建微信红包。POST /api/payment/hongbao/create */

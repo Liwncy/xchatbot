@@ -2,6 +2,17 @@ import type {RevokeParam} from '../wechat/api/types.js';
 
 export const WECHAT_REVOKE_PAYLOAD_KEY = 'wechat_revoke';
 
+function parseMessageId(value: unknown): number | string | null {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return /^\d+$/.test(trimmed) ? trimmed : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return Math.floor(value);
+    }
+    return null;
+}
+
 export function mergeWechatRevokeIntoPayload(
     payloadJson: string,
     revoke?: RevokeParam | null,
@@ -23,20 +34,25 @@ export function parseWechatRevokeFromPayload(payloadJson: string): RevokeParam |
 
         const record = raw as Record<string, unknown>;
         const receiver = typeof record.receiver === 'string' ? record.receiver.trim() : '';
-        const clientId = typeof record.client_id === 'number' ? record.client_id : Number(record.client_id);
-        const newId = typeof record.new_id === 'number' ? record.new_id : Number(record.new_id);
+        const clientId = parseMessageId(record.client_id);
+        const newId = parseMessageId(record.new_id);
         const createTime = typeof record.create_time === 'number' ? record.create_time : Number(record.create_time);
 
-        if (!receiver || !Number.isFinite(clientId) || !Number.isFinite(newId) || !Number.isFinite(createTime)) {
+        if (!receiver || newId == null) {
             return null;
         }
 
-        return {
+        const param: RevokeParam = {
             receiver,
-            client_id: Math.floor(clientId),
-            new_id: Math.floor(newId),
-            create_time: Math.floor(createTime),
+            new_id: typeof newId === 'number' ? Math.floor(newId) : newId,
         };
+        if (clientId != null) {
+            param.client_id = typeof clientId === 'number' ? Math.floor(clientId) : clientId;
+        }
+        if (Number.isFinite(createTime)) {
+            param.create_time = Math.floor(createTime);
+        }
+        return param;
     } catch {
         return null;
     }

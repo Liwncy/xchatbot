@@ -23,6 +23,14 @@ function parseNumeric(value: unknown): number | undefined {
     return undefined;
 }
 
+function parseMessageId(value: unknown): number | string | undefined {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return /^\d+$/.test(trimmed) ? trimmed : undefined;
+    }
+    return parseNumeric(value);
+}
+
 function parseReceiver(value: unknown, fallback: string): string {
     if (typeof value === 'string' && value.trim()) return value.trim();
     if (value && typeof value === 'object' && 'value' in value) {
@@ -40,19 +48,24 @@ export interface SentMessageRecord extends RevokeParam {
 
 export function buildRevokeParam(
     receiver: string,
-    clientId: number | undefined,
-    newId: number | undefined,
+    clientId: number | string | undefined,
+    newId: number | string | undefined,
     createTime: number | undefined,
 ): RevokeParam | null {
-    if (!receiver.trim() || clientId == null || newId == null || createTime == null) {
+    if (!receiver.trim() || newId == null) {
         return null;
     }
-    return {
+    const param: RevokeParam = {
         receiver: receiver.trim(),
-        client_id: clientId,
         new_id: newId,
-        create_time: createTime,
     };
+    if (clientId != null) {
+        param.client_id = clientId;
+    }
+    if (createTime != null) {
+        param.create_time = createTime;
+    }
+    return param;
 }
 
 function resolveResponseData<T>(response: ApiResponse<T>): T | undefined {
@@ -67,12 +80,20 @@ function pickNumericField(record: Record<string, unknown>, keys: string[]): numb
     return undefined;
 }
 
+function pickMessageIdField(record: Record<string, unknown>, keys: string[]): number | string | undefined {
+    for (const key of keys) {
+        const parsed = parseMessageId(record[key]);
+        if (parsed != null) return parsed;
+    }
+    return undefined;
+}
+
 function findRevokeFieldsInRecord(
     source: unknown,
     maxDepth = 3,
 ): {
-    clientId?: number;
-    newId?: number;
+    clientId?: number | string;
+    newId?: number | string;
     createTime?: number;
     receiver?: string;
 } | null {
@@ -88,16 +109,16 @@ function findRevokeFieldsInRecord(
         if (!current || seen.has(current.record)) continue;
         seen.add(current.record);
 
-        const newId = pickNumericField(current.record, ['new_id', 'new_msg_id', 'newId', 'msgid']);
-        const clientId = pickNumericField(current.record, ['client_id', 'clientId', 'id', 'msg_id']) ?? newId;
+        const newId = pickMessageIdField(current.record, ['new_id', 'new_msg_id', 'newId', 'msgid']);
+        const clientId = pickMessageIdField(current.record, ['client_id', 'clientId', 'id', 'msg_id']) ?? newId;
         const createTime = pickNumericField(current.record, ['create_time', 'createTime', 'createtime', 'server_time']);
         const nestedReceiver = parseReceiver(current.record.receiver, '');
 
-        if (newId != null && clientId != null) {
+        if (newId != null) {
             return {
                 clientId,
                 newId,
-                createTime: createTime ?? Math.floor(Date.now() / 1000),
+                ...(createTime != null ? {createTime} : {}),
                 ...(nestedReceiver ? {receiver: nestedReceiver} : {}),
             };
         }
@@ -218,6 +239,9 @@ export function extractRevokeFromUploadEmojiResponse(
     receiver: string,
     response: ApiResponse<UploadEmojiResponse>,
 ): RevokeParam | null {
+    const generic = extractRevokeFromResponsePayload(receiver, response as ApiResponse<unknown>);
+    if (generic) return generic;
+
     const data = resolveResponseData(response);
     const item = data?.result?.find((entry) => entry.code === 0) ?? data?.result?.[0];
     if (!item) return null;

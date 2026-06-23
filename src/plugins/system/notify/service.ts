@@ -196,11 +196,16 @@ function bufferValueToBase64(value: unknown): string {
     return '';
 }
 
+function toSafeNumberId(value: number | string): number | null {
+    const parsed = typeof value === 'number' ? value : Number.parseInt(value, 10);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 async function resolveVoiceDownloadIdsFromChatLog(message: IncomingMessage, env: Env): Promise<{
     id: number;
     newId: number;
 } | null> {
-    const referNewId = message.quote?.referMessageId?.newId;
+    const referNewId = message.quote?.referMessageId?.newIdText ?? message.quote?.referMessageId?.newId;
     if (referNewId == null) return null;
 
     const session = resolveChatSession(message);
@@ -211,10 +216,13 @@ async function resolveVoiceDownloadIdsFromChatLog(message: IncomingMessage, env:
     );
     if (!record) return null;
     const revoke = parseWechatRevokeFromPayload(record.payloadJson);
-    if (!revoke) return null;
+    if (!revoke?.client_id) return null;
+    const id = toSafeNumberId(revoke.client_id);
+    const newId = toSafeNumberId(revoke.new_id);
+    if (id == null || newId == null) return null;
     return {
-        id: revoke.client_id,
-        newId: revoke.new_id,
+        id,
+        newId,
     };
 }
 

@@ -177,12 +177,12 @@ export interface ForwardParam {
 export interface RevokeParam {
     /** 接收者 wxid（会话）。 */
     receiver: string;
-    /** 客户端消息 ID。 */
-    client_id: number;
-    /** 服务端消息 ID。 */
-    new_id: number;
+    /** 客户端消息 ID。大 ID 保持字符串，避免 JS number 精度丢失。 */
+    client_id?: number | string;
+    /** 服务端消息 ID。大 ID 保持字符串，避免 JS number 精度丢失。 */
+    new_id: number | string;
     /** 原始消息创建时间。 */
-    create_time: number;
+    create_time?: number;
 }
 
 /** POST /api/payment/hongbao/create */

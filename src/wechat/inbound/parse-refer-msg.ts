@@ -63,41 +63,52 @@ function parseReferNumericTag(refermsg: string, tags: string[]): number | undefi
     return undefined;
 }
 
-function extractClientIdFromMsgsource(msgsource: string): number | undefined {
+function parseReferNumericTextTag(refermsg: string, tags: string[]): string | undefined {
+    for (const tag of tags) {
+        const raw = pickXmlTagValue(refermsg, tag);
+        if (raw && /^\d+$/.test(raw)) return raw;
+    }
+    return undefined;
+}
+
+function extractClientIdTextFromMsgsource(msgsource: string): string | undefined {
     const normalized = decodeHtmlEntities(msgsource).trim();
     if (!normalized) return undefined;
 
     const attrMatch = normalized.match(/clientmsgid="(\d+)"/i)
         ?? normalized.match(/client_msgid="(\d+)"/i);
     if (attrMatch?.[1]) {
-        const parsed = Number.parseInt(attrMatch[1], 10);
-        if (Number.isFinite(parsed)) return parsed;
+        return attrMatch[1];
     }
 
     const tagMatch = normalized.match(/<clientmsgid>(\d+)<\/clientmsgid>/i)
         ?? normalized.match(/<client_msgid>(\d+)<\/client_msgid>/i);
     if (tagMatch?.[1]) {
-        const parsed = Number.parseInt(tagMatch[1], 10);
-        if (Number.isFinite(parsed)) return parsed;
+        return tagMatch[1];
     }
 
     return undefined;
 }
 
 function extractReferMessageId(refermsg: string): ParsedWechatReferMessage['referMessageId'] | undefined {
+    const newIdText = parseReferNumericTextTag(refermsg, ['svrid', 'newmsgid', 'new_id']);
     const newId = parseReferNumericTag(refermsg, ['svrid', 'newmsgid', 'new_id']);
     const createTimeRaw = parseReferNumericTag(refermsg, ['createtime', 'create_time']);
+    const clientIdTextFromTag = parseReferNumericTextTag(refermsg, ['msgid', 'frommsgid', 'client_id', 'clientid']);
     const clientIdFromTag = parseReferNumericTag(refermsg, ['msgid', 'frommsgid', 'client_id', 'clientid']);
     const msgsource = pickXmlTagValue(refermsg, 'msgsource') ?? '';
-    const clientIdFromSource = extractClientIdFromMsgsource(msgsource);
+    const clientIdTextFromSource = extractClientIdTextFromMsgsource(msgsource);
+    const clientIdFromSource = clientIdTextFromSource ? Number.parseInt(clientIdTextFromSource, 10) : undefined;
 
-    if (newId == null || createTimeRaw == null) {
+    if (!newIdText || newId == null || createTimeRaw == null) {
         return undefined;
     }
 
     return {
         newId,
+        newIdText,
         clientId: clientIdFromTag ?? clientIdFromSource,
+        clientIdText: clientIdTextFromTag ?? clientIdTextFromSource,
         createTime: normalizeUnixSeconds(createTimeRaw),
     };
 }
