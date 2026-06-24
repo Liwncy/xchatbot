@@ -2,6 +2,7 @@ import type {ReplyMessage} from '../../types/reply.js';
 import {logger} from '../../utils/logger.js';
 import {normalizeVoiceForWechat} from '../../utils/silk-converter.js';
 import {FileUploader} from '../../utils/file-uploader.js';
+import {fetchImageAsBase64FromUrl} from '../../utils/fetch-image.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from '../constants.js';
 import {WechatApi} from '../api';
 import type {ApiResponse, UploadImageResponse, UploadVideoResponse} from '../api/types.js';
@@ -160,23 +161,52 @@ export async function sendWechatReply(
             break;
         }
         case 'image': {
-            const imageUrl = reply.originalUrl?.trim() || (isHttpUrl(reply.mediaId) ? reply.mediaId.trim() : '');
-            const dataSize = imageUrl ? 0 : (reply.mediaId?.length ?? 0);
-            const format = imageUrl ? 'url' : detectImageFormat(reply.mediaId);
+            const remoteUrl = reply.originalUrl?.trim() || (isHttpUrl(reply.mediaId) ? reply.mediaId.trim() : '');
+            let uploadMode: 'url' | 'binary-base64' = remoteUrl ? 'url' : 'binary-base64';
+            let uploadPayload = remoteUrl || reply.mediaId;
+            let prefetchError: string | undefined;
+
+            if (remoteUrl) {
+                try {
+                    uploadPayload = await fetchImageAsBase64FromUrl(remoteUrl);
+                    uploadMode = 'binary-base64';
+                    logger.info('图片 URL 已由 Worker 预下载，改走 binary CDN 上传', {
+                        receiver: effectiveReceiver,
+                        imageUrl: remoteUrl,
+                        base64Length: uploadPayload.length,
+                        estimatedBytes: Math.floor(uploadPayload.length * 0.75),
+                    });
+                } catch (error) {
+                    prefetchError = error instanceof Error ? error.message : String(error);
+                    logger.warn('图片 URL 预下载失败，仍尝试交给网关 image_url', {
+                        receiver: effectiveReceiver,
+                        imageUrl: remoteUrl,
+                        error: prefetchError,
+                    });
+                }
+            }
+
+            const dataSize = uploadMode === 'binary-base64' ? uploadPayload.length : 0;
+            const format = uploadMode === 'url' ? 'url' : detectImageFormat(uploadPayload);
             logger.debug('发送图片消息（CDN 上传）', {
                 receiver: effectiveReceiver,
-                transferMode: imageUrl ? 'url' : 'binary-base64',
-                imageUrl,
+                transferMode: uploadMode,
+                imageUrl: uploadMode === 'url' ? remoteUrl : remoteUrl || undefined,
                 base64Length: dataSize,
                 estimatedBytes: Math.floor(dataSize * 0.75),
                 format,
-                head: reply.mediaId?.slice(0, 20) ?? '',
+                head: uploadMode === 'binary-base64' ? uploadPayload.slice(0, 20) : '',
+                prefetchError,
             });
             try {
-                const result = imageUrl
-                    ? await api.cdnUploadImage({receiver: effectiveReceiver, image_url: imageUrl})
-                    : await api.cdnUploadImage({receiver: effectiveReceiver, image: reply.mediaId});
+                const result = uploadMode === 'url'
+                    ? await api.cdnUploadImage({receiver: effectiveReceiver, image_url: remoteUrl})
+                    : await api.cdnUploadImage({receiver: effectiveReceiver, image: uploadPayload});
                 ensureWechatApiSuccess('cdnUploadImage', result);
+                logger.info('图片 CDN 上传完成', {
+                    receiver: effectiveReceiver,
+                    transferMode: uploadMode,
+                });
                 sentRecord = toSentMessageRecord(
                     effectiveReceiver,
                     reply.type,
@@ -184,7 +214,7 @@ export async function sendWechatReply(
                     extractRevokeFromUploadImageResponse(effectiveReceiver, result as ApiResponse<UploadImageResponse>),
                 );
             } catch (imgErr) {
-                const originalUrl = imageUrl || reply.originalUrl;
+                const originalUrl = remoteUrl || reply.originalUrl;
                 if (originalUrl) {
                     logger.warn('图片发送失败（CDN 上传），降级为链接消息', {
                         error: imgErr instanceof Error ? imgErr.message : String(imgErr),
