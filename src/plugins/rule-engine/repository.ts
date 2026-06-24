@@ -568,7 +568,8 @@ export class RuleDefinitionRepository {
     ): Promise<DynamicRule[] | null> {
         const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
         const now = Date.now();
-        if (cacheMs > 0 && runtimeCache && now < runtimeCache.expiresAt && runtimeCache.byCategory[category]) {
+        if (cacheMs > 0 && runtimeCache && now < runtimeCache.expiresAt
+            && Object.prototype.hasOwnProperty.call(runtimeCache.byCategory, category)) {
             return runtimeCache.byCategory[category] ?? null;
         }
 

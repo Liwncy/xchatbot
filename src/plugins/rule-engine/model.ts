@@ -196,7 +196,9 @@ export function parseKeywordFromTriggerText(triggerText?: string): string | stri
             // 按 pipe 分隔字符串继续解析
         }
     }
-    return trimmed;
+    const parts = trimmed.split('|').map((item) => item.trim()).filter(Boolean);
+    if (!parts.length) return undefined;
+    return parts.length === 1 ? parts[0] : parts;
 }
 
 export function parseJsonObject(value: string | null | undefined): Record<string, unknown> | undefined {

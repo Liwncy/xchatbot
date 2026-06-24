@@ -153,18 +153,11 @@ function parseCacheMs(raw: string | undefined): number | undefined {
     return Math.floor(value);
 }
 
-async function resolveRules(env: {
+function loadLegacyRules(env: {
     XBOT_KV: KVNamespace;
-    XBOT_DB: D1Database;
     COMMON_PLUGINS_CACHE_MS?: string;
 }): Promise<DynamicRule[]> {
-    const structuredRules = await RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'dynamic');
-    if (structuredRules !== null) {
-        return structuredRules;
-    }
-
     const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
-
     return loadRulesFromSources({
         cacheNamespace: 'dynamic-rules',
         kv: env.XBOT_KV,
@@ -173,6 +166,26 @@ async function resolveRules(env: {
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: '动态规则',
     });
+}
+
+async function resolveRules(env: {
+    XBOT_KV: KVNamespace;
+    XBOT_DB: D1Database;
+    COMMON_PLUGINS_CACHE_MS?: string;
+}): Promise<DynamicRule[]> {
+    try {
+        const structuredRules = await RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'dynamic');
+        if (structuredRules !== null && structuredRules.length > 0) {
+            logger.debug('动态规则已从 D1 加载', {count: structuredRules.length});
+            return structuredRules;
+        }
+    } catch (err) {
+        logger.warn('动态规则 D1 加载异常，回退 KV', err);
+    }
+
+    const legacyRules = await loadLegacyRules(env);
+    logger.debug('动态规则已从 KV 加载', {count: legacyRules.length});
+    return legacyRules;
 }
 
 export const dynamicRulesEngine: TextMessage = {

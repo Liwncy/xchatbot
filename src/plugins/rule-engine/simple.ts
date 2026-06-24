@@ -244,21 +244,12 @@ export const simpleRulesEngine: TextMessage = {
     },
 };
 
-/**
- * 解析可用规则：D1 common 规则优先，否则内联 env / KV。
- */
-async function resolveRules(env: {
+function loadLegacyRules(env: {
     XBOT_KV: KVNamespace;
-    XBOT_DB: D1Database;
     COMMON_PLUGINS_CONFIG?: string;
     COMMON_PLUGINS_MAPPING?: string;
     COMMON_PLUGINS_CACHE_MS?: string;
 }): Promise<SimpleRule[]> {
-    const structuredRules = await RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'common');
-    if (structuredRules !== null) {
-        return structuredRules.filter((rule) => splitKeywords(rule.keyword).length > 0) as SimpleRule[];
-    }
-
     const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
     return loadRulesFromSources({
         cacheNamespace: 'simple-rules',
@@ -269,4 +260,34 @@ async function resolveRules(env: {
         parseRules: (rawText) => parseRules(rawText),
         logPrefix: '简单规则',
     });
+}
+
+/**
+ * 解析可用规则：D1 common 规则优先；D1 不可用或为空时回退内联 env / KV。
+ */
+async function resolveRules(env: {
+    XBOT_KV: KVNamespace;
+    XBOT_DB: D1Database;
+    COMMON_PLUGINS_CONFIG?: string;
+    COMMON_PLUGINS_MAPPING?: string;
+    COMMON_PLUGINS_CACHE_MS?: string;
+}): Promise<SimpleRule[]> {
+    try {
+        const structuredRules = await RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'common');
+        if (structuredRules !== null && structuredRules.length > 0) {
+            const rules = structuredRules
+                .filter((rule) => splitKeywords(rule.keyword).length > 0) as SimpleRule[];
+            if (rules.length > 0) {
+                logger.debug('简单规则已从 D1 加载', {count: rules.length});
+                return rules;
+            }
+            logger.warn('简单规则 D1 common 条目均无效，回退 KV/内联');
+        }
+    } catch (err) {
+        logger.warn('简单规则 D1 加载异常，回退 KV/内联', err);
+    }
+
+    const legacyRules = await loadLegacyRules(env);
+    logger.debug('简单规则已从 KV/内联加载', {count: legacyRules.length});
+    return legacyRules;
 }
