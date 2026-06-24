@@ -232,7 +232,7 @@ scenarios/xuanxue/
 |---|---|---|
 | 插件包目录名 | kebab-case，与 plugin `name` 字段一致或强相关 | `ai-dialog`、`video-link-parser` |
 | export 名 | `{camelCase}Plugin` | `aiDialogPlugin` |
-| 引擎类（rule-engine） | `{scope}PluginsEngine` | `commonPluginsEngine` |
+| 引擎类（rule-engine） | `{scope}RulesEngine` | `simpleRulesEngine` |
 | 对外入口 | 优先 `index.ts` | `import from './cognitive/ai-sing'` |
 | 实现文件 | 语义化命名，避免与目录同名冗余 | `plugin.ts`、`trigger.ts`、`service.ts` |
 
@@ -275,17 +275,16 @@ src/wechat/、src/utils/ # 平台与工具
 
 ```text
 rule-engine/
-├── base.ts       → commonPluginsEngine
-├── dynamic.ts    → dynamicCommonPluginsEngine
-├── workflow.ts   → workflowCommonPluginsEngine
+├── simple.ts     → simpleRulesEngine
+├── dynamic.ts    → dynamicRulesEngine
 ├── shared.ts     # 模板渲染、JSONPath 等共享能力
 ├── parser.ts
 ├── matcher.ts
-├── remote-config.ts
+├── rule-sources.ts
 └── reply-builder.ts
 ```
 
-三个 engine 各自注册为一个 plugin，但共享同一套基础设施。维护时按引擎模块演进，不拆成三个独立插件包目录。
+两个 engine 各自注册为一个 plugin，但共享同一套基础设施。维护时按引擎模块演进，不拆成两个独立插件包目录。
 
 ---
 
@@ -311,7 +310,7 @@ rule-engine/
 | wechat-chat-record | toolkits | S | `toolkits/wechat-chat-record/` | |
 | xiuxian | scenarios | XL-A | `scenarios/xiuxian/` | 已符合，保持 |
 | xuanxue | scenarios | XL-B | `scenarios/xuanxue/` | 已符合，保持 |
-| common/dynamic/workflow engine | rule-engine | 特殊 | `rule-engine/` | 不插件包化 |
+| common/dynamic engine | rule-engine | 特殊 | `rule-engine/` | 不插件包化 |
 
 ---
 

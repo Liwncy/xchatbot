@@ -43,7 +43,7 @@ interface ListedPlugin {
 function resolvePluginCategory(name: string): HelpPluginCategory {
     if (/^(help|contact-admin|plugin-admin)/.test(name)) return 'system';
     if (/(xiuxian|xuanxue)/.test(name)) return 'scenarios';
-    if (/(-engine|common-plugins|dynamic-common|workflow-common)/.test(name)) return 'rule-engine';
+    if (/(-engine|common-plugins|dynamic-common)/.test(name)) return 'rule-engine';
     if (/(haokan|yinguo|video-link-parser)/.test(name)) return 'media';
     if (/(ai-dialog|ai-sing|agnes-|smart-draw|intent-image|image-intent)/.test(name)) return 'cognitive';
     return 'toolkits';

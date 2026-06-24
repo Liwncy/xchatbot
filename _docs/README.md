@@ -7,10 +7,9 @@
 - **刚接手项目 / 想看总体说明**
   - 先看：[`../README.md`](../README.md)
   - 再回到：[`README.md`](README.md)
-- **想准备或检查通用插件 KV 配置**
+- **想准备或检查规则引擎 KV 配置**
   - 看：[`templates/plugin-config/common-plugins.json`](templates/plugin-config/common-plugins.json)
   - 看：[`templates/plugin-config/common-plugins-dynamic.json`](templates/plugin-config/common-plugins-dynamic.json)
-  - 看：[`templates/plugin-config/common-plugins-workflow.json`](templates/plugin-config/common-plugins-workflow.json)
 - **想通过“插件管理 ...”聊天命令管理规则**
   - 先看：[`plugins/common/rule-plugin-admin-design.md`](plugins/common/rule-plugin-admin-design.md)（规则引擎文档，当前仍存放在 `plugins/common/` 文档目录）
   - 运行中机器人可直接发送：`插件管理 帮助`
@@ -96,7 +95,6 @@ _docs/
 - [`templates/ai/mimo-tts-config.sample.json`](templates/ai/mimo-tts-config.sample.json)：AI 唱歌 / MiMo TTS 配置样例
 - [`templates/plugin-config/common-plugins.json`](templates/plugin-config/common-plugins.json)：`common` 基础规则样例
 - [`templates/plugin-config/common-plugins-dynamic.json`](templates/plugin-config/common-plugins-dynamic.json)：`dynamic` 动态参数规则样例
-- [`templates/plugin-config/common-plugins-workflow.json`](templates/plugin-config/common-plugins-workflow.json)：`workflow` 多步骤编排规则样例
 - [`templates/xiuxian/xiuxian-set-config.sample.json`](templates/xiuxian/xiuxian-set-config.sample.json)：修仙装备套装示例配置
 
 若你是从项目主文档跳转过来的，也可以回看：[`../README.md`](../README.md)

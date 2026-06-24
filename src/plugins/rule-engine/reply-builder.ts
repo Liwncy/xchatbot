@@ -1,4 +1,4 @@
-import {isHttpUrl, toLinkReply, toMediaPayloadResult} from './shared';
+import {isHttpUrl, renderTemplateString, toLinkReply, toMediaPayloadResult} from './shared';
 
 export type CommonReplyType = 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
 
@@ -18,6 +18,7 @@ interface ReplyBuildRule {
     cardAlias?: string;
     appType?: number;
     appXml?: string;
+    replyPayload?: Record<string, unknown>;
 }
 
 interface ResolvedMediaInput {
@@ -72,14 +73,14 @@ function resolveMediaInput(rType: MediaReplyType, value: unknown): ResolvedMedia
 
     const obj = value as Record<string, unknown>;
     const urlKeys: Record<MediaReplyType, string[]> = {
-        image: ['originalUrl', 'image_url', 'imageUrl', 'url', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
-        video: ['originalUrl', 'video_url', 'videoUrl', 'url', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
-        voice: ['originalUrl', 'voice_url', 'voiceUrl', 'audio_url', 'audioUrl', 'url', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
+        image: ['originalUrl', 'image_url', 'imageUrl', 'url', 'source', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
+        video: ['originalUrl', 'video_url', 'videoUrl', 'url', 'source', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
+        voice: ['originalUrl', 'voice_url', 'voiceUrl', 'audio_url', 'audioUrl', 'url', 'source', 'file_url', 'fileUrl', 'media_url', 'mediaUrl'],
     };
     const payloadKeys: Record<MediaReplyType, string[]> = {
-        image: ['image', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId'],
-        video: ['video', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId'],
-        voice: ['voice', 'audio', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId'],
+        image: ['image', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId', 'source'],
+        video: ['video', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId', 'source'],
+        voice: ['voice', 'audio', 'base64', 'data', 'file', 'payload', 'media', 'content', 'mediaId', 'source'],
     };
 
     const directUrl = getObjectStringField(obj, urlKeys[rType]);
@@ -121,7 +122,17 @@ export async function buildCommonReply(
     logPrefix: string,
 ) {
     if (rule.rType === 'text') {
+        const payloadTemplate = getObjectStringField(rule.replyPayload ?? {}, ['template', 'text', 'content']);
         const content = typeof value === 'string' ? value : JSON.stringify(value);
+        if (payloadTemplate) {
+            return {
+                type: 'text' as const,
+                content: renderTemplateString(payloadTemplate, {
+                    result: content,
+                    value: content,
+                }, false),
+            };
+        }
         return content ? {type: 'text' as const, content} : null;
     }
 

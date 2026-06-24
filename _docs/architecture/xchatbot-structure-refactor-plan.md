@@ -18,7 +18,7 @@
 3. **消息处理链边界不清**
    - `handlers/`、`bot/`、`plugins/` 三层的职责容易混淆。
 4. **规则系统与插件系统关系未显式表达**
-   - `common / dynamic / workflow` 已不是简单“几个插件文件”，但又与插件运行时强相关。
+   - `common / dynamic` 已不是简单“几个插件文件”，但又与插件运行时强相关。
 
 ---
 
@@ -66,7 +66,7 @@
 
 ### 3.5 承认规则系统的独立复杂度
 
-`common / dynamic / workflow` 不再只看作“几个普通插件”，而是视为：
+`common / dynamic` 不再只看作“几个普通插件”，而是视为：
 
 > 插件系统中的一类规则型执行引擎（rule engine）
 
@@ -151,7 +151,6 @@ src/
 │   └── rule-engine/
 │       ├── base/
 │       ├── dynamic/
-│       ├── workflow/
 │       ├── remote/
 │       └── cache/
 │
@@ -394,7 +393,7 @@ Worker 原生入口层。
 
 ### `rule-engine/`
 
-插件生态中的规则型执行引擎，承接当前 `common / dynamic / workflow` 迁移。
+插件生态中的规则型执行引擎，承接当前 `common / dynamic` 迁移。
 
 采用折中结构是为了同时表达两件事：
 
@@ -559,13 +558,13 @@ Worker 原生入口层。
 建议动作：
 
 1. 建 `src/plugins/rule-engine/`
-2. 迁移 `common / dynamic / workflow` 相关实现
+2. 迁移 `common / dynamic` 相关实现
 3. 将远程配置、缓存、规则来源策略归位
 4. 最后调整 admin / plugin 管理相关引用
 
 验收标准：
 
-- 规则读取顺序不变：`inline > KV > remote`
+- 规则读取顺序：`inline > KV > D1`
 - 缓存刷新接口行为不变
 - 主人插件管理命令行为不变
 
@@ -613,7 +612,7 @@ Worker 原生入口层。
 3. **微信发送链路行为变化**
    - 语音 / 视频 / 图片的降级逻辑不要在重构时顺手改行为。
 4. **规则引擎缓存策略偏移**
-   - `plugins/rule-engine/remote-config.ts` 需要继续保持原 `common` 阶段的缓存行为等价，避免规则热更新与缓存命中策略发生偏移。
+   - `plugins/rule-engine/rule-sources.ts` 负责 inline / KV 规则加载与短缓存。
 
 ---
 

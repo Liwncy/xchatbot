@@ -30,28 +30,16 @@ export interface Env {
     CHAT_LOG_ENABLE?: string;
     // 插件
     COMMON_PLUGINS_MAPPING?: string; // JSON字符串，格式为：{"关键词1":"插件1","关键词2":"插件2"}
-    /** 通用插件 JSON 配置数组字符串。 */
+    /** `common` 规则 JSON 配置数组字符串。 */
     COMMON_PLUGINS_CONFIG?: string;
-    /** 通用插件远程配置接口地址（GET）。 */
-    COMMON_PLUGINS_CONFIG_URL?: string;
     /**
-     * 通用插件配置加载顺序：
+     * 规则配置加载顺序：
      * 1) COMMON_PLUGINS_CONFIG / COMMON_PLUGINS_MAPPING（内联）
      * 2) KV: plugins:common:mapping
-     * 3) COMMON_PLUGINS_CONFIG_URL（远程）
+     * 3) D1 rule_definition（结构化规则，优先于 KV）
      */
-    /** 拉取通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_PLUGINS_CLIENT_ID?: string;
-    /** 通用插件规则缓存毫秒数（0 表示禁用缓存，实时读取）。 */
+    /** 规则缓存毫秒数（0 表示禁用缓存，实时读取）。 */
     COMMON_PLUGINS_CACHE_MS?: string;
-    /** KV: plugins:parameterized:mapping（动态参数规则）。 */
-    /** 拉取动态通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_DYNAMIC_PLUGINS_CLIENT_ID?: string;
-    /** KV: plugins:workflow:mapping（多步骤 workflow 规则）。 */
-    /** 拉取 workflow 通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_WORKFLOW_PLUGINS_CLIENT_ID?: string;
-    /** 兼容旧变量名：拉取动态通用插件远程配置时使用的 clientid 请求头。 */
-    COMMON_ADVANCED_PLUGINS_CLIENT_ID?: string;
     /** 通用音频转 SILK 服务地址（可选，默认使用内置 convert 地址）。 */
     VOICE_CONVERT_API_URL?: string;
     /** 兼容旧变量名：MP3 转 SILK 服务地址。 */

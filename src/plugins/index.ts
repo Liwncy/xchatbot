@@ -20,9 +20,8 @@ import {messageRevokePlugin} from './system/message-revoke';
 import {notifyPlugin} from './system/notify';
 import {humanVerifyPlugin} from './toolkits/human-verify';
 import {randomFriendPlugin} from './toolkits/random-friend';
-import {commonPluginsEngine} from './rule-engine/base';
-import {dynamicCommonPluginsEngine} from './rule-engine/dynamic';
-import {workflowCommonPluginsEngine} from './rule-engine/workflow';
+import {simpleRulesEngine} from './rule-engine/simple';
+import {dynamicRulesEngine} from './rule-engine/dynamic';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './cognitive/intent-image';
 import {haokanImagePlugin} from './media/haokan-image';
 import {smartDrawPlugin} from './cognitive/smart-draw';
@@ -59,10 +58,9 @@ registerPlugin(agnesTextImageProcessPlugin);
 registerPlugin(smartDrawPlugin);
 registerPlugin(yinguoImagePlugin);
 registerPlugin(pluginAdminPlugin);
-// 通用插件配置
-registerPlugin(commonPluginsEngine);
-registerPlugin(dynamicCommonPluginsEngine);
-registerPlugin(workflowCommonPluginsEngine);
+// 规则引擎
+registerPlugin(simpleRulesEngine);
+registerPlugin(dynamicRulesEngine);
 registerPlugin(xiuxianPlugin);
 registerPlugin(xuanxuePlugin);
 // 自定义插件

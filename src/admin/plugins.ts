@@ -1,10 +1,10 @@
 import type {Env} from '../types/env.js';
 import {authorizeAdmin} from '../middleware/auth.js';
-import {clearRemoteRulesCache, getRemoteRulesCacheSize} from '../plugins/rule-engine/remote-config';
+import {clearRulesCache, getRulesCacheSize} from '../plugins/rule-engine/rule-sources';
+import {RuleDefinitionRepository} from '../plugins/rule-engine/repository.js';
 import {
     KV_COMMON_BASE_RULES,
     KV_COMMON_DYNAMIC_RULES,
-    KV_COMMON_WORKFLOW_RULES,
 } from '../constants/kv.js';
 
 export async function handleAdminPlugins(request: Request, env: Env): Promise<Response> {
@@ -15,46 +15,46 @@ export async function handleAdminPlugins(request: Request, env: Env): Promise<Re
     const pathname = url.pathname;
 
     if (request.method === 'GET' && pathname === '/admin/plugins') {
-        const [baseRaw, dynamicRaw, workflowRaw] = await Promise.all([
+        const [baseRaw, dynamicRaw, d1Stats] = await Promise.all([
             env.XBOT_KV.get(KV_COMMON_BASE_RULES),
             env.XBOT_KV.get(KV_COMMON_DYNAMIC_RULES),
-            env.XBOT_KV.get(KV_COMMON_WORKFLOW_RULES),
+            RuleDefinitionRepository.getRuleStoreStats(env),
         ]);
 
         const inlineBase = (env.COMMON_PLUGINS_CONFIG || env.COMMON_PLUGINS_MAPPING || '').trim();
         return new Response(JSON.stringify({
             sources: {
-                priority: ['inline', 'kv', 'remote'],
+                priority: ['inline', 'kv', 'd1'],
                 inline: {
                     baseConfigured: Boolean(inlineBase),
                 },
                 kv: {
                     base: {key: KV_COMMON_BASE_RULES, configured: Boolean(baseRaw?.trim()), size: baseRaw?.length ?? 0},
                     dynamic: {key: KV_COMMON_DYNAMIC_RULES, configured: Boolean(dynamicRaw?.trim()), size: dynamicRaw?.length ?? 0},
-                    workflow: {key: KV_COMMON_WORKFLOW_RULES, configured: Boolean(workflowRaw?.trim()), size: workflowRaw?.length ?? 0},
                 },
-                remote: {
-                    configUrlConfigured: Boolean(env.COMMON_PLUGINS_CONFIG_URL?.trim()),
-                    baseClientIdConfigured: Boolean(env.COMMON_PLUGINS_CLIENT_ID?.trim()),
-                    dynamicClientIdConfigured: Boolean(env.COMMON_DYNAMIC_PLUGINS_CLIENT_ID?.trim() || env.COMMON_ADVANCED_PLUGINS_CLIENT_ID?.trim()),
-                    workflowClientIdConfigured: Boolean(env.COMMON_WORKFLOW_PLUGINS_CLIENT_ID?.trim()),
-                    cacheMs: env.COMMON_PLUGINS_CACHE_MS?.trim() || '60000(default)',
+                d1: {
+                    available: d1Stats.available,
+                    total: d1Stats.total,
+                    common: d1Stats.common,
+                    dynamic: d1Stats.dynamic,
                 },
+                cacheMs: env.COMMON_PLUGINS_CACHE_MS?.trim() || '60000(default)',
             },
             cache: {
-                entries: getRemoteRulesCacheSize(),
+                entries: getRulesCacheSize(),
             },
-            tips: 'POST /admin/plugins/reload 可清空插件规则缓存，下一次消息触发时会重新加载配置',
+            tips: 'POST /admin/plugins/reload 可清空插件规则缓存；KV→D1 一次性迁移请用 node ./_docs/scripts/migrate-rules-kv-to-d1.cjs --scope remote',
         }, null, 2), {
             headers: {'Content-Type': 'application/json'},
         });
     }
 
     if (request.method === 'GET' && pathname === '/admin/plugins/raw') {
-        const [baseRaw, dynamicRaw, workflowRaw] = await Promise.all([
+        const [baseRaw, dynamicRaw, baseD1Raw, dynamicD1Raw] = await Promise.all([
             env.XBOT_KV.get(KV_COMMON_BASE_RULES),
             env.XBOT_KV.get(KV_COMMON_DYNAMIC_RULES),
-            env.XBOT_KV.get(KV_COMMON_WORKFLOW_RULES),
+            RuleDefinitionRepository.listLegacyRulesByCategory(env, 'common'),
+            RuleDefinitionRepository.listLegacyRulesByCategory(env, 'dynamic'),
         ]);
 
         const includeFullRaw = url.searchParams.get('full') === '1';
@@ -73,9 +73,20 @@ export async function handleAdminPlugins(request: Request, env: Env): Promise<Re
             keys: {
                 base: KV_COMMON_BASE_RULES,
                 dynamic: KV_COMMON_DYNAMIC_RULES,
-                workflow: KV_COMMON_WORKFLOW_RULES,
             },
             values: {
+                d1: {
+                    base: {
+                        configured: Array.isArray(baseD1Raw),
+                        size: Array.isArray(baseD1Raw) ? baseD1Raw.length : 0,
+                        raw: Array.isArray(baseD1Raw) ? toDisplay(JSON.stringify(baseD1Raw, null, 2)) : null,
+                    },
+                    dynamic: {
+                        configured: Array.isArray(dynamicD1Raw),
+                        size: Array.isArray(dynamicD1Raw) ? dynamicD1Raw.length : 0,
+                        raw: Array.isArray(dynamicD1Raw) ? toDisplay(JSON.stringify(dynamicD1Raw, null, 2)) : null,
+                    },
+                },
                 base: {
                     configured: Boolean(baseRaw?.trim()),
                     size: baseRaw?.length ?? 0,
@@ -85,11 +96,6 @@ export async function handleAdminPlugins(request: Request, env: Env): Promise<Re
                     configured: Boolean(dynamicRaw?.trim()),
                     size: dynamicRaw?.length ?? 0,
                     raw: toDisplay(dynamicRaw),
-                },
-                workflow: {
-                    configured: Boolean(workflowRaw?.trim()),
-                    size: workflowRaw?.length ?? 0,
-                    raw: toDisplay(workflowRaw),
                 },
                 probe: probeKey
                     ? {
@@ -101,7 +107,7 @@ export async function handleAdminPlugins(request: Request, env: Env): Promise<Re
                     : null,
             },
             tips: includeFullRaw
-                ? '当前返回 full=1 的完整 KV 内容，注意可能较大。'
+                ? '当前返回 full=1 的完整内容，注意可能较大；D1 目前承载 common / dynamic。'
                 : '默认仅返回前 300 字符预览，追加 ?full=1 可查看完整内容；追加 ?key=你的KV键 可探测任意键。',
         }, null, 2), {
             headers: {'Content-Type': 'application/json'},
@@ -109,11 +115,11 @@ export async function handleAdminPlugins(request: Request, env: Env): Promise<Re
     }
 
     if (request.method === 'POST' && pathname === '/admin/plugins/reload') {
-        const cleared = clearRemoteRulesCache();
+        const cleared = clearRulesCache() + RuleDefinitionRepository.clearCache();
         return new Response(JSON.stringify({
             ok: true,
             clearedEntries: cleared,
-            nowEntries: getRemoteRulesCacheSize(),
+            nowEntries: getRulesCacheSize(),
         }, null, 2), {
             headers: {'Content-Type': 'application/json'},
         });

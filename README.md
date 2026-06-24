@@ -43,11 +43,6 @@ AI_API_URL=https://your-ai-endpoint/v1/chat/completions
 AI_API_KEY=your_ai_api_key
 AI_MODEL=gpt-4o-mini
 
-# 通用插件远程配置（可选）
-COMMON_PLUGINS_CONFIG_URL=https://your-config-endpoint
-COMMON_PLUGINS_CLIENT_ID=your_client_id
-COMMON_DYNAMIC_PLUGINS_CLIENT_ID=your_dynamic_client_id
-COMMON_WORKFLOW_PLUGINS_CLIENT_ID=your_workflow_client_id
 
 # 全局调试透传（可选）
 DEBUG_FORWARD_ENABLED=false
@@ -71,7 +66,7 @@ npm run dev
 npm run dev:scheduled
 ```
 
-如果你要在本地使用 KV 里的通用插件配置，先执行：
+如果你要在本地使用 KV 里的规则配置，先执行：
 
 ```bash
 npm run config:init
@@ -135,7 +130,7 @@ npm run data -- run <命令名>
 | 路径 | 方法 | 说明 |
 |---|---|---|
 | `/webhook/wechat` | POST | 微信消息入口 |
-| `/admin/plugins` | GET | 查看插件配置来源状态（inline/kv/remote） |
+| `/admin/plugins` | GET | 查看插件配置来源状态（inline/kv/d1） |
 | `/admin/plugins/reload` | POST | 清空插件规则内存缓存 |
 | `/admin/scheduler/executors` | GET | 查看当前已注册定时执行器 |
 | `/admin/scheduler/jobs` | GET/POST | 查看任务列表 / 创建任务 |
@@ -198,9 +193,8 @@ npm run dev:scheduled
 | 插件 | 说明 | 文档 |
 |---|---|---|
 | `ai-dialog` | 文本包含 `小聪明儿` 时调用 AI 接口 | — |
-| `common-plugins-engine` | 基础关键词 → 外部接口 | — |
-| `dynamic-common-plugins-engine` | 动态参数（关键词 + 参数提取 + 模板渲染） | — |
-| `workflow-common-plugins-engine` | workflow 规则（多步骤请求编排） | — |
+| `simple-rules-engine` | 基础关键词 → 外部接口 | — |
+| `dynamic-rules-engine` | 动态参数（关键词 + 参数提取 + 模板渲染） | — |
 | `today-wife` | 今日老婆图片 | — |
 | `xiuxian-plugin` | 文本修仙玩法（创建/修炼/探索/背包/挑战/拍卖/爬塔/灵宠 等） | [src/plugins/game/xiuxian/README.md](src/plugins/game/xiuxian/README.md) |
 | `human-verify` | 人机验证插件（关键词触发链接，完成后微信通知结果） | — |
@@ -215,21 +209,21 @@ npm run dev:scheduled
 
 管理接口（需 `Authorization: Bearer <ADMIN_TOKEN>`，未配置 `ADMIN_TOKEN` 时不鉴权）：
 
-- `GET /admin/plugins`：查看当前三层配置是否已配置、KV key 是否存在、缓存条目数。
+- `GET /admin/plugins`：查看当前规则配置、KV key 是否存在、缓存条目数。
 - `POST /admin/plugins/reload`：清空规则内存缓存，下一次命中插件时重新加载配置。
 
 ### 插件管理（主人命令）管理员速查
 
-当配置了 `BOT_OWNER_WECHAT_ID` 后，可由机器人主人直接发送 `插件管理 ...` 命令管理 `common / dynamic / workflow` 规则。
+当配置了 `BOT_OWNER_WECHAT_ID` 后，可由机器人主人直接发送 `插件管理 ...` 命令管理 `common / dynamic` 规则。
 
 最常用的只读预览命令：
 
 ```text
 插件管理 帮助
 插件管理 预览删除 common ai-news-today
-插件管理 预览复制 workflow weather-workflow weather-workflow-copy
-插件管理 预览重命名 workflow weather-workflow weather-workflow-archive
-插件管理 预览回滚 workflow
+插件管理 预览复制 dynamic weather-query weather-query-copy
+插件管理 预览重命名 dynamic weather-query weather-query-archive
+插件管理 预览回滚 dynamic
 ```
 
 删除确认：
@@ -238,27 +232,27 @@ npm run dev:scheduled
 插件管理 确认删除 common ai-news-today
 ```
 
-`workflow` 常用预览：
+`dynamic` 常用预览：
 
 ```text
-插件管理 预览添加 workflow
-名称：weather-workflow-preview
-关键词：天气预览
+插件管理 添加 dynamic
+名称：weather-query
+描述：按城市查天气
+正则：^天气\s+(.+)$
+匹配模式：regex
+参数模式：regex
+参数名：city
+地址：https://example.com/weather?city={{city}}
+模式：json
+提取：$.data.text
 回复：text
-步骤：<<<
-[{"name":"search","url":"https://example.com/weather?q={{keyword}}","mode":"text","saveAs":"result"}]
->>>
-输出来源：result
 ```
 
 ```text
-插件管理 预览修改 workflow weather-workflow
-步骤操作：复制
-步骤名称：render-step
-目标步骤序号：2
-步骤内容：<<<
-{"name":"render-copy","saveAs":"renderCopy"}
->>>
+插件管理 修改 dynamic weather-query
+描述：按城市查实时天气
+地址：https://example.com/weather/realtime?city={{city}}
+提取：$.result.text
 ```
 
 `dynamic` 也很适合做临时接口调试，例如把任意 `http/https` 地址转发到你的跨域代理：
@@ -343,12 +337,9 @@ test/
 | `TURNSTILE_SITE_KEY` | Turnstile 公钥（前端页面渲染） |
 | `TURNSTILE_SECRET_KEY` | Turnstile 私钥（服务端校验） |
 | `TURNSTILE_BASE_URL` | 外网可访问的 Worker 基础地址（生成验证链接） |
-| `COMMON_PLUGINS_CONFIG` | 通用插件 JSON 配置（内联，优先级最高，仅基础规则） |
-| `COMMON_PLUGINS_CONFIG_URL` | 通用插件远程配置地址 |
-| `COMMON_PLUGINS_CLIENT_ID` | 通用插件远程配置请求头 `clientid` |
-| `COMMON_DYNAMIC_PLUGINS_CLIENT_ID` | 动态通用插件远程配置请求头 `clientid` |
-| `COMMON_WORKFLOW_PLUGINS_CLIENT_ID` | workflow 通用插件远程配置请求头 `clientid` |
-| `XBOT_KV` | KV 命名空间（用于存储通用插件配置） |
+| `COMMON_PLUGINS_CONFIG` | `common` 规则 JSON 配置（内联，优先级最高，仅简单规则） |
+| `COMMON_PLUGINS_CACHE_MS` | KV 规则内存缓存毫秒数（0 表示禁用） |
+| `XBOT_KV` | KV 命名空间（用于存储规则配置） |
 | `XBOT_DB` | D1 数据库（修仙插件使用） |
 | `ADMIN_TOKEN` | 管理接口鉴权 Token（含 scheduler / plugins / debug） |
 | `DEBUG_FORWARD_ENABLED` | 是否开启全局调试转发 |

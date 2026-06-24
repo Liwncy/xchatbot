@@ -589,7 +589,7 @@ MVP 建议只做 2 个执行器，先跑通完整链路。
 
 - `send-wechat-app`
 - `fake-forward-flush`
-- `common-plugin-workflow-trigger`
+- `common-plugin-trigger`
 - `xiuxian-daily-reset`
 
 ---

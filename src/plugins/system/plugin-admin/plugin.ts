@@ -1,17 +1,17 @@
 import type {TextMessage} from '../../types.js';
 import {finalizePluginAdminReply} from './plugin-admin-forward-reply.js';
 import {PluginAdminService} from './plugin-admin-service.js';
-import type {CommonRuleInputPatch, DynamicRuleInputPatch, PluginAdminCommand, RulePluginCategory, RuleInputPatch, WorkflowRuleInputPatch, WorkflowStepSelectorInput} from './plugin-admin-types.js';
+import type {CommonRuleInputPatch, DynamicRuleInputPatch, PluginAdminCommand, RulePluginCategory, RuleInputPatch} from './plugin-admin-types.js';
 
 const PLUGIN_ADMIN_PREFIX = '插件管理';
 const pluginAdminService = new PluginAdminService();
-const SUPPORTED_CATEGORIES = new Set<RulePluginCategory>(['common', 'dynamic', 'workflow']);
-type RuleFieldName = keyof (CommonRuleInputPatch & DynamicRuleInputPatch & WorkflowRuleInputPatch);
+const SUPPORTED_CATEGORIES = new Set<RulePluginCategory>(['common', 'dynamic']);
+type RuleFieldName = keyof (CommonRuleInputPatch & DynamicRuleInputPatch);
 
 function normalizeCategory(input: string): RulePluginCategory {
     const category = input.trim().toLowerCase();
     if (!SUPPORTED_CATEGORIES.has(category as RulePluginCategory)) {
-        throw new Error(`不支持的规则分类：${input}，仅支持 common / dynamic / workflow`);
+        throw new Error(`不支持的规则分类：${input}，仅支持 common / dynamic`);
     }
     return category as RulePluginCategory;
 }
@@ -22,6 +22,10 @@ function normalizeFieldName(label: string, category: RulePluginCategory): RuleFi
         case '名称':
         case 'name':
             return 'name';
+        case '说明':
+        case '描述':
+        case 'description':
+            return 'description';
         case '关键词':
         case 'keyword':
             return 'keyword';
@@ -46,6 +50,12 @@ function normalizeFieldName(label: string, category: RulePluginCategory): RuleFi
         case '请求体':
         case 'body':
             return 'body';
+        case '请求配置':
+        case 'requestconfig':
+            return 'requestConfig';
+        case '回复配置':
+        case 'replypayload':
+            return 'replyPayload';
         case '链接标题':
         case 'linktitle':
             return 'linkTitle';
@@ -106,41 +116,6 @@ function normalizeFieldName(label: string, category: RulePluginCategory): RuleFi
         case 'argsrequired':
             if (category === 'common') break;
             return 'argsRequired';
-        case '步骤':
-        case 'steps':
-            if (category !== 'workflow') break;
-            return 'steps';
-        case '步骤操作':
-        case 'stepaction':
-            if (category !== 'workflow') break;
-            return 'stepAction';
-        case '步骤序号':
-        case 'stepindex':
-            if (category !== 'workflow') break;
-            return 'stepIndex';
-        case '步骤名称':
-        case 'stepname':
-            if (category !== 'workflow') break;
-            return 'stepName';
-        case '目标步骤序号':
-        case '目标序号':
-        case 'steptargetindex':
-            if (category !== 'workflow') break;
-            return 'stepTargetIndex';
-        case '目标步骤名称':
-        case '新步骤名称':
-        case 'steptargetname':
-            if (category !== 'workflow') break;
-            return 'stepTargetName';
-        case '步骤内容':
-        case 'step':
-        case 'steppayload':
-            if (category !== 'workflow') break;
-            return 'stepPayload';
-        case '输出来源':
-        case 'outputfrom':
-            if (category !== 'workflow') break;
-            return 'outputFrom';
         default:
             throw new Error(`不支持的字段：${label}`);
     }
@@ -189,59 +164,6 @@ function parseFieldBlock(block: string, category: RulePluginCategory): RuleInput
     return fields as RuleInputPatch;
 }
 
-function parseWorkflowDetailSelectorBlock(block: string): WorkflowStepSelectorInput {
-    const trimmed = block.trim();
-    if (!trimmed) {
-        throw new Error('缺少详情选项，请使用“步骤序号：N”“步骤名称：xxx”“查看：步骤JSON”或“查看：规则JSON”');
-    }
-
-    const fields: WorkflowStepSelectorInput = {};
-    const lines = trimmed.split(/\r?\n/);
-    for (const line of lines) {
-        if (!line.trim()) continue;
-        const matched = line.match(/^([^：:]+)[：:]\s*(.+)$/u);
-        if (!matched) {
-            throw new Error(`字段行格式错误：${line}`);
-        }
-        const value = matched[2].trim();
-        if (!value) {
-            throw new Error(`字段 ${matched[1].trim()} 不能为空`);
-        }
-        const rawFieldName = matched[1].trim().toLowerCase();
-        if (rawFieldName === '查看' || rawFieldName === 'view') {
-            const normalizedView = value.trim().toLowerCase();
-            if (normalizedView === '步骤json' || normalizedView === 'steps-json' || normalizedView === 'stepsjson' || normalizedView === 'raw-steps') {
-                fields.view = 'steps-json';
-                continue;
-            }
-            if (normalizedView === '规则json' || normalizedView === 'rule-json' || normalizedView === 'rulejson' || normalizedView === 'raw-rule') {
-                fields.view = 'rule-json';
-                continue;
-            }
-            throw new Error('workflow 详情的“查看”仅支持：步骤JSON、规则JSON');
-        }
-        const fieldName = normalizeFieldName(matched[1], 'workflow');
-        if (fieldName !== 'stepIndex' && fieldName !== 'stepName') {
-            throw new Error('workflow 详情仅支持字段：步骤序号、步骤名称、查看');
-        }
-        if (fieldName === 'stepIndex') {
-            fields.stepIndex = value;
-        } else {
-            fields.stepName = value;
-        }
-    }
-
-    if (fields.view && (fields.stepIndex || fields.stepName)) {
-        throw new Error(`查看“${fields.view === 'rule-json' ? '规则JSON' : '步骤JSON'}”时不能同时提供步骤序号或步骤名称`);
-    }
-
-    if (!fields.view && !fields.stepIndex && !fields.stepName) {
-        throw new Error('缺少详情选项，请使用“步骤序号：N”“步骤名称：xxx”“查看：步骤JSON”或“查看：规则JSON”');
-    }
-
-    return fields;
-}
-
 export function parsePluginAdminCommand(content: string): PluginAdminCommand {
     const trimmed = content.trim();
     if (!trimmed.startsWith(PLUGIN_ADMIN_PREFIX)) {
@@ -276,17 +198,8 @@ export function parsePluginAdminCommand(content: string): PluginAdminCommand {
     const detailMatched = body.match(/^详情\s+(\S+)\s+(\S+)(?:\r?\n([\s\S]*))?$/u);
     if (detailMatched) {
         const category = normalizeCategory(detailMatched[1]);
-        const detailBlock = detailMatched[3]?.trim();
-        if (detailBlock) {
-            if (category !== 'workflow') {
-                throw new Error('仅 workflow 详情支持按步骤查看，格式为：插件管理 详情 workflow <名称> + 换行步骤序号/步骤名称');
-            }
-            return {
-                action: 'detail',
-                category,
-                name: detailMatched[2].trim(),
-                stepSelector: parseWorkflowDetailSelectorBlock(detailBlock),
-            };
+        if (detailMatched[3]?.trim()) {
+            throw new Error('当前详情命令不再支持额外步骤选项，请直接查看规则本身。');
         }
         return {
             action: 'detail',
@@ -391,19 +304,6 @@ export function parsePluginAdminCommand(content: string): PluginAdminCommand {
         };
     }
 
-    const previewAddMatched = body.match(/^预览添加\s+(\S+)(?:\r?\n([\s\S]*))?$/u);
-    if (previewAddMatched) {
-        const category = normalizeCategory(previewAddMatched[1]);
-        if (category !== 'workflow') {
-            throw new Error('当前仅支持：插件管理 预览添加 workflow');
-        }
-        return {
-            action: 'preview-add',
-            category: 'workflow',
-            fields: parseFieldBlock(previewAddMatched[2] ?? '', category) as WorkflowRuleInputPatch,
-        };
-    }
-
     const addMatched = body.match(/^添加\s+(\S+)(?:\r?\n([\s\S]*))?$/u);
     if (addMatched) {
         const category = normalizeCategory(addMatched[1]);
@@ -411,20 +311,6 @@ export function parsePluginAdminCommand(content: string): PluginAdminCommand {
             action: 'add',
             category,
             fields: parseFieldBlock(addMatched[2] ?? '', category),
-        };
-    }
-
-    const previewUpdateMatched = body.match(/^预览修改\s+(\S+)\s+(\S+)(?:\r?\n([\s\S]*))?$/u);
-    if (previewUpdateMatched) {
-        const category = normalizeCategory(previewUpdateMatched[1]);
-        if (category !== 'workflow') {
-            throw new Error('当前仅支持：插件管理 预览修改 workflow <名称>');
-        }
-        return {
-            action: 'preview-update',
-            category: 'workflow',
-            name: previewUpdateMatched[2].trim(),
-            fields: parseFieldBlock(previewUpdateMatched[3] ?? '', category) as WorkflowRuleInputPatch,
         };
     }
 
@@ -445,7 +331,7 @@ export function parsePluginAdminCommand(content: string): PluginAdminCommand {
 export const pluginAdminPlugin: TextMessage = {
     type: 'text',
     name: 'plugin-admin',
-    description: '通过“插件管理 ...”命令管理规则插件（common / dynamic / workflow 三类规则完整管理）',
+    description: '通过“插件管理 ...”命令管理规则插件（common / dynamic）',
     match: (content) => content.trim().startsWith(PLUGIN_ADMIN_PREFIX),
     async handle(message, env) {
         let command: PluginAdminCommand | null = null;

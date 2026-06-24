@@ -18,9 +18,7 @@ const PLUGIN_ADMIN_CHAT_RECORD_POLICY: Partial<Record<PluginAdminCommand['action
     list: {title: '插件规则列表'},
     search: {title: '插件规则搜索'},
     check: {title: '插件规则检查'},
-    'preview-add': {title: '规则预览添加'},
     add: {title: '插件规则新增'},
-    'preview-update': {title: '规则预览修改'},
     update: {title: '插件规则修改'},
     'preview-copy': {title: '规则预览复制'},
     copy: {title: '插件规则复制'},
@@ -103,7 +101,7 @@ function resolveRecordTitle(command: PluginAdminCommand | null, content: string)
 function resolveChatRecordPolicy(command: PluginAdminCommand | null): PluginAdminChatRecordPolicy {
     if (!command) return {};
     if (command.action === 'detail') {
-        return resolveDetailChatRecordPolicy(command);
+        return resolveDetailChatRecordPolicy();
     }
     if (command.action === 'delete') {
         return {title: command.confirmed ? '插件规则删除' : '规则预览删除'};
@@ -111,11 +109,7 @@ function resolveChatRecordPolicy(command: PluginAdminCommand | null): PluginAdmi
     return PLUGIN_ADMIN_CHAT_RECORD_POLICY[command.action] ?? {};
 }
 
-function resolveDetailChatRecordPolicy(command: Extract<PluginAdminCommand, {action: 'detail'}>): PluginAdminChatRecordPolicy {
-    const selector = command.stepSelector;
-    if (selector?.view === 'steps-json') return {forceFold: true, title: '插件步骤JSON'};
-    if (selector?.view === 'rule-json') return {forceFold: true, title: '插件规则JSON'};
-    if (selector?.stepIndex || selector?.stepName) return {forceFold: true, title: '插件步骤详情'};
+function resolveDetailChatRecordPolicy(): PluginAdminChatRecordPolicy {
     return {forceFold: true, title: '插件规则详情'};
 }
 

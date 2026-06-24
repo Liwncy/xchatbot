@@ -1,9 +1,8 @@
-import type {WorkflowCommonRule} from '../../rule-engine/workflow';
-
-export type RulePluginCategory = 'common' | 'dynamic' | 'workflow';
+export type RulePluginCategory = 'common' | 'dynamic';
 
 export interface CommonRuleInputPatch {
     name?: string;
+    description?: string;
     keyword?: string;
     url?: string;
     method?: 'GET' | 'POST';
@@ -12,6 +11,8 @@ export interface CommonRuleInputPatch {
     rType?: 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
     headers?: string;
     body?: string;
+    requestConfig?: string;
+    replyPayload?: string;
     linkTitle?: string;
     linkDescription?: string;
     linkPicUrl?: string;
@@ -34,51 +35,14 @@ export interface DynamicRuleInputPatch extends CommonRuleInputPatch {
     argsRequired?: string;
 }
 
-export interface WorkflowRuleInputPatch {
-    name?: string;
-    keyword?: string;
-    pattern?: string;
-    matchMode?: 'contains' | 'prefix' | 'exact' | 'regex';
-    argsMode?: 'tail' | 'split' | 'regex';
-    argsDelimiter?: string;
-    argsNames?: string;
-    argsRequired?: string;
-    rType?: 'text' | 'image' | 'video' | 'voice' | 'link' | 'card' | 'app';
-    linkTitle?: string;
-    linkDescription?: string;
-    linkPicUrl?: string;
-    voiceFormat?: string;
-    voiceDurationMs?: string;
-    voiceFallbackText?: string;
-    cardUsername?: string;
-    cardNickname?: string;
-    cardAlias?: string;
-    appType?: string;
-    appXml?: string;
-    steps?: string | WorkflowCommonRule['steps'];
-    stepAction?: 'append' | 'insert' | 'update' | 'delete' | 'move' | 'rename' | 'copy' | 'enable' | 'disable';
-    stepIndex?: string;
-    stepName?: string;
-    stepTargetIndex?: string;
-    stepTargetName?: string;
-    stepPayload?: string;
-    outputFrom?: string;
-}
-
-export interface WorkflowStepSelectorInput {
-    stepIndex?: string;
-    stepName?: string;
-    view?: 'steps-json' | 'rule-json';
-}
-
-export type RuleInputPatch = CommonRuleInputPatch | DynamicRuleInputPatch | WorkflowRuleInputPatch;
+export type RuleInputPatch = CommonRuleInputPatch | DynamicRuleInputPatch;
 
 export type PluginAdminCommand =
     | {action: 'help'}
     | {action: 'refresh'}
     | {action: 'list'; category?: RulePluginCategory}
     | {action: 'search'; category: RulePluginCategory; query: string}
-    | {action: 'detail'; category: RulePluginCategory; name: string; stepSelector?: WorkflowStepSelectorInput}
+    | {action: 'detail'; category: RulePluginCategory; name: string}
     | {action: 'delete'; category: RulePluginCategory; name: string; confirmed?: boolean}
     | {action: 'preview-copy'; category: RulePluginCategory; sourceName: string; targetName: string}
     | {action: 'copy'; category: RulePluginCategory; sourceName: string; targetName: string}
@@ -87,9 +51,7 @@ export type PluginAdminCommand =
     | {action: 'preview-rollback'; category: RulePluginCategory}
     | {action: 'rollback'; category: RulePluginCategory}
     | {action: 'check'; category: RulePluginCategory; fields: RuleInputPatch}
-    | {action: 'preview-add'; category: 'workflow'; fields: WorkflowRuleInputPatch}
     | {action: 'add'; category: RulePluginCategory; fields: RuleInputPatch}
-    | {action: 'preview-update'; category: 'workflow'; name: string; fields: WorkflowRuleInputPatch}
     | {action: 'update'; category: RulePluginCategory; name: string; fields: RuleInputPatch};
 
 export interface PluginAdminCategoryMeta {
