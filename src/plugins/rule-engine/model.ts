@@ -179,6 +179,26 @@ export function serializeKeyword(keyword: string | string[] | undefined): string
     return trimmed || undefined;
 }
 
+export function parseKeywordFromTriggerText(triggerText?: string): string | string[] | undefined {
+    if (!triggerText?.trim()) return undefined;
+    const trimmed = triggerText.trim();
+    if (trimmed.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(trimmed) as unknown;
+            if (Array.isArray(parsed)) {
+                const items = parsed
+                    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+                    .filter(Boolean);
+                if (!items.length) return undefined;
+                return items.length === 1 ? items[0] : items;
+            }
+        } catch {
+            // 按 pipe 分隔字符串继续解析
+        }
+    }
+    return trimmed;
+}
+
 export function parseJsonObject(value: string | null | undefined): Record<string, unknown> | undefined {
     if (!value?.trim()) return undefined;
     try {
@@ -235,7 +255,7 @@ export function ruleDefinitionToRuntimeRule(definition: RuleDefinition): Dynamic
     return {
         name: definition.name,
         description: definition.description,
-        keyword: definition.triggerText,
+        keyword: parseKeywordFromTriggerText(definition.triggerText),
         pattern: definition.pattern,
         matchMode: definition.matchType,
         args: definition.args,

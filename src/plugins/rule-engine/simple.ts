@@ -5,7 +5,7 @@ import {
     renderTemplateString,
     toLinkReply,
 } from './shared';
-import {findMatchContext} from './matcher';
+import {findMatchContext, normalizeKeyword as splitKeywords} from './matcher';
 import {loadRulesFromSources} from './rule-sources';
 import {createCachedRuleParser} from './parser';
 import {buildCommonReply} from './reply-builder';
@@ -245,7 +245,7 @@ export const simpleRulesEngine: TextMessage = {
 };
 
 /**
- * 解析可用规则：优先内联配置，其次 KV（带短缓存）。
+ * 解析可用规则：D1 common 规则优先，否则内联 env / KV。
  */
 async function resolveRules(env: {
     XBOT_KV: KVNamespace;
@@ -254,9 +254,9 @@ async function resolveRules(env: {
     COMMON_PLUGINS_MAPPING?: string;
     COMMON_PLUGINS_CACHE_MS?: string;
 }): Promise<SimpleRule[]> {
-    const structuredRules = await RuleDefinitionRepository.listRuntimeRules(env);
-    if (structuredRules) {
-        return [];
+    const structuredRules = await RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'common');
+    if (structuredRules !== null) {
+        return structuredRules.filter((rule) => splitKeywords(rule.keyword).length > 0) as SimpleRule[];
     }
 
     const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);

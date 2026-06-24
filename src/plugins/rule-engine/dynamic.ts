@@ -158,8 +158,8 @@ async function resolveRules(env: {
     XBOT_DB: D1Database;
     COMMON_PLUGINS_CACHE_MS?: string;
 }): Promise<DynamicRule[]> {
-    const structuredRules = await RuleDefinitionRepository.listRuntimeRules(env);
-    if (structuredRules) {
+    const structuredRules = await RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'dynamic');
+    if (structuredRules !== null) {
         return structuredRules;
     }
 

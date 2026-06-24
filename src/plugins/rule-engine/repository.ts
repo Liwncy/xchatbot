@@ -49,7 +49,10 @@ type LegacyDynamicRule = LegacyCommonRule & {
 
 const RULE_ENGINE_D1_MIGRATED_KV_KEY = 'rule-engine:d1:migrated';
 let schemaReady: Promise<void> | null = null;
-let runtimeCache: {expiresAt: number; rules: DynamicRule[]} | null = null;
+let runtimeCache: {
+    expiresAt: number;
+    byCategory: Partial<Record<'common' | 'dynamic', DynamicRule[]>>;
+} | null = null;
 
 const RULE_ID_PREFIX_MAP = {
     common: 'common:',
@@ -472,6 +475,26 @@ export class RuleDefinitionRepository {
             .filter((row): row is RuleDefinition => Boolean(row));
     }
 
+    static async listEnabledDefinitionsByCategory(
+        env: Env,
+        category: Extract<RulePluginCategory, 'common' | 'dynamic'>,
+    ): Promise<RuleDefinition[] | null> {
+        const db = await RuleDefinitionRepository.ensureDefinitionsAvailable(env);
+        if (!db) return null;
+
+        const prefix = `${getRuleIdPrefix(category)}%`;
+        const result = await db.prepare(
+            `SELECT *
+             FROM rule_definition
+             WHERE enabled = 1 AND id LIKE ?1
+             ORDER BY priority DESC, updated_at DESC, created_at DESC, id ASC`,
+        ).bind(prefix).all<RuleDefinitionRow>();
+
+        return (result.results ?? [])
+            .map((row) => rowToRuleDefinition(row))
+            .filter((row): row is RuleDefinition => Boolean(row));
+    }
+
     static async listDefinitionsByCategory(
         env: Env,
         category: Extract<RulePluginCategory, 'common' | 'dynamic'>,
@@ -530,27 +553,49 @@ export class RuleDefinitionRepository {
         };
     }
 
-    static async listRuntimeRules(env: Env): Promise<DynamicRule[] | null> {
-        const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
-        const now = Date.now();
-        if (cacheMs > 0 && runtimeCache && now < runtimeCache.expiresAt) {
-            return runtimeCache.rules;
-        }
-
-        const definitions = await RuleDefinitionRepository.listDefinitions(env);
-        if (definitions === null) return null;
-
-        const rules = definitions
+    private static definitionsToRuntimeRules(definitions: RuleDefinition[]): DynamicRule[] {
+        return definitions
             .map((definition) => ruleDefinitionToRuntimeRule(definition))
             .filter((rule) => {
                 if (rule.matchMode === 'regex') return Boolean(rule.pattern);
                 return normalizeKeyword(rule.keyword).length > 0;
             });
+    }
 
+    static async listRuntimeRulesByCategory(
+        env: Env,
+        category: Extract<RulePluginCategory, 'common' | 'dynamic'>,
+    ): Promise<DynamicRule[] | null> {
+        const cacheMs = parseCacheMs(env.COMMON_PLUGINS_CACHE_MS);
+        const now = Date.now();
+        if (cacheMs > 0 && runtimeCache && now < runtimeCache.expiresAt && runtimeCache.byCategory[category]) {
+            return runtimeCache.byCategory[category] ?? null;
+        }
+
+        const definitions = await RuleDefinitionRepository.listEnabledDefinitionsByCategory(env, category);
+        if (definitions === null) return null;
+
+        const rules = RuleDefinitionRepository.definitionsToRuntimeRules(definitions);
         if (cacheMs > 0) {
-            runtimeCache = {rules, expiresAt: now + cacheMs};
+            runtimeCache = {
+                expiresAt: now + cacheMs,
+                byCategory: {
+                    ...(runtimeCache && now < runtimeCache.expiresAt ? runtimeCache.byCategory : {}),
+                    [category]: rules,
+                },
+            };
         }
         return rules;
+    }
+
+    /** @deprecated 使用 listRuntimeRulesByCategory */
+    static async listRuntimeRules(env: Env): Promise<DynamicRule[] | null> {
+        const [commonRules, dynamicRules] = await Promise.all([
+            RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'common'),
+            RuleDefinitionRepository.listRuntimeRulesByCategory(env, 'dynamic'),
+        ]);
+        if (commonRules === null && dynamicRules === null) return null;
+        return [...(commonRules ?? []), ...(dynamicRules ?? [])];
     }
 }
 
