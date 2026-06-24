@@ -13,7 +13,7 @@ import {
     getEmojiStashCategoryMeta,
     type EmojiStashCategory,
 } from './categories.js';
-import {listStoredEmojis} from './storage.js';
+import {EmojiStashRepository} from './repository.js';
 import type {StoredEmoji} from './types.js';
 
 const EMOJI_STASH_LIST_RECORD_TITLE = '聪明表情收藏册';
@@ -123,7 +123,7 @@ export async function buildEmojiStashListReply(
     message: IncomingMessage,
     env: Env,
 ): Promise<HandlerResponse> {
-    const emojis = await listStoredEmojis(env);
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
     if (emojis.length === 0) {
         return {type: 'text', content: EMOJI_STASH_LIST_EMPTY_REPLY};
     }

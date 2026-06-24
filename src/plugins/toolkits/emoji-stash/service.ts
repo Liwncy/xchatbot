@@ -25,16 +25,14 @@ import {
 import {buildEmojiStashListReply} from './list-reply.js';
 import type {EmojiBracketSendCommand} from './parse-send.js';
 import {parseInboundEmojiFromMessage} from './parser.js';
+import {EmojiStashRepository} from './repository.js';
 import {
     buildEmojiStashSessionKey,
     deleteEmojiStashPending,
     getEmojiStashPending,
     isEmojiStashAutoCollectOnCooldown,
-    listStoredEmojis,
     markEmojiStashAutoCollectCooldown,
     putEmojiStashPending,
-    saveStoredEmojis,
-    updateStoredEmojiStatus,
 } from './storage.js';
 import type {EmojiAiMetadata, ParsedInboundEmoji, StoredEmoji} from './types.js';
 
@@ -79,7 +77,7 @@ async function persistEmojiWithAi(
     parsed: ParsedInboundEmoji,
     source: 'auto' | 'manual',
 ): Promise<HandlerResponse | null> {
-    const emojis = await listStoredEmojis(env);
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
     const existingByMd5 = emojis.find((item) => item.md5 === parsed.md5);
 
     if (source === 'auto' && existingByMd5) return null;
@@ -95,11 +93,7 @@ async function persistEmojiWithAi(
     };
 
     const stored = toStoredEmoji(metadata, parsed, source);
-    const next = existingByMd5
-        ? emojis.map((item) => (item.md5 === parsed.md5 ? stored : item))
-        : [...emojis, stored];
-
-    await saveStoredEmojis(env, next);
+    await EmojiStashRepository.upsertStoredEmoji(env, stored);
 
     if (source === 'auto') {
         if (aiFailed || await isEmojiStashAutoCollectOnCooldown(env)) return null;
@@ -216,7 +210,7 @@ export async function sendStoredEmojiByBracket(
         return null;
     }
 
-    const emojis = await listStoredEmojis(env);
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
     let target: StoredEmoji | undefined;
 
     if (command.type === 'name') {
@@ -265,7 +259,7 @@ export async function verifyUnsentEmojis(
     env: Env,
     count?: number,
 ): Promise<HandlerResponse> {
-    const emojis = await listStoredEmojis(env);
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
     const pending = emojis.filter((item) => item.status == null);
     return buildEmojiVerifyReplies(pending, 'pending', count);
 }
@@ -275,7 +269,7 @@ export async function retryFailedEmojis(
     env: Env,
     count?: number,
 ): Promise<HandlerResponse> {
-    const emojis = await listStoredEmojis(env);
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
     const failed = emojis.filter((item) => item.status === 'failed');
     return buildEmojiVerifyReplies(failed, 'failed', count);
 }
@@ -290,13 +284,10 @@ export async function deleteStoredEmoji(
         return {type: 'text', content: '请指定要删除的表情名称，例如：删表情 no_java_cat'};
     }
 
-    const emojis = await listStoredEmojis(env);
-    const next = emojis.filter((item) => item.name !== normalizedName);
-    if (next.length === emojis.length) {
+    const deleted = await EmojiStashRepository.deleteByName(env, normalizedName);
+    if (!deleted) {
         return {type: 'text', content: EMOJI_STASH_NOT_FOUND_REPLY(normalizedName)};
     }
-
-    await saveStoredEmojis(env, next);
     return {type: 'text', content: EMOJI_STASH_DELETE_OK_REPLY(normalizedName)};
 }
 
@@ -307,9 +298,9 @@ export async function hasEmojiStashPending(message: IncomingMessage, env: Env): 
 }
 
 export async function markStoredEmojiStatusFailed(env: Env, md5: string): Promise<void> {
-    await updateStoredEmojiStatus(env, md5, 'failed');
+    await EmojiStashRepository.updateStatusByMd5(env, md5, 'failed');
 }
 
 export async function markStoredEmojiStatusOk(env: Env, md5: string): Promise<void> {
-    await updateStoredEmojiStatus(env, md5, 'ok');
+    await EmojiStashRepository.updateStatusByMd5(env, md5, 'ok');
 }
