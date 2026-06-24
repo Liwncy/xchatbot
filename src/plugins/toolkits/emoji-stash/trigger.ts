@@ -1,4 +1,5 @@
 import type {TextMessage} from '../../types.js';
+import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {
     deleteStoredEmoji,
     listEmojiStash,
@@ -38,6 +39,13 @@ function parseRetryCommand(content: string): {count?: number} | null {
     const matched = content.trim().match(/^重验表情(?:\s+(\d+))?$/u);
     if (!matched) return null;
     return {count: parseBatchCount(matched[1])};
+}
+
+function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
+    const owner = ownerWxid?.trim() ?? '';
+    if (!owner) return '这会儿还验不了，先等等';
+    if (messageFrom.trim() !== owner) return NO_PERMISSION_REPLY;
+    return null;
 }
 
 function buildUsageHint(): string {
@@ -85,11 +93,19 @@ export const emojiStashTriggerPlugin: TextMessage = {
 
         const verifyCommand = parseVerifyCommand(trimmed);
         if (verifyCommand) {
+            const ownerErr = ensureOwner(message.from, env.BOT_OWNER_WECHAT_ID);
+            if (ownerErr) {
+                return {type: 'text', content: ownerErr};
+            }
             return verifyUnsentEmojis(message, env, verifyCommand.count);
         }
 
         const retryCommand = parseRetryCommand(trimmed);
         if (retryCommand) {
+            const ownerErr = ensureOwner(message.from, env.BOT_OWNER_WECHAT_ID);
+            if (ownerErr) {
+                return {type: 'text', content: ownerErr};
+            }
             return retryFailedEmojis(message, env, retryCommand.count);
         }
 
