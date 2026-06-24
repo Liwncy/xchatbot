@@ -307,7 +307,7 @@ function buildInsertSql(definition) {
 }
 
 function buildMigrationSql(definitions, {includeSchema = true, schemaSql = ''} = {}) {
-    const lines = ['BEGIN TRANSACTION;'];
+    const lines = [];
     if (includeSchema && schemaSql.trim()) {
         lines.push(schemaSql.trim(), '');
     }
@@ -315,7 +315,6 @@ function buildMigrationSql(definitions, {includeSchema = true, schemaSql = ''} =
     for (const definition of definitions) {
         lines.push(buildInsertSql(definition));
     }
-    lines.push('COMMIT;');
     return `${lines.join('\n')}\n`;
 }
 
