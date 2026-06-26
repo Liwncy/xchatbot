@@ -1,5 +1,6 @@
 import type {Env} from '../../../types/env.js';
-import {requestAiText} from '../../common/ai-client.js';
+import {requestAgnesTextCompletion} from '../agnes-text/client.js';
+import {resolveAgnesTextConfig} from '../agnes-text/config.js';
 
 export interface GenerateOriginalLyricsOptions {
     theme: string;
@@ -76,8 +77,9 @@ export async function generateOriginalLyrics(env: Env, options: GenerateOriginal
         throw new Error('请提供一个想唱的主题或场景');
     }
 
-    if (!env.AI_API_URL?.trim()) {
-        throw new Error('当前环境未配置 AI_API_URL，无法使用主题写词模式');
+    const agnesConfig = resolveAgnesTextConfig(env);
+    if (!agnesConfig) {
+        throw new Error('当前环境未配置 AGNES_API_KEY，无法使用主题写词模式');
     }
 
     const prompt = [
@@ -88,10 +90,9 @@ export async function generateOriginalLyrics(env: Env, options: GenerateOriginal
         '不要引用现有歌曲歌词，不要模仿真实歌手，不要输出标题、说明、括号注释，只输出纯歌词。',
     ].join('\n');
 
-    const reply = await requestAiText(env, {
-        input: theme,
+    const reply = await requestAgnesTextCompletion(agnesConfig, {
+        userText: `主题：${theme}`,
         systemPrompt: prompt,
-        messages: [{role: 'user', content: `主题：${theme}`}],
     });
 
     if (!reply?.trim()) {
