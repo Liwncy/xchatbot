@@ -2,6 +2,11 @@ import type {Env} from './env.js';
 import type {IncomingMessage} from './message.js';
 import type {HandlerResponse} from './reply.js';
 
+/** 插件 handle 可选运行时上下文（如微信后台续跑）。 */
+export interface MessageHandlerContext {
+    waitUntil?: (promise: Promise<unknown>) => void;
+}
+
 /**
  * 插件/消息处理器函数签名。
  *
@@ -12,5 +17,6 @@ import type {HandlerResponse} from './reply.js';
 export type MessageHandler = (
     message: IncomingMessage,
     env: Env,
+    handlerContext?: MessageHandlerContext,
 ) => Promise<HandlerResponse>;
 

@@ -45,7 +45,7 @@ function resolvePluginCategory(name: string): HelpPluginCategory {
     if (/(xiuxian|xuanxue)/.test(name)) return 'scenarios';
     if (/(-engine|common-plugins|dynamic-common)/.test(name)) return 'rule-engine';
     if (/(haokan|yinguo|video-link-parser)/.test(name)) return 'media';
-    if (/(ai-dialog|ai-sing|agnes-|smart-draw|intent-image|image-intent)/.test(name)) return 'cognitive';
+    if (/(ai-dialog|ai-sing|agnes-|smart-draw|intent-image|image-intent|agent-bridge)/.test(name)) return 'cognitive';
     return 'toolkits';
 }
 

@@ -1,6 +1,7 @@
 import type {IncomingMessage} from '../../types/message.js';
 import type {Env} from '../../types/env.js';
 import type {HandlerResponse} from '../../types/reply.js';
+import type {MessageHandlerContext} from '../../types/plugin.js';
 import {setChatLogHandleMeta} from '../../chat-log/index.js';
 import {findMatchingPlugins} from '../../plugins/dispatcher.js';
 import {logger} from '../../utils/logger.js';
@@ -12,12 +13,13 @@ import {logger} from '../../utils/logger.js';
 export async function handleTextMessage(
 	message: IncomingMessage,
 	env: Env,
+	handlerContext?: MessageHandlerContext,
 ): Promise<HandlerResponse> {
 	const trimmed = (message.content ?? '').trim();
 
 	const plugins = findMatchingPlugins(message);
 	for (const plugin of plugins) {
-		const result = await plugin.handle(message, env);
+		const result = await plugin.handle(message, env, handlerContext);
 		if (result) {
 			setChatLogHandleMeta(message, {pluginName: plugin.name});
 			return result;

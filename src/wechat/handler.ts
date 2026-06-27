@@ -31,6 +31,10 @@ function resolveVoiceConversionOptions(env: Env): {
     };
 }
 
+function replyNeedsAwaitedDelivery(reply: ReplyMessage): boolean {
+    return reply.type === 'voice' || reply.type === 'video';
+}
+
 async function sendReplyTasksInBackground(
     env: Env,
     apiBaseUrl: string,
@@ -141,7 +145,9 @@ export async function handleWechat(request: Request, env: Env, ctx: ExecutionCon
         }
 
         await recordInboundChatMessage(env, message);
-        const response = await routeMessage(message, env);
+        const response = await routeMessage(message, env, {
+            waitUntil: (promise) => ctx.waitUntil(promise),
+        });
         const replies = toReplyArray(response);
         replies.forEach((reply, replyIndex) => {
             replyTasks.push({message, reply, replyIndex});
@@ -156,7 +162,13 @@ export async function handleWechat(request: Request, env: Env, ctx: ExecutionCon
     }
 
     if (apiBaseUrl) {
-        ctx.waitUntil(sendReplyTasksInBackground(env, apiBaseUrl, replyTasks));
+        const sendPromise = sendReplyTasksInBackground(env, apiBaseUrl, replyTasks);
+        const shouldAwaitDelivery = replyTasks.some((task) => replyNeedsAwaitedDelivery(task.reply));
+        if (shouldAwaitDelivery) {
+            await sendPromise;
+        } else {
+            ctx.waitUntil(sendPromise);
+        }
 
         return new Response(JSON.stringify({success: true}), {
             status: 200,

@@ -11,4 +11,6 @@ export const KV_AI_DIALOG_MEMORY_PREFIX = 'plugins:ai-dialog:memory:';
 export const KV_AI_DIALOG_GROUP_AUTO_REPLY_PREFIX = 'plugins:ai-dialog:group-auto-reply:';
 export const KV_AI_DIALOG_USER_ACTIVATION_PREFIX = 'plugins:ai-dialog:user-activation:';
 export const KV_AI_SING_CONFIG = 'plugins:ai-sing:config';
+export const KV_AGENT_BRIDGE_CONFIG = 'plugins:agent-bridge:config';
+export const KV_AGENT_BRIDGE_SESSION_PREFIX = 'plugins:agent-bridge:session:';
 

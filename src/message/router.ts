@@ -1,5 +1,5 @@
 import type {IncomingMessage} from '../types/message.js';
-import type {MessageHandler} from '../types/plugin.js';
+import type {MessageHandler, MessageHandlerContext} from '../types/plugin.js';
 import type {Env} from '../types/env.js';
 import type {HandlerResponse} from '../types/reply.js';
 import {handleTextMessage} from './handlers/text.js';
@@ -34,9 +34,10 @@ const handlerRegistry: Record<string, MessageHandler> = {
 export async function routeMessage(
     message: IncomingMessage,
     env: Env,
+    handlerContext?: MessageHandlerContext,
 ): Promise<HandlerResponse> {
     const handler = handlerRegistry[message.type] ?? handleDefault;
-    return handler(message, env);
+    return handler(message, env, handlerContext);
 }
 
 /**

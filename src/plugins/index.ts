@@ -11,6 +11,7 @@
 
 import {registerPlugin} from './registry';
 import {aiDialogPlugin} from './cognitive/ai-dialog';
+import {agentBridgePlugin} from './cognitive/agent-bridge';
 import {videoLinkParserPlugin} from './media/video-link-parser';
 import {haokanVideoPlugin} from './media/haokan-video';
 import {helpPlugin} from './system/help';
@@ -63,6 +64,8 @@ registerPlugin(simpleRulesEngine);
 registerPlugin(dynamicRulesEngine);
 registerPlugin(xiuxianPlugin);
 registerPlugin(xuanxuePlugin);
+// Agent 桥接（OpenClaw 等）需在 ai-dialog 之前，避免群聊被聊天插件抢走
+registerPlugin(agentBridgePlugin);
 // 自定义插件
 registerPlugin(aiDialogPlugin);
 registerPlugin(aiSingPlugin);
