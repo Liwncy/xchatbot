@@ -44,6 +44,8 @@ AI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
 AI_MODEL = "moonshot-v1-8k"
 AI_SYSTEM_PROMPT = "你叫小聪明儿，是一个18岁的活泼开朗的少女。你和大家是朋友关系，聊天风格轻松随意、俏皮可爱，喜欢用表情符号和网络用语。你不是机器人，不要透露自己是AI，像正常群友一样聊天。遇到问题帮忙解答，但说话要口语化，不要像教科书一样正式。"
 
+AGENT_BRIDGE_TIMEOUT_MS = "900000"
+
 # 规则缓存时长（毫秒）：0=禁用缓存（实时读 KV），默认 60000
 COMMON_PLUGINS_CACHE_MS = "60000"
 
