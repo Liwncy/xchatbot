@@ -15,8 +15,8 @@ import {
     saveAgentBridgeSession,
 } from './session.js';
 
-const AGENT_HELP_ALIASES = ['agent帮助', 'agent 帮助', 'agent help', 'Agent帮助'] as const;
-const AGENT_COMMAND_PATTERN = /^(?:@?\s*小聪明儿[\s,，:：-]*)?agent\b/iu;
+const AGENT_HELP_ALIASES = ['聪明办事帮助', '聪明办事 帮助', '聪明办事help'] as const;
+const AGENT_COMMAND_PATTERN = /^(?:@?\s*小聪明儿[\s,，:：-]*)?聪明办事/u;
 
 function ensureAgentBridgeOwner(messageFrom: string, ownerWxid?: string): string | null {
     return ensureOwner(messageFrom, ownerWxid);
@@ -37,21 +37,20 @@ export function isAgentBridgeTrigger(content: string): boolean {
 function stripAgentTrigger(content: string): string {
     const trimmed = content.trim();
     const withoutBot = trimmed.replace(/^@?\s*小聪明儿[\s,，:：-]*/iu, '').trim();
-    return withoutBot.replace(/^agent[\s,，:：-]*/iu, '').trim();
+    return withoutBot.replace(/^聪明办事[\s,，:：-]*/u, '').trim();
 }
 
 function buildHelpText(): string {
     return [
-        'Agent 用法（主人专用）：',
-        '· @小聪明儿 agent 你的任务',
-        '· agent 你的任务（私聊也行）',
+        '聪明办事（主人专用）：',
+        '· @小聪明儿 聪明办事 你的任务',
+        '· 聪明办事 你的任务（私聊也行）',
         '',
         '例子：',
-        '· agent 看看 rule-engine 为啥整点啊没触发',
-        '· agent 给 agent-bridge 补一条单元测试思路',
+        '· 聪明办事 看看整点啊为啥没触发',
+        '· 聪明办事 给 agent-bridge 补条测试思路',
         '',
-        '我会先回一句「稍等」，好了再发结果。',
-        '本机要开着 OpenClaw Gateway，并配好 AGENT_BRIDGE_BASE_URL / TOKEN。',
+        '发完我等结果好了再回你，中间不会先吭声。',
     ].join('\n');
 }
 
@@ -62,7 +61,7 @@ async function runAgentBridgeTask(
 ): Promise<void> {
     const config = await loadAgentBridgeRuntimeConfig(env);
     if (!config) {
-        await deliverAgentBridgeTextReply(message, env, 'Agent 还没接上，主人先去配 AGENT_BRIDGE_BASE_URL 和 TOKEN');
+        await deliverAgentBridgeTextReply(message, env, '办事那边还没接上，主人先去配好 🙏');
         return;
     }
 
@@ -113,7 +112,7 @@ async function handleAgentBridgeCommand(
     if (!config) {
         return {
             type: 'text',
-            content: 'Agent 还没接上。先在 wrangler secret 里配 AGENT_BRIDGE_BASE_URL 和 AGENT_BRIDGE_TOKEN 👌',
+            content: '办事那边还没接上，主人先去配好 👌',
         };
     }
 
@@ -121,14 +120,14 @@ async function handleAgentBridgeCommand(
     if (!prompt) {
         return {
             type: 'text',
-            content: '你想让我帮你办啥？比如：agent 查一下 simple 规则为啥没触发',
+            content: '你想让我办啥？比如：聪明办事 查一下整点啊为啥没触发',
         };
     }
 
     const task = runAgentBridgeTask(message, env, prompt);
     if (handlerContext?.waitUntil) {
         handlerContext.waitUntil(task);
-        return {type: 'text', content: '行，我先看着，好了跟你说 🙏'};
+        return null;
     }
 
     try {
@@ -142,15 +141,13 @@ async function handleAgentBridgeCommand(
 export const agentBridgePlugin: TextMessage = {
     type: 'text',
     name: 'agent-bridge',
-    description: '转发 Agent 任务到 OpenClaw Gateway（主人专用）',
+    description: '聪明办事：转发任务到 OpenClaw Gateway（主人专用）',
 
     match: (content) => isAgentBridgeTrigger(content),
 
     handle: async (message, env, handlerContext) => {
         const result = await handleAgentBridgeCommand(message, env, handlerContext);
-        if (result) {
-            setChatLogHandleMeta(message, {pluginName: 'agent-bridge'});
-        }
+        setChatLogHandleMeta(message, {pluginName: 'agent-bridge'});
         return result;
     },
 };

@@ -1,5 +1,6 @@
 import {logger} from '../../../utils/logger.js';
 import {resolveChatCompletionsUrl} from './config.js';
+import {AGENT_BRIDGE_SYSTEM_PROMPT} from './system-prompt.js';
 import type {AgentBridgeRuntimeConfig, OpenClawChatCompletionResponse} from './types.js';
 
 export interface OpenClawChatRequest {
@@ -30,7 +31,10 @@ export async function requestOpenClawChat(
 
     const body: Record<string, unknown> = {
         model: config.model,
-        messages: [{role: 'user', content: request.prompt}],
+        messages: [
+            {role: 'system', content: AGENT_BRIDGE_SYSTEM_PROMPT},
+            {role: 'user', content: request.prompt},
+        ],
         stream: false,
         user: request.userId,
     };
