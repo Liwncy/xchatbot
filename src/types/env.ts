@@ -63,7 +63,7 @@ export interface Env {
     AGENT_BRIDGE_MODEL?: string;
     /** Agent 桥接：显式开关，`false`/`0`/`关` 关闭。 */
     AGENT_BRIDGE_ENABLED?: string;
-    /** Agent 桥接：单次请求超时毫秒数，默认 120000。 */
+    /** Agent 桥接：单次请求超时毫秒数，默认 600000（10 分钟），上限 900000。 */
     AGENT_BRIDGE_TIMEOUT_MS?: string;
 
     /** Agnes 图像/视频生成 API Key（聪明绘图、聪明绘影）。 */

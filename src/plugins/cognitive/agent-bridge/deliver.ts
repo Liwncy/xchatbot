@@ -50,7 +50,7 @@ export async function deliverAgentBridgeTextReply(
 export function formatAgentBridgeError(error: unknown): string {
     if (error instanceof Error && error.message.trim()) {
         const message = error.message.trim();
-        if (/超时/u.test(message)) return '搞太久了，我先歇会儿，你过会再喊我 😅';
+        if (/超时/u.test(message)) return '搞太久了还没跑完，任务可以拆小点再试，或把超时调长点 😅';
         if (/401|403|unauthorized|forbidden/iu.test(message)) return '那边口令不对，主人检查一下 👌';
         if (/fetch failed|network|ECONNREFUSED|Failed to connect/iu.test(message)) {
             return '连不上办事那边，看看本机 Gateway 和隧道是不是开着';

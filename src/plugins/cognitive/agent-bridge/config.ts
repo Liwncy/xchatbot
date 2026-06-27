@@ -4,7 +4,9 @@ import type {AgentBridgeProvider, AgentBridgeRuntimeConfig} from './types.js';
 
 const DEFAULT_MODEL = 'openclaw/default';
 const DEFAULT_SESSION_TTL_SEC = 60 * 60 * 24 * 7;
-const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
+/** Claude Code 经 OpenClaw 跑工具链，120s 经常不够。 */
+const DEFAULT_REQUEST_TIMEOUT_MS = 600_000;
+const MAX_REQUEST_TIMEOUT_MS = 900_000;
 
 interface PersistedAgentBridgeConfig {
     enabled?: boolean;
@@ -39,6 +41,10 @@ function normalizePositiveInt(value: unknown, fallback: number): number {
     const raw = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value.trim(), 10) : Number.NaN;
     if (!Number.isFinite(raw) || raw <= 0) return fallback;
     return Math.floor(raw);
+}
+
+function normalizeRequestTimeoutMs(value: unknown, fallback: number): number {
+    return Math.min(normalizePositiveInt(value, fallback), MAX_REQUEST_TIMEOUT_MS);
 }
 
 function normalizeProvider(value: unknown): AgentBridgeProvider {
@@ -98,7 +104,7 @@ export async function loadAgentBridgeRuntimeConfig(env: Env): Promise<AgentBridg
             persisted?.sessionTtlSec ?? persisted?.session_ttl_sec,
             DEFAULT_SESSION_TTL_SEC,
         ),
-        requestTimeoutMs: normalizePositiveInt(
+        requestTimeoutMs: normalizeRequestTimeoutMs(
             persisted?.requestTimeoutMs ?? persisted?.request_timeout_ms ?? env.AGENT_BRIDGE_TIMEOUT_MS,
             DEFAULT_REQUEST_TIMEOUT_MS,
         ),
