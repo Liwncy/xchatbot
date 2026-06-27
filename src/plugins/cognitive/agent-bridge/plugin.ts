@@ -1,7 +1,6 @@
 import type {TextMessage} from '../../types.js';
 import type {IncomingMessage} from '../../../types/message.js';
 import type {Env} from '../../../types/env.js';
-import type {MessageHandlerContext} from '../../../types/plugin.js';
 import {setChatLogHandleMeta} from '../../../chat-log/index.js';
 import {logger} from '../../../utils/logger.js';
 import {ensureOwner} from '../../system/message-revoke/service.js';
@@ -96,7 +95,6 @@ async function runAgentBridgeTask(
 async function handleAgentBridgeCommand(
     message: IncomingMessage,
     env: Env,
-    handlerContext?: MessageHandlerContext,
 ): Promise<ReturnType<TextMessage['handle']>> {
     const content = (message.content ?? '').trim();
     const ownerErr = ensureAgentBridgeOwner(message.from, env.BOT_OWNER_WECHAT_ID);
@@ -124,18 +122,10 @@ async function handleAgentBridgeCommand(
         };
     }
 
-    const task = runAgentBridgeTask(message, env, prompt);
-    if (handlerContext?.waitUntil) {
-        handlerContext.waitUntil(task);
-        return null;
-    }
-
-    try {
-        await task;
-        return null;
-    } catch (error) {
-        return {type: 'text', content: formatAgentBridgeError(error)};
-    }
+    // 必须在本次 Worker 请求内 await 完成：ctx.waitUntil 在响应返回后约 30s 会被取消，
+    // OpenClaw 常超过该时限，会导致 deliver 永远发不到微信。
+    await runAgentBridgeTask(message, env, prompt);
+    return null;
 }
 
 export const agentBridgePlugin: TextMessage = {
@@ -145,8 +135,8 @@ export const agentBridgePlugin: TextMessage = {
 
     match: (content) => isAgentBridgeTrigger(content),
 
-    handle: async (message, env, handlerContext) => {
-        const result = await handleAgentBridgeCommand(message, env, handlerContext);
+    handle: async (message, env) => {
+        const result = await handleAgentBridgeCommand(message, env);
         setChatLogHandleMeta(message, {pluginName: 'agent-bridge'});
         return result;
     },
