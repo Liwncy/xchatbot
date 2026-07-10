@@ -229,6 +229,9 @@ export const dynamicRulesEngine: TextMessage = {
                     body: rule.body,
                     mode: rule.mode,
                     jsonPath: rule.jsonPath,
+                    timeoutMs: typeof rule.requestConfig?.timeoutMs === 'number'
+                        ? rule.requestConfig.timeoutMs
+                        : undefined,
                 },
                 templateParams,
                 '动态规则',

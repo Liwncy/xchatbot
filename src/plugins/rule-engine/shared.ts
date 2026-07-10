@@ -11,6 +11,8 @@ export interface TemplatedRequestSpec {
     body?: unknown;
     mode: SharedRequestMode;
     jsonPath?: string;
+    /** 单次请求超时（毫秒）；未设置时默认 15s。 */
+    timeoutMs?: number;
 }
 
 interface LinkReplySource {
@@ -320,6 +322,13 @@ export function looksLikeBase64(value: string): boolean {
 
 const MAX_MEDIA_SIZE = 20 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 15_000;
+const MIN_FETCH_TIMEOUT_MS = 1_000;
+const MAX_FETCH_TIMEOUT_MS = 120_000;
+
+function resolveFetchTimeoutMs(timeoutMs?: number): number {
+    if (timeoutMs == null || !Number.isFinite(timeoutMs)) return FETCH_TIMEOUT_MS;
+    return Math.min(MAX_FETCH_TIMEOUT_MS, Math.max(MIN_FETCH_TIMEOUT_MS, Math.floor(timeoutMs)));
+}
 
 function decodeBase64Head(base64: string, maxBytes = 64): Uint8Array | null {
     try {
@@ -633,14 +642,16 @@ export async function fetchTemplatedValue(
     }
 
     const renderedUrl = renderTemplateString(request.url, params, true);
+    const timeoutMs = resolveFetchTimeoutMs(request.timeoutMs);
 
     logger.debug(`${errorPrefix}发起请求`, {
         targetUrl: renderedUrl,
         finalUrl: renderedUrl,
+        timeoutMs,
     });
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     requestInit.signal = controller.signal;
 
     let response: Response;
@@ -649,7 +660,7 @@ export async function fetchTemplatedValue(
     } catch (err) {
         clearTimeout(timer);
         if (err instanceof Error && err.name === 'AbortError') {
-            throw new Error(`${errorPrefix}请求超时（>${FETCH_TIMEOUT_MS}ms） url=${renderedUrl}`);
+            throw new Error(`${errorPrefix}请求超时（>${timeoutMs}ms） url=${renderedUrl}`);
         }
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(`${errorPrefix}网络请求异常 url=${renderedUrl} reason=${msg}`);

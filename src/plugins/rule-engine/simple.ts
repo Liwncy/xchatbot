@@ -223,6 +223,9 @@ export const simpleRulesEngine: TextMessage = {
                     body: matchedRule.body,
                     mode: matchedRule.mode,
                     jsonPath: matchedRule.jsonPath,
+                    timeoutMs: typeof matchedRule.requestConfig?.timeoutMs === 'number'
+                        ? matchedRule.requestConfig.timeoutMs
+                        : undefined,
                 },
                 templateParams,
                 '简单规则',
