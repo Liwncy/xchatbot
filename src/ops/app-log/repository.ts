@@ -9,7 +9,47 @@ export interface AppLogInsert {
     createdAt?: number;
 }
 
+export interface AppLogRecord {
+    id: number;
+    level: string;
+    message: string;
+    detailJson: string;
+    createdAt: number;
+}
+
+export interface AppLogQueryOptions {
+    level?: AppLogLevel;
+    keyword?: string;
+    limit?: number;
+}
+
+type AppLogRow = {
+    id: number;
+    level: string;
+    message: string;
+    detail_json: string;
+    created_at: number;
+};
+
+const DEFAULT_QUERY_LIMIT = 10;
+const MAX_QUERY_LIMIT = 50;
+
 let schemaReady: Promise<void> | null = null;
+
+function clampLimit(limit?: number): number {
+    if (limit == null || !Number.isFinite(limit)) return DEFAULT_QUERY_LIMIT;
+    return Math.min(MAX_QUERY_LIMIT, Math.max(1, Math.floor(limit)));
+}
+
+function mapRow(row: AppLogRow): AppLogRecord {
+    return {
+        id: row.id,
+        level: row.level,
+        message: row.message,
+        detailJson: row.detail_json,
+        createdAt: row.created_at,
+    };
+}
 
 export class AppLogRepository {
     private static readonly CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS app_log ('
@@ -53,9 +93,65 @@ export class AppLogRepository {
             createdAt,
         ).run();
     }
+
+    static async listRecent(db: D1Database, options: AppLogQueryOptions = {}): Promise<AppLogRecord[]> {
+        await AppLogRepository.ensureSchema(db);
+        const limit = clampLimit(options.limit);
+        const level = options.level?.trim().toUpperCase();
+        const keyword = options.keyword?.trim();
+
+        if (level && keyword) {
+            const like = `%${keyword}%`;
+            const result = await db.prepare(
+                `SELECT id, level, message, detail_json, created_at
+                 FROM app_log
+                 WHERE level = ?1
+                   AND (message LIKE ?2 OR detail_json LIKE ?2)
+                 ORDER BY id DESC
+                 LIMIT ?3`,
+            ).bind(level, like, limit).all<AppLogRow>();
+            return (result.results ?? []).map(mapRow);
+        }
+
+        if (level) {
+            const result = await db.prepare(
+                `SELECT id, level, message, detail_json, created_at
+                 FROM app_log
+                 WHERE level = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2`,
+            ).bind(level, limit).all<AppLogRow>();
+            return (result.results ?? []).map(mapRow);
+        }
+
+        if (keyword) {
+            const like = `%${keyword}%`;
+            const result = await db.prepare(
+                `SELECT id, level, message, detail_json, created_at
+                 FROM app_log
+                 WHERE message LIKE ?1 OR detail_json LIKE ?1
+                 ORDER BY id DESC
+                 LIMIT ?2`,
+            ).bind(like, limit).all<AppLogRow>();
+            return (result.results ?? []).map(mapRow);
+        }
+
+        const result = await db.prepare(
+            `SELECT id, level, message, detail_json, created_at
+             FROM app_log
+             ORDER BY id DESC
+             LIMIT ?1`,
+        ).bind(limit).all<AppLogRow>();
+        return (result.results ?? []).map(mapRow);
+    }
 }
 
 export async function persistAppLog(env: Env, entry: AppLogInsert): Promise<void> {
     if (!env.XBOT_DB) return;
     await AppLogRepository.insert(env.XBOT_DB, entry);
+}
+
+export async function queryAppLogs(env: Env, options: AppLogQueryOptions = {}): Promise<AppLogRecord[]> {
+    if (!env.XBOT_DB) return [];
+    return AppLogRepository.listRecent(env.XBOT_DB, options);
 }

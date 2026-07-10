@@ -1,2 +1,2 @@
-export {AppLogRepository, persistAppLog} from './repository.js';
-export type {AppLogInsert, AppLogLevel} from './repository.js';
+export {AppLogRepository, persistAppLog, queryAppLogs} from './repository.js';
+export type {AppLogInsert, AppLogLevel, AppLogQueryOptions, AppLogRecord} from './repository.js';
