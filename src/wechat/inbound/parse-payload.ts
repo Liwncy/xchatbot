@@ -105,24 +105,54 @@ function resolveGroupMessageFrom(
     return '';
 }
 
+/** 客户端解不出正文时的占位文案（常见于引用/新类型消息）。 */
+const UNSUPPORTED_CONTENT_MARKERS = [
+    '无法显示此消息，你目前使用的微信版本暂时不支持此类型的信息。',
+    '无法显示此消息',
+] as const;
+
+function isUnsupportedClientContent(content: string): boolean {
+    const text = content.trim();
+    if (!text) return false;
+    return UNSUPPORTED_CONTENT_MARKERS.some((marker) => text === marker || text.includes(marker));
+}
+
 /**
- * `push_content` 常见格式：`显示名 : 消息内容`，用于补全 senderName。
+ * `push_content` 常见格式：`显示名 : 消息内容`。
+ * 用于补全 senderName，并在正文不可用时回退取预览文案。
  */
-function parseSenderNameFromPushContent(pushContent?: string): string | undefined {
-    if (!pushContent) return undefined;
+function parsePushContentPreview(pushContent?: string): {senderName?: string; previewText?: string} {
+    if (!pushContent) return {};
 
     const separatorIndex = pushContent.indexOf(' : ');
     if (separatorIndex > 0) {
         const name = pushContent.slice(0, separatorIndex).trim();
-        if (name) return name;
+        const previewText = pushContent.slice(separatorIndex + 3).trim();
+        return {
+            ...(name ? {senderName: name} : {}),
+            ...(previewText ? {previewText} : {}),
+        };
     }
+
     const groupActionMatch = pushContent.match(/^(.+?)在群聊中发了/);
     if (groupActionMatch?.[1]) {
         const name = groupActionMatch[1].trim();
-        if (name) return name;
+        if (name) return {senderName: name};
     }
 
-    return undefined;
+    const trimmed = pushContent.trim();
+    return trimmed ? {previewText: trimmed} : {};
+}
+
+function resolveTextContent(
+    parsedContent: string,
+    pushPreview?: {previewText?: string},
+): string {
+    if (!isUnsupportedClientContent(parsedContent)) {
+        return parsedContent;
+    }
+    const fallback = pushPreview?.previewText?.trim();
+    return fallback || parsedContent;
 }
 
 function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
@@ -151,6 +181,7 @@ export function parseWechatPushItem(
     const msgType = mapWechatType(item.type);
     const source = inferWechatSource(item);
     const rawContent = item.content?.value ?? item.push_content ?? '';
+    const pushPreview = parsePushContentPreview(item.push_content);
     const groupMeta = source === 'group'
         ? parseGroupTextSender(rawContent)
         : {content: rawContent};
@@ -159,7 +190,7 @@ export function parseWechatPushItem(
         platform: 'wechat' as const,
         source,
         from: source === 'group' ? resolveGroupMessageFrom(item, groupMeta) : (item.sender?.value ?? ''),
-        senderName: parseSenderNameFromPushContent(item.push_content),
+        senderName: pushPreview.senderName,
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),
         messageId: String(getWechatItemId(item) ?? getWechatItemNewId(item) ?? item.create_time),
@@ -176,7 +207,7 @@ export function parseWechatPushItem(
         return {
             ...base,
             type: 'text',
-            content: groupMeta.content,
+            content: resolveTextContent(groupMeta.content, pushPreview),
         };
     }
 
@@ -245,7 +276,14 @@ export function parseWechatPushItem(
         return message;
     }
 
-    return {...base, type: 'text', content: item.content?.value ?? item.push_content ?? ''};
+    return {
+        ...base,
+        type: 'text',
+        content: resolveTextContent(
+            source === 'group' ? groupMeta.content : (item.content?.value ?? ''),
+            pushPreview,
+        ),
+    };
 }
 
 function getWechatPushItems(payload: WechatPushMessage): WechatPushItem[] {
