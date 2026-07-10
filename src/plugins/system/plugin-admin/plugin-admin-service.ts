@@ -281,6 +281,7 @@ function validateReplySpecificFields(rule: {
     cardNickname?: string;
     appXml?: string;
     appType?: number;
+    jsonPath?: string;
 }): void {
     if (rule.rType === 'link' && rule.linkPicUrl) {
         normalizeOptionalHttpUrl(rule.linkPicUrl, '链接图片');
@@ -299,8 +300,9 @@ function validateReplySpecificFields(rule: {
         }
     }
     if (rule.rType === 'app') {
-        if (!rule.appXml?.trim()) {
-            throw new Error('app 回复至少需要 appXml');
+        // 静态 appXml，或运行时由 jsonPath 拼出 XML（如点歌）均可
+        if (!rule.appXml?.trim() && !rule.jsonPath?.trim()) {
+            throw new Error('app 回复至少需要 appXml，或通过提取(jsonPath)在运行时生成');
         }
         if (rule.appType != null && !Number.isFinite(rule.appType)) {
             throw new Error('app类型必须是数字');
