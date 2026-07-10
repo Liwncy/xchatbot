@@ -207,6 +207,36 @@ function normalizeJsonValue(value: unknown, fieldLabel: string): unknown {
     return value;
 }
 
+/** 请求体可为 JSON，或运行时模板字符串（如 {{body}}）。 */
+function normalizeRequestBodyValue(value: unknown): unknown {
+    if (value == null) return undefined;
+    if (typeof value !== 'string') return value;
+
+    const text = value.trim();
+    if (!text) return undefined;
+
+    // 已是对象/数组 JSON 文本时解析；模板或纯文本原样保留
+    if (text.startsWith('{') || text.startsWith('[')) {
+        try {
+            return JSON.parse(text);
+        } catch {
+            // 以 {/[ 开头但不是合法 JSON 时，仍按原始字符串保留（可能含模板）
+            return text;
+        }
+    }
+
+    // 带引号的 JSON 字符串，例如 "\"hello\"" / "\"{{body}}\""
+    if (text.startsWith('"') && text.endsWith('"')) {
+        try {
+            return JSON.parse(text);
+        } catch {
+            return text;
+        }
+    }
+
+    return text;
+}
+
 function normalizeOptionalJsonObject(value: unknown, fieldLabel: string): Record<string, unknown> | undefined {
     if (value == null) return undefined;
     const parsed = normalizeJsonValue(value, fieldLabel);
@@ -239,7 +269,7 @@ function buildRequestConfigValue(rawRule: Record<string, unknown>): RuleRequestC
     const headers = normalizeHeadersValue(rawRule.headers);
     const hasBody = hasOwn(rawRule, 'body');
     if (headers) requestConfig.headers = headers;
-    if (hasBody) requestConfig.body = normalizeJsonValue(rawRule.body, '请求体');
+    if (hasBody) requestConfig.body = normalizeRequestBodyValue(rawRule.body);
     return Object.keys(requestConfig).length ? requestConfig : undefined;
 }
 
@@ -742,7 +772,7 @@ function applyAdvancedFieldsToRule(
         changedFields?.push('请求头');
     }
     if (hasOwn(fields, 'body')) {
-        const body = normalizeJsonValue(fields.body, '请求体');
+        const body = normalizeRequestBodyValue(fields.body);
         if (body !== undefined) {
             nextRule.body = body;
         } else if (hasOwn(nextRule, 'body')) {
@@ -1065,7 +1095,7 @@ function validateCommonRuleRecord(rawRule: Record<string, unknown>): SimpleRule 
         method: methodText ? normalizeMethod(methodText) : undefined,
         jsonPath,
         headers: normalizeHeadersValue(rawRule.headers),
-        body: normalizeJsonValue(rawRule.body, '请求体'),
+        body: normalizeRequestBodyValue(rawRule.body),
         requestConfig: buildRequestConfigValue(rawRule),
         linkTitle: normalizeOptionalString(rawRule.linkTitle),
         linkDescription: normalizeOptionalString(rawRule.linkDescription),
@@ -1149,7 +1179,7 @@ function validateDynamicRuleRecord(rawRule: Record<string, unknown>): DynamicRul
         jsonPath,
         args,
         headers: normalizeHeadersValue(rawRule.headers),
-        body: normalizeJsonValue(rawRule.body, '请求体'),
+        body: normalizeRequestBodyValue(rawRule.body),
         requestConfig: buildRequestConfigValue(rawRule),
         linkTitle: normalizeOptionalString(rawRule.linkTitle),
         linkDescription: normalizeOptionalString(rawRule.linkDescription),
