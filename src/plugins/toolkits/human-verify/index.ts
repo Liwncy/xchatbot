@@ -9,7 +9,7 @@ import {
     humanVerifySessionKey,
 } from '../../../turnstile';
 
-const TRIGGER_PATTERNS = [/人机验证/i, /是人类吗/i, /转人工/i];
+const TRIGGER_PATTERNS = [/人机验证/i, /是人吗/i, /转人工/i];
 const STATUS_PATTERNS = [/验证结果/i, /人机结果/i, /验证状态/i, /^\/human\s+status$/i, /^\/cm\s+human-status$/i];
 const VERIFY_LINK_CARD_TITLE = '请先完成人机验证';
 const VERIFY_LINK_CARD_DESC = '点击进入验证页面，完成后会自动通知结果';
