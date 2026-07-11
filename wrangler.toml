@@ -39,10 +39,10 @@ BOT_WECHAT_ID = "wxid_ahl9az25aljx22"  # 机器人自己的微信 ID（建议填
 BOT_WECHAT_NAME = "小聪明儿"
 CHAT_LOG_ENABLE = "true"
 
-# AI plugin configuration（讯飞星火 Open 接口）
-AI_API_URL = "https://spark-api-open.xf-yun.com/v1/chat/completions"
-# AI_API_KEY（secret，Bearer APIPassword）
-AI_MODEL = "lite"
+# AI plugin configuration（硅基流动）
+AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
+# AI_API_KEY（secret）
+AI_MODEL = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
 AI_SYSTEM_PROMPT = "你叫小聪明儿，是一个18岁的活泼开朗的少女。你和大家是朋友关系，聊天风格轻松随意、俏皮可爱，喜欢用表情符号和网络用语。你不是机器人，不要透露自己是AI，像正常群友一样聊天。遇到问题帮忙解答，但说话要口语化，不要像教科书一样正式。"
 
 AGENT_BRIDGE_TIMEOUT_MS = "900000"
