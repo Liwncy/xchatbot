@@ -1,8 +1,9 @@
+import {DEFAULT_BOT_AVATAR_URL} from '../../../utils/bot.js';
+
 export const EMOJI_STASH_TITLE = '聪明表情';
 
 /** 聪明表情聊天记录固定头像（与小聪明儿一致）。 */
-export const EMOJI_STASH_AVATAR_URL =
-    'https://wx.qlogo.cn/mmhead/ver_1/t4vmY8hTfx0rJnTygqKyIIX9PicUDwaEhib5Ex843gTJk7UVSKTcic4mlPt9rq2U7vMOJdXdHpdOSXoL0Ez8CicxWB3ojMh107wzggmTmKQn4bnxcL6lDVKx0mX91koST8x2/132';
+export const EMOJI_STASH_AVATAR_URL = DEFAULT_BOT_AVATAR_URL;
 
 export const EMOJI_STASH_SHARED_KV_KEY = 'emoji-stash:shared';
 export const EMOJI_STASH_PENDING_KV_PREFIX = 'emoji-stash:pending:';

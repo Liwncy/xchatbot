@@ -1,12 +1,15 @@
 import type {IncomingMessage} from '../../../types/message.js';
 import type {HandlerResponse, ReplyMessage, TextReply} from '../../../types/reply.js';
+import {DEFAULT_BOT_AVATAR_URL, getDefaultBotWechatName} from '../../../utils/bot.js';
+import {splitTextForChatRecord} from '../../../utils/chat-record-chunks.js';
 import {buildWechatChatRecordAppReply} from '../../../wechat';
 import type {PluginAdminCommand} from './plugin-admin-types.js';
 
 const LONG_TEXT_MIN_LENGTH = 260;
 const LONG_TEXT_MIN_LINES = 12;
-const MAX_CHUNK_LENGTH = 800;
-const MAX_CHUNK_LINES = 18;
+/** 插件管理详情常含长 jsonPath，单条放宽一些，少切几刀 */
+const MAX_CHUNK_LENGTH = 1400;
+const MAX_CHUNK_LINES = 40;
 
 interface PluginAdminChatRecordPolicy {
     forceFold?: boolean;
@@ -51,7 +54,11 @@ function maybeConvertPluginAdminReply(
     if (!content) return reply;
 
     const title = resolveRecordTitle(command, content);
-    const chunks = splitIntoRecordChunks(content);
+    const nickname = getDefaultBotWechatName();
+    const chunks = splitTextForChatRecord(content, {
+        maxLength: MAX_CHUNK_LENGTH,
+        maxLines: MAX_CHUNK_LINES,
+    });
 
     try {
         return buildWechatChatRecordAppReply({
@@ -60,7 +67,8 @@ function maybeConvertPluginAdminReply(
             desc: chunks.length > 1 ? `${title}（共 ${chunks.length} 条）` : title,
             isChatRoom: message.source === 'group',
             items: chunks.map((chunk, index) => ({
-                nickname: chunks.length > 1 ? `插件管理${index + 1}` : '插件管理',
+                nickname,
+                avatarUrl: DEFAULT_BOT_AVATAR_URL,
                 content: chunk,
                 timestampMs: message.timestamp * 1000,
                 localId: `${message.messageId}-plugin-admin-${index + 1}`,
@@ -126,95 +134,3 @@ function buildSummary(content: string): string {
     const summary = lines.join(' / ');
     return summary.length > 120 ? `${summary.slice(0, 120)}…` : summary;
 }
-
-function splitIntoRecordChunks(content: string): string[] {
-    const blocks = content
-        .split(/\n\s*\n/g)
-        .map((block) => block.trim())
-        .filter(Boolean);
-    if (!blocks.length) return [content];
-
-    const chunks: string[] = [];
-    let current = '';
-
-    const flushCurrent = (): void => {
-        const trimmed = current.trim();
-        if (trimmed) chunks.push(trimmed);
-        current = '';
-    };
-
-    const appendBlock = (block: string): void => {
-        const next = current ? `${current}\n\n${block}` : block;
-        if (next.length > MAX_CHUNK_LENGTH || lineCountOf(next) > MAX_CHUNK_LINES) {
-            flushCurrent();
-            if (block.length > MAX_CHUNK_LENGTH || lineCountOf(block) > MAX_CHUNK_LINES) {
-                splitLargeBlock(block).forEach((part) => chunks.push(part));
-                return;
-            }
-        }
-        current = current ? `${current}\n\n${block}` : block;
-    };
-
-    for (const block of blocks) {
-        appendBlock(block);
-    }
-    flushCurrent();
-
-    return chunks.length ? chunks : splitLargeBlock(content);
-}
-
-function splitLargeBlock(block: string): string[] {
-    const lines = block.split('\n');
-    const chunks: string[] = [];
-    let current: string[] = [];
-
-    const flush = (): void => {
-        const text = current.join('\n').trim();
-        if (text) chunks.push(text);
-        current = [];
-    };
-
-    for (const line of lines) {
-        const next = current.length ? [...current, line].join('\n') : line;
-        if (next.length > MAX_CHUNK_LENGTH || current.length + 1 > MAX_CHUNK_LINES) {
-            flush();
-        }
-        if (line.length > MAX_CHUNK_LENGTH) {
-            flush();
-            chunks.push(...sliceLongLine(line));
-            continue;
-        }
-        current.push(line);
-    }
-    flush();
-
-    return chunks.length ? chunks : [block.trim()];
-}
-
-function sliceLongLine(line: string): string[] {
-    const result: string[] = [];
-    let rest = line.trim();
-    while (rest.length > MAX_CHUNK_LENGTH) {
-        const sliceIndex = resolveLongLineSliceIndex(rest, MAX_CHUNK_LENGTH);
-        result.push(rest.slice(0, sliceIndex).trim());
-        rest = rest.slice(sliceIndex).trim();
-    }
-    if (rest) result.push(rest);
-    return result;
-}
-
-function resolveLongLineSliceIndex(text: string, maxLength: number): number {
-    const preferredBreakChars = [' ', '，', '。', '；', '：', ',', '.', ';', ':', '）', ')', ']', '】', '}', '、'];
-    for (let index = maxLength; index >= Math.floor(maxLength * 0.6); index -= 1) {
-        if (preferredBreakChars.includes(text[index] ?? '')) {
-            return index + 1;
-        }
-    }
-    return maxLength;
-}
-
-function lineCountOf(content: string): number {
-    return content.split('\n').length;
-}
-
-

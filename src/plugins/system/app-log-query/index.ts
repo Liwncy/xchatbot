@@ -3,6 +3,7 @@ import type {IncomingMessage} from '../../../types/message.js';
 import type {ReplyMessage, TextReply} from '../../../types/reply.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {queryAppLogs, type AppLogLevel, type AppLogQueryOptions, type AppLogRecord} from '../../../ops/app-log/index.js';
+import {DEFAULT_BOT_AVATAR_URL} from '../../../utils/bot.js';
 import {buildWechatChatRecordAppReply} from '../../../wechat/index.js';
 
 const COMMAND_PREFIXES = ['查日志', '日志查询', 'applog'] as const;
@@ -156,6 +157,7 @@ function buildLogChatRecordReply(
                 isChatRoom: message.source === 'group',
                 items: [{
                     nickname: '日志',
+                    avatarUrl: DEFAULT_BOT_AVATAR_URL,
                     content: emptyText,
                     timestampMs: message.timestamp * 1000,
                     localId: `${message.messageId}-app-log-empty`,
@@ -181,6 +183,7 @@ function buildLogChatRecordReply(
             isChatRoom: message.source === 'group',
             items: rows.map((row, index) => ({
                 nickname: `${row.level}#${row.id}`,
+                avatarUrl: DEFAULT_BOT_AVATAR_URL,
                 content: formatLogItem(row),
                 timestampMs: (row.createdAt > 1_000_000_000_000 ? row.createdAt : row.createdAt * 1000),
                 localId: `${message.messageId}-app-log-${index + 1}`,
