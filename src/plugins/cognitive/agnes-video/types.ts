@@ -9,7 +9,7 @@ export interface AgnesVideoTicketRecord {
     roomId?: string;
     createdAt: number;
     mode: AgnesVideoTaskMode;
-    /** 视频封面图 URL，文绘影为百度绘图，图绘影为引用图 CDN 地址。 */
+    /** 视频封面图 URL，文绘影为共享绘图服务，图绘影为引用图 CDN 地址。 */
     thumbUrl?: string;
 }
 

@@ -1,64 +1,47 @@
+import type {Env} from '../../types/env.js';
 import {logger} from '../../utils/logger.js';
+import {getRequestContext} from '../../utils/request-context.js';
 
-const GENERATE_URL = 'https://image.baidu.com/aigc/generate';
-const QUERY_URL = 'https://image.baidu.com/aigc/query';
-const DEFAULT_WIDTH = 512;
-const DEFAULT_HEIGHT = 512;
-const DEFAULT_POLL_INTERVAL_MS = 500;
-const DEFAULT_MAX_ATTEMPTS = 20;
+/** 默认对接 OpenAI 兼容的 images/generations；换服务商时改 DRAW_API_BASE_URL / DRAW_MODEL 即可 */
+const DEFAULT_BASE_URL = 'https://api.siliconflow.cn/v1';
+const DEFAULT_MODEL = 'Kwai-Kolors/Kolors';
+const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_INFERENCE_STEPS = 20;
+const DEFAULT_GUIDANCE_SCALE = 7.5;
 
-const SCALES: Record<string, readonly [number, number]> = {
-    '1:1': [512, 512],
-    '3:4': [480, 640],
-    '4:3': [640, 480],
-    '16:9': [640, 360],
-    '9:16': [360, 640],
+/** 比例 → image_size */
+const IMAGE_SIZES: Record<string, string> = {
+    '1:1': '1024x1024',
+    '3:4': '768x1024',
+    '4:3': '1024x768',
+    '16:9': '1024x576',
+    '9:16': '576x1024',
 };
 
 export interface DrawRequestOptions {
-    width?: number;
-    height?: number;
+    /** 宽高比，如 1:1 / 9:16；也可写在提示词末尾 */
     scale?: string;
-    maxAttempts?: number;
-    pollIntervalMs?: number;
-    generateUrl?: string;
-    queryUrl?: string;
-}
-
-interface DrawTaskPayload {
-    taskid?: string;
-    token?: string;
-    timestamp?: string | number;
-    [key: string]: unknown;
-}
-
-interface DrawQueryPicItem {
-    src?: string;
-    [key: string]: unknown;
-}
-
-interface DrawQueryPayload {
-    status?: unknown;
-    message?: string;
-    isGenerate?: boolean;
-    picArr?: DrawQueryPicItem[];
-    [key: string]: unknown;
+    /** 显式传入 env；缺省从请求上下文读取 */
+    env?: Env;
+    /** 覆盖默认超时（毫秒） */
+    timeoutMs?: number;
 }
 
 interface ParsedDrawCommand {
     prompt: string;
-    width: number;
-    height: number;
     scale: string;
+    imageSize: string;
 }
 
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+interface DrawImageResponse {
+    images?: Array<{url?: string}>;
+    data?: Array<{url?: string}>;
+    [key: string]: unknown;
 }
 
 function normalizeScale(scale?: string): string {
     const normalized = scale?.trim() || '1:1';
-    return SCALES[normalized] ? normalized : '1:1';
+    return IMAGE_SIZES[normalized] ? normalized : '1:1';
 }
 
 function parseDrawCommand(content: string, options?: DrawRequestOptions): ParsedDrawCommand {
@@ -70,10 +53,9 @@ function parseDrawCommand(content: string, options?: DrawRequestOptions): Parsed
     const parts = trimmed.split(/\s+/).filter(Boolean);
     const explicitScale = options?.scale?.trim();
     const tailScale = parts.length > 1 ? parts[parts.length - 1] : '';
-    const scale = normalizeScale(explicitScale || (SCALES[tailScale] ? tailScale : '1:1'));
-    const [defaultWidth, defaultHeight] = SCALES[scale] ?? [DEFAULT_WIDTH, DEFAULT_HEIGHT];
+    const scale = normalizeScale(explicitScale || (IMAGE_SIZES[tailScale] ? tailScale : '1:1'));
 
-    const promptParts = explicitScale || !SCALES[tailScale]
+    const promptParts = explicitScale || !IMAGE_SIZES[tailScale]
         ? parts
         : parts.slice(0, -1);
     const prompt = promptParts.join(' ').trim();
@@ -83,97 +65,100 @@ function parseDrawCommand(content: string, options?: DrawRequestOptions): Parsed
 
     return {
         prompt,
-        width: options?.width ?? defaultWidth,
-        height: options?.height ?? defaultHeight,
         scale,
+        imageSize: IMAGE_SIZES[scale] ?? IMAGE_SIZES['1:1'],
     };
 }
 
-async function postForm(url: string, data: Record<string, string>): Promise<Response> {
-    const body = new URLSearchParams();
-    for (const [key, value] of Object.entries(data)) {
-        body.set(key, value);
-    }
+function resolveEnv(options?: DrawRequestOptions): Env | undefined {
+    return options?.env ?? getRequestContext()?.env;
+}
 
-    return fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        },
-        body: body.toString(),
-    });
+function resolveApiKey(env?: Env): string {
+    return env?.DRAW_API_KEY?.trim() || '';
+}
+
+function resolveBaseUrl(env?: Env): string {
+    const configured = env?.DRAW_API_BASE_URL?.trim();
+    if (configured) return configured.replace(/\/+$/u, '');
+    return DEFAULT_BASE_URL;
+}
+
+function resolveModel(env?: Env): string {
+    return env?.DRAW_MODEL?.trim() || DEFAULT_MODEL;
 }
 
 export class DrawService {
-    static async createTask(content: string, options?: DrawRequestOptions): Promise<DrawTaskPayload> {
-        const command = parseDrawCommand(content, options);
-        const generateUrl = options?.generateUrl?.trim() || GENERATE_URL;
-
-        const response = await postForm(generateUrl, {
-            querycate: '10',
-            query: command.prompt,
-            width: String(command.width),
-            height: String(command.height),
-        });
-
-        if (!response.ok) {
-            throw new Error(`创建绘图任务失败 status=${response.status}`);
-        }
-
-        const payload = (await response.json()) as DrawTaskPayload;
-        if (!payload.taskid || !payload.token || payload.timestamp === undefined || payload.timestamp === null) {
-            throw new Error(`创建绘图任务失败，返回缺少必要字段：${JSON.stringify(payload)}`);
-        }
-
-        logger.info('百度绘图任务创建成功', {
-            prompt: command.prompt,
-            scale: command.scale,
-            width: command.width,
-            height: command.height,
-            taskid: payload.taskid,
-        });
-        return payload;
-    }
-
-    static async queryTask(task: DrawTaskPayload, options?: DrawRequestOptions): Promise<string | null> {
-        const queryUrl = new URL(options?.queryUrl?.trim() || QUERY_URL);
-        queryUrl.searchParams.set('taskid', String(task.taskid ?? ''));
-        queryUrl.searchParams.set('token', String(task.token ?? ''));
-        queryUrl.searchParams.set('timestamp', String(task.timestamp ?? ''));
-
-        const response = await fetch(queryUrl.toString(), {method: 'GET'});
-        if (!response.ok) {
-            throw new Error(`查询绘图任务失败 status=${response.status}`);
-        }
-
-        const result = (await response.json()) as DrawQueryPayload;
-        if (result.status !== undefined && result.status !== null && result.isGenerate !== true) {
-            throw new Error(result.message?.trim() || '生成失败');
-        }
-
-        if (result.isGenerate && Array.isArray(result.picArr) && result.picArr.length > 0) {
-            const src = result.picArr[0]?.src?.trim();
-            return src || null;
-        }
-
-        return null;
-    }
-
+    /**
+     * 共享文生图，返回图片 URL（调用方需尽快下载/转存）。
+     * 默认 OpenAI 兼容 images/generations；换服务商改 DRAW_* 环境变量即可。
+     */
     static async draw(content: string, options?: DrawRequestOptions): Promise<string> {
-        const task = await this.createTask(content, options);
-        const maxAttempts = options?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
-        const pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-
-        for (let i = 0; i < maxAttempts; i += 1) {
-            await sleep(pollIntervalMs);
-            const imageUrl = await this.queryTask(task, options);
-            if (imageUrl) {
-                logger.info('百度绘图生成成功', {taskid: task.taskid, imageUrl});
-                return imageUrl;
-            }
+        const command = parseDrawCommand(content, options);
+        const env = resolveEnv(options);
+        const apiKey = resolveApiKey(env);
+        if (!apiKey) {
+            throw new Error('未配置 DRAW_API_KEY');
         }
 
-        throw new Error('生成失败');
+        const baseUrl = resolveBaseUrl(env);
+        const model = resolveModel(env);
+        const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        const endpoint = `${baseUrl}/images/generations`;
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            logger.info('共享绘图请求', {
+                model,
+                scale: command.scale,
+                imageSize: command.imageSize,
+                promptLength: command.prompt.length,
+            });
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model,
+                    prompt: command.prompt,
+                    image_size: command.imageSize,
+                    batch_size: 1,
+                    num_inference_steps: DEFAULT_INFERENCE_STEPS,
+                    guidance_scale: DEFAULT_GUIDANCE_SCALE,
+                }),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                const detail = (await response.text()).replace(/\s+/g, ' ').trim().slice(0, 300);
+                throw new Error(`共享绘图失败 status=${response.status} detail=${detail}`);
+            }
+
+            const payload = (await response.json()) as DrawImageResponse;
+            const imageUrl = payload.images?.[0]?.url?.trim()
+                || payload.data?.[0]?.url?.trim()
+                || '';
+            if (!imageUrl) {
+                throw new Error(`共享绘图未返回图片 URL：${JSON.stringify(payload).slice(0, 300)}`);
+            }
+
+            logger.info('共享绘图成功', {
+                model,
+                imageUrl: imageUrl.slice(0, 120),
+            });
+            return imageUrl;
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error(`共享绘图超时 timeoutMs=${timeoutMs}`);
+            }
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
     }
 }
-

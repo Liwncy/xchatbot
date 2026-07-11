@@ -4,38 +4,48 @@ import {DrawService} from '../../common/draw-service.js';
 
 type ImageReplyScale = '1:1' | '3:4' | '4:3' | '16:9' | '9:16';
 
-const SMART_DRAW_PREFIX = '百度绘图';
+/** 越长越优先，避免「快绘」被更短词截断 */
+const TRIGGER_KEYWORDS = ['闪图', '快绘', '快画', '闪绘'] as const;
 const DEFAULT_DRAW_SCALE: ImageReplyScale = '1:1';
 
-function extractPrompt(content: string): string {
+function matchTrigger(content: string): string | null {
     const trimmed = content.trim();
-    if (!trimmed.startsWith(SMART_DRAW_PREFIX)) return '';
+    const matched = [...TRIGGER_KEYWORDS]
+        .sort((a, b) => b.length - a.length)
+        .find((keyword) => trimmed.startsWith(keyword));
+    return matched ?? null;
+}
 
-    return trimmed
-        .slice(SMART_DRAW_PREFIX.length)
+function extractPrompt(content: string): string {
+    const keyword = matchTrigger(content);
+    if (!keyword) return '';
+
+    return content
+        .trim()
+        .slice(keyword.length)
         .replace(/^[\s,，。.!！:：;；、~-]+/, '')
         .trim();
 }
 
-function buildFallbackPrompt(requestText: string): string {
+function enrichPrompt(requestText: string): string {
     return `${requestText}，数字艺术插画风格，主体清晰，构图完整，高清，细节丰富`;
 }
 
-export const smartDrawPlugin: TextMessage = {
+export const quickDrawPlugin: TextMessage = {
     type: 'text',
-    name: 'smart-draw',
-    description: '以"百度绘图"开头，走百度 AI 绘图',
-    match: (content) => content.trim().startsWith(SMART_DRAW_PREFIX),
+    name: 'quick-draw',
+    description: '以「闪图 / 快绘 / 快画 / 闪绘」开头，走共享快速绘图',
+    match: (content) => matchTrigger(content) !== null,
     handle: async (message) => {
         const promptText = extractPrompt(message.content ?? '');
         if (!promptText) {
             return {
                 type: 'text',
-                content: '请在“百度绘图”后面加上描述，例如：百度绘图 一个戴草帽的机器人在海边看日落',
+                content: '后面跟一句画面描述就行，比如：闪图 一只戴墨镜的猫',
             };
         }
 
-        const prompt = buildFallbackPrompt(promptText);
+        const prompt = enrichPrompt(promptText);
         try {
             const imageUrl = await DrawService.draw(prompt, {scale: DEFAULT_DRAW_SCALE});
             return {
@@ -44,7 +54,7 @@ export const smartDrawPlugin: TextMessage = {
                 originalUrl: imageUrl,
             };
         } catch (error) {
-            logger.error('百度绘图插件生成失败', {
+            logger.error('快速绘图失败', {
                 promptText,
                 prompt,
                 error: error instanceof Error ? error.message : String(error),

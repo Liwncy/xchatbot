@@ -69,6 +69,16 @@ export interface Env {
     /** Agnes 图像/视频生成 API Key（聪明绘图、聪明绘影）。 */
     AGNES_API_KEY?: string;
 
+    /**
+     * 共享绘图 DrawService（OpenAI 兼容 images/generations）。
+     * 换服务商时改 KEY / BASE_URL / MODEL 即可。
+     */
+    DRAW_API_KEY?: string;
+    /** 绘图 API 根路径，默认 https://api.siliconflow.cn/v1 */
+    DRAW_API_BASE_URL?: string;
+    /** 绘图模型，默认 Kwai-Kolors/Kolors */
+    DRAW_MODEL?: string;
+
     /** Turnstile 页面使用的公开 site key。 */
     TURNSTILE_SITE_KEY?: string;
     /** Turnstile 服务端校验 secret key。 */

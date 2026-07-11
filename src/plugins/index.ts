@@ -26,7 +26,7 @@ import {simpleRulesEngine} from './rule-engine/simple';
 import {dynamicRulesEngine} from './rule-engine/dynamic';
 import {imageIntentTriggerPlugin, imageIntentProcessPlugin} from './cognitive/intent-image';
 import {haokanImagePlugin} from './media/haokan-image';
-import {smartDrawPlugin} from './cognitive/smart-draw';
+import {quickDrawPlugin} from './cognitive/quick-draw';
 import {agnesDrawPlugin} from './cognitive/agnes-draw';
 import {agnesVideoPlugin} from './cognitive/agnes-video';
 import {
@@ -53,12 +53,12 @@ registerPlugin(randomFriendPlugin);
 registerPlugin(wechatChatRecordDemoPlugin);
 registerPlugin(haokanVideoPlugin);
 registerPlugin(haokanImagePlugin);
+registerPlugin(quickDrawPlugin);
 registerPlugin(agnesDrawPlugin);
 registerPlugin(agnesVideoPlugin);
 registerPlugin(agnesTextTriggerPlugin);
 registerPlugin(agnesTextEmojiProcessPlugin);
 registerPlugin(agnesTextImageProcessPlugin);
-registerPlugin(smartDrawPlugin);
 registerPlugin(yinguoImagePlugin);
 registerPlugin(pluginAdminPlugin);
 // 规则引擎
