@@ -18,7 +18,7 @@ export const EMOJI_STASH_NAME_MAX_LENGTH = 32;
 export const EMOJI_STASH_AUTO_COLLECT = true;
 
 /** 自动收藏回复冷却（秒），全局共用；冷却期内仍入库，仅不重复发回复文案。 */
-export const EMOJI_STASH_AUTO_COLLECT_COOLDOWN_SECONDS = 60;
+export const EMOJI_STASH_AUTO_COLLECT_COOLDOWN_SECONDS = 3 * 60 * 60;
 export const EMOJI_STASH_VERIFY_DEFAULT_BATCH = 5;
 export const EMOJI_STASH_VERIFY_MAX_BATCH = 100;
 
