@@ -69,6 +69,7 @@ export async function requestAiText(env: AiEnv, options: RequestAiTextOptions): 
             model,
             input,
             messages,
+            stream: false,
         }),
     });
 
