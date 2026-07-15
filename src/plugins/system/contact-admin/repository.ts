@@ -80,30 +80,31 @@ export class ContactRepository {
         await ContactRepository.ensureGroupMemberColumns(db);
     }
 
+    private static async listTableColumns(db: D1Database, tableName: string): Promise<Set<string>> {
+        const result = await db.prepare(`PRAGMA table_info(${tableName})`).all<{name: string}>();
+        return new Set((result.results ?? []).map((row) => String(row.name ?? '').trim()).filter(Boolean));
+    }
+
     private static async ensureGroupMemberColumns(db: D1Database): Promise<void> {
-        const statements = [
-            "ALTER TABLE group_member ADD COLUMN member_nickname TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE group_member ADD COLUMN member_display_name TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE group_member ADD COLUMN big_avatar_url TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE group_member ADD COLUMN small_avatar_url TEXT NOT NULL DEFAULT ''",
-            'ALTER TABLE group_member ADD COLUMN member_flag INTEGER NOT NULL DEFAULT 0',
-            "ALTER TABLE group_member ADD COLUMN inviter_username TEXT NOT NULL DEFAULT ''",
-            'ALTER TABLE group_member ADD COLUMN server_version INTEGER NOT NULL DEFAULT 0',
-            'ALTER TABLE group_member ADD COLUMN info_mask INTEGER NOT NULL DEFAULT 0',
-            "ALTER TABLE group_member ADD COLUMN source TEXT NOT NULL DEFAULT 'groups_members'",
-            'ALTER TABLE group_member ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0',
-            'ALTER TABLE group_member ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0',
+        const existing = await ContactRepository.listTableColumns(db, 'group_member');
+        const columnsToAdd: Array<{name: string; sql: string}> = [
+            {name: 'member_nickname', sql: "ALTER TABLE group_member ADD COLUMN member_nickname TEXT NOT NULL DEFAULT ''"},
+            {name: 'member_display_name', sql: "ALTER TABLE group_member ADD COLUMN member_display_name TEXT NOT NULL DEFAULT ''"},
+            {name: 'big_avatar_url', sql: "ALTER TABLE group_member ADD COLUMN big_avatar_url TEXT NOT NULL DEFAULT ''"},
+            {name: 'small_avatar_url', sql: "ALTER TABLE group_member ADD COLUMN small_avatar_url TEXT NOT NULL DEFAULT ''"},
+            {name: 'member_flag', sql: 'ALTER TABLE group_member ADD COLUMN member_flag INTEGER NOT NULL DEFAULT 0'},
+            {name: 'inviter_username', sql: "ALTER TABLE group_member ADD COLUMN inviter_username TEXT NOT NULL DEFAULT ''"},
+            {name: 'server_version', sql: 'ALTER TABLE group_member ADD COLUMN server_version INTEGER NOT NULL DEFAULT 0'},
+            {name: 'info_mask', sql: 'ALTER TABLE group_member ADD COLUMN info_mask INTEGER NOT NULL DEFAULT 0'},
+            {name: 'source', sql: "ALTER TABLE group_member ADD COLUMN source TEXT NOT NULL DEFAULT 'groups_members'"},
+            {name: 'created_at', sql: 'ALTER TABLE group_member ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0'},
+            {name: 'updated_at', sql: 'ALTER TABLE group_member ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0'},
         ];
 
-        for (const sql of statements) {
-            try {
-                await db.prepare(sql).run();
-            } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                if (!/duplicate column name/i.test(message)) {
-                    throw error;
-                }
-            }
+        for (const column of columnsToAdd) {
+            if (existing.has(column.name)) continue;
+            await db.prepare(column.sql).run();
+            existing.add(column.name);
         }
     }
 

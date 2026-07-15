@@ -176,6 +176,12 @@ export async function handleWechat(request: Request, env: Env, ctx: ExecutionCon
                 const payload = mapIncomingMessageToXbotInbound(message, env, {wechatApiBaseUrl: apiBaseUrl});
                 const result = await forwardInboundToXbotChannel(xbotChannelConfig, payload);
                 handledByOpenClaw = result.dispatched === true;
+                if (!handledByOpenClaw) {
+                    logger.warn('OpenClaw xbot.inbound 未接管，回退本地插件', {
+                        messageId: message.messageId,
+                        reason: result.reason ?? null,
+                    });
+                }
             } catch (error) {
                 logger.warn('OpenClaw xbot.inbound 转发失败，回退本地插件', {
                     messageId: message.messageId,
