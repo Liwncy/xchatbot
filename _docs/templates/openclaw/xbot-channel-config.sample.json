@@ -1,0 +1,22 @@
+{
+  "channels": {
+    "xbot": {
+      "enabled": true,
+      "wechatApiBaseUrl": "https://wxbot.lwcorspro.dpdns.org",
+      "botWechatId": "wxid_ahl9az25aljx22",
+      "botWechatName": "小聪明儿",
+      "dmPolicy": "open",
+      "groupPolicy": "allowlist",
+      "groupAllowFrom": [
+        "替换为你的群聊 roomId@chatroom"
+      ],
+      "requireMention": true,
+      "accounts": {
+        "Primary": {
+          "enabled": true,
+          "name": "小聪明儿"
+        }
+      }
+    }
+  }
+}

@@ -46,6 +46,16 @@ AI_MODEL = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
 AI_SYSTEM_PROMPT = "你叫小聪明儿，是一个18岁的活泼开朗的少女。你和大家是朋友关系，聊天风格轻松随意、俏皮可爱，喜欢用表情符号和网络用语。你不是机器人，不要透露自己是AI，像正常群友一样聊天。遇到问题帮忙解答，但说话要口语化，不要像教科书一样正式。"
 
 AGENT_BRIDGE_TIMEOUT_MS = "900000"
+# Agent 桥接 / OpenClaw xbot 频道（Gateway 地址与 Token 建议放 .dev.vars 或 wrangler secret）
+# AGENT_BRIDGE_BASE_URL = "https://openclaw.example.com/v1"
+# AGENT_BRIDGE_TOKEN（secret）
+# 开启后 webhook 会把消息转发到 OpenClaw xbot 频道（dispatched 时跳过本地插件）
+XBOT_CHANNEL_ENABLED = "false"
+# 可选覆盖；默认从 AGENT_BRIDGE_BASE_URL 去掉 /v1
+# XBOT_CHANNEL_GATEWAY_URL = "https://openclaw.example.com"
+# XBOT_CHANNEL_GATEWAY_TOKEN（secret，默认同 AGENT_BRIDGE_TOKEN）
+# XBOT_CHANNEL_CLIENT_ID = "xchatbot-worker"
+# XBOT_CHANNEL_TIMEOUT_MS = "120000"
 
 # 共享绘图 DrawService（OpenAI 兼容；换服务商改下面三项即可）
 # DRAW_API_KEY（secret）

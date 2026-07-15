@@ -66,6 +66,17 @@ export interface Env {
     /** Agent 桥接：单次请求超时毫秒数，默认 600000（10 分钟），上限 900000。 */
     AGENT_BRIDGE_TIMEOUT_MS?: string;
 
+    /** xbot OpenClaw 频道：显式开启后 webhook 会转发到 Gateway xbot.inbound。 */
+    XBOT_CHANNEL_ENABLED?: string;
+    /** xbot 频道：Gateway HTTP 根地址（默认同 AGENT_BRIDGE_BASE_URL 去掉 /v1）。 */
+    XBOT_CHANNEL_GATEWAY_URL?: string;
+    /** xbot 频道：Gateway Bearer Token（默认同 AGENT_BRIDGE_TOKEN）。 */
+    XBOT_CHANNEL_GATEWAY_TOKEN?: string;
+    /** xbot 频道：推送端 clientId / connId，默认 xchatbot-worker。 */
+    XBOT_CHANNEL_CLIENT_ID?: string;
+    /** xbot 频道：单次 Gateway 请求超时毫秒数，默认 120000。 */
+    XBOT_CHANNEL_TIMEOUT_MS?: string;
+
     /** Agnes 图像/视频生成 API Key（聪明绘图、聪明绘影）。 */
     AGNES_API_KEY?: string;
 

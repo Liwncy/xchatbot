@@ -13,6 +13,9 @@
 - **想通过“插件管理 ...”聊天命令管理规则**
   - 先看：[`plugins/common/rule-plugin-admin-design.md`](plugins/common/rule-plugin-admin-design.md)（规则引擎文档，当前仍存放在 `plugins/common/` 文档目录）
   - 运行中机器人可直接发送：`插件管理 帮助`
+- **想了解微信网关 / OpenClaw 频道对接**
+  - 看：[`wechat/openclaw-xbot-channel-setup.md`](wechat/openclaw-xbot-channel-setup.md)
+  - OpenClaw 配置样例：[`templates/openclaw/xbot-channel-config.sample.json`](templates/openclaw/xbot-channel-config.sample.json)
 - **想了解定时任务中心**
   - 看：[`scheduler/cloudflare-scheduler-design.md`](scheduler/cloudflare-scheduler-design.md)
   - 再看：[`scheduler/scheduler-api-draft.md`](scheduler/scheduler-api-draft.md)
