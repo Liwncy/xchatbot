@@ -35,8 +35,13 @@ function detectBotMention(content: string, env: Env): {mentions: string[]; botMe
             botMentioned = true;
         }
     }
-    if (botName && content.includes(`@${botName}`)) {
-        botMentioned = true;
+    if (botName) {
+        if (content.includes(botName)) {
+            botMentioned = true;
+        }
+        if (content.includes(`@${botName}`)) {
+            botMentioned = true;
+        }
     }
     return {mentions, botMentioned};
 }

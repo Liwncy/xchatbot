@@ -60,7 +60,7 @@ openclaw channels status --channel xbot
 | `XBOT_CHANNEL_GATEWAY_URL` | 否 | 默认从 `AGENT_BRIDGE_BASE_URL` 去掉 `/v1` |
 | `XBOT_CHANNEL_GATEWAY_TOKEN` | 否 | 默认同 `AGENT_BRIDGE_TOKEN` |
 | `WECHAT_API_BASE_URL` | 是 | 供 connect 时传给 OpenClaw 出站 |
-| `BOT_WECHAT_ID` | 建议 | 群聊 @ 检测 |
+| `BOT_WECHAT_ID` | 建议 | 群聊点名检测（@ 或正文含昵称） |
 
 \* 已配置 agent-bridge 时可复用。
 
@@ -111,7 +111,7 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 期望：`ok: true`，私聊通常 `dispatched: true`。
 
-群聊需 `roomId`、`botMentioned: true`（或正文含 `@小聪明儿`），且群 ID 在 `groupAllowFrom` 中。
+群聊需 `roomId`，且 `botMentioned: true`（正文 **@小聪明儿** 或 **提到「小聪明儿」**，与 ai-dialog 一致），群 ID 在 `groupAllowFrom` 中。
 
 ## 4. 运行时行为
 
@@ -137,11 +137,22 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 - OpenClaw：`requireMention` + `groupAllowFrom`
 - xchatbot：D1 联系人群白名单
-- 正文需 @ 机器人或带 `botMentioned: true`
+- 正文需 @ 机器人、提到机器人昵称，或入站带 `botMentioned: true`
 
 **与 agent-bridge 冲突**
 
 - 频道接管后本地「聪明办事」仍可用；全量入站由 OpenClaw 处理时，不必再手动触发。
+
+## 人设与说话模式
+
+OpenClaw 用人设文件 + Skill 模式包，与本地 `ai-dialog` 的 `prompts` 对齐：
+
+| 模板 | 说明 |
+|------|------|
+| [`../templates/openclaw/workspace/SOUL.md`](../templates/openclaw/workspace/SOUL.md) | 小聪明儿固定底子 |
+| [`../templates/openclaw/workspace/skills/modes/`](../templates/openclaw/workspace/skills/modes/) | 可切换模式：`lcmm` `ysqq` `ghds` `gxwy` `normal` |
+
+安装见 [`../templates/openclaw/workspace/README.md`](../templates/openclaw/workspace/README.md)。李芈仙在群里可 `切绿茶` / `/ysqq` / `恢复正常` 等临时换说话方式；`xcmer` 与 `lcmm` 同属绿茶，统一用 `/lcmm`。
 
 ## 相关仓库
 
