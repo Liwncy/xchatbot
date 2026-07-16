@@ -135,9 +135,23 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 **群消息没反应**
 
-- OpenClaw：`requireMention` + `groupAllowFrom`
-- xchatbot：D1 联系人群白名单
+- OpenClaw：`groupReplyMode` / `requireMention` + `groupAllowFrom`
+- xchatbot：D1 联系人群白名单（`/cm add-group`）；主人旁路不等于群已加白
 - 正文需 @ 机器人、提到机器人昵称，或入站带 `botMentioned: true`
+- `mention` 模式下未点名会返回 `accumulated=true`（只攒历史不回复），属正常
+
+**群里别人说话 Gateway 看不见 / 点名才有上下文**
+
+- 已按 BNCR 做 pending 历史：未点名消息会攒在 Gateway 内存（默认 50 条），点名时注入 Agent
+- `historyForce`（默认开）：窗满会静默 flush 进 session（微信不回，reason=`history-flush`），Gateway 里能看到批次上下文
+- 需重装 xbot 插件并重启 Gateway；Worker 需部署（`accumulated` 时不再回退本地插件）
+- 当天全量统计仍靠 D1 `chat_log`，不是这 50 条短窗
+
+**Gateway 有两条回复，微信只收到最后一条**
+
+- xbot 插件默认已开 **block streaming**（调 Skill 前的说明会先发微信）
+- 更新插件后需 `openclaw plugins install …` 并 `openclaw gateway restart`
+- 若仍只要最终一条，可在配置设 `channels.xbot.blockStreaming: false`
 
 **与 agent-bridge 冲突**
 

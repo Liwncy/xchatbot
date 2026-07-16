@@ -11,6 +11,9 @@
         "替换为你的群聊 roomId@chatroom"
       ],
       "requireMention": true,
+      "groupReplyMode": "mention",
+      "historyLimit": 50,
+      "historyForce": true,
       "accounts": {
         "Primary": {
           "enabled": true,

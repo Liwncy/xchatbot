@@ -42,6 +42,10 @@ openclaw gateway restart
 
 群聊里 **@小聪明儿** 或正文 **提到「小聪明儿」**（与本地 ai-dialog 一致）都会算作点名，OpenClaw 在 `requireMention` 开启时也会接单。
 
+## 新增永久模式
+
+李芈仙可以说「加个毒舌模式 `/dushe`」——小聪明儿会走 **Skill Workshop** 提案，批准后写入 `skills/modes/` 并更新 `SOUL.md` 模式表。细则见 `SOUL.md`「新增永久模式」一节。临时调语气（「这遍毒舌点」）不必新建 Skill。
+
 ## 身份规则
 
 OpenClaw 读 `SOUL.md` 里的认人说明；本地 ai-dialog fallback 仍走 `system-prompt.ts` 动态附录。两边原则一致：认李芈仙看 wxid，聊天里不暴露 wxid。改 id 时同步 `wrangler.toml` 和 `SOUL.md`。

@@ -5,6 +5,7 @@ import type {XbotInboundPayload} from './xbot-inbound-mapper.js';
 export interface XbotGatewayResponse {
     ok: boolean;
     dispatched?: boolean;
+    accumulated?: boolean;
     reason?: string | null;
     error?: string;
     sessionKey?: string | null;
@@ -80,6 +81,7 @@ export async function forwardInboundToXbotChannel(
     logger.debug('OpenClaw xbot.inbound 结果', {
         messageId: payload.messageId,
         dispatched: result.dispatched,
+        accumulated: result.accumulated,
         reason: result.reason,
         sessionKey: result.sessionKey,
     });
