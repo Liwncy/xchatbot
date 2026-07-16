@@ -40,7 +40,7 @@ openclaw gateway restart
 | `botWechatId` | `wxid_ahl9az25aljx22` |
 | `groupAllowFrom` | 联系人群 `roomId@chatroom` 列表 |
 
-`groupPolicy=allowlist` 时，OpenClaw 只处理白名单群；xchatbot 侧仍有 D1 联系人群白名单，两层都过才会转发。
+`groupPolicy=allowlist` 时，OpenClaw 只处理白名单群；xchatbot 侧还有 D1 白名单：群用 `/cm add-group`，私聊用 `/cm add-user`，两层都过才会转发。公众号不进。
 
 ### 检查频道状态
 
@@ -132,6 +132,13 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 - 检查 `channels.xbot.wechatApiBaseUrl` 是否等于 `WECHAT_API_BASE_URL`
 - Gateway 从 Worker 内网能否访问微信网关
+
+**私聊 / 公众号乱回**
+
+- 私聊也要 D1 白名单：`/cm add-user wxid_xxx`（新 sync 的个人默认关闭）
+- 公众号 / `gh_*` / 系统号一律不进；关掉用 `/cm del-user`
+- 主人旁路仍有效；别人私聊未加白不会转发 OpenClaw，也不会走本地插件
+- 若以前 sync 过，库里可能仍有 `enabled=1` 的好友，用 `/cm list` 看，多余的 `/cm del-user` 关掉
 
 **群消息没反应**
 

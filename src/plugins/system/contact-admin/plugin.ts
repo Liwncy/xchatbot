@@ -9,12 +9,26 @@ const COMMAND_LIST = 'list';
 const COMMAND_APPROVE = 'approve';
 const COMMAND_ADD_GROUP = 'add-group';
 const COMMAND_DEL_GROUP = 'del-group';
+const COMMAND_ADD_USER = 'add-user';
+const COMMAND_DEL_USER = 'del-user';
 const COMMAND_REMOVE = 'remove';
 const COMMAND_DEBUG_LIST = 'debug-list';
 const COMMAND_SYNC = 'sync';
 const COMMAND_HELP = 'help';
 
-function parseCommand(content: string): {cmd: 'list' | 'approve' | 'add-group' | 'del-group' | 'remove' | 'debug-list' | 'sync' | 'help'; arg: string} | null {
+type ContactAdminCommand =
+    | 'list'
+    | 'approve'
+    | 'add-group'
+    | 'del-group'
+    | 'add-user'
+    | 'del-user'
+    | 'remove'
+    | 'debug-list'
+    | 'sync'
+    | 'help';
+
+function parseCommand(content: string): {cmd: ContactAdminCommand; arg: string} | null {
     const raw = content.trim();
     if (!raw.startsWith(COMMAND_PREFIX)) return null;
     const text = raw.slice(COMMAND_PREFIX.length).trim();
@@ -29,6 +43,8 @@ function parseCommand(content: string): {cmd: 'list' | 'approve' | 'add-group' |
     if (cmd === COMMAND_APPROVE) return {cmd: 'approve', arg};
     if (cmd === COMMAND_ADD_GROUP) return {cmd: 'add-group', arg};
     if (cmd === COMMAND_DEL_GROUP) return {cmd: 'del-group', arg};
+    if (cmd === COMMAND_ADD_USER) return {cmd: 'add-user', arg};
+    if (cmd === COMMAND_DEL_USER) return {cmd: 'del-user', arg};
     if (cmd === COMMAND_REMOVE) return {cmd: 'remove', arg};
     if (cmd === COMMAND_DEBUG_LIST) return {cmd: 'debug-list', arg};
     if (cmd === COMMAND_SYNC) return {cmd: 'sync', arg};
@@ -37,21 +53,17 @@ function parseCommand(content: string): {cmd: 'list' | 'approve' | 'add-group' |
 
 function buildHelpText(): string {
     return [
-        '联系人管理命令（统一 /cm 前缀）：',
-        '1) /cm help',
-        '2) /cm list',
-        '3) /cm approve {JSON参数}',
-        '4) /cm add-group 123456@chatroom',
-        '5) /cm add-group（在群里发送可直接保存当前群）',
-        '6) /cm del-group 123456@chatroom',
-        '7) /cm del-group（在群里发送可直接移除当前群）',
-        '8) /cm remove wxid_xxx',
-        '9) /cm debug-list',
-        '10) /cm sync',
+        '联系人管理（/cm，仅主人）：',
+        '/cm list',
+        '/cm sync',
+        '/cm add-user wxid_xxx',
+        '/cm del-user wxid_xxx',
+        '/cm add-group 123@chatroom',
+        '/cm del-group 123@chatroom',
+        '/cm remove wxid_xxx',
+        '/cm approve {JSON}',
         '',
-        '说明：',
-        '- 仅机器人主人可执行',
-        '- 群聊仅在群ID属于联系人列表时才回复',
+        '私聊、群聊都要先加白才会理；公众号不理。同步进来的个人默认关着，得 /cm add-user 打开。',
     ].join('\n');
 }
 
@@ -64,6 +76,13 @@ function ensureOwner(messageFrom: string, ownerWxid?: string): string | null {
 
 function buildChatroomContactListFailureText(result: {code: number; message?: unknown}): string {
     return `联系人操作没成功（code=${result.code}），稍后再试试吧`;
+}
+
+function isUserContactId(contactId: string): boolean {
+    const id = contactId.trim();
+    if (!id || id.endsWith('@chatroom')) return false;
+    if (id.startsWith('gh_')) return false;
+    return true;
 }
 
 export const contactAdminPlugin: TextMessage = {
@@ -92,12 +111,12 @@ export const contactAdminPlugin: TextMessage = {
             if (parsed.cmd === 'list') {
                 const contacts = await ContactRepository.listFromDb(env.XBOT_DB);
                 if (contacts.length === 0) {
-                    return {type: 'text', content: '当前联系人表为空，请先执行 /cm sync'};
+                    return {type: 'text', content: '名单还是空的，先 /cm sync，再用 add-user / add-group 打开谁'};
                 }
                 const lines = contacts.map((item) => `${item.contactId} [${item.contactType}]${item.displayName ? ` ${item.displayName}` : ''}`);
                 return {
                     type: 'text',
-                    content: `当前联系人列表（共 ${contacts.length} 项）：\n${lines.join('\n')}`,
+                    content: `当前已开启（共 ${contacts.length}）：\n${lines.join('\n')}`,
                 };
             }
 
@@ -105,7 +124,7 @@ export const contactAdminPlugin: TextMessage = {
                 const result = await ContactRepository.syncToDb(env.XBOT_DB, apiBaseUrl);
                 return {
                     type: 'text',
-                    content: `✅ 联系人同步完成：total=${result.total}, users=${result.users}, groups=${result.groups}, systems=${result.systems}, memberSyncedGroups=${result.memberSyncedGroups}, groupMembers=${result.groupMembers}`,
+                    content: `同步好了：一共 ${result.total}（人 ${result.users} / 群 ${result.groups} / 系统 ${result.systems}），个人默认关着，要用 /cm add-user 打开 👌`,
                 };
             }
 
@@ -136,13 +155,13 @@ export const contactAdminPlugin: TextMessage = {
 
             if (parsed.cmd === 'approve') {
                 if (!parsed.arg) {
-                    return {type: 'text', content: '请提供审批参数 JSON，例如：/cm approve {"v1":"...","v2":"...","scene":17}'};
+                    return {type: 'text', content: '把审批参数 JSON 带上，例如：/cm approve {"v1":"...","v2":"...","scene":17}'};
                 }
                 let payload: VerifyFriendRequest;
                 try {
                     const raw = JSON.parse(parsed.arg) as Record<string, unknown>;
                     if (typeof raw.v1 !== 'string' || typeof raw.v2 !== 'string' || typeof raw.scene !== 'number') {
-                        return {type: 'text', content: '审批参数缺少必要字段，需包含字符串 v1/v2 和数字 scene'};
+                        return {type: 'text', content: '审批参数差字段了，要有字符串 v1/v2 和数字 scene'};
                     }
                     payload = {
                         v1: raw.v1,
@@ -150,26 +169,26 @@ export const contactAdminPlugin: TextMessage = {
                         scene: raw.scene,
                     };
                 } catch {
-                    return {type: 'text', content: '审批参数不是有效 JSON'};
+                    return {type: 'text', content: '这 JSON 不太对 🤔'};
                 }
                 await ContactRepository.approveFriendRequest(apiBaseUrl, payload);
-                return {type: 'text', content: '✅ 好友申请审批已提交'};
+                return {type: 'text', content: '好友申请已提交 👌'};
             }
 
             if (parsed.cmd === 'add-group') {
                 const groupId = parsed.arg.trim() || message.room?.id?.trim() || '';
                 if (!groupId || !groupId.endsWith('@chatroom')) {
-                    return {type: 'text', content: '请提供群ID，例如：/cm add-group 123456@chatroom；或在群里直接发送 /cm add-group'};
+                    return {type: 'text', content: '给个群 ID，比如 /cm add-group 123456@chatroom；在群里直接发 /cm add-group 也行'};
                 }
                 await ContactRepository.addGroupAsContact(apiBaseUrl, groupId);
                 await ContactRepository.addGroupToDb(env.XBOT_DB, groupId, 'manual');
-                return {type: 'text', content: `✅ 已将群加入联系人：${groupId}`};
+                return {type: 'text', content: `好了，群加上了：${groupId} 👌`};
             }
 
             if (parsed.cmd === 'del-group') {
                 const groupId = parsed.arg.trim() || message.room?.id?.trim() || '';
                 if (!groupId || !groupId.endsWith('@chatroom')) {
-                    return {type: 'text', content: '请提供群ID，例如：/cm del-group 123456@chatroom；或在群里直接发送 /cm del-group'};
+                    return {type: 'text', content: '给个群 ID，比如 /cm del-group 123456@chatroom；在群里直接发 /cm del-group 也行'};
                 }
                 const api = new WechatApi(apiBaseUrl);
                 const result = await api.setChatroomContactList(groupId, false);
@@ -177,12 +196,30 @@ export const contactAdminPlugin: TextMessage = {
                     return {type: 'text', content: buildChatroomContactListFailureText(result)};
                 }
                 await ContactRepository.setContactEnabled(env.XBOT_DB, groupId, false);
-                return {type: 'text', content: `✅ 已将群移出联系人：${groupId}`};
+                return {type: 'text', content: `好了，群撤了：${groupId}`};
+            }
+
+            if (parsed.cmd === 'add-user') {
+                const userId = parsed.arg.trim();
+                if (!isUserContactId(userId)) {
+                    return {type: 'text', content: '给个微信号 ID，比如 /cm add-user wxid_xxx'};
+                }
+                await ContactRepository.addUserToDb(env.XBOT_DB, userId, 'manual');
+                return {type: 'text', content: `好了，人加上了：${userId} 👌`};
+            }
+
+            if (parsed.cmd === 'del-user') {
+                const userId = parsed.arg.trim();
+                if (!isUserContactId(userId)) {
+                    return {type: 'text', content: '给个微信号 ID，比如 /cm del-user wxid_xxx'};
+                }
+                await ContactRepository.setContactEnabled(env.XBOT_DB, userId, false);
+                return {type: 'text', content: `好了，人撤了：${userId}`};
             }
 
             const contactId = parsed.arg.trim();
             if (!contactId) {
-                return {type: 'text', content: '请提供联系人ID，例如：/cm remove wxid_xxx'};
+                return {type: 'text', content: '给个联系人 ID，比如 /cm remove wxid_xxx'};
             }
 
             if (contactId.endsWith('@chatroom')) {
@@ -196,10 +233,9 @@ export const contactAdminPlugin: TextMessage = {
                 await ContactRepository.removeContact(apiBaseUrl, contactId);
             }
             await ContactRepository.setContactEnabled(env.XBOT_DB, contactId, false);
-            return {type: 'text', content: `✅ 已移除联系人：${contactId}`};
+            return {type: 'text', content: `好了，移除了：${contactId}`};
         } catch {
             return {type: 'text', content: '联系人操作没成功，再试一次吧？'};
         }
     },
 };
-

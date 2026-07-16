@@ -136,10 +136,13 @@ export class ContactRepository {
         const contactId = ContactRepository.pickContactId(entry);
         if (!contactId) return null;
         const obj = entry && typeof entry === 'object' ? entry as Record<string, unknown> : {};
+        const contactType = ContactRepository.inferContactType(contactId);
+        // 群：同步进来即可进白名单；个人/系统：默认关闭，需 /cm add-user 显式开启
+        const enabled = contactType === 'group' ? 1 : 0;
         return {
             contactId,
-            contactType: ContactRepository.inferContactType(contactId),
-            enabled: 1,
+            contactType,
+            enabled,
             pluginDefaultMode: 'allow_all',
             displayName: ContactRepository.normalizeText(obj.nickname),
             alias: ContactRepository.normalizeText(obj.alias),
@@ -269,7 +272,7 @@ export class ContactRepository {
                 `INSERT INTO contact (
                     contact_id, contact_type, enabled, plugin_default_mode,
                     display_name, alias, remark, source, created_at, updated_at
-                ) VALUES (?1, ?2, 1, ?3, ?4, ?5, ?6, ?7, ?8, ?8)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
                 ON CONFLICT(contact_id) DO UPDATE SET
                     contact_type = excluded.contact_type,
                     display_name = CASE WHEN excluded.display_name <> '' THEN excluded.display_name ELSE contact.display_name END,
@@ -280,6 +283,7 @@ export class ContactRepository {
             ).bind(
                 contact.contactId,
                 contact.contactType,
+                contact.enabled ? 1 : 0,
                 contact.pluginDefaultMode,
                 contact.displayName,
                 contact.alias,
@@ -411,6 +415,25 @@ export class ContactRepository {
             },
         ]);
         // /cm add-group 是显式启用动作：若历史记录被 remove 置为 enabled=0，需要重新拉起。
+        await ContactRepository.setContactEnabled(db, trimmed, true);
+    }
+
+    static async addUserToDb(db: D1Database, userId: string, source = 'manual'): Promise<void> {
+        const trimmed = userId.trim();
+        if (!trimmed) return;
+        await ContactRepository.upsertContacts(db, [
+            {
+                contactId: trimmed,
+                contactType: 'user',
+                enabled: 1,
+                pluginDefaultMode: 'allow_all',
+                displayName: '',
+                alias: '',
+                remark: '',
+                source,
+            },
+        ]);
+        // /cm add-user 是显式启用：同步默认关闭的个人联系人，或曾被 remove 的，都重新拉起。
         await ContactRepository.setContactEnabled(db, trimmed, true);
     }
 
@@ -614,6 +637,22 @@ export class ContactRepository {
                  LIMIT 1`,
             )
             .bind(roomId.trim())
+            .first<Record<string, unknown>>();
+        return Boolean(row?.ok);
+    }
+
+    static async isUserContactAllowed(db: D1Database, userId: string): Promise<boolean> {
+        await ContactRepository.ensureSchema(db);
+        const row = await db
+            .prepare(
+                `SELECT 1 AS ok
+                 FROM contact
+                 WHERE contact_id = ?1
+                   AND contact_type = 'user'
+                   AND enabled = 1
+                 LIMIT 1`,
+            )
+            .bind(userId.trim())
             .first<Record<string, unknown>>();
         return Boolean(row?.ok);
     }
