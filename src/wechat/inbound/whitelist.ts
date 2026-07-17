@@ -5,6 +5,19 @@ import {ContactRepository} from '../../plugins/system/contact-admin';
 
 const SYSTEM_SENDER_IDS = new Set(['weixin', 'fmessage', 'medianote', 'floatbottle']);
 
+function normalizeBoolean(value: unknown): boolean {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value !== 'string') return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true'
+        || normalized === '1'
+        || normalized === 'yes'
+        || normalized === 'on'
+        || normalized === '开'
+        || normalized === '开启';
+}
+
 function isLikelySystemOrOfficialSender(wxid: string): boolean {
     const id = wxid.trim();
     if (!id) return false;
@@ -20,17 +33,27 @@ export async function shouldAllowWechatMessage(
 ): Promise<boolean> {
     const ownerWxid = env.BOT_OWNER_WECHAT_ID?.trim() ?? '';
     const apiBaseUrl = options?.apiBaseUrl ?? env.WECHAT_API_BASE_URL ?? '';
+    const allowOfficial = normalizeBoolean(env.XBOT_CHANNEL_ALLOW_OFFICIAL);
+    const officialOrSystem = message.source === 'official' || isLikelySystemOrOfficialSender(message.from);
 
     if (ownerWxid && message.from === ownerWxid) {
         return true;
     }
 
-    if (message.source === 'official' || isLikelySystemOrOfficialSender(message.from)) {
+    if (officialOrSystem && !allowOfficial) {
         logger.debug('消息被白名单过滤（公众号/系统号）', {
             source: message.source,
             from: message.from,
         });
         return false;
+    }
+
+    if (officialOrSystem && allowOfficial) {
+        logger.debug('公众号/系统号放行（配置开启）', {
+            source: message.source,
+            from: message.from,
+        });
+        return true;
     }
 
     if (message.source === 'private') {

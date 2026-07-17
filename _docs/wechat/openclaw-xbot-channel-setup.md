@@ -59,6 +59,7 @@ openclaw channels status --channel xbot
 | `AGENT_BRIDGE_TOKEN` | 是* | Gateway Bearer Token（`wrangler secret`） |
 | `XBOT_CHANNEL_GATEWAY_URL` | 否 | 默认从 `AGENT_BRIDGE_BASE_URL` 去掉 `/v1` |
 | `XBOT_CHANNEL_GATEWAY_TOKEN` | 否 | 默认同 `AGENT_BRIDGE_TOKEN` |
+| `XBOT_CHANNEL_ALLOW_OFFICIAL` | 否 | `true/1/on` 时放行公众号/系统号（默认拦截） |
 | `WECHAT_API_BASE_URL` | 是 | 供 connect 时传给 OpenClaw 出站 |
 | `BOT_WECHAT_ID` | 建议 | 群聊点名检测（@ 或正文含昵称） |
 
@@ -70,6 +71,8 @@ openclaw channels status --channel xbot
 XBOT_CHANNEL_ENABLED=true
 AGENT_BRIDGE_BASE_URL=https://openclaw.lwcorspro.dpdns.org/v1
 AGENT_BRIDGE_TOKEN=<gateway-token>
+# 可选：放行公众号/系统号
+# XBOT_CHANNEL_ALLOW_OFFICIAL=true
 ```
 
 ### 生产部署
@@ -136,9 +139,9 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 **私聊 / 公众号乱回**
 
 - 私聊也要 D1 白名单：`/cm add-user wxid_xxx`（新 sync 的个人默认关闭）
-- 公众号 / `gh_*` / 系统号一律不进；关掉用 `/cm del-user`
+- 默认公众号 / `gh_*` / 系统号不进；要放行可设 `XBOT_CHANNEL_ALLOW_OFFICIAL=true`
 - 主人旁路仍有效；别人私聊未加白不会转发 OpenClaw，也不会走本地插件
-- 若以前 sync 过，库里可能仍有 `enabled=1` 的好友，用 `/cm list` 看，多余的 `/cm del-user` 关掉
+- 若以前 sync 过，库里可能仍有 `enabled=1` 的好友，用 `/cm list` 看，多余的用 `/cm disable-user` 关掉
 
 **群消息没反应**
 

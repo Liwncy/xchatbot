@@ -72,6 +72,8 @@ export interface Env {
     XBOT_CHANNEL_GATEWAY_URL?: string;
     /** xbot 频道：Gateway Bearer Token（默认同 AGENT_BRIDGE_TOKEN）。 */
     XBOT_CHANNEL_GATEWAY_TOKEN?: string;
+    /** xbot 频道：是否允许公众号/系统号入站（默认关闭）。 */
+    XBOT_CHANNEL_ALLOW_OFFICIAL?: string;
     /** xbot 频道：推送端 clientId / connId，默认 xchatbot-worker。 */
     XBOT_CHANNEL_CLIENT_ID?: string;
     /** xbot 频道：单次 Gateway 请求超时毫秒数，默认 120000。 */

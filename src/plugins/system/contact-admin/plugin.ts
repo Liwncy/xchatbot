@@ -10,7 +10,8 @@ const COMMAND_APPROVE = 'approve';
 const COMMAND_ADD_GROUP = 'add-group';
 const COMMAND_DEL_GROUP = 'del-group';
 const COMMAND_ADD_USER = 'add-user';
-const COMMAND_DEL_USER = 'del-user';
+const COMMAND_ENABLE_USER = 'enable-user';
+const COMMAND_DISABLE_USER = 'disable-user';
 const COMMAND_REMOVE = 'remove';
 const COMMAND_DEBUG_LIST = 'debug-list';
 const COMMAND_SYNC = 'sync';
@@ -22,7 +23,7 @@ type ContactAdminCommand =
     | 'add-group'
     | 'del-group'
     | 'add-user'
-    | 'del-user'
+    | 'disable-user'
     | 'remove'
     | 'debug-list'
     | 'sync'
@@ -44,7 +45,8 @@ function parseCommand(content: string): {cmd: ContactAdminCommand; arg: string} 
     if (cmd === COMMAND_ADD_GROUP) return {cmd: 'add-group', arg};
     if (cmd === COMMAND_DEL_GROUP) return {cmd: 'del-group', arg};
     if (cmd === COMMAND_ADD_USER) return {cmd: 'add-user', arg};
-    if (cmd === COMMAND_DEL_USER) return {cmd: 'del-user', arg};
+    if (cmd === COMMAND_ENABLE_USER) return {cmd: 'add-user', arg};
+    if (cmd === COMMAND_DISABLE_USER) return {cmd: 'disable-user', arg};
     if (cmd === COMMAND_REMOVE) return {cmd: 'remove', arg};
     if (cmd === COMMAND_DEBUG_LIST) return {cmd: 'debug-list', arg};
     if (cmd === COMMAND_SYNC) return {cmd: 'sync', arg};
@@ -56,8 +58,8 @@ function buildHelpText(): string {
         '联系人管理（/cm，仅主人）：',
         '/cm list',
         '/cm sync',
-        '/cm add-user wxid_xxx',
-        '/cm del-user wxid_xxx',
+        '/cm add-user wxid_xxx（或 /cm enable-user）',
+        '/cm disable-user wxid_xxx',
         '/cm add-group 123@chatroom',
         '/cm del-group 123@chatroom',
         '/cm remove wxid_xxx',
@@ -208,13 +210,13 @@ export const contactAdminPlugin: TextMessage = {
                 return {type: 'text', content: `好了，人加上了：${userId} 👌`};
             }
 
-            if (parsed.cmd === 'del-user') {
+            if (parsed.cmd === 'disable-user') {
                 const userId = parsed.arg.trim();
                 if (!isUserContactId(userId)) {
-                    return {type: 'text', content: '给个微信号 ID，比如 /cm del-user wxid_xxx'};
+                    return {type: 'text', content: '给个微信号 ID，比如 /cm disable-user wxid_xxx'};
                 }
                 await ContactRepository.setContactEnabled(env.XBOT_DB, userId, false);
-                return {type: 'text', content: `好了，人撤了：${userId}`};
+                return {type: 'text', content: `好了，已停用白名单：${userId}（不会删微信联系人）`};
             }
 
             const contactId = parsed.arg.trim();
