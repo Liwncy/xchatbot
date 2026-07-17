@@ -37,6 +37,8 @@ openclaw gateway restart
 | 字段 | 本环境示例 |
 |------|------------|
 | `wechatApiBaseUrl` | `https://wxbot.lwcorspro.dpdns.org`（与 Worker `WECHAT_API_BASE_URL` 一致） |
+| `chatLogApiBaseUrl` | 可不填；默认复用 `wechatApiBaseUrl` |
+| `chatLogAdminToken` | `xchatbot` Worker 的 `ADMIN_TOKEN`，给 OpenClaw 查 D1 聊天记录用 |
 | `botWechatId` | `wxid_ahl9az25aljx22` |
 | `groupAllowFrom` | 联系人群 `roomId@chatroom` 列表 |
 
@@ -62,6 +64,7 @@ openclaw channels status --channel xbot
 | `XBOT_CHANNEL_GATEWAY_TOKEN` | 否 | 默认同 `AGENT_BRIDGE_TOKEN` |
 | `XBOT_CHANNEL_ALLOW_OFFICIAL` | 否 | `true/1/on` 时放行公众号/系统号（默认拦截） |
 | `WECHAT_API_BASE_URL` | 是 | 供 connect 时传给 OpenClaw 出站 |
+| `ADMIN_TOKEN` | 建议 | 给 `/admin/chat-log/query` 这类管理接口鉴权；OpenClaw 查群记录时复用 |
 | `BOT_WECHAT_ID` | 建议 | 群聊点名检测（@ 或正文含昵称） |
 
 \* 已配置 agent-bridge 时可复用。
@@ -73,6 +76,7 @@ XBOT_CHANNEL_ENABLED=true
 XBOT_CHANNEL_AUTO_FORWARD=false
 AGENT_BRIDGE_BASE_URL=https://openclaw.lwcorspro.dpdns.org/v1
 AGENT_BRIDGE_TOKEN=<gateway-token>
+ADMIN_TOKEN=<admin-token>
 # 可选：放行公众号/系统号
 # XBOT_CHANNEL_ALLOW_OFFICIAL=true
 ```
@@ -127,7 +131,24 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 日志关键词：`OpenClaw xbot.inbound 结果`、`OpenClaw xbot.connect 失败，继续尝试插件转发`、`OpenClaw xbot 插件转发失败，回退后续插件`。
 
-## 5. 常见问题
+## 5. OpenClaw 查群记录
+
+装好新版 `xbot` 插件后，OpenClaw 会多一个 `xbot_chat_history` 工具，用来查 `xchatbot` D1 里的聊天记录。
+
+常见用法：
+
+- 在当前微信群会话里直接查最近 30 条：让 OpenClaw 调 `xbot_chat_history({ limit: 30 })`
+- 查最近 24 小时：`xbot_chat_history({ hours: 24, limit: 80 })`
+- 只看群成员发言：`xbot_chat_history({ actorType: "member", hours: 72 })`
+- 指定群查一段时间：`xbot_chat_history({ roomId: "123456@chatroom", since: "2026-07-14T00:00:00+08:00", until: "2026-07-17T23:59:59+08:00" })`
+
+要让它能查，需要两边都配好：
+
+- Worker 侧有 `ADMIN_TOKEN`
+- OpenClaw 侧 `channels.xbot.chatLogAdminToken` 填同一个值
+- `channels.xbot.chatLogApiBaseUrl` 不填时，会默认走 `wechatApiBaseUrl`
+
+## 6. 常见问题
 
 **Worker 连不上 Gateway**
 

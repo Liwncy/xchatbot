@@ -1,4 +1,5 @@
 import type {Env} from '../types/env.js';
+import {handleAdminChatLog} from './chat-log.js';
 import {handleAdminDebug} from './debug.js';
 import {handleAdminPlugins} from './plugins.js';
 import {handleAdminScheduler} from './scheduler.js';
@@ -12,6 +13,10 @@ export async function handleAdminRequest(request: Request, env: Env): Promise<Re
 
     if (pathname === '/admin/plugins' || pathname.startsWith('/admin/plugins/')) {
         return handleAdminPlugins(request, env);
+    }
+
+    if (pathname === '/admin/chat-log' || pathname.startsWith('/admin/chat-log/')) {
+        return handleAdminChatLog(request, env);
     }
 
     if (pathname === '/admin/scheduler' || pathname.startsWith('/admin/scheduler/')) {

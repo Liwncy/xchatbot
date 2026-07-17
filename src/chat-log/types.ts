@@ -59,3 +59,14 @@ export interface GetRecentMessagesOptions {
     maxChars?: number;
     excludeMessageId?: string;
 }
+
+export interface QueryChatMessagesOptions {
+    sessionId: string;
+    limit?: number;
+    maxChars?: number;
+    direction?: ChatDirection;
+    actorType?: ChatActorType;
+    textOnly?: boolean;
+    since?: number;
+    until?: number;
+}

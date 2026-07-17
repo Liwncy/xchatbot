@@ -14,6 +14,7 @@ import {getChatLogHandleMeta} from './context.js';
 import type {
     ChatMessageRecord,
     GetRecentMessagesOptions,
+    QueryChatMessagesOptions,
     RecordInboundOptions,
     RecordOutboundOptions,
 } from './types.js';
@@ -304,6 +305,71 @@ export class ChatLogRepository {
             ).bind(sessionId, limit).all<ChatMessageRow>();
 
         const rows = (result.results ?? []).map(mapRow).reverse();
+        if (!options.maxChars || options.maxChars <= 0) {
+            return rows;
+        }
+
+        const selected: ChatMessageRecord[] = [];
+        let charTotal = 0;
+        for (let index = rows.length - 1; index >= 0; index -= 1) {
+            const row = rows[index];
+            const nextTotal = charTotal + row.charCount;
+            if (selected.length > 0 && nextTotal > options.maxChars) {
+                break;
+            }
+            selected.unshift(row);
+            charTotal = nextTotal;
+        }
+        return selected;
+    }
+
+    static async queryMessages(
+        db: D1Database,
+        options: QueryChatMessagesOptions,
+    ): Promise<ChatMessageRecord[]> {
+        await ChatLogRepository.ensureSchema(db);
+
+        const sessionId = options.sessionId.trim();
+        if (!sessionId) return [];
+
+        const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
+        const where: string[] = ['session_id = ?1'];
+        const bindValues: Array<string | number> = [sessionId];
+
+        if (options.direction) {
+            where.push(`direction = ?${bindValues.length + 1}`);
+            bindValues.push(options.direction);
+        }
+        if (options.actorType) {
+            where.push(`actor_type = ?${bindValues.length + 1}`);
+            bindValues.push(options.actorType);
+        }
+        if (options.textOnly) {
+            where.push("TRIM(content_text) <> ''");
+        }
+        if (typeof options.since === 'number' && Number.isFinite(options.since) && options.since > 0) {
+            where.push(`created_at >= ?${bindValues.length + 1}`);
+            bindValues.push(Math.floor(options.since));
+        }
+        if (typeof options.until === 'number' && Number.isFinite(options.until) && options.until > 0) {
+            where.push(`created_at <= ?${bindValues.length + 1}`);
+            bindValues.push(Math.floor(options.until));
+        }
+
+        const limitPlaceholder = `?${bindValues.length + 1}`;
+        const result = await db.prepare(
+            `SELECT *
+             FROM (
+                 SELECT *
+                 FROM chat_message
+                 WHERE ${where.join(' AND ')}
+                 ORDER BY id DESC
+                 LIMIT ${limitPlaceholder}
+             )
+             ORDER BY id ASC`,
+        ).bind(...bindValues, limit).all<ChatMessageRow>();
+
+        const rows = (result.results ?? []).map(mapRow);
         if (!options.maxChars || options.maxChars <= 0) {
             return rows;
         }
