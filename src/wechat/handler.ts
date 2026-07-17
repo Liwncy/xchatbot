@@ -137,29 +137,6 @@ export async function handleWechat(request: Request, env: Env, ctx: ExecutionCon
 
     const {routeMessage} = await import('../message/router.js');
     const {toReplyArray} = await import('../message/response.js');
-    const {
-        ensureXbotChannelConnected,
-        forwardInboundToXbotChannel,
-        mapIncomingMessageToXbotInbound,
-        resolveXbotChannelConfigState,
-    } = await import('../openclaw/index.js');
-
-    const xbotChannelState = resolveXbotChannelConfigState(env);
-    if (xbotChannelState.state === 'misconfigured') {
-        logger.warn('OpenClaw xbot 频道已开启但配置不完整，跳过转发', {
-            reasons: xbotChannelState.reasons,
-        });
-    }
-    const xbotChannelConfig = xbotChannelState.state === 'ready' ? xbotChannelState.config : null;
-    if (xbotChannelConfig && apiBaseUrl) {
-        try {
-            await ensureXbotChannelConnected(xbotChannelConfig, {wechatApiBaseUrl: apiBaseUrl});
-        } catch (error) {
-            logger.warn('OpenClaw xbot.connect 失败，继续尝试入站转发', {
-                error: error instanceof Error ? error.message : String(error),
-            });
-        }
-    }
 
     const replyTasks: Array<{ message: IncomingMessage; reply: ReplyMessage; replyIndex: number }> = [];
     for (const message of activeMessages) {
@@ -170,38 +147,16 @@ export async function handleWechat(request: Request, env: Env, ctx: ExecutionCon
 
         await recordInboundChatMessage(env, message);
 
-        let handledByOpenClaw = false;
-        if (xbotChannelConfig) {
-            try {
-                const payload = mapIncomingMessageToXbotInbound(message, env, {wechatApiBaseUrl: apiBaseUrl});
-                const result = await forwardInboundToXbotChannel(xbotChannelConfig, payload);
-                // dispatched=真回复；accumulated=只攒群历史（仍算 OpenClaw 接管，避免本地插件抢回）
-                handledByOpenClaw = result.dispatched === true || result.accumulated === true;
-                if (!handledByOpenClaw) {
-                    logger.warn('OpenClaw xbot.inbound 未接管，回退本地插件', {
-                        messageId: message.messageId,
-                        reason: result.reason ?? null,
-                    });
-                }
-            } catch (error) {
-                logger.warn('OpenClaw xbot.inbound 转发失败，回退本地插件', {
-                    messageId: message.messageId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
-
-        if (handledByOpenClaw) {
-            continue;
-        }
-
         const response = await routeMessage(message, env, {
             waitUntil: (promise) => ctx.waitUntil(promise),
         });
         const replies = toReplyArray(response);
-        replies.forEach((reply, replyIndex) => {
-            replyTasks.push({message, reply, replyIndex});
-        });
+        if (replies.length > 0) {
+            replies.forEach((reply, replyIndex) => {
+                replyTasks.push({message, reply, replyIndex});
+            });
+            continue;
+        }
     }
 
     if (replyTasks.length === 0) {

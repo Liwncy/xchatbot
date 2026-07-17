@@ -107,6 +107,17 @@ export interface EmojiReply extends ReplyBase {
     emojiUrl: string;
 }
 
+/**
+ * 插件已处理该消息，但不需要本地回复。
+ *
+ * 适用于异步桥接、外部系统自行回包等场景：
+ * - 当前插件链应停止继续匹配后续插件
+ * - 本地 `toReplyArray()` 不会再产出任何待发送回复
+ */
+export interface HandledReply {
+    kind: 'handled';
+}
+
 /** 所有回复类型的联合类型 */
 export type ReplyMessage =
     | TextReply
@@ -123,5 +134,16 @@ export type ReplyMessage =
  * 处理器可能返回的结果：单条回复、多条回复或不回复。
  * 返回数组可以对一条消息发送多条回复。
  */
-export type HandlerResponse = ReplyMessage | ReplyMessage[] | null;
+export type HandlerResponse = ReplyMessage | ReplyMessage[] | HandledReply | null;
+
+export function buildHandledReply(): HandledReply {
+    return {kind: 'handled'};
+}
+
+export function isHandledReply(value: unknown): value is HandledReply {
+    return Boolean(value)
+        && typeof value === 'object'
+        && !Array.isArray(value)
+        && (value as {kind?: unknown}).kind === 'handled';
+}
 

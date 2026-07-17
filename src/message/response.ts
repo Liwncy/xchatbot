@@ -1,3 +1,4 @@
+import {isHandledReply} from '../types/reply.js';
 import type {HandlerResponse, ReplyMessage} from '../types/reply.js';
 
 /**
@@ -6,6 +7,7 @@ import type {HandlerResponse, ReplyMessage} from '../types/reply.js';
  */
 export function toReplyArray(response: HandlerResponse): ReplyMessage[] {
     if (!response) return [];
+    if (isHandledReply(response)) return [];
     return Array.isArray(response) ? response : [response];
 }
 

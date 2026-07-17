@@ -54,7 +54,8 @@ openclaw channels status --channel xbot
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `XBOT_CHANNEL_ENABLED` | 是 | `true` 开启转发 |
+| `XBOT_CHANNEL_ENABLED` | 是 | `true` 启用 xbot 频道能力 |
+| `XBOT_CHANNEL_AUTO_FORWARD` | 否 | `true` 时启用 OpenClaw 入口插件：本地插件没接住，再桥接到 `xbot.inbound`；默认关闭 |
 | `AGENT_BRIDGE_BASE_URL` | 是* | 如 `https://openclaw.lwcorspro.dpdns.org/v1` |
 | `AGENT_BRIDGE_TOKEN` | 是* | Gateway Bearer Token（`wrangler secret`） |
 | `XBOT_CHANNEL_GATEWAY_URL` | 否 | 默认从 `AGENT_BRIDGE_BASE_URL` 去掉 `/v1` |
@@ -69,6 +70,7 @@ openclaw channels status --channel xbot
 
 ```ini
 XBOT_CHANNEL_ENABLED=true
+XBOT_CHANNEL_AUTO_FORWARD=false
 AGENT_BRIDGE_BASE_URL=https://openclaw.lwcorspro.dpdns.org/v1
 AGENT_BRIDGE_TOKEN=<gateway-token>
 # 可选：放行公众号/系统号
@@ -118,12 +120,12 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 ## 4. 运行时行为
 
-1. webhook 收到消息后，若 `XBOT_CHANNEL_ENABLED=true` 且配置完整 → 先 `xbot.connect`
-2. 每条白名单消息 → `xbot.inbound`
-3. `dispatched=true` → **跳过**本地插件（避免双回复）
-4. 策略忽略（如群未 @）或 Gateway 失败 → **回退**本地插件（点歌等仍可用）
+1. 默认：消息先走 xchatbot 本地插件链
+2. 若 `XBOT_CHANNEL_AUTO_FORWARD=true` 且配置完整 → `openclaw-xbot` 入口插件会在本地插件链中兜底，把消息桥接到 `xbot.inbound`
+3. OpenClaw 返回 `dispatched=true / accumulated=true` 时，视为它已接管，本地不再继续匹配后续插件
+4. 自动桥接关闭、策略忽略（如群未 @）或 Gateway 失败 → 继续留在本地插件链路
 
-日志关键词：`OpenClaw xbot.inbound 结果`、`OpenClaw xbot 频道已开启但配置不完整`。
+日志关键词：`OpenClaw xbot.inbound 结果`、`OpenClaw xbot.connect 失败，继续尝试插件转发`、`OpenClaw xbot 插件转发失败，回退后续插件`。
 
 ## 5. 常见问题
 
@@ -165,7 +167,8 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 
 **与 agent-bridge 冲突**
 
-- 频道接管后本地「聪明办事」仍可用；全量入站由 OpenClaw 处理时，不必再手动触发。
+- 现在都走插件顺序：显式命令插件可放前面，`openclaw-xbot` 作为兜底入口。
+- 若你要让 OpenClaw 更主动接管，就把 `openclaw-xbot` 放到更靠前的位置，或开启 `XBOT_CHANNEL_AUTO_FORWARD=true`。
 
 ## 人设与说话模式
 

@@ -41,6 +41,7 @@ import {fakeForwardPlugin} from './toolkits/fake-forward';
 import {emojiStashProcessPlugin, emojiStashTriggerPlugin} from './toolkits/emoji-stash';
 import {xuanxuePlugin} from './scenarios/xuanxue';
 import {aiSingPlugin} from './cognitive/ai-sing';
+import {openClawXbotPlugin} from './cognitive/openclaw-xbot';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
 registerPlugin(helpPlugin);
@@ -66,8 +67,9 @@ registerPlugin(simpleRulesEngine);
 registerPlugin(dynamicRulesEngine);
 registerPlugin(xiuxianPlugin);
 registerPlugin(xuanxuePlugin);
-// Agent 桥接（OpenClaw 等）需在 ai-dialog 之前，避免群聊被聊天插件抢走
+// OpenClaw 相关入口放在 ai-dialog 之前，避免被聊天插件先吃掉
 registerPlugin(agentBridgePlugin);
+registerPlugin(openClawXbotPlugin);
 // 自定义插件
 registerPlugin(aiDialogPlugin);
 registerPlugin(aiSingPlugin);

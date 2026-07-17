@@ -1,4 +1,5 @@
 import type {IncomingMessage} from '../../../types/message.js';
+import {isHandledReply} from '../../../types/reply.js';
 import type {HandlerResponse, ReplyMessage, TextReply} from '../../../types/reply.js';
 import {DEFAULT_BOT_AVATAR_URL, getDefaultBotWechatName} from '../../../utils/bot.js';
 import {splitTextForChatRecord} from '../../../utils/chat-record-chunks.js';
@@ -38,6 +39,7 @@ export function finalizePluginAdminReply(
     response: HandlerResponse,
 ): HandlerResponse {
     if (!response) return response;
+    if (isHandledReply(response)) return response;
     if (Array.isArray(response)) {
         return response.map((reply) => maybeConvertPluginAdminReply(message, command, reply));
     }

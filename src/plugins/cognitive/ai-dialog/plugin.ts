@@ -54,6 +54,28 @@ function isAiDialogDirectTrigger(content: string): boolean {
     return /@\s*小聪明儿/u.test(trimmed);
 }
 
+export async function shouldUseAiDialogChatTrigger(
+    message: Parameters<TextMessage['handle']>[0],
+    env: Parameters<TextMessage['handle']>[1],
+): Promise<boolean> {
+    const directTrigger = isAiDialogDirectTrigger(message.content ?? '');
+    const activatedFollowUp = !directTrigger && await isAiDialogUserActivationActive(env, message);
+
+    if (!directTrigger && !activatedFollowUp && message.source !== 'group') {
+        return false;
+    }
+
+    const runtimeConfig = await loadAiDialogRuntimeConfig(env);
+    if (!directTrigger && !activatedFollowUp) {
+        const shouldBubble = await shouldUseAmbientGroupReply(message, env, runtimeConfig);
+        if (!shouldBubble) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function parseToggleValue(value: string): boolean {
     const normalized = value.trim().toLowerCase();
     if (['开', '开启', '打开', '启用', 'on', 'true', '1', 'yes'].includes(normalized)) return true;
@@ -565,18 +587,10 @@ async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[
 async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
     const directTrigger = isAiDialogDirectTrigger(message.content ?? '');
     const activatedFollowUp = !directTrigger && await isAiDialogUserActivationActive(env, message);
-
-    if (!directTrigger && !activatedFollowUp && message.source !== 'group') {
-        return null;
-    }
+    const shouldHandle = await shouldUseAiDialogChatTrigger(message, env);
+    if (!shouldHandle) return null;
 
     const runtimeConfig = await loadAiDialogRuntimeConfig(env);
-    if (!directTrigger && !activatedFollowUp) {
-        const shouldBubble = await shouldUseAmbientGroupReply(message, env, runtimeConfig);
-        if (!shouldBubble) {
-            return null;
-        }
-    }
 
     const prompt = extractUserPrompt(message.content ?? '');
     if (!prompt) {

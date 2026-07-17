@@ -2,6 +2,7 @@ import type {TextMessage} from '../../types.js';
 import type {IncomingMessage} from '../../../types/message.js';
 import type {Env} from '../../../types/env.js';
 import {setChatLogHandleMeta} from '../../../chat-log/index.js';
+import {buildHandledReply} from '../../../types/reply.js';
 import {logger} from '../../../utils/logger.js';
 import {ensureOwner} from '../../system/message-revoke/service.js';
 import {loadAgentBridgeRuntimeConfig} from './config.js';
@@ -125,7 +126,7 @@ async function handleAgentBridgeCommand(
     // 必须在本次 Worker 请求内 await 完成：ctx.waitUntil 在响应返回后约 30s 会被取消，
     // OpenClaw 常超过该时限，会导致 deliver 永远发不到微信。
     await runAgentBridgeTask(message, env, prompt);
-    return null;
+    return buildHandledReply();
 }
 
 export const agentBridgePlugin: TextMessage = {
