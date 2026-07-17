@@ -1,6 +1,7 @@
 import type {TextMessage} from '../../types.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {ContactRepository} from './repository.js';
+import {logger} from '../../../utils/logger.js';
 import {WechatApi} from '../../../wechat';
 import type {VerifyFriendRequest} from '../../../wechat/api/types.js';
 
@@ -236,7 +237,14 @@ export const contactAdminPlugin: TextMessage = {
             }
             await ContactRepository.setContactEnabled(env.XBOT_DB, contactId, false);
             return {type: 'text', content: `好了，移除了：${contactId}`};
-        } catch {
+        } catch (error) {
+            logger.error('联系人管理操作失败', {
+                content: message.content ?? '',
+                from: message.from,
+                roomId: message.room?.id,
+                source: message.source,
+                error: error instanceof Error ? error.message : String(error),
+            });
             return {type: 'text', content: '联系人操作没成功，再试一次吧？'};
         }
     },

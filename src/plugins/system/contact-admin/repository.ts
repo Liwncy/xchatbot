@@ -77,12 +77,34 @@ export class ContactRepository {
     static async ensureSchema(db: D1Database): Promise<void> {
         await db.prepare(ContactRepository.CREATE_CONTACT_TABLE_SQL).run();
         await db.prepare(ContactRepository.CREATE_GROUP_MEMBER_TABLE_SQL).run();
+        await ContactRepository.ensureContactColumns(db);
         await ContactRepository.ensureGroupMemberColumns(db);
     }
 
     private static async listTableColumns(db: D1Database, tableName: string): Promise<Set<string>> {
         const result = await db.prepare(`PRAGMA table_info(${tableName})`).all<{name: string}>();
         return new Set((result.results ?? []).map((row) => String(row.name ?? '').trim()).filter(Boolean));
+    }
+
+    private static async ensureContactColumns(db: D1Database): Promise<void> {
+        const existing = await ContactRepository.listTableColumns(db, 'contact');
+        const columnsToAdd: Array<{name: string; sql: string}> = [
+            {name: 'contact_type', sql: "ALTER TABLE \"contact\" ADD COLUMN contact_type TEXT NOT NULL DEFAULT 'user'"},
+            {name: 'enabled', sql: 'ALTER TABLE "contact" ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1'},
+            {name: 'plugin_default_mode', sql: "ALTER TABLE \"contact\" ADD COLUMN plugin_default_mode TEXT NOT NULL DEFAULT 'allow_all'"},
+            {name: 'display_name', sql: "ALTER TABLE \"contact\" ADD COLUMN display_name TEXT NOT NULL DEFAULT ''"},
+            {name: 'alias', sql: "ALTER TABLE \"contact\" ADD COLUMN alias TEXT NOT NULL DEFAULT ''"},
+            {name: 'remark', sql: "ALTER TABLE \"contact\" ADD COLUMN remark TEXT NOT NULL DEFAULT ''"},
+            {name: 'source', sql: "ALTER TABLE \"contact\" ADD COLUMN source TEXT NOT NULL DEFAULT 'contacts'"},
+            {name: 'created_at', sql: 'ALTER TABLE "contact" ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0'},
+            {name: 'updated_at', sql: 'ALTER TABLE "contact" ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0'},
+        ];
+
+        for (const column of columnsToAdd) {
+            if (existing.has(column.name)) continue;
+            await db.prepare(column.sql).run();
+            existing.add(column.name);
+        }
     }
 
     private static async ensureGroupMemberColumns(db: D1Database): Promise<void> {
