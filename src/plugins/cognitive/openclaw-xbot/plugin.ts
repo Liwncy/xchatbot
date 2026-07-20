@@ -4,6 +4,8 @@ import type {IncomingMessage} from '../../../types/message.js';
 import {buildHandledReply} from '../../../types/reply.js';
 import {logger} from '../../../utils/logger.js';
 import {getBotWechatId, getBotWechatName} from '../../../utils/bot.js';
+import {getRequestContext} from '../../../utils/request-context.js';
+import {loadDebugForwardConfig} from '../../../admin/debug.js';
 import {
     ensureXbotChannelConnected,
     forwardInboundToXbotChannel,
@@ -50,9 +52,19 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
     if (state.state !== 'ready') return null;
 
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
+    const requestOrigin = getRequestContext()?.requestOrigin?.trim() ?? '';
+    const debugConfig = await loadDebugForwardConfig(env);
+    const xchatbotApiBaseUrl = debugConfig.enabled && debugConfig.url.trim()
+        ? debugConfig.url.trim()
+        : requestOrigin;
+    const adminToken = env.ADMIN_TOKEN?.trim() ?? '';
     if (apiBaseUrl) {
         try {
-            await ensureXbotChannelConnected(state.config, {wechatApiBaseUrl: apiBaseUrl});
+            await ensureXbotChannelConnected(state.config, {
+                wechatApiBaseUrl: apiBaseUrl,
+                ...(xchatbotApiBaseUrl ? {xchatbotApiBaseUrl} : {}),
+                ...(adminToken ? {xchatbotAdminToken: adminToken} : {}),
+            });
         } catch (error) {
             logger.warn('OpenClaw xbot.connect 失败，继续尝试插件转发', {
                 error: error instanceof Error ? error.message : String(error),
@@ -61,7 +73,11 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
     }
 
     try {
-        const payload = mapIncomingMessageToXbotInbound(message, env, {wechatApiBaseUrl: apiBaseUrl});
+        const payload = mapIncomingMessageToXbotInbound(message, env, {
+            wechatApiBaseUrl: apiBaseUrl,
+            ...(xchatbotApiBaseUrl ? {xchatbotApiBaseUrl} : {}),
+            ...(adminToken ? {xchatbotAdminToken: adminToken} : {}),
+        });
         const result = await forwardInboundToXbotChannel(state.config, payload);
         if (result.dispatched === true || result.accumulated === true) {
             return buildHandledReply();

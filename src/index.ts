@@ -8,8 +8,9 @@ import {runWithRequestContext} from './utils/request-context.js';
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+        const requestOrigin = new URL(request.url).origin;
         return runWithRequestContext(
-            {env, waitUntil: (promise) => ctx.waitUntil(promise)},
+            {env, waitUntil: (promise) => ctx.waitUntil(promise), requestOrigin},
             () => handleFetch(request, env, ctx),
         );
     },

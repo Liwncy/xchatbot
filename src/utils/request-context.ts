@@ -4,6 +4,7 @@ import type {Env} from '../types/env.js';
 export interface RequestContext {
     env: Env;
     waitUntil?: (promise: Promise<unknown>) => void;
+    requestOrigin?: string;
 }
 
 const storage = new AsyncLocalStorage<RequestContext>();

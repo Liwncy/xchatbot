@@ -18,6 +18,8 @@ export interface XbotInboundPayload {
     mentions?: string[];
     botMentioned?: boolean;
     wechatApiBaseUrl?: string;
+    xchatbotApiBaseUrl?: string;
+    xchatbotAdminToken?: string;
 }
 
 function describeQuotedType(referType?: number): string {
@@ -172,7 +174,7 @@ function detectBotMention(content: string, env: Env): {mentions: string[]; botMe
 export function mapIncomingMessageToXbotInbound(
     message: IncomingMessage,
     env: Env,
-    options?: {wechatApiBaseUrl?: string},
+    options?: {wechatApiBaseUrl?: string; xchatbotApiBaseUrl?: string; xchatbotAdminToken?: string},
 ): XbotInboundPayload {
     const clientId = resolveXbotChannelClientId(env);
     const content = buildOpenClawContent(message);
@@ -200,6 +202,12 @@ export function mapIncomingMessageToXbotInbound(
         botMentioned,
         ...(options?.wechatApiBaseUrl?.trim()
             ? {wechatApiBaseUrl: options.wechatApiBaseUrl.trim()}
+            : {}),
+        ...(options?.xchatbotApiBaseUrl?.trim()
+            ? {xchatbotApiBaseUrl: options.xchatbotApiBaseUrl.trim()}
+            : {}),
+        ...(options?.xchatbotAdminToken?.trim()
+            ? {xchatbotAdminToken: options.xchatbotAdminToken.trim()}
             : {}),
     };
 }

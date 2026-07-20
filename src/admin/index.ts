@@ -3,6 +3,7 @@ import {handleAdminChatLog} from './chat-log.js';
 import {handleAdminDebug} from './debug.js';
 import {handleAdminPlugins} from './plugins.js';
 import {handleAdminScheduler} from './scheduler.js';
+import {handleAdminXbotOutbound} from './xbot-outbound.js';
 
 export async function handleAdminRequest(request: Request, env: Env): Promise<Response> {
     const pathname = new URL(request.url).pathname;
@@ -17,6 +18,10 @@ export async function handleAdminRequest(request: Request, env: Env): Promise<Re
 
     if (pathname === '/admin/chat-log' || pathname.startsWith('/admin/chat-log/')) {
         return handleAdminChatLog(request, env);
+    }
+
+    if (pathname === '/admin/xbot/outbound' || pathname.startsWith('/admin/xbot/outbound/')) {
+        return handleAdminXbotOutbound(request, env);
     }
 
     if (pathname === '/admin/scheduler' || pathname.startsWith('/admin/scheduler/')) {

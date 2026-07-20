@@ -61,7 +61,7 @@ async function postXbotChannelRoute(
 
 export async function ensureXbotChannelConnected(
     config: XbotChannelRuntimeConfig,
-    options?: {wechatApiBaseUrl?: string},
+    options?: {wechatApiBaseUrl?: string; xchatbotApiBaseUrl?: string; xchatbotAdminToken?: string},
 ): Promise<void> {
     await postXbotChannelRoute(config, 'connect', {
         accountId: 'Primary',
@@ -69,6 +69,12 @@ export async function ensureXbotChannelConnected(
         connId: config.clientId,
         ...(options?.wechatApiBaseUrl?.trim()
             ? {wechatApiBaseUrl: options.wechatApiBaseUrl.trim()}
+            : {}),
+        ...(options?.xchatbotApiBaseUrl?.trim()
+            ? {xchatbotApiBaseUrl: options.xchatbotApiBaseUrl.trim()}
+            : {}),
+        ...(options?.xchatbotAdminToken?.trim()
+            ? {xchatbotAdminToken: options.xchatbotAdminToken.trim()}
             : {}),
     });
 }
