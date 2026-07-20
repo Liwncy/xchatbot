@@ -1,7 +1,10 @@
-import type { ChatActorType, ChatDirection, ChatMessageRecord } from '../chat-log/types.js';
-import { ChatLogRepository } from '../chat-log/repository.js';
+import type { ChatActorType, ChatDirection, ChatMessageRecord, ChatReplyStatus } from '../chat-log/types.js';
+import { ChatLogRepository, recordOutboundChatMessage } from '../chat-log/repository.js';
 import type { Env } from '../types/env.js';
+import type { IncomingMessage } from '../types/message.js';
+import type { ReplyMessage } from '../types/reply.js';
 import { authorizeAdmin } from '../middleware/auth.js';
+import type { RevokeParam } from '../wechat/api/types.js';
 
 type ChatLogQueryBody = {
     roomId?: unknown;
@@ -13,6 +16,22 @@ type ChatLogQueryBody = {
     textOnly?: unknown;
     since?: unknown;
     until?: unknown;
+};
+
+type ChatLogOutboundBody = {
+    source?: unknown;
+    from?: unknown;
+    to?: unknown;
+    roomId?: unknown;
+    causedByMessageId?: unknown;
+    timestamp?: unknown;
+    replyIndex?: unknown;
+    pluginName?: unknown;
+    replyStatus?: unknown;
+    botSenderId?: unknown;
+    botSenderName?: unknown;
+    reply?: unknown;
+    wechatRevoke?: unknown;
 };
 
 function asString(value: unknown): string {
@@ -137,6 +156,131 @@ async function readQueryBody(request: Request): Promise<ChatLogQueryBody> {
     }
 }
 
+async function readOutboundBody(request: Request): Promise<ChatLogOutboundBody> {
+    try {
+        const body = await request.json() as unknown;
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+            return {};
+        }
+        return body as ChatLogOutboundBody;
+    } catch {
+        return {};
+    }
+}
+
+function parseReplyStatus(value: unknown): ChatReplyStatus | undefined {
+    const raw = asString(value).toLowerCase();
+    if (raw === 'sent' || raw === 'failed') return raw;
+    return undefined;
+}
+
+function parseRevokeParam(value: unknown): RevokeParam | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    const record = value as Record<string, unknown>;
+    const receiver = asString(record.receiver);
+    const newId = asString(record.new_id || record.newId);
+    const clientId = asString(record.client_id || record.clientId);
+    const createTime = parseOptionalTimestamp(record.create_time ?? record.createTime);
+    if (!receiver || !newId) return undefined;
+    return {
+        receiver,
+        new_id: /^\d+$/.test(newId) ? newId : newId,
+        ...(clientId ? {client_id: /^\d+$/.test(clientId) ? clientId : clientId} : {}),
+        ...(createTime ? {create_time: createTime} : {}),
+    };
+}
+
+function parseReply(body: unknown): ReplyMessage | null {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    const record = body as Record<string, unknown>;
+    const type = asString(record.type).toLowerCase();
+    switch (type) {
+        case 'text': {
+            const content = asString(record.content);
+            return content ? {type: 'text', content} : null;
+        }
+        case 'image': {
+            const mediaId = asString(record.mediaId) || asString(record.originalUrl);
+            const originalUrl = asString(record.originalUrl);
+            return mediaId ? {
+                type: 'image',
+                mediaId,
+                ...(originalUrl ? {originalUrl} : {}),
+            } : null;
+        }
+        case 'voice': {
+            const mediaId = asString(record.mediaId) || asString(record.originalUrl);
+            if (!mediaId) return null;
+            const duration = typeof record.duration === 'number' ? record.duration : Number(record.duration);
+            const format = typeof record.format === 'number' ? record.format : Number(record.format);
+            const originalUrl = asString(record.originalUrl);
+            const fallbackText = asString(record.fallbackText);
+            return {
+                type: 'voice',
+                mediaId,
+                ...(Number.isFinite(duration) ? {duration} : {}),
+                ...(Number.isFinite(format) ? {format} : {}),
+                ...(originalUrl ? {originalUrl} : {}),
+                ...(fallbackText ? {fallbackText} : {}),
+            };
+        }
+        case 'video': {
+            const mediaId = asString(record.mediaId) || asString(record.originalUrl);
+            if (!mediaId) return null;
+            const duration = typeof record.duration === 'number' ? record.duration : Number(record.duration);
+            const title = asString(record.title);
+            const description = asString(record.description);
+            const originalUrl = asString(record.originalUrl);
+            return {
+                type: 'video',
+                mediaId,
+                ...(title ? {title} : {}),
+                ...(description ? {description} : {}),
+                ...(Number.isFinite(duration) ? {duration} : {}),
+                ...(originalUrl ? {originalUrl} : {}),
+            };
+        }
+        case 'markdown': {
+            const content = asString(record.content);
+            const title = asString(record.title);
+            return content ? {
+                type: 'markdown',
+                content,
+                ...(title ? {title} : {}),
+            } : null;
+        }
+        case 'emoji': {
+            const md5 = asString(record.md5);
+            const emojiUrl = asString(record.emojiUrl);
+            return md5 && emojiUrl ? {type: 'emoji', md5, emojiUrl} : null;
+        }
+        default:
+            return null;
+    }
+}
+
+function buildSyntheticMessage(body: ChatLogOutboundBody, env: Env): IncomingMessage | null {
+    const source = asString(body.source).toLowerCase() === 'group' ? 'group' : 'private';
+    const from = asString(body.from) || (source === 'private' ? asString(body.to) : '');
+    const roomId = asString(body.roomId);
+    const causedByMessageId = asString(body.causedByMessageId);
+    if (!causedByMessageId) return null;
+    if (source === 'group' && !roomId) return null;
+    if (!from) return null;
+    return {
+        platform: 'wechat',
+        type: 'text',
+        source,
+        from,
+        to: asString(body.to) || env.BOT_WECHAT_ID?.trim() || 'bot',
+        timestamp: parseOptionalTimestamp(body.timestamp) ?? Math.floor(Date.now() / 1000),
+        messageId: causedByMessageId,
+        content: '',
+        ...(source === 'group' ? {room: {id: roomId}} : {}),
+        raw: {externalChatLogRecord: true},
+    };
+}
+
 export async function handleAdminChatLog(request: Request, env: Env): Promise<Response> {
     const unauthorized = authorizeAdmin(request, env);
     if (unauthorized) return unauthorized;
@@ -207,6 +351,35 @@ export async function handleAdminChatLog(request: Request, env: Env): Promise<Re
             stats: buildStats(messages),
             messages: messages.map(buildMessageView),
         }, null, 2), {
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    if (request.method === 'POST' && pathname === '/admin/chat-log/outbound') {
+        const body = await readOutboundBody(request);
+        const message = buildSyntheticMessage(body, env);
+        const reply = parseReply(body.reply);
+        if (!message || !reply) {
+            return new Response(JSON.stringify({
+                ok: false,
+                error: '缺少有效的 causedByMessageId/source/from/roomId 或 reply',
+            }, null, 2), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        await recordOutboundChatMessage(env, message, reply, {
+            causedByMessageId: message.messageId,
+            replyIndex: asBoundedNumber(body.replyIndex, 0, 0, 999),
+            pluginName: asString(body.pluginName) || 'openclaw-xbot',
+            replyStatus: parseReplyStatus(body.replyStatus) ?? 'sent',
+            botSenderId: asString(body.botSenderId) || undefined,
+            botSenderName: asString(body.botSenderName) || undefined,
+            wechatRevoke: parseRevokeParam(body.wechatRevoke),
+        });
+
+        return new Response(JSON.stringify({ok: true}, null, 2), {
             headers: { 'Content-Type': 'application/json' },
         });
     }
