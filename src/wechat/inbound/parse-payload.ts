@@ -270,6 +270,7 @@ export function parseWechatPushItem(
                 ...(parsedRefer.videoMeta ? {videoMeta: parsedRefer.videoMeta} : {}),
                 ...(parsedRefer.voiceMeta ? {voiceMeta: parsedRefer.voiceMeta} : {}),
                 ...(parsedRefer.emojiMeta ? {emojiMeta: parsedRefer.emojiMeta} : {}),
+                ...(parsedRefer.mediaHint ? {mediaHint: parsedRefer.mediaHint} : {}),
                 ...(parsedRefer.referMessageId ? {referMessageId: parsedRefer.referMessageId} : {}),
             };
         }

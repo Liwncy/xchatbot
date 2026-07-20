@@ -20,6 +20,129 @@ export interface XbotInboundPayload {
     wechatApiBaseUrl?: string;
 }
 
+function describeQuotedType(referType?: number): string {
+    switch (referType) {
+        case 1:
+            return 'text';
+        case 3:
+            return 'image';
+        case 34:
+            return 'voice';
+        case 43:
+            return 'video';
+        case 47:
+            return 'emoji';
+        case 48:
+            return 'location';
+        case 49:
+            return 'link';
+        default:
+            return 'unknown';
+    }
+}
+
+function formatQuotedSender(message: IncomingMessage): string {
+    const quote = message.quote;
+    if (!quote) return '';
+    const senderId = quote.referFrom?.trim() ?? '';
+    const senderName = quote.referSenderName?.trim() ?? '';
+    if (senderName && senderId && senderName !== senderId) {
+        return `${senderName}(${senderId})`;
+    }
+    return senderName || senderId || '未知发送者';
+}
+
+function buildQuotedExtraLines(message: IncomingMessage): string[] {
+    const quote = message.quote;
+    if (!quote) return [];
+
+    const lines: string[] = [];
+    const mediaHint = quote.mediaHint;
+
+    if (mediaHint?.title?.trim() && mediaHint.title.trim() !== quote.title.trim()) {
+        lines.push(`标题: ${mediaHint.title.trim()}`);
+    }
+    if (mediaHint?.description?.trim()) {
+        lines.push(`描述: ${mediaHint.description.trim()}`);
+    }
+    if (mediaHint?.url?.trim()) {
+        lines.push(`链接: ${mediaHint.url.trim()}`);
+    }
+    if (mediaHint?.originalUrl?.trim()) {
+        lines.push(`原地址: ${mediaHint.originalUrl.trim()}`);
+    }
+    if (mediaHint?.emojiUrl?.trim()) {
+        lines.push(`表情地址: ${mediaHint.emojiUrl.trim()}`);
+    }
+    if (mediaHint?.thumbUrl?.trim()) {
+        lines.push(`缩略图: ${mediaHint.thumbUrl.trim()}`);
+    }
+    if (mediaHint?.md5?.trim()) {
+        lines.push(`MD5: ${mediaHint.md5.trim()}`);
+    }
+    if (mediaHint?.mediaId?.trim()) {
+        lines.push(`媒体ID: ${mediaHint.mediaId.trim()}`);
+    }
+    if (typeof mediaHint?.duration === 'number' && Number.isFinite(mediaHint.duration) && mediaHint.duration > 0) {
+        lines.push(`时长: ${mediaHint.duration}`);
+    }
+    if (typeof mediaHint?.format === 'number' && Number.isFinite(mediaHint.format)) {
+        lines.push(`格式: ${mediaHint.format}`);
+    }
+
+    if (quote.emojiMeta?.cdnurl?.trim() && !lines.some((line) => line.startsWith('表情地址: '))) {
+        lines.push(`表情地址: ${quote.emojiMeta.cdnurl.trim()}`);
+    }
+    if (quote.emojiMeta?.md5?.trim() && !lines.some((line) => line.startsWith('MD5: '))) {
+        lines.push(`MD5: ${quote.emojiMeta.md5.trim()}`);
+    }
+    if (quote.imageMeta?.fileId?.trim()) {
+        lines.push(`图片文件: ${quote.imageMeta.fileId.trim()}`);
+    }
+    if (quote.videoMeta?.fileId?.trim()) {
+        lines.push(`视频文件: ${quote.videoMeta.fileId.trim()}`);
+    }
+    if (quote.videoMeta?.thumbFileId?.trim()) {
+        lines.push(`视频封面: ${quote.videoMeta.thumbFileId.trim()}`);
+    }
+    if (typeof quote.videoMeta?.duration === 'number' && Number.isFinite(quote.videoMeta.duration) && quote.videoMeta.duration > 0) {
+        lines.push(`视频时长: ${quote.videoMeta.duration}`);
+    }
+    if (quote.voiceMeta?.voiceUrl?.trim()) {
+        lines.push(`语音地址: ${quote.voiceMeta.voiceUrl.trim()}`);
+    }
+    if (typeof quote.voiceMeta?.duration === 'number' && Number.isFinite(quote.voiceMeta.duration) && quote.voiceMeta.duration > 0) {
+        lines.push(`语音时长: ${quote.voiceMeta.duration}`);
+    }
+    if (typeof quote.voiceMeta?.format === 'number' && Number.isFinite(quote.voiceMeta.format)) {
+        lines.push(`语音格式: ${quote.voiceMeta.format}`);
+    }
+    if (quote.referMessageId?.newIdText?.trim()) {
+        lines.push(`消息ID: ${quote.referMessageId.newIdText.trim()}`);
+    }
+
+    return lines;
+}
+
+function buildOpenClawContent(message: IncomingMessage): string {
+    const content = message.content?.trim() ?? '';
+    const quote = message.quote;
+    if (!quote) return content;
+
+    const lines = [
+        '[引用消息]',
+        `发送者: ${formatQuotedSender(message)}`,
+        `类型: ${describeQuotedType(quote.referType)}`,
+        `内容: ${quote.referContent?.trim() || '[空消息]'}`,
+        ...buildQuotedExtraLines(message),
+        '[/引用消息]',
+    ];
+    if (content) {
+        lines.push('', '[用户消息]', content, '[/用户消息]');
+    }
+    return lines.join('\n');
+}
+
 function detectBotMention(content: string, env: Env): {mentions: string[]; botMentioned: boolean} {
     const mentions: string[] = [];
     let botMentioned = false;
@@ -52,7 +175,7 @@ export function mapIncomingMessageToXbotInbound(
     options?: {wechatApiBaseUrl?: string},
 ): XbotInboundPayload {
     const clientId = resolveXbotChannelClientId(env);
-    const content = message.content?.trim() ?? '';
+    const content = buildOpenClawContent(message);
     const {mentions, botMentioned} = detectBotMention(content, env);
     const isGroup = message.source === 'group';
     const roomId = message.room?.id?.trim();

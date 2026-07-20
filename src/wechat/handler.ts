@@ -8,6 +8,7 @@ import {WechatApi} from './api';
 import {verifyWechatSignature} from './inbound/verify.js';
 import {parseWechatMessages} from './inbound/parse-payload.js';
 import {filterExpiredWechatMessages} from './inbound/filter-messages.js';
+import {normalizeQuoteDirectiveMessage} from './inbound/quote-directive.js';
 import {shouldAllowWechatMessage} from './inbound/whitelist.js';
 import {buildWechatReply} from './outbound/build-send-params.js';
 import {sendWechatReply} from './outbound/send-reply.js';
@@ -145,15 +146,27 @@ export async function handleWechat(request: Request, env: Env, ctx: ExecutionCon
             continue;
         }
 
-        await recordInboundChatMessage(env, message);
+        const normalized = await normalizeQuoteDirectiveMessage(message, env);
+        const routedMessage = normalized.message;
 
-        const response = await routeMessage(message, env, {
+        await recordInboundChatMessage(env, routedMessage);
+
+        if (normalized.errorText) {
+            replyTasks.push({
+                message: routedMessage,
+                reply: {type: 'text', content: normalized.errorText},
+                replyIndex: 0,
+            });
+            continue;
+        }
+
+        const response = await routeMessage(routedMessage, env, {
             waitUntil: (promise) => ctx.waitUntil(promise),
         });
         const replies = toReplyArray(response);
         if (replies.length > 0) {
             replies.forEach((reply, replyIndex) => {
-                replyTasks.push({message, reply, replyIndex});
+                replyTasks.push({message: routedMessage, reply, replyIndex});
             });
             continue;
         }

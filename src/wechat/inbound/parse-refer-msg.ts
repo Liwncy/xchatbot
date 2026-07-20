@@ -11,6 +11,7 @@ export interface ParsedWechatReferMessage {
     videoMeta?: NonNullable<IncomingMessage['quote']>['videoMeta'];
     voiceMeta?: NonNullable<IncomingMessage['quote']>['voiceMeta'];
     emojiMeta?: NonNullable<IncomingMessage['quote']>['emojiMeta'];
+    mediaHint?: NonNullable<IncomingMessage['quote']>['mediaHint'];
     referMessageId?: NonNullable<IncomingMessage['quote']>['referMessageId'];
 }
 
@@ -220,6 +221,57 @@ function extractVoiceMetaFromXml(
     };
 }
 
+function buildReferMediaHint(args: {
+    title: string;
+    referType: number;
+    referContent: string;
+    imageMeta?: ParsedWechatReferMessage['imageMeta'];
+    videoMeta?: ParsedWechatReferMessage['videoMeta'];
+    voiceMeta?: ParsedWechatReferMessage['voiceMeta'];
+    emojiMeta?: ParsedWechatReferMessage['emojiMeta'];
+}): ParsedWechatReferMessage['mediaHint'] | undefined {
+    const mediaHint: NonNullable<ParsedWechatReferMessage['mediaHint']> = {};
+    const content = args.referContent.trim();
+
+    if (args.referType === 3 && args.imageMeta) {
+        mediaHint.mediaId = args.imageMeta.fileId;
+        mediaHint.originalUrl = args.imageMeta.fileId;
+    }
+
+    if (args.referType === 43 && args.videoMeta) {
+        mediaHint.mediaId = args.videoMeta.fileId;
+        mediaHint.originalUrl = args.videoMeta.fileId;
+        mediaHint.thumbUrl = args.videoMeta.thumbFileId;
+        mediaHint.duration = args.videoMeta.duration;
+    }
+
+    if (args.referType === 34 && args.voiceMeta) {
+        mediaHint.originalUrl = args.voiceMeta.voiceUrl;
+        mediaHint.duration = args.voiceMeta.duration;
+        mediaHint.format = args.voiceMeta.format;
+    }
+
+    if (args.referType === 47 && args.emojiMeta) {
+        mediaHint.emojiUrl = args.emojiMeta.cdnurl;
+        mediaHint.md5 = args.emojiMeta.md5;
+    }
+
+    if (args.referType === 49) {
+        const title = decodeHtmlEntities(pickXmlTagValue(content, 'title') || args.title).trim();
+        const url = decodeHtmlEntities(pickXmlTagValue(content, 'url') || '').trim();
+        const description = decodeHtmlEntities(pickXmlTagValue(content, 'des') || '').trim();
+        const thumbUrl = decodeHtmlEntities(pickXmlTagValue(content, 'thumburl') || '').trim();
+        if (title) mediaHint.title = title;
+        if (url) mediaHint.url = url;
+        if (description) mediaHint.description = description;
+        if (thumbUrl) mediaHint.thumbUrl = thumbUrl;
+    }
+
+    return Object.values(mediaHint).some((value) => value != null && value !== '')
+        ? mediaHint
+        : undefined;
+}
+
 /**
  * 解析微信 type 49 引用消息（appmsg type 57）。
  * 若引用内容为图片（refermsg type 3），提取 CDN 下载参数。
@@ -264,5 +316,14 @@ export function parseWechatReferMessage(rawContent: string): ParsedWechatReferMe
             parsed.emojiMeta = emojiMeta;
         }
     }
+    parsed.mediaHint = buildReferMediaHint({
+        title,
+        referType,
+        referContent,
+        imageMeta: parsed.imageMeta,
+        videoMeta: parsed.videoMeta,
+        voiceMeta: parsed.voiceMeta,
+        emojiMeta: parsed.emojiMeta,
+    });
     return parsed;
 }

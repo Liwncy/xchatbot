@@ -111,6 +111,19 @@ export interface IncomingMessage {
         };
         /** 被引用表情（refermsg type 47） */
         emojiMeta?: WechatInboundEmoji;
+        /** 兼容规则引用等非原生场景时补充的媒体线索。 */
+        mediaHint?: {
+            mediaId?: string;
+            originalUrl?: string;
+            emojiUrl?: string;
+            md5?: string;
+            duration?: number;
+            format?: number;
+            title?: string;
+            url?: string;
+            description?: string;
+            thumbUrl?: string;
+        };
         /** 被引用消息的微信 ID（用于撤回等操作） */
         referMessageId?: {
             /** 服务端消息 ID（refermsg svrid）。 */
