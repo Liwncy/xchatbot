@@ -1,6 +1,9 @@
 import type {TextMessage} from '../../types.js';
+import type {Env} from '../../../types/env.js';
+import type {IncomingMessage} from '../../../types/message.js';
 import {buildHandledReply} from '../../../types/reply.js';
 import {logger} from '../../../utils/logger.js';
+import {getBotWechatId, getBotWechatName} from '../../../utils/bot.js';
 import {
     ensureXbotChannelConnected,
     forwardInboundToXbotChannel,
@@ -23,9 +26,24 @@ function isOpenClawAutoForwardEnabled(env: {XBOT_CHANNEL_AUTO_FORWARD?: string})
     return normalizeBoolean(env.XBOT_CHANNEL_AUTO_FORWARD, false);
 }
 
+function isQuotedBotMessage(message: IncomingMessage, env: Env): boolean {
+    const quote = message.quote;
+    if (!quote) return false;
+
+    const botId = getBotWechatId(env, message).trim();
+    const referFrom = quote.referFrom?.trim() ?? '';
+    if (botId && referFrom && referFrom === botId) {
+        return true;
+    }
+
+    const botName = getBotWechatName(env).trim();
+    const referSenderName = quote.referSenderName?.trim() ?? '';
+    return Boolean(botName && referSenderName && referSenderName === botName);
+}
+
 async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
     if (!isOpenClawAutoForwardEnabled(env)) return null;
-    const shouldHandle = await shouldUseAiDialogChatTrigger(message, env);
+    const shouldHandle = isQuotedBotMessage(message, env) || await shouldUseAiDialogChatTrigger(message, env);
     if (!shouldHandle) return null;
 
     const state = resolveXbotChannelConfigState(env);
