@@ -79,7 +79,13 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
             wechatApiBaseUrl: apiBaseUrl,
             ...(xchatbotApiBaseUrl ? {xchatbotApiBaseUrl} : {}),
             ...(adminToken ? {xchatbotAdminToken: adminToken} : {}),
-            ...(media?.url ? {mediaUrl: media.url, mediaKind: media.kind} : {}),
+            ...(media?.url
+                ? {
+                    mediaUrl: media.url,
+                    mediaKind: media.kind,
+                    ...(media.videoUrl ? {videoUrl: media.videoUrl} : {}),
+                }
+                : {}),
         });
         if (media?.url) {
             logger.info('OpenClaw 入站已附带公网媒体地址', {
@@ -88,6 +94,7 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
                 referType: message.quote?.referType,
                 mediaKind: media.kind,
                 mediaUrl: media.url,
+                ...(media.videoUrl ? {videoUrl: media.videoUrl} : {}),
             });
         }
         const result = await forwardInboundToXbotChannel(state.config, payload);

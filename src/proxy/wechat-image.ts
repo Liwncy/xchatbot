@@ -1,6 +1,7 @@
 import type {Env} from '../types/env.js';
 import {logger} from '../utils/logger.js';
 import {WechatApi} from '../wechat/api/index.js';
+import {loadWechatMediaTicket} from './media-ticket.js';
 
 function detectImageContentType(bytes: Uint8Array): string {
     if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
@@ -30,17 +31,38 @@ function detectImageContentType(bytes: Uint8Array): string {
     return 'application/octet-stream';
 }
 
+async function resolveImageDownloadCreds(
+    requestUrl: URL,
+    env: Env,
+): Promise<{id: string; key: string} | Response> {
+    const ticket = requestUrl.searchParams.get('t')?.trim() ?? '';
+    if (ticket) {
+        const record = await loadWechatMediaTicket(env, ticket);
+        if (!record) {
+            return new Response('Media ticket not found or expired', {status: 404});
+        }
+        if (record.kind !== 'image') {
+            return new Response('Media ticket is not an image', {status: 400});
+        }
+        return {id: record.fileId, key: record.fileAesKey};
+    }
+
+    const id = requestUrl.searchParams.get('id')?.trim() ?? '';
+    const key = requestUrl.searchParams.get('key')?.trim() ?? '';
+    if (!id || !key) {
+        return new Response('Missing t, or id/key query parameters', {status: 400});
+    }
+    return {id, key};
+}
+
 export async function handleWechatImageProxy(request: Request, env: Env): Promise<Response> {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         return new Response('Method Not Allowed', {status: 405});
     }
 
-    const url = new URL(request.url);
-    const id = url.searchParams.get('id')?.trim();
-    const key = url.searchParams.get('key')?.trim();
-    if (!id || !key) {
-        return new Response('Missing id or key query parameters', {status: 400});
-    }
+    const resolved = await resolveImageDownloadCreds(new URL(request.url), env);
+    if (resolved instanceof Response) return resolved;
+    const {id, key} = resolved;
 
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim();
     if (!apiBaseUrl) {
@@ -67,10 +89,11 @@ export async function handleWechatImageProxy(request: Request, env: Env): Promis
 
         return new Response(raw, {status: 200, headers});
     } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         logger.error('微信图片 GET 代理失败', {
-            id: id.slice(0, 32),
-            error: error instanceof Error ? error.message : String(error),
+            idPrefix: id.slice(0, 32),
+            error: message,
         });
-        return new Response('Failed to download image from WeChat CDN', {status: 502});
+        return new Response(`Failed to download image from WeChat CDN: ${message}`, {status: 502});
     }
 }

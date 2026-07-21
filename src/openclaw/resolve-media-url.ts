@@ -9,17 +9,17 @@ import {
     resolvePublicImageUrlFromMessage,
     resolvePublicImageUrlFromMeta,
 } from '../plugins/cognitive/agnes-text/resolve-image.js';
-import {
-    buildWechatImageProxyUrl,
-    WECHAT_IMAGE_PROXY_PATH,
-} from '../plugins/cognitive/agnes-video/wechat-cdn-image.js';
+import {WECHAT_IMAGE_PROXY_PATH} from '../plugins/cognitive/agnes-video/wechat-cdn-image.js';
 import {XCHATBOT_PUBLIC_BASE_URL} from '../plugins/cognitive/agnes-video/constants.js';
+import {saveWechatMediaTicket} from '../proxy/media-ticket.js';
 
 export type OpenClawMediaKind = 'image' | 'video' | 'emoji';
 
 export interface OpenClawResolvedMedia {
     url: string;
     kind: OpenClawMediaKind;
+    /** 视频场景下额外附带的视频代理地址（正文用）；url 可能是更易解析的封面。 */
+    videoUrl?: string;
 }
 
 const WECHAT_CDN_HOST_PATTERN = /(?:vweixinf\.tc\.qq\.com|qpic\.cn|wx\.qq\.com)/i;
@@ -31,13 +31,19 @@ function resolveWorkerPublicBaseUrl(env: Env): string {
     return (fromEnv || fromRequest || XCHATBOT_PUBLIC_BASE_URL).replace(/\/+$/, '');
 }
 
-function buildWechatVideoProxyUrl(
-    workerBaseUrl: string,
+async function buildTicketProxyUrl(
+    env: Env,
+    kind: 'image' | 'video',
     meta: {fileId: string; fileAesKey: string},
-): string {
-    const url = new URL(WECHAT_VIDEO_PROXY_PATH, `${workerBaseUrl.replace(/\/+$/, '')}/`);
-    url.searchParams.set('id', meta.fileId);
-    url.searchParams.set('key', meta.fileAesKey);
+): Promise<string> {
+    const ticket = await saveWechatMediaTicket(env, {
+        kind,
+        fileId: meta.fileId,
+        fileAesKey: meta.fileAesKey,
+    });
+    const path = kind === 'video' ? WECHAT_VIDEO_PROXY_PATH : WECHAT_IMAGE_PROXY_PATH;
+    const url = new URL(path, `${resolveWorkerPublicBaseUrl(env)}/`);
+    url.searchParams.set('t', ticket);
     return url.toString();
 }
 
@@ -189,15 +195,11 @@ async function resolveQuotedVideoCoverUrl(
     const thumbAesKey = videoMeta?.thumbAesKey?.trim() ?? '';
     if (!thumbFileId || !thumbAesKey) return null;
 
-    // 封面也走代理，避免入站阶段再下图上传。
-    const proxyUrl = buildWechatImageProxyUrl(
-        resolveWorkerPublicBaseUrl(env),
-        {fileId: thumbFileId, fileAesKey: thumbAesKey},
-    );
-    logger.info('OpenClaw 视频封面使用 Worker 代理 URL', {
-        path: WECHAT_IMAGE_PROXY_PATH,
-        proxyUrl: proxyUrl.slice(0, 120),
+    const proxyUrl = await buildTicketProxyUrl(env, 'image', {
+        fileId: thumbFileId,
+        fileAesKey: thumbAesKey,
     });
+    logger.info('OpenClaw 视频封面使用短票代理 URL', {proxyUrl});
     return proxyUrl;
 }
 
@@ -209,15 +211,11 @@ async function resolveQuotedVideoPublicUrl(
     const fileId = videoMeta?.fileId?.trim() ?? '';
     const fileAesKey = videoMeta?.fileAesKey?.trim() ?? '';
     if (fileId && fileAesKey) {
-        // 入站只拼可下载代理 URL；真正拉流放到 OpenClaw/Agent 侧，避免 Worker 超时。
-        const proxyUrl = buildWechatVideoProxyUrl(
-            resolveWorkerPublicBaseUrl(env),
-            {fileId, fileAesKey},
-        );
-        logger.info('OpenClaw 视频使用 Worker 代理 URL', {
-            path: WECHAT_VIDEO_PROXY_PATH,
+        // 短票避免超长 id/key 在会话里被截断；真正拉流放到访问代理时。
+        const proxyUrl = await buildTicketProxyUrl(env, 'video', {fileId, fileAesKey});
+        logger.info('OpenClaw 视频使用短票代理 URL', {
             fileIdPrefix: fileId.slice(0, 24),
-            proxyUrl: proxyUrl.slice(0, 120),
+            proxyUrl,
         });
         return proxyUrl;
     }
@@ -316,13 +314,18 @@ export async function resolveOpenClawMedia(
 
         if (isVideoQuote(quote)) {
             const videoUrl = await resolveQuotedVideoPublicUrl(message, env);
+            const coverUrl = await resolveQuotedVideoCoverUrl(message, env)
+                || await resolvePublicUrlFromImagePayload(quote.mediaHint?.thumbUrl);
+
+            // 视觉模型优先吃封面；视频短票地址放进正文，避免超长 CDN 参数被截断。
+            if (coverUrl) {
+                return {
+                    url: coverUrl,
+                    kind: 'image',
+                    ...(videoUrl ? {videoUrl} : {}),
+                };
+            }
             if (videoUrl) return {url: videoUrl, kind: 'video'};
-
-            const coverUrl = await resolveQuotedVideoCoverUrl(message, env);
-            if (coverUrl) return {url: coverUrl, kind: 'image'};
-
-            const thumbHint = await resolvePublicUrlFromImagePayload(quote.mediaHint?.thumbUrl);
-            if (thumbHint) return {url: thumbHint, kind: 'image'};
             return null;
         }
 
