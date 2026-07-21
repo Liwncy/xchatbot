@@ -155,6 +155,16 @@ function resolveTextContent(
     return fallback || parsedContent;
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+}
+
 function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
     const buffer = item.image_buffer?.data ?? item.image_buffer?.buffer;
     if (!buffer) return undefined;
@@ -165,7 +175,8 @@ function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
     }
 
     if (Array.isArray(buffer) && buffer.length > 0) {
-        return buffer.join(',');
+        const bytes = Uint8Array.from(buffer.map((value) => Number(value) & 0xff));
+        return bytes.length > 0 ? bytesToBase64(bytes) : undefined;
     }
 
     return undefined;

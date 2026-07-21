@@ -10,6 +10,7 @@ import {
     ensureXbotChannelConnected,
     forwardInboundToXbotChannel,
     mapIncomingMessageToXbotInbound,
+    resolveOpenClawMediaUrl,
     resolveXbotChannelConfigState,
 } from '../../../openclaw/index.js';
 import {shouldUseAiDialogChatTrigger} from '../ai-dialog/plugin.js';
@@ -73,11 +74,21 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
     }
 
     try {
+        const mediaUrl = await resolveOpenClawMediaUrl(message, env);
         const payload = mapIncomingMessageToXbotInbound(message, env, {
             wechatApiBaseUrl: apiBaseUrl,
             ...(xchatbotApiBaseUrl ? {xchatbotApiBaseUrl} : {}),
             ...(adminToken ? {xchatbotAdminToken: adminToken} : {}),
+            ...(mediaUrl ? {mediaUrl} : {}),
         });
+        if (mediaUrl) {
+            logger.info('OpenClaw 入站已附带公网媒体地址', {
+                messageId: message.messageId,
+                type: message.type,
+                referType: message.quote?.referType,
+                mediaUrl,
+            });
+        }
         const result = await forwardInboundToXbotChannel(state.config, payload);
         if (result.dispatched === true || result.accumulated === true) {
             return buildHandledReply();

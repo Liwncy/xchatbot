@@ -14,12 +14,28 @@ export interface XbotInboundPayload {
     roomId?: string;
     type: string;
     content?: string;
+    /** 可下载的公网媒体 URL（图片/表情，或视频封面）。 */
+    mediaUrl?: string;
     timestamp: number;
     mentions?: string[];
     botMentioned?: boolean;
     wechatApiBaseUrl?: string;
     xchatbotApiBaseUrl?: string;
     xchatbotAdminToken?: string;
+}
+
+function isHttpUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value.trim());
+}
+
+/** 避免把 base64 / CDN id 等不可直接下载的大字段塞进 OpenClaw 正文。 */
+function isUsefulMediaHintValue(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (isHttpUrl(trimmed)) return true;
+    if (trimmed.length > 180) return false;
+    if (trimmed.includes(',') && /^\d[\d,\s]*$/.test(trimmed)) return false;
+    return true;
 }
 
 function describeQuotedType(referType?: number): string {
@@ -54,12 +70,23 @@ function formatQuotedSender(message: IncomingMessage): string {
     return senderName || senderId || '未知发送者';
 }
 
-function buildQuotedExtraLines(message: IncomingMessage): string[] {
+function buildQuotedExtraLines(message: IncomingMessage, mediaUrl?: string): string[] {
     const quote = message.quote;
     if (!quote) return [];
 
     const lines: string[] = [];
     const mediaHint = quote.mediaHint;
+    const resolvedMediaUrl = mediaUrl?.trim() ?? '';
+
+    if (resolvedMediaUrl && isHttpUrl(resolvedMediaUrl)) {
+        if (quote.referType === 43 || quote.videoMeta) {
+            lines.push(`封面地址: ${resolvedMediaUrl}`);
+        } else if (quote.referType === 47 || quote.emojiMeta) {
+            lines.push(`表情地址: ${resolvedMediaUrl}`);
+        } else {
+            lines.push(`图片地址: ${resolvedMediaUrl}`);
+        }
+    }
 
     if (mediaHint?.title?.trim() && mediaHint.title.trim() !== quote.title.trim()) {
         lines.push(`标题: ${mediaHint.title.trim()}`);
@@ -67,22 +94,22 @@ function buildQuotedExtraLines(message: IncomingMessage): string[] {
     if (mediaHint?.description?.trim()) {
         lines.push(`描述: ${mediaHint.description.trim()}`);
     }
-    if (mediaHint?.url?.trim()) {
+    if (mediaHint?.url?.trim() && isUsefulMediaHintValue(mediaHint.url)) {
         lines.push(`链接: ${mediaHint.url.trim()}`);
     }
-    if (mediaHint?.originalUrl?.trim()) {
+    if (mediaHint?.originalUrl?.trim() && isUsefulMediaHintValue(mediaHint.originalUrl) && mediaHint.originalUrl.trim() !== resolvedMediaUrl) {
         lines.push(`原地址: ${mediaHint.originalUrl.trim()}`);
     }
-    if (mediaHint?.emojiUrl?.trim()) {
+    if (mediaHint?.emojiUrl?.trim() && isUsefulMediaHintValue(mediaHint.emojiUrl) && !lines.some((line) => line.startsWith('表情地址: '))) {
         lines.push(`表情地址: ${mediaHint.emojiUrl.trim()}`);
     }
-    if (mediaHint?.thumbUrl?.trim()) {
+    if (mediaHint?.thumbUrl?.trim() && isUsefulMediaHintValue(mediaHint.thumbUrl) && mediaHint.thumbUrl.trim() !== resolvedMediaUrl) {
         lines.push(`缩略图: ${mediaHint.thumbUrl.trim()}`);
     }
     if (mediaHint?.md5?.trim()) {
         lines.push(`MD5: ${mediaHint.md5.trim()}`);
     }
-    if (mediaHint?.mediaId?.trim()) {
+    if (mediaHint?.mediaId?.trim() && isUsefulMediaHintValue(mediaHint.mediaId)) {
         lines.push(`媒体ID: ${mediaHint.mediaId.trim()}`);
     }
     if (typeof mediaHint?.duration === 'number' && Number.isFinite(mediaHint.duration) && mediaHint.duration > 0) {
@@ -92,25 +119,25 @@ function buildQuotedExtraLines(message: IncomingMessage): string[] {
         lines.push(`格式: ${mediaHint.format}`);
     }
 
-    if (quote.emojiMeta?.cdnurl?.trim() && !lines.some((line) => line.startsWith('表情地址: '))) {
+    if (quote.emojiMeta?.cdnurl?.trim() && isUsefulMediaHintValue(quote.emojiMeta.cdnurl) && !lines.some((line) => line.startsWith('表情地址: '))) {
         lines.push(`表情地址: ${quote.emojiMeta.cdnurl.trim()}`);
     }
     if (quote.emojiMeta?.md5?.trim() && !lines.some((line) => line.startsWith('MD5: '))) {
         lines.push(`MD5: ${quote.emojiMeta.md5.trim()}`);
     }
-    if (quote.imageMeta?.fileId?.trim()) {
+    if (quote.imageMeta?.fileId?.trim() && isUsefulMediaHintValue(quote.imageMeta.fileId) && !resolvedMediaUrl) {
         lines.push(`图片文件: ${quote.imageMeta.fileId.trim()}`);
     }
-    if (quote.videoMeta?.fileId?.trim()) {
+    if (quote.videoMeta?.fileId?.trim() && isUsefulMediaHintValue(quote.videoMeta.fileId)) {
         lines.push(`视频文件: ${quote.videoMeta.fileId.trim()}`);
     }
-    if (quote.videoMeta?.thumbFileId?.trim()) {
+    if (quote.videoMeta?.thumbFileId?.trim() && isUsefulMediaHintValue(quote.videoMeta.thumbFileId) && !resolvedMediaUrl) {
         lines.push(`视频封面: ${quote.videoMeta.thumbFileId.trim()}`);
     }
     if (typeof quote.videoMeta?.duration === 'number' && Number.isFinite(quote.videoMeta.duration) && quote.videoMeta.duration > 0) {
         lines.push(`视频时长: ${quote.videoMeta.duration}`);
     }
-    if (quote.voiceMeta?.voiceUrl?.trim()) {
+    if (quote.voiceMeta?.voiceUrl?.trim() && isUsefulMediaHintValue(quote.voiceMeta.voiceUrl)) {
         lines.push(`语音地址: ${quote.voiceMeta.voiceUrl.trim()}`);
     }
     if (typeof quote.voiceMeta?.duration === 'number' && Number.isFinite(quote.voiceMeta.duration) && quote.voiceMeta.duration > 0) {
@@ -126,12 +153,23 @@ function buildQuotedExtraLines(message: IncomingMessage): string[] {
     return lines;
 }
 
-function buildCurrentMessageExtraLines(message: IncomingMessage): string[] {
+function buildCurrentMessageExtraLines(message: IncomingMessage, mediaUrl?: string): string[] {
     const lines: string[] = [];
     const mediaHint = message.mediaHint;
+    const resolvedMediaUrl = mediaUrl?.trim() ?? '';
+
+    if (resolvedMediaUrl && isHttpUrl(resolvedMediaUrl)) {
+        if (message.type === 'emoji') {
+            lines.push(`表情地址: ${resolvedMediaUrl}`);
+        } else if (message.type === 'video') {
+            lines.push(`封面地址: ${resolvedMediaUrl}`);
+        } else {
+            lines.push(`图片地址: ${resolvedMediaUrl}`);
+        }
+    }
 
     if (message.type === 'emoji') {
-        if (message.emoji?.cdnurl?.trim()) {
+        if (message.emoji?.cdnurl?.trim() && isUsefulMediaHintValue(message.emoji.cdnurl) && !lines.some((line) => line.startsWith('表情地址: '))) {
             lines.push(`表情地址: ${message.emoji.cdnurl.trim()}`);
         }
         if (message.emoji?.md5?.trim()) {
@@ -139,19 +177,19 @@ function buildCurrentMessageExtraLines(message: IncomingMessage): string[] {
         }
     }
 
-    if (mediaHint?.originalUrl?.trim()) {
+    if (mediaHint?.originalUrl?.trim() && isUsefulMediaHintValue(mediaHint.originalUrl) && mediaHint.originalUrl.trim() !== resolvedMediaUrl) {
         lines.push(`原地址: ${mediaHint.originalUrl.trim()}`);
     }
-    if (mediaHint?.emojiUrl?.trim() && !lines.some((line) => line.startsWith('表情地址: '))) {
+    if (mediaHint?.emojiUrl?.trim() && isUsefulMediaHintValue(mediaHint.emojiUrl) && !lines.some((line) => line.startsWith('表情地址: '))) {
         lines.push(`表情地址: ${mediaHint.emojiUrl.trim()}`);
     }
-    if (mediaHint?.thumbUrl?.trim()) {
+    if (mediaHint?.thumbUrl?.trim() && isUsefulMediaHintValue(mediaHint.thumbUrl) && mediaHint.thumbUrl.trim() !== resolvedMediaUrl) {
         lines.push(`缩略图: ${mediaHint.thumbUrl.trim()}`);
     }
     if (mediaHint?.md5?.trim() && !lines.some((line) => line.startsWith('MD5: '))) {
         lines.push(`MD5: ${mediaHint.md5.trim()}`);
     }
-    if (mediaHint?.mediaId?.trim()) {
+    if (mediaHint?.mediaId?.trim() && isUsefulMediaHintValue(mediaHint.mediaId)) {
         lines.push(`媒体ID: ${mediaHint.mediaId.trim()}`);
     }
     if (typeof mediaHint?.duration === 'number' && Number.isFinite(mediaHint.duration) && mediaHint.duration > 0) {
@@ -166,7 +204,7 @@ function buildCurrentMessageExtraLines(message: IncomingMessage): string[] {
     if (mediaHint?.description?.trim()) {
         lines.push(`描述: ${mediaHint.description.trim()}`);
     }
-    if (mediaHint?.url?.trim()) {
+    if (mediaHint?.url?.trim() && isUsefulMediaHintValue(mediaHint.url)) {
         lines.push(`链接: ${mediaHint.url.trim()}`);
     }
 
@@ -192,7 +230,7 @@ function describeCurrentMessageType(message: IncomingMessage): string {
     }
 }
 
-function buildOpenClawContent(message: IncomingMessage): string {
+function buildOpenClawContent(message: IncomingMessage, mediaUrl?: string): string {
     const content = message.content?.trim() ?? '';
     const quote = message.quote;
     if (!quote) {
@@ -202,7 +240,7 @@ function buildOpenClawContent(message: IncomingMessage): string {
             '[消息]',
             `类型: ${describeCurrentMessageType(message)}`,
             ...(content ? [`内容: ${content}`] : []),
-            ...buildCurrentMessageExtraLines(message),
+            ...buildCurrentMessageExtraLines(message, mediaUrl),
             '[/消息]',
         ];
         return lines.join('\n');
@@ -213,7 +251,7 @@ function buildOpenClawContent(message: IncomingMessage): string {
         `发送者: ${formatQuotedSender(message)}`,
         `类型: ${describeQuotedType(quote.referType)}`,
         `内容: ${quote.referContent?.trim() || '[空消息]'}`,
-        ...buildQuotedExtraLines(message),
+        ...buildQuotedExtraLines(message, mediaUrl),
         '[/引用消息]',
     ];
     if (content) {
@@ -251,10 +289,16 @@ function detectBotMention(content: string, env: Env): {mentions: string[]; botMe
 export function mapIncomingMessageToXbotInbound(
     message: IncomingMessage,
     env: Env,
-    options?: {wechatApiBaseUrl?: string; xchatbotApiBaseUrl?: string; xchatbotAdminToken?: string},
+    options?: {
+        wechatApiBaseUrl?: string;
+        xchatbotApiBaseUrl?: string;
+        xchatbotAdminToken?: string;
+        mediaUrl?: string;
+    },
 ): XbotInboundPayload {
     const clientId = resolveXbotChannelClientId(env);
-    const content = buildOpenClawContent(message);
+    const mediaUrl = options?.mediaUrl?.trim() ?? '';
+    const content = buildOpenClawContent(message, mediaUrl || undefined);
     const {mentions, botMentioned} = detectBotMention(content, env);
     const isGroup = message.source === 'group';
     const roomId = message.room?.id?.trim();
@@ -272,6 +316,7 @@ export function mapIncomingMessageToXbotInbound(
         ...(roomId ? {roomId} : {}),
         type: message.type,
         ...(content ? {content} : {}),
+        ...(mediaUrl && isHttpUrl(mediaUrl) ? {mediaUrl} : {}),
         timestamp: message.timestamp > 1_000_000_000_000
             ? message.timestamp
             : message.timestamp * 1000,
