@@ -2,14 +2,18 @@ import type {Env} from '../types/env.js';
 import type {IncomingMessage} from '../types/message.js';
 import {FileUploader} from '../utils/file-uploader.js';
 import {logger} from '../utils/logger.js';
-import {WechatApi} from '../wechat/api/index.js';
+import {getRequestContext} from '../utils/request-context.js';
 import {
     resolvePublicImageUrlForAgnes,
     resolvePublicImageUrlFromEmojiCdnurl,
     resolvePublicImageUrlFromMessage,
     resolvePublicImageUrlFromMeta,
 } from '../plugins/cognitive/agnes-text/resolve-image.js';
-import {resolveImageDataFromMeta} from '../plugins/cognitive/intent-image/recognize.js';
+import {
+    buildWechatImageProxyUrl,
+    WECHAT_IMAGE_PROXY_PATH,
+} from '../plugins/cognitive/agnes-video/wechat-cdn-image.js';
+import {XCHATBOT_PUBLIC_BASE_URL} from '../plugins/cognitive/agnes-video/constants.js';
 
 export type OpenClawMediaKind = 'image' | 'video' | 'emoji';
 
@@ -19,6 +23,23 @@ export interface OpenClawResolvedMedia {
 }
 
 const WECHAT_CDN_HOST_PATTERN = /(?:vweixinf\.tc\.qq\.com|qpic\.cn|wx\.qq\.com)/i;
+export const WECHAT_VIDEO_PROXY_PATH = '/proxy/wechat-video';
+
+function resolveWorkerPublicBaseUrl(env: Env): string {
+    const fromEnv = env.TURNSTILE_BASE_URL?.trim() ?? '';
+    const fromRequest = getRequestContext()?.requestOrigin?.trim() ?? '';
+    return (fromEnv || fromRequest || XCHATBOT_PUBLIC_BASE_URL).replace(/\/+$/, '');
+}
+
+function buildWechatVideoProxyUrl(
+    workerBaseUrl: string,
+    meta: {fileId: string; fileAesKey: string},
+): string {
+    const url = new URL(WECHAT_VIDEO_PROXY_PATH, `${workerBaseUrl.replace(/\/+$/, '')}/`);
+    url.searchParams.set('id', meta.fileId);
+    url.searchParams.set('key', meta.fileAesKey);
+    return url.toString();
+}
 
 function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value.trim());
@@ -168,12 +189,16 @@ async function resolveQuotedVideoCoverUrl(
     const thumbAesKey = videoMeta?.thumbAesKey?.trim() ?? '';
     if (!thumbFileId || !thumbAesKey) return null;
 
-    const imageData = await resolveImageDataFromMeta(
+    // 封面也走代理，避免入站阶段再下图上传。
+    const proxyUrl = buildWechatImageProxyUrl(
+        resolveWorkerPublicBaseUrl(env),
         {fileId: thumbFileId, fileAesKey: thumbAesKey},
-        env,
     );
-    if (!imageData) return null;
-    return resolvePublicImageUrlForAgnes(imageData);
+    logger.info('OpenClaw 视频封面使用 Worker 代理 URL', {
+        path: WECHAT_IMAGE_PROXY_PATH,
+        proxyUrl: proxyUrl.slice(0, 120),
+    });
+    return proxyUrl;
 }
 
 async function resolveQuotedVideoPublicUrl(
@@ -184,27 +209,17 @@ async function resolveQuotedVideoPublicUrl(
     const fileId = videoMeta?.fileId?.trim() ?? '';
     const fileAesKey = videoMeta?.fileAesKey?.trim() ?? '';
     if (fileId && fileAesKey) {
-        const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
-        if (apiBaseUrl) {
-            try {
-                const api = new WechatApi(apiBaseUrl);
-                const videoRaw = await api.cdnDownloadChatVideoRaw({
-                    id: fileId,
-                    key: fileAesKey,
-                });
-                if (videoRaw.byteLength > 0) {
-                    const uploaded = await uploadPublicVideoBlob(videoRaw);
-                    if (uploaded) return uploaded;
-                } else {
-                    logger.warn('OpenClaw 微信 CDN 下载视频为空', {fileId});
-                }
-            } catch (error) {
-                logger.warn('OpenClaw 微信 CDN 下载视频失败', {
-                    fileId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
+        // 入站只拼可下载代理 URL；真正拉流放到 OpenClaw/Agent 侧，避免 Worker 超时。
+        const proxyUrl = buildWechatVideoProxyUrl(
+            resolveWorkerPublicBaseUrl(env),
+            {fileId, fileAesKey},
+        );
+        logger.info('OpenClaw 视频使用 Worker 代理 URL', {
+            path: WECHAT_VIDEO_PROXY_PATH,
+            fileIdPrefix: fileId.slice(0, 24),
+            proxyUrl: proxyUrl.slice(0, 120),
+        });
+        return proxyUrl;
     }
 
     const quote = message.quote;

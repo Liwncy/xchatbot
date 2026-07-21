@@ -5,6 +5,7 @@ import type {Env} from '../types/env.js';
 import {DEBUG_FORWARDED_HEADER} from '../constants/debug.js';
 import {handleTurnstileRequest} from '../turnstile';
 import {handleWechatImageProxy} from '../proxy/wechat-image.js';
+import {handleWechatVideoProxy} from '../proxy/wechat-video.js';
 
 export async function handleFetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -21,6 +22,10 @@ export async function handleFetch(request: Request, env: Env, ctx: ExecutionCont
 
     if (pathname === '/proxy/wechat-image') {
         return handleWechatImageProxy(request, env);
+    }
+
+    if (pathname === '/proxy/wechat-video') {
+        return handleWechatVideoProxy(request, env);
     }
 
     if (!request.headers.get(DEBUG_FORWARDED_HEADER)) {
