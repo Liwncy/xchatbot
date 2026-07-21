@@ -34,17 +34,17 @@ function detectImageContentType(bytes: Uint8Array): string {
 async function resolveImageDownloadCreds(
     requestUrl: URL,
     env: Env,
-): Promise<{id: string; key: string} | Response> {
+): Promise<{id: string; key: string; kind: 'image' | 'video-cover'} | Response> {
     const ticket = requestUrl.searchParams.get('t')?.trim() ?? '';
     if (ticket) {
         const record = await loadWechatMediaTicket(env, ticket);
         if (!record) {
             return new Response('Media ticket not found or expired', {status: 404});
         }
-        if (record.kind !== 'image') {
-            return new Response('Media ticket is not an image', {status: 400});
+        if (record.kind !== 'image' && record.kind !== 'video-cover') {
+            return new Response('Media ticket is not an image/cover', {status: 400});
         }
-        return {id: record.fileId, key: record.fileAesKey};
+        return {id: record.fileId, key: record.fileAesKey, kind: record.kind};
     }
 
     const id = requestUrl.searchParams.get('id')?.trim() ?? '';
@@ -52,7 +52,8 @@ async function resolveImageDownloadCreds(
     if (!id || !key) {
         return new Response('Missing t, or id/key query parameters', {status: 400});
     }
-    return {id, key};
+    const asCover = requestUrl.searchParams.get('cover')?.trim() === '1';
+    return {id, key, kind: asCover ? 'video-cover' : 'image'};
 }
 
 export async function handleWechatImageProxy(request: Request, env: Env): Promise<Response> {
@@ -62,7 +63,7 @@ export async function handleWechatImageProxy(request: Request, env: Env): Promis
 
     const resolved = await resolveImageDownloadCreds(new URL(request.url), env);
     if (resolved instanceof Response) return resolved;
-    const {id, key} = resolved;
+    const {id, key, kind} = resolved;
 
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim();
     if (!apiBaseUrl) {
@@ -71,7 +72,9 @@ export async function handleWechatImageProxy(request: Request, env: Env): Promis
 
     try {
         const api = new WechatApi(apiBaseUrl);
-        const raw = await api.cdnDownloadImageRaw({id, key});
+        const raw = kind === 'video-cover'
+            ? await api.cdnDownloadVideoCoverRaw({id, key})
+            : await api.cdnDownloadImageRaw({id, key});
         if (!raw.byteLength) {
             return new Response('Empty image from WeChat CDN', {status: 502});
         }

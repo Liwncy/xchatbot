@@ -33,7 +33,7 @@ function resolveWorkerPublicBaseUrl(env: Env): string {
 
 async function buildTicketProxyUrl(
     env: Env,
-    kind: 'image' | 'video',
+    kind: 'image' | 'video' | 'video-cover',
     meta: {fileId: string; fileAesKey: string},
 ): Promise<string> {
     const ticket = await saveWechatMediaTicket(env, {
@@ -195,7 +195,7 @@ async function resolveQuotedVideoCoverUrl(
     const thumbAesKey = videoMeta?.thumbAesKey?.trim() ?? '';
     if (!thumbFileId || !thumbAesKey) return null;
 
-    const proxyUrl = await buildTicketProxyUrl(env, 'image', {
+    const proxyUrl = await buildTicketProxyUrl(env, 'video-cover', {
         fileId: thumbFileId,
         fileAesKey: thumbAesKey,
     });

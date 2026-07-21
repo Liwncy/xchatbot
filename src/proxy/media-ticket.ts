@@ -1,6 +1,6 @@
 import type {Env} from '../types/env.js';
 
-export type WechatMediaTicketKind = 'image' | 'video';
+export type WechatMediaTicketKind = 'image' | 'video' | 'video-cover';
 
 export interface WechatMediaTicketRecord {
     kind: WechatMediaTicketKind;
@@ -61,7 +61,9 @@ export async function loadWechatMediaTicket(
     try {
         const parsed = JSON.parse(raw) as WechatMediaTicketRecord;
         if (!parsed?.fileId?.trim() || !parsed?.fileAesKey?.trim()) return null;
-        if (parsed.kind !== 'image' && parsed.kind !== 'video') return null;
+        if (parsed.kind !== 'image' && parsed.kind !== 'video' && parsed.kind !== 'video-cover') {
+            return null;
+        }
         return {
             kind: parsed.kind,
             fileId: parsed.fileId.trim(),
