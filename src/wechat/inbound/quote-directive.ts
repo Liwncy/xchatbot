@@ -248,6 +248,38 @@ function applyDirectiveMediaHint(
     }
 }
 
+function parseVideoMetaFromPayload(
+    payload: Record<string, unknown>,
+): NonNullable<IncomingMessage['quote']>['videoMeta'] | undefined {
+    const raw = (payload as {video_meta?: unknown; videoMeta?: unknown}).video_meta
+        ?? (payload as {videoMeta?: unknown}).videoMeta;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+
+    const meta = raw as {
+        fileId?: unknown;
+        fileAesKey?: unknown;
+        thumbFileId?: unknown;
+        thumbAesKey?: unknown;
+        duration?: unknown;
+    };
+    const fileId = String(meta.fileId ?? '').trim();
+    const fileAesKey = String(meta.fileAesKey ?? '').trim();
+    if (!fileId || !fileAesKey) return undefined;
+
+    const thumbFileId = String(meta.thumbFileId ?? '').trim();
+    const thumbAesKey = String(meta.thumbAesKey ?? '').trim();
+    const durationRaw = meta.duration;
+    const duration = typeof durationRaw === 'number' ? durationRaw : Number(durationRaw);
+
+    return {
+        fileId,
+        fileAesKey,
+        ...(thumbFileId ? {thumbFileId} : {}),
+        ...(thumbAesKey ? {thumbAesKey} : {}),
+        ...(Number.isFinite(duration) && duration > 0 ? {duration} : {}),
+    };
+}
+
 function buildDirectiveQuote(
     record: ChatMessageRecord,
     remainder: string,
@@ -262,6 +294,11 @@ function buildDirectiveQuote(
     };
 
     applyDirectiveMediaHint(quote, record, payload);
+
+    const videoMeta = parseVideoMetaFromPayload(payload);
+    if (videoMeta) {
+        quote.videoMeta = videoMeta;
+    }
 
     const emoji = payload.emoji;
     if (emoji && typeof emoji === 'object' && !Array.isArray(emoji)) {

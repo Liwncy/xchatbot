@@ -55,6 +55,23 @@ function buildInboundPayload(message: IncomingMessage): Record<string, unknown> 
 
     if (message.mediaId?.trim()) payload.media_id = message.mediaId.trim();
     if (message.emoji) payload.emoji = message.emoji;
+    if (message.videoMeta?.fileId?.trim() && message.videoMeta.fileAesKey?.trim()) {
+        payload.video_meta = {
+            fileId: message.videoMeta.fileId.trim(),
+            fileAesKey: message.videoMeta.fileAesKey.trim(),
+            ...(message.videoMeta.thumbFileId?.trim()
+                ? {thumbFileId: message.videoMeta.thumbFileId.trim()}
+                : {}),
+            ...(message.videoMeta.thumbAesKey?.trim()
+                ? {thumbAesKey: message.videoMeta.thumbAesKey.trim()}
+                : {}),
+            ...(typeof message.videoMeta.duration === 'number'
+                && Number.isFinite(message.videoMeta.duration)
+                && message.videoMeta.duration > 0
+                ? {duration: message.videoMeta.duration}
+                : {}),
+        };
+    }
     if (message.location) payload.location = message.location;
     if (message.link) payload.link = message.link;
     if (message.quote) payload.quote = message.quote;

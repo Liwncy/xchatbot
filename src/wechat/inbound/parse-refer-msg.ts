@@ -143,7 +143,10 @@ function extractImageMetaFromXml(xml: string): ParsedWechatReferMessage['imageMe
     return {fileId, fileAesKey};
 }
 
-function extractVideoMetaFromXml(xml: string): ParsedWechatReferMessage['videoMeta'] | undefined {
+/** 从 videomsg XML 解析 CDN 下载所需的 fileId/aesKey（含封面）。 */
+export function parseWechatVideoMetaFromXml(
+    xml: string,
+): ParsedWechatReferMessage['videoMeta'] | undefined {
     const videoXml = stripGroupPrefix(xml).trim();
     if (!videoXml.includes('<videomsg') && !videoXml.includes('<video')) return undefined;
 
@@ -174,6 +177,10 @@ function extractVideoMetaFromXml(xml: string): ParsedWechatReferMessage['videoMe
         ...(thumbAesKey ? {thumbAesKey} : {}),
         ...(Number.isFinite(duration) && duration > 0 ? {duration} : {}),
     };
+}
+
+function extractVideoMetaFromXml(xml: string): ParsedWechatReferMessage['videoMeta'] | undefined {
+    return parseWechatVideoMetaFromXml(xml);
 }
 
 function extractVoiceMetaFromXml(

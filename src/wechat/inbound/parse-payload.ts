@@ -5,7 +5,7 @@ import type {
 } from '../../types/message.js';
 import type {WechatPushItem, WechatPushMessage} from '../types.js';
 import {parseWechatEmojiFromPushItem} from './parse-emoji.js';
-import {parseWechatReferMessage} from './parse-refer-msg.js';
+import {parseWechatReferMessage, parseWechatVideoMetaFromXml} from './parse-refer-msg.js';
 
 function getWechatItemSource(item: WechatPushItem): string {
     return item.source ?? item.msg_source ?? '';
@@ -341,10 +341,13 @@ export function parseWechatPushItem(
     }
 
     if (msgType === 'video') {
-        const mediaHint = parseWechatVideoMediaHint(item.content?.value ?? '');
+        const contentXml = item.content?.value ?? '';
+        const videoMeta = parseWechatVideoMetaFromXml(contentXml);
+        const mediaHint = parseWechatVideoMediaHint(contentXml);
         return {
             ...base,
             type: 'video',
+            ...(videoMeta ? {videoMeta} : {}),
             ...(mediaHint?.mediaId ? {mediaId: mediaHint.mediaId} : {}),
             ...(mediaHint ? {mediaHint} : {}),
         };

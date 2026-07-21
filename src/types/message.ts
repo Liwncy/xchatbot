@@ -72,6 +72,14 @@ export interface IncomingMessage {
     };
     /** 表情字段（微信 type 47） */
     emoji?: WechatInboundEmoji;
+    /** 视频 CDN 元数据（微信 type 43，供回看/转发下载） */
+    videoMeta?: {
+        fileId: string;
+        fileAesKey: string;
+        thumbFileId?: string;
+        thumbAesKey?: string;
+        duration?: number;
+    };
     /** 群聊信息（群消息时存在） */
     room?: {
         id: string;
