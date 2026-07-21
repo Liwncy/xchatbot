@@ -1,6 +1,8 @@
 import type {Env} from '../types/env.js';
 import type {IncomingMessage} from '../types/message.js';
+import {FileUploader} from '../utils/file-uploader.js';
 import {logger} from '../utils/logger.js';
+import {WechatApi} from '../wechat/api/index.js';
 import {
     resolvePublicImageUrlForAgnes,
     resolvePublicImageUrlFromEmojiCdnurl,
@@ -9,13 +11,22 @@ import {
 } from '../plugins/cognitive/agnes-text/resolve-image.js';
 import {resolveImageDataFromMeta} from '../plugins/cognitive/intent-image/recognize.js';
 
+export type OpenClawMediaKind = 'image' | 'video' | 'emoji';
+
+export interface OpenClawResolvedMedia {
+    url: string;
+    kind: OpenClawMediaKind;
+}
+
+const WECHAT_CDN_HOST_PATTERN = /(?:vweixinf\.tc\.qq\.com|qpic\.cn|wx\.qq\.com)/i;
+
 function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value.trim());
 }
 
 function normalizeBase64(value: string): string {
     const trimmed = value.trim();
-    const match = trimmed.match(/^data:image\/[a-z0-9.+-]+;base64,(.+)$/i);
+    const match = trimmed.match(/^data:(?:image|video)\/[a-z0-9.+-]+;base64,(.+)$/i);
     return (match?.[1] ?? trimmed).replace(/\s+/g, '');
 }
 
@@ -66,7 +77,42 @@ function looksLikeImageBase64(value: string): boolean {
     return false;
 }
 
-async function resolvePublicUrlFromMediaPayload(value?: string): Promise<string | null> {
+function looksLikeVideoBase64(value: string): boolean {
+    const normalized = normalizeBase64(value);
+    if (!normalized || normalized.length < 256) return false;
+    if (!/^[A-Za-z0-9+/]+=*$/.test(normalized)) return false;
+
+    try {
+        const head = atob(normalized.slice(0, 96));
+        if (head.includes('ftyp')) return true; // mp4/mov
+        const bytes = new Uint8Array(head.length);
+        for (let i = 0; i < head.length; i += 1) {
+            bytes[i] = head.charCodeAt(i);
+        }
+        // EBML / WebM
+        if (
+            bytes.length >= 4
+            && bytes[0] === 0x1a
+            && bytes[1] === 0x45
+            && bytes[2] === 0xdf
+            && bytes[3] === 0xa3
+        ) {
+            return true;
+        }
+    } catch {
+        return false;
+    }
+    return false;
+}
+
+async function uploadPublicVideoBlob(data: ArrayBuffer | Blob | string): Promise<string | null> {
+    return FileUploader.upload(data, {
+        fileName: `openclaw-video-${Date.now()}.mp4`,
+        contentType: 'video/mp4',
+    });
+}
+
+async function resolvePublicUrlFromImagePayload(value?: string): Promise<string | null> {
     const trimmed = value?.trim() ?? '';
     if (!trimmed) return null;
 
@@ -76,6 +122,38 @@ async function resolvePublicUrlFromMediaPayload(value?: string): Promise<string 
 
     if (looksLikeImageBase64(trimmed)) {
         return resolvePublicImageUrlForAgnes({kind: 'base64', value: normalizeBase64(trimmed)});
+    }
+
+    return null;
+}
+
+async function resolvePublicUrlFromVideoPayload(value?: string): Promise<string | null> {
+    const trimmed = value?.trim() ?? '';
+    if (!trimmed) return null;
+
+    if (isHttpUrl(trimmed)) {
+        if (!WECHAT_CDN_HOST_PATTERN.test(trimmed)) {
+            return trimmed;
+        }
+        try {
+            const res = await fetch(trimmed);
+            if (!res.ok) {
+                logger.warn('OpenClaw 拉视频：微信 CDN fetch 失败', {status: res.status, url: trimmed});
+                return null;
+            }
+            const blob = await res.blob();
+            return uploadPublicVideoBlob(blob);
+        } catch (error) {
+            logger.warn('OpenClaw 拉视频：微信 CDN fetch 异常', {
+                url: trimmed,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return null;
+        }
+    }
+
+    if (looksLikeVideoBase64(trimmed)) {
+        return uploadPublicVideoBlob(normalizeBase64(trimmed));
     }
 
     return null;
@@ -98,7 +176,53 @@ async function resolveQuotedVideoCoverUrl(
     return resolvePublicImageUrlForAgnes(imageData);
 }
 
-async function resolveQuotedHintMediaUrl(
+async function resolveQuotedVideoPublicUrl(
+    message: IncomingMessage,
+    env: Env,
+): Promise<string | null> {
+    const videoMeta = message.quote?.videoMeta;
+    const fileId = videoMeta?.fileId?.trim() ?? '';
+    const fileAesKey = videoMeta?.fileAesKey?.trim() ?? '';
+    if (fileId && fileAesKey) {
+        const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
+        if (apiBaseUrl) {
+            try {
+                const api = new WechatApi(apiBaseUrl);
+                const videoRaw = await api.cdnDownloadChatVideoRaw({
+                    id: fileId,
+                    key: fileAesKey,
+                });
+                if (videoRaw.byteLength > 0) {
+                    const uploaded = await uploadPublicVideoBlob(videoRaw);
+                    if (uploaded) return uploaded;
+                } else {
+                    logger.warn('OpenClaw 微信 CDN 下载视频为空', {fileId});
+                }
+            } catch (error) {
+                logger.warn('OpenClaw 微信 CDN 下载视频失败', {
+                    fileId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+    }
+
+    const quote = message.quote;
+    if (!quote) return null;
+
+    const candidates = [
+        quote.mediaHint?.mediaId,
+        quote.mediaHint?.originalUrl,
+        quote.mediaHint?.url,
+    ];
+    for (const candidate of candidates) {
+        const resolved = await resolvePublicUrlFromVideoPayload(candidate);
+        if (resolved) return resolved;
+    }
+    return null;
+}
+
+async function resolveQuotedHintImageUrl(
     quote: NonNullable<IncomingMessage['quote']>,
 ): Promise<string | null> {
     const candidates = [
@@ -109,44 +233,62 @@ async function resolveQuotedHintMediaUrl(
     ];
 
     for (const candidate of candidates) {
-        const resolved = await resolvePublicUrlFromMediaPayload(candidate);
+        const resolved = await resolvePublicUrlFromImagePayload(candidate);
         if (resolved) return resolved;
     }
     return null;
 }
 
+function isVideoQuote(quote: NonNullable<IncomingMessage['quote']>): boolean {
+    return quote.referType === 43 || Boolean(quote.videoMeta);
+}
+
 /**
- * 为 OpenClaw 入站解析可下载的公网媒体 URL。
- * 当前优先图片/表情；引用视频仅尝试封面图。
+ * 为 OpenClaw 入站解析可下载的公网媒体。
+ * 图片/表情/视频（引用视频优先本体，失败再退封面）。
  */
-export async function resolveOpenClawMediaUrl(
+export async function resolveOpenClawMedia(
     message: IncomingMessage,
     env: Env,
-): Promise<string | null> {
+): Promise<OpenClawResolvedMedia | null> {
     try {
         if (message.type === 'image') {
-            return await resolvePublicImageUrlFromMessage(message, env);
+            const url = await resolvePublicImageUrlFromMessage(message, env);
+            return url ? {url, kind: 'image'} : null;
         }
 
         if (message.type === 'emoji') {
             const cdnurl = message.emoji?.cdnurl?.trim() ?? '';
             if (cdnurl) {
-                return await resolvePublicImageUrlFromEmojiCdnurl(cdnurl);
+                const url = await resolvePublicImageUrlFromEmojiCdnurl(cdnurl);
+                return url ? {url, kind: 'emoji'} : null;
             }
         }
 
-        const quote = message.quote;
-        if (!quote) {
-            return await resolvePublicUrlFromMediaPayload(
+        if (message.type === 'video') {
+            const url = await resolvePublicUrlFromVideoPayload(
                 message.mediaHint?.mediaId
                     ?? message.mediaId
                     ?? message.mediaHint?.originalUrl,
             );
+            if (url) return {url, kind: 'video'};
+            const cover = await resolvePublicUrlFromImagePayload(message.mediaHint?.thumbUrl);
+            return cover ? {url: cover, kind: 'image'} : null;
+        }
+
+        const quote = message.quote;
+        if (!quote) {
+            const url = await resolvePublicUrlFromImagePayload(
+                message.mediaHint?.mediaId
+                    ?? message.mediaId
+                    ?? message.mediaHint?.originalUrl,
+            );
+            return url ? {url, kind: 'image'} : null;
         }
 
         if (quote.imageMeta?.fileId && quote.imageMeta.fileAesKey) {
             const fromMeta = await resolvePublicImageUrlFromMeta(quote.imageMeta, env);
-            if (fromMeta) return fromMeta;
+            if (fromMeta) return {url: fromMeta, kind: 'image'};
         }
 
         const emojiUrl = quote.emojiMeta?.cdnurl?.trim()
@@ -154,17 +296,24 @@ export async function resolveOpenClawMediaUrl(
             || '';
         if (emojiUrl) {
             const fromEmoji = await resolvePublicImageUrlFromEmojiCdnurl(emojiUrl);
-            if (fromEmoji) return fromEmoji;
+            if (fromEmoji) return {url: fromEmoji, kind: 'emoji'};
         }
 
-        if (quote.referType === 43 || quote.videoMeta) {
+        if (isVideoQuote(quote)) {
+            const videoUrl = await resolveQuotedVideoPublicUrl(message, env);
+            if (videoUrl) return {url: videoUrl, kind: 'video'};
+
             const coverUrl = await resolveQuotedVideoCoverUrl(message, env);
-            if (coverUrl) return coverUrl;
+            if (coverUrl) return {url: coverUrl, kind: 'image'};
+
+            const thumbHint = await resolvePublicUrlFromImagePayload(quote.mediaHint?.thumbUrl);
+            if (thumbHint) return {url: thumbHint, kind: 'image'};
+            return null;
         }
 
         // 规则引用 ./i：D1 常只有 media_id(base64)，没有 imageMeta
-        const fromHint = await resolveQuotedHintMediaUrl(quote);
-        if (fromHint) return fromHint;
+        const fromHint = await resolveQuotedHintImageUrl(quote);
+        if (fromHint) return {url: fromHint, kind: 'image'};
 
         return null;
     } catch (error) {
@@ -176,4 +325,13 @@ export async function resolveOpenClawMediaUrl(
         });
         return null;
     }
+}
+
+/** @deprecated 优先使用 resolveOpenClawMedia；保留 URL 字符串兼容。 */
+export async function resolveOpenClawMediaUrl(
+    message: IncomingMessage,
+    env: Env,
+): Promise<string | null> {
+    const media = await resolveOpenClawMedia(message, env);
+    return media?.url ?? null;
 }

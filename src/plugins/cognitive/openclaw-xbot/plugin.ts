@@ -10,7 +10,7 @@ import {
     ensureXbotChannelConnected,
     forwardInboundToXbotChannel,
     mapIncomingMessageToXbotInbound,
-    resolveOpenClawMediaUrl,
+    resolveOpenClawMedia,
     resolveXbotChannelConfigState,
 } from '../../../openclaw/index.js';
 import {shouldUseAiDialogChatTrigger} from '../ai-dialog/plugin.js';
@@ -74,19 +74,20 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
     }
 
     try {
-        const mediaUrl = await resolveOpenClawMediaUrl(message, env);
+        const media = await resolveOpenClawMedia(message, env);
         const payload = mapIncomingMessageToXbotInbound(message, env, {
             wechatApiBaseUrl: apiBaseUrl,
             ...(xchatbotApiBaseUrl ? {xchatbotApiBaseUrl} : {}),
             ...(adminToken ? {xchatbotAdminToken: adminToken} : {}),
-            ...(mediaUrl ? {mediaUrl} : {}),
+            ...(media?.url ? {mediaUrl: media.url, mediaKind: media.kind} : {}),
         });
-        if (mediaUrl) {
+        if (media?.url) {
             logger.info('OpenClaw 入站已附带公网媒体地址', {
                 messageId: message.messageId,
                 type: message.type,
                 referType: message.quote?.referType,
-                mediaUrl,
+                mediaKind: media.kind,
+                mediaUrl: media.url,
             });
         }
         const result = await forwardInboundToXbotChannel(state.config, payload);

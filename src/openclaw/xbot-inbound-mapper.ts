@@ -14,8 +14,10 @@ export interface XbotInboundPayload {
     roomId?: string;
     type: string;
     content?: string;
-    /** 可下载的公网媒体 URL（图片/表情，或视频封面）。 */
+    /** 可下载的公网媒体 URL（图片/表情/视频；视频失败时可能是封面图）。 */
     mediaUrl?: string;
+    /** 与 mediaUrl 对应的媒体类型。 */
+    mediaKind?: 'image' | 'video' | 'emoji';
     timestamp: number;
     mentions?: string[];
     botMentioned?: boolean;
@@ -70,7 +72,11 @@ function formatQuotedSender(message: IncomingMessage): string {
     return senderName || senderId || '未知发送者';
 }
 
-function buildQuotedExtraLines(message: IncomingMessage, mediaUrl?: string): string[] {
+function buildQuotedExtraLines(
+    message: IncomingMessage,
+    mediaUrl?: string,
+    mediaKind?: XbotInboundPayload['mediaKind'],
+): string[] {
     const quote = message.quote;
     if (!quote) return [];
 
@@ -79,10 +85,12 @@ function buildQuotedExtraLines(message: IncomingMessage, mediaUrl?: string): str
     const resolvedMediaUrl = mediaUrl?.trim() ?? '';
 
     if (resolvedMediaUrl && isHttpUrl(resolvedMediaUrl)) {
-        if (quote.referType === 43 || quote.videoMeta) {
-            lines.push(`封面地址: ${resolvedMediaUrl}`);
-        } else if (quote.referType === 47 || quote.emojiMeta) {
+        if (mediaKind === 'video' || ((quote.referType === 43 || quote.videoMeta) && mediaKind !== 'image')) {
+            lines.push(`视频地址: ${resolvedMediaUrl}`);
+        } else if (mediaKind === 'emoji' || quote.referType === 47 || quote.emojiMeta) {
             lines.push(`表情地址: ${resolvedMediaUrl}`);
+        } else if ((quote.referType === 43 || quote.videoMeta) && mediaKind === 'image') {
+            lines.push(`封面地址: ${resolvedMediaUrl}`);
         } else {
             lines.push(`图片地址: ${resolvedMediaUrl}`);
         }
@@ -128,7 +136,7 @@ function buildQuotedExtraLines(message: IncomingMessage, mediaUrl?: string): str
     if (quote.imageMeta?.fileId?.trim() && isUsefulMediaHintValue(quote.imageMeta.fileId) && !resolvedMediaUrl) {
         lines.push(`图片文件: ${quote.imageMeta.fileId.trim()}`);
     }
-    if (quote.videoMeta?.fileId?.trim() && isUsefulMediaHintValue(quote.videoMeta.fileId)) {
+    if (quote.videoMeta?.fileId?.trim() && isUsefulMediaHintValue(quote.videoMeta.fileId) && !resolvedMediaUrl) {
         lines.push(`视频文件: ${quote.videoMeta.fileId.trim()}`);
     }
     if (quote.videoMeta?.thumbFileId?.trim() && isUsefulMediaHintValue(quote.videoMeta.thumbFileId) && !resolvedMediaUrl) {
@@ -153,15 +161,21 @@ function buildQuotedExtraLines(message: IncomingMessage, mediaUrl?: string): str
     return lines;
 }
 
-function buildCurrentMessageExtraLines(message: IncomingMessage, mediaUrl?: string): string[] {
+function buildCurrentMessageExtraLines(
+    message: IncomingMessage,
+    mediaUrl?: string,
+    mediaKind?: XbotInboundPayload['mediaKind'],
+): string[] {
     const lines: string[] = [];
     const mediaHint = message.mediaHint;
     const resolvedMediaUrl = mediaUrl?.trim() ?? '';
 
     if (resolvedMediaUrl && isHttpUrl(resolvedMediaUrl)) {
-        if (message.type === 'emoji') {
+        if (mediaKind === 'emoji' || message.type === 'emoji') {
             lines.push(`表情地址: ${resolvedMediaUrl}`);
-        } else if (message.type === 'video') {
+        } else if (mediaKind === 'video' || (message.type === 'video' && mediaKind !== 'image')) {
+            lines.push(`视频地址: ${resolvedMediaUrl}`);
+        } else if (message.type === 'video' && mediaKind === 'image') {
             lines.push(`封面地址: ${resolvedMediaUrl}`);
         } else {
             lines.push(`图片地址: ${resolvedMediaUrl}`);
@@ -230,7 +244,11 @@ function describeCurrentMessageType(message: IncomingMessage): string {
     }
 }
 
-function buildOpenClawContent(message: IncomingMessage, mediaUrl?: string): string {
+function buildOpenClawContent(
+    message: IncomingMessage,
+    mediaUrl?: string,
+    mediaKind?: XbotInboundPayload['mediaKind'],
+): string {
     const content = message.content?.trim() ?? '';
     const quote = message.quote;
     if (!quote) {
@@ -240,7 +258,7 @@ function buildOpenClawContent(message: IncomingMessage, mediaUrl?: string): stri
             '[消息]',
             `类型: ${describeCurrentMessageType(message)}`,
             ...(content ? [`内容: ${content}`] : []),
-            ...buildCurrentMessageExtraLines(message, mediaUrl),
+            ...buildCurrentMessageExtraLines(message, mediaUrl, mediaKind),
             '[/消息]',
         ];
         return lines.join('\n');
@@ -251,7 +269,7 @@ function buildOpenClawContent(message: IncomingMessage, mediaUrl?: string): stri
         `发送者: ${formatQuotedSender(message)}`,
         `类型: ${describeQuotedType(quote.referType)}`,
         `内容: ${quote.referContent?.trim() || '[空消息]'}`,
-        ...buildQuotedExtraLines(message, mediaUrl),
+        ...buildQuotedExtraLines(message, mediaUrl, mediaKind),
         '[/引用消息]',
     ];
     if (content) {
@@ -294,11 +312,13 @@ export function mapIncomingMessageToXbotInbound(
         xchatbotApiBaseUrl?: string;
         xchatbotAdminToken?: string;
         mediaUrl?: string;
+        mediaKind?: XbotInboundPayload['mediaKind'];
     },
 ): XbotInboundPayload {
     const clientId = resolveXbotChannelClientId(env);
     const mediaUrl = options?.mediaUrl?.trim() ?? '';
-    const content = buildOpenClawContent(message, mediaUrl || undefined);
+    const mediaKind = options?.mediaKind;
+    const content = buildOpenClawContent(message, mediaUrl || undefined, mediaKind);
     const {mentions, botMentioned} = detectBotMention(content, env);
     const isGroup = message.source === 'group';
     const roomId = message.room?.id?.trim();
@@ -317,6 +337,7 @@ export function mapIncomingMessageToXbotInbound(
         type: message.type,
         ...(content ? {content} : {}),
         ...(mediaUrl && isHttpUrl(mediaUrl) ? {mediaUrl} : {}),
+        ...(mediaUrl && isHttpUrl(mediaUrl) && mediaKind ? {mediaKind} : {}),
         timestamp: message.timestamp > 1_000_000_000_000
             ? message.timestamp
             : message.timestamp * 1000,
