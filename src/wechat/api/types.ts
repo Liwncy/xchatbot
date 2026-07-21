@@ -281,7 +281,7 @@ export interface CollectMoneyParam {
     transfer_id: string;
 }
 
-/** POST /api/cdn/download/image（query: id, key） */
+/** GET /api/cdn/download/image（query: id, key） */
 export interface CdnDownloadImageParam {
     /** 图片 id（imgurl）。 */
     id: string;
@@ -335,7 +335,7 @@ export interface CdnUploadMomentsVideoParam {
     thumb_url?: string;
 }
 
-/** POST /api/cdn/download/video 与 /api/cdn/download/video/cover（query: id, key） */
+/** GET /api/cdn/download/video 与 /api/cdn/download/video/cover（query: id, key） */
 export interface CdnDownloadVideoParam {
     /** 视频/封面 id。 */
     id: string;
@@ -343,7 +343,7 @@ export interface CdnDownloadVideoParam {
     key: string;
 }
 
-/** POST /api/cdn/download/moments/video（query: url, key） */
+/** GET /api/cdn/download/moments/video（query: url, key） */
 export interface CdnDownloadMomentsVideoParam {
     /** 视频 url。 */
     url: string;
