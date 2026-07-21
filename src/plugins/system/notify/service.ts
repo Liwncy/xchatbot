@@ -276,6 +276,52 @@ function ensureWechatApiSuccess(result: unknown): void {
     }
 }
 
+function isHttpUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value.trim());
+}
+
+function normalizeBase64(value: string): string {
+    const trimmed = value.trim();
+    const match = trimmed.match(/^data:image\/[a-z0-9.+-]+;base64,(.+)$/i);
+    return (match?.[1] ?? trimmed).replace(/\s+/g, '');
+}
+
+/** 识别图片 base64，避免把 CDN fileId 误当图片发出去。 */
+function looksLikeImageBase64(value: string): boolean {
+    const normalized = normalizeBase64(value);
+    if (!normalized || normalized.length < 64) return false;
+    if (!/^[A-Za-z0-9+/]+=*$/.test(normalized)) return false;
+    return (
+        normalized.startsWith('/9j/')
+        || normalized.startsWith('iVBOR')
+        || normalized.startsWith('R0lGO')
+        || normalized.startsWith('UklGR')
+        || normalized.startsWith('Qk')
+    );
+}
+
+/**
+ * 规则引用 ./i：D1 常只有 media_id(base64) / original_url，没有 imageMeta。
+ */
+function resolveQuotedHintImage(
+    quote: NonNullable<IncomingMessage['quote']>,
+): {mode: 'url' | 'base64'; value: string} | null {
+    const candidates = [
+        quote.mediaHint?.mediaId,
+        quote.mediaHint?.originalUrl,
+        quote.mediaHint?.url,
+        quote.mediaHint?.thumbUrl,
+        quote.referContent,
+    ];
+    for (const candidate of candidates) {
+        const value = candidate?.trim() ?? '';
+        if (!value) continue;
+        if (isHttpUrl(value)) return {mode: 'url', value};
+        if (looksLikeImageBase64(value)) return {mode: 'base64', value: normalizeBase64(value)};
+    }
+    return null;
+}
+
 async function sendNotifyPayload(
     api: WechatApi,
     env: Env,
@@ -300,6 +346,20 @@ async function sendNotifyPayload(
             image: image.kind === 'blob' ? image.value : image.value,
         }));
         return;
+    }
+
+    const hintImage = resolveQuotedHintImage(quote);
+    if (hintImage) {
+        ensureWechatApiSuccess(await api.sendImage(
+            hintImage.mode === 'url'
+                ? {receiver, image_url: hintImage.value}
+                : {receiver, image: hintImage.value},
+        ));
+        return;
+    }
+
+    if (quote.referType === 3) {
+        throw new Error('quoted image unavailable');
     }
 
     if (quote.videoMeta) {
