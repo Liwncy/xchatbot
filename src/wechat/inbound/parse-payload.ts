@@ -171,6 +171,93 @@ function parseWechatImageMediaId(item: WechatPushItem): string | undefined {
     return undefined;
 }
 
+function decodeHtmlEntities(text: string): string {
+    return text
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+}
+
+function pickXmlAttr(xml: string, attr: string): string | undefined {
+    const regex = new RegExp(`${attr}="([^"]+)"`, 'i');
+    const match = xml.match(regex);
+    return match?.[1]?.trim() || undefined;
+}
+
+function pickXmlAttrInt(xml: string, attr: string): number | undefined {
+    const raw = pickXmlAttr(xml, attr);
+    if (!raw) return undefined;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function buildImageMediaHint(mediaId?: string): IncomingMessage['mediaHint'] | undefined {
+    const normalized = mediaId?.trim();
+    if (!normalized) return undefined;
+    return {
+        mediaId: normalized,
+        originalUrl: normalized,
+    };
+}
+
+function buildEmojiMediaHint(
+    emoji?: IncomingMessage['emoji'],
+): IncomingMessage['mediaHint'] | undefined {
+    if (!emoji) return undefined;
+    const mediaHint: NonNullable<IncomingMessage['mediaHint']> = {};
+    if (emoji.md5.trim()) mediaHint.md5 = emoji.md5.trim();
+    if (emoji.cdnurl.trim()) mediaHint.emojiUrl = emoji.cdnurl.trim();
+    return Object.keys(mediaHint).length > 0 ? mediaHint : undefined;
+}
+
+function parseWechatVoiceMediaHint(rawContent: string): IncomingMessage['mediaHint'] | undefined {
+    const xml = rawContent.trim();
+    if (!xml.includes('<voicemsg') && !xml.includes('<voice')) return undefined;
+
+    const voiceUrl = decodeHtmlEntities(pickXmlAttr(xml, 'voiceurl') ?? '').trim();
+    const duration =
+        pickXmlAttrInt(xml, 'voicelength') ??
+        pickXmlAttrInt(xml, 'playlength') ??
+        pickXmlAttrInt(xml, 'duration');
+    const format = pickXmlAttrInt(xml, 'voiceformat');
+
+    const mediaHint: NonNullable<IncomingMessage['mediaHint']> = {};
+    if (voiceUrl) {
+        mediaHint.originalUrl = voiceUrl;
+        mediaHint.mediaId = voiceUrl;
+    }
+    if (Number.isFinite(duration) && duration! > 0) mediaHint.duration = duration;
+    if (Number.isFinite(format)) mediaHint.format = format;
+    return Object.keys(mediaHint).length > 0 ? mediaHint : undefined;
+}
+
+function parseWechatVideoMediaHint(rawContent: string): IncomingMessage['mediaHint'] | undefined {
+    const xml = rawContent.trim();
+    if (!xml.includes('<videomsg') && !xml.includes('<video')) return undefined;
+
+    const videoUrl = decodeHtmlEntities(
+        pickXmlAttr(xml, 'cdnvideourl')
+        || pickXmlAttr(xml, 'cdndataurl')
+        || pickXmlAttr(xml, 'cdnurl')
+        || '',
+    ).trim();
+    const thumbUrl = decodeHtmlEntities(pickXmlAttr(xml, 'cdnthumburl') ?? '').trim();
+    const duration =
+        pickXmlAttrInt(xml, 'playlength') ??
+        pickXmlAttrInt(xml, 'duration');
+
+    const mediaHint: NonNullable<IncomingMessage['mediaHint']> = {};
+    if (videoUrl) {
+        mediaHint.originalUrl = videoUrl;
+        mediaHint.mediaId = videoUrl;
+    }
+    if (thumbUrl) mediaHint.thumbUrl = thumbUrl;
+    if (Number.isFinite(duration) && duration! > 0) mediaHint.duration = duration;
+    return Object.keys(mediaHint).length > 0 ? mediaHint : undefined;
+}
+
 /**
  * 将单条微信推送项解析为标准化 IncomingMessage。
  */
@@ -212,28 +299,44 @@ export function parseWechatPushItem(
     }
 
     if (msgType === 'image') {
+        const mediaId = parseWechatImageMediaId(item);
         return {
             ...base,
             type: 'image',
-            mediaId: parseWechatImageMediaId(item),
+            ...(mediaId ? {mediaId} : {}),
+            ...(buildImageMediaHint(mediaId) ? {mediaHint: buildImageMediaHint(mediaId)} : {}),
         };
     }
 
     if (msgType === 'emoji') {
         const emoji = parseWechatEmojiFromPushItem(item);
+        const mediaHint = buildEmojiMediaHint(emoji ?? undefined);
         return {
             ...base,
             type: 'emoji',
             ...(emoji ? {emoji} : {}),
+            ...(mediaHint ? {mediaHint} : {}),
         };
     }
 
     if (msgType === 'voice') {
-        return {...base, type: 'voice'};
+        const mediaHint = parseWechatVoiceMediaHint(item.content?.value ?? '');
+        return {
+            ...base,
+            type: 'voice',
+            ...(mediaHint?.mediaId ? {mediaId: mediaHint.mediaId} : {}),
+            ...(mediaHint ? {mediaHint} : {}),
+        };
     }
 
     if (msgType === 'video') {
-        return {...base, type: 'video'};
+        const mediaHint = parseWechatVideoMediaHint(item.content?.value ?? '');
+        return {
+            ...base,
+            type: 'video',
+            ...(mediaHint?.mediaId ? {mediaId: mediaHint.mediaId} : {}),
+            ...(mediaHint ? {mediaHint} : {}),
+        };
     }
 
     if (msgType === 'location') {

@@ -126,10 +126,87 @@ function buildQuotedExtraLines(message: IncomingMessage): string[] {
     return lines;
 }
 
+function buildCurrentMessageExtraLines(message: IncomingMessage): string[] {
+    const lines: string[] = [];
+    const mediaHint = message.mediaHint;
+
+    if (message.type === 'emoji') {
+        if (message.emoji?.cdnurl?.trim()) {
+            lines.push(`表情地址: ${message.emoji.cdnurl.trim()}`);
+        }
+        if (message.emoji?.md5?.trim()) {
+            lines.push(`MD5: ${message.emoji.md5.trim()}`);
+        }
+    }
+
+    if (mediaHint?.originalUrl?.trim()) {
+        lines.push(`原地址: ${mediaHint.originalUrl.trim()}`);
+    }
+    if (mediaHint?.emojiUrl?.trim() && !lines.some((line) => line.startsWith('表情地址: '))) {
+        lines.push(`表情地址: ${mediaHint.emojiUrl.trim()}`);
+    }
+    if (mediaHint?.thumbUrl?.trim()) {
+        lines.push(`缩略图: ${mediaHint.thumbUrl.trim()}`);
+    }
+    if (mediaHint?.md5?.trim() && !lines.some((line) => line.startsWith('MD5: '))) {
+        lines.push(`MD5: ${mediaHint.md5.trim()}`);
+    }
+    if (mediaHint?.mediaId?.trim()) {
+        lines.push(`媒体ID: ${mediaHint.mediaId.trim()}`);
+    }
+    if (typeof mediaHint?.duration === 'number' && Number.isFinite(mediaHint.duration) && mediaHint.duration > 0) {
+        lines.push(`时长: ${mediaHint.duration}`);
+    }
+    if (typeof mediaHint?.format === 'number' && Number.isFinite(mediaHint.format)) {
+        lines.push(`格式: ${mediaHint.format}`);
+    }
+    if (mediaHint?.title?.trim()) {
+        lines.push(`标题: ${mediaHint.title.trim()}`);
+    }
+    if (mediaHint?.description?.trim()) {
+        lines.push(`描述: ${mediaHint.description.trim()}`);
+    }
+    if (mediaHint?.url?.trim()) {
+        lines.push(`链接: ${mediaHint.url.trim()}`);
+    }
+
+    return lines;
+}
+
+function describeCurrentMessageType(message: IncomingMessage): string {
+    switch (message.type) {
+        case 'image':
+            return 'image';
+        case 'emoji':
+            return 'emoji';
+        case 'voice':
+            return 'voice';
+        case 'video':
+            return 'video';
+        case 'location':
+            return 'location';
+        case 'link':
+            return 'link';
+        default:
+            return message.type;
+    }
+}
+
 function buildOpenClawContent(message: IncomingMessage): string {
     const content = message.content?.trim() ?? '';
     const quote = message.quote;
-    if (!quote) return content;
+    if (!quote) {
+        if (message.type === 'text') return content;
+
+        const lines = [
+            '[消息]',
+            `类型: ${describeCurrentMessageType(message)}`,
+            ...(content ? [`内容: ${content}`] : []),
+            ...buildCurrentMessageExtraLines(message),
+            '[/消息]',
+        ];
+        return lines.join('\n');
+    }
 
     const lines = [
         '[引用消息]',

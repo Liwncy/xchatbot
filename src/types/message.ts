@@ -57,6 +57,19 @@ export interface IncomingMessage {
     content?: string;
     /** 媒体 URL 或 media_id（图片 / 语音 / 视频消息） */
     mediaId?: string;
+    /** 普通非文本消息补充的媒体线索。 */
+    mediaHint?: {
+        mediaId?: string;
+        originalUrl?: string;
+        emojiUrl?: string;
+        md5?: string;
+        duration?: number;
+        format?: number;
+        title?: string;
+        url?: string;
+        description?: string;
+        thumbUrl?: string;
+    };
     /** 表情字段（微信 type 47） */
     emoji?: WechatInboundEmoji;
     /** 群聊信息（群消息时存在） */
