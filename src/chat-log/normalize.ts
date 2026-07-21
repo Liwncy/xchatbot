@@ -54,7 +54,19 @@ function buildInboundPayload(message: IncomingMessage): Record<string, unknown> 
     const payload: Record<string, unknown> = {};
 
     if (message.mediaId?.trim()) payload.media_id = message.mediaId.trim();
-    if (message.emoji) payload.emoji = message.emoji;
+    if (message.emoji) {
+        payload.emoji = message.emoji;
+        if (message.emoji.md5?.trim()) payload.md5 = message.emoji.md5.trim();
+        if (message.emoji.cdnurl?.trim()) payload.emoji_url = message.emoji.cdnurl.trim();
+    } else if (message.type === 'emoji') {
+        // type 47 但未解析出 md5/cdnurl：至少留下线索，方便回看排查
+        payload.emoji_unparsed = true;
+        const preview = message.content?.trim() ?? '';
+        if (preview) payload.content_xml = truncateText(preview, 800);
+    }
+    if (message.mediaHint && Object.keys(message.mediaHint).length > 0) {
+        payload.media_hint = message.mediaHint;
+    }
     if (message.videoMeta?.fileId?.trim() && message.videoMeta.fileAesKey?.trim()) {
         payload.video_meta = {
             fileId: message.videoMeta.fileId.trim(),

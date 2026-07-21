@@ -304,13 +304,13 @@ function buildDirectiveQuote(
     if (emoji && typeof emoji === 'object' && !Array.isArray(emoji)) {
         const md5 = String((emoji as {md5?: unknown}).md5 ?? '').trim();
         const cdnurl = String((emoji as {cdnurl?: unknown}).cdnurl ?? '').trim();
-        if (md5 && cdnurl) {
+        if (md5 || cdnurl) {
             quote.emojiMeta = {md5, cdnurl};
         }
     } else {
         const md5 = String((payload as {md5?: unknown}).md5 ?? '').trim();
         const cdnurl = String((payload as {emoji_url?: unknown}).emoji_url ?? '').trim();
-        if (md5 && cdnurl) {
+        if (md5 || cdnurl) {
             quote.emojiMeta = {md5, cdnurl};
         }
     }

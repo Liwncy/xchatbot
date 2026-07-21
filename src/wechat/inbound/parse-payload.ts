@@ -218,8 +218,8 @@ function buildEmojiMediaHint(
 ): IncomingMessage['mediaHint'] | undefined {
     if (!emoji) return undefined;
     const mediaHint: NonNullable<IncomingMessage['mediaHint']> = {};
-    if (emoji.md5.trim()) mediaHint.md5 = emoji.md5.trim();
-    if (emoji.cdnurl.trim()) mediaHint.emojiUrl = emoji.cdnurl.trim();
+    if (emoji.md5?.trim()) mediaHint.md5 = emoji.md5.trim();
+    if (emoji.cdnurl?.trim()) mediaHint.emojiUrl = emoji.cdnurl.trim();
     return Object.keys(mediaHint).length > 0 ? mediaHint : undefined;
 }
 
@@ -320,6 +320,7 @@ export function parseWechatPushItem(
     }
 
     if (msgType === 'emoji') {
+        const contentXml = item.content?.value ?? '';
         const emoji = parseWechatEmojiFromPushItem(item);
         const mediaHint = buildEmojiMediaHint(emoji ?? undefined);
         return {
@@ -327,6 +328,8 @@ export function parseWechatPushItem(
             type: 'emoji',
             ...(emoji ? {emoji} : {}),
             ...(mediaHint ? {mediaHint} : {}),
+            // 解析失败时保留 XML 片段，避免 chat-log payload 完全为空
+            ...(!emoji && contentXml.trim() ? {content: contentXml.trim().slice(0, 800)} : {}),
         };
     }
 
