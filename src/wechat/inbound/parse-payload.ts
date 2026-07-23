@@ -118,16 +118,20 @@ function isUnsupportedClientContent(content: string): boolean {
 }
 
 /**
- * `push_content` 常见格式：`显示名 : 消息内容`。
+ * `push_content` 常见格式：`显示名 : 消息内容` / `显示名: 消息内容`。
  * 用于补全 senderName，并在正文不可用时回退取预览文案。
  */
 function parsePushContentPreview(pushContent?: string): {senderName?: string; previewText?: string} {
     if (!pushContent) return {};
 
-    const separatorIndex = pushContent.indexOf(' : ');
-    if (separatorIndex > 0) {
+    const separators = [' : ', ': ', '：', ':'] as const;
+    for (const separator of separators) {
+        const separatorIndex = pushContent.indexOf(separator);
+        if (separatorIndex <= 0) continue;
         const name = pushContent.slice(0, separatorIndex).trim();
-        const previewText = pushContent.slice(separatorIndex + 3).trim();
+        const previewText = pushContent.slice(separatorIndex + separator.length).trim();
+        // 群聊正文前缀常是 wxid:...，那不是显示名
+        if (!name || name.includes('@chatroom') || /^wxid_/i.test(name)) continue;
         return {
             ...(name ? {senderName: name} : {}),
             ...(previewText ? {previewText} : {}),

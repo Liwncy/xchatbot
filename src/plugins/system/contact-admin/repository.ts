@@ -411,6 +411,49 @@ export class ContactRepository {
         })).filter((row) => Boolean(row.memberId));
     }
 
+    /** 按群成员表 / 联系人表解析显示名，供聊天日志补全 sender_name。 */
+    static async resolveSenderDisplayName(
+        db: D1Database,
+        options: {senderId: string; groupId?: string},
+    ): Promise<string> {
+        const senderId = options.senderId.trim();
+        if (!senderId) return '';
+
+        await ContactRepository.ensureSchema(db);
+
+        const groupId = options.groupId?.trim() ?? '';
+        if (groupId) {
+            const member = await db.prepare(
+                `SELECT member_display_name, member_nickname
+                 FROM group_member
+                 WHERE group_id = ?1 AND member_id = ?2
+                 LIMIT 1`,
+            ).bind(groupId, senderId).first<{
+                member_display_name?: string;
+                member_nickname?: string;
+            }>();
+            const displayName = String(member?.member_display_name ?? '').trim();
+            const nickname = String(member?.member_nickname ?? '').trim();
+            if (displayName) return displayName;
+            if (nickname) return nickname;
+        }
+
+        const contact = await db.prepare(
+            `SELECT display_name, remark, alias
+             FROM contact
+             WHERE contact_id = ?1
+             LIMIT 1`,
+        ).bind(senderId).first<{
+            display_name?: string;
+            remark?: string;
+            alias?: string;
+        }>();
+        const remark = String(contact?.remark ?? '').trim();
+        const displayName = String(contact?.display_name ?? '').trim();
+        const alias = String(contact?.alias ?? '').trim();
+        return remark || displayName || alias || '';
+    }
+
     static async setContactEnabled(db: D1Database, contactId: string, enabled: boolean): Promise<void> {
         await ContactRepository.ensureSchema(db);
         await db.prepare(

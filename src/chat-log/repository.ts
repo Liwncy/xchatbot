@@ -10,6 +10,7 @@ import {
 } from './normalize.js';
 import {mergeWechatRevokeIntoPayload, stripWechatRevokeFromPayload} from './revoke-meta.js';
 import {getBotWechatId, getBotWechatName} from '../utils/bot.js';
+import {ContactRepository} from '../plugins/system/contact-admin/repository.js';
 import {getChatLogHandleMeta} from './context.js';
 import type {
     ChatMessageRecord,
@@ -18,6 +19,23 @@ import type {
     RecordInboundOptions,
     RecordOutboundOptions,
 } from './types.js';
+
+async function resolveInboundSenderName(db: D1Database, message: IncomingMessage): Promise<string> {
+    const fromPush = message.senderName?.trim() ?? '';
+    if (fromPush) return fromPush;
+
+    const senderId = message.from.trim();
+    if (!senderId) return '';
+
+    try {
+        return await ContactRepository.resolveSenderDisplayName(db, {
+            senderId,
+            groupId: message.room?.id,
+        });
+    } catch {
+        return '';
+    }
+}
 
 type ChatMessageRow = {
     id: number;
@@ -131,7 +149,8 @@ export class ChatLogRepository {
         const normalized = normalizeInboundMessage(message);
         const now = Math.floor(Date.now() / 1000);
         const senderId = message.from.trim() || 'unknown';
-        const senderName = message.senderName?.trim() ?? '';
+        // push_content 常缺昵称；再从 group_member / contact 补全
+        const senderName = await resolveInboundSenderName(db, message);
 
         await db.prepare(
             `INSERT OR IGNORE INTO chat_message (
