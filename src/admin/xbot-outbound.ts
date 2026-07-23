@@ -111,6 +111,27 @@ function parseReply(entry: unknown): ReplyMessage | null {
                 ...(title ? {title} : {}),
             } : null;
         }
+        case 'news': {
+            const articlesRaw = Array.isArray(record.articles) ? record.articles : [];
+            const articles = articlesRaw
+                .map((entry) => {
+                    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+                    const article = entry as Record<string, unknown>;
+                    const title = asString(article.title);
+                    const url = asString(article.url);
+                    if (!title || !url) return null;
+                    const description = asString(article.description);
+                    const picUrl = asString(article.picUrl);
+                    return {
+                        title,
+                        url,
+                        ...(description ? {description} : {}),
+                        ...(picUrl ? {picUrl} : {}),
+                    };
+                })
+                .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+            return articles.length > 0 ? {type: 'news', articles} : null;
+        }
         case 'emoji': {
             const md5 = asString(record.md5);
             const emojiUrl = asString(record.emojiUrl);
