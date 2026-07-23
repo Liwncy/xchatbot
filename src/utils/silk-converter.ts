@@ -191,17 +191,101 @@ async function responseCloneToBase64(blob: Blob): Promise<string> {
     throw new Error('Base64 encode unavailable in current runtime');
 }
 
+function decodeBase64Prefix(base64: string, maxBytes = 32): Uint8Array {
+    const normalized = normalizeBase64(base64);
+    if (!normalized) return new Uint8Array();
+    // 4 base64 chars ≈ 3 bytes; take enough chars for maxBytes
+    const chars = Math.min(normalized.length, Math.ceil(maxBytes / 3) * 4 + 4);
+    const slice = normalized.slice(0, chars);
+    if (typeof atob === 'function') {
+        const binary = atob(slice);
+        const out = new Uint8Array(Math.min(binary.length, maxBytes));
+        for (let i = 0; i < out.length; i += 1) out[i] = binary.charCodeAt(i);
+        return out;
+    }
+    const bufferCtor = (globalThis as typeof globalThis & {
+        Buffer?: {from(input: string, encoding: string): Uint8Array};
+    }).Buffer;
+    if (bufferCtor) {
+        const buf = bufferCtor.from(slice, 'base64');
+        return buf instanceof Uint8Array ? buf.slice(0, maxBytes) : new Uint8Array(buf).slice(0, maxBytes);
+    }
+    return new Uint8Array();
+}
+
+function bytesAsciiIncludes(bytes: Uint8Array, ascii: string): boolean {
+    if (!bytes.length || !ascii) return false;
+    const target = Array.from(ascii, (ch) => ch.charCodeAt(0));
+    outer: for (let i = 0; i <= bytes.length - target.length; i += 1) {
+        for (let j = 0; j < target.length; j += 1) {
+            if (bytes[i + j] !== target[j]) continue outer;
+        }
+        return true;
+    }
+    return false;
+}
+
+/** format=4 表示已是 SILK；若实际是 mp3/wav 等，不能直通，否则微信会「语音未能转换」。 */
+function isLikelySilkPayload(params: {
+    format: number;
+    mediaData: string;
+    originalUrl?: string;
+}): boolean {
+    if (params.format !== 4) return false;
+    const url = (params.originalUrl || (isHttpUrl(params.mediaData) ? params.mediaData : '')).toLowerCase();
+    if (url && /\.(mp3|wav|m4a|aac|ogg|opus|flac|amr)(\?|#|$)/i.test(url)) return false;
+    if (url && /\.(silk|slk)(\?|#|$)/i.test(url)) return true;
+    if (isHttpUrl(params.mediaData)) {
+        // URL 无后缀时别赌 SILK，走转换更稳
+        return Boolean(url && /\.(silk|slk)(\?|#|$)/i.test(url));
+    }
+    const prefix = decodeBase64Prefix(params.mediaData, 32);
+    if (!prefix.length) return false;
+    // 常见 SILK / 腾讯语音头
+    if (bytesAsciiIncludes(prefix, '#!SILK')) return true;
+    if (bytesAsciiIncludes(prefix, 'SILK_V3')) return true;
+    // ID3 / MPEG frame sync → mp3
+    if (prefix[0] === 0x49 && prefix[1] === 0x44 && prefix[2] === 0x33) return false;
+    if (prefix[0] === 0xff && (prefix[1] & 0xe0) === 0xe0) return false;
+    // RIFF/WAVE
+    if (bytesAsciiIncludes(prefix, 'RIFF') && bytesAsciiIncludes(prefix, 'WAVE')) return false;
+    // 认不出头时：默认不当 SILK，强制转换（OpenClaw TTS 多为 mp3）
+    return false;
+}
+
+function resolveSourceFormatForConversion(params: {
+    format: number;
+    mediaData: string;
+    originalUrl?: string;
+}): number {
+    if (params.format !== 4) return params.format;
+    const url = (params.originalUrl || (isHttpUrl(params.mediaData) ? params.mediaData : '')).toLowerCase();
+    if (/\.wav(\?|#|$)/i.test(url)) return 3;
+    if (/\.amr(\?|#|$)/i.test(url)) return 0;
+    if (/\.(mp3|m4a|aac|ogg|opus|flac)(\?|#|$)/i.test(url)) return 2;
+    const prefix = decodeBase64Prefix(params.mediaData, 12);
+    if (prefix[0] === 0x49 && prefix[1] === 0x44 && prefix[2] === 0x33) return 2;
+    if (prefix[0] === 0xff && (prefix[1] & 0xe0) === 0xe0) return 2;
+    if (bytesAsciiIncludes(prefix, 'RIFF')) return 3;
+    return 2;
+}
+
 /**
  * Convert non-SILK audio sources into SILK payload when possible.
  *
  * Current strategy:
- * - format=4: direct pass-through
- * - others: use convert API to get SILK stream, preferring source URL when available
+ * - format=4 且内容确为 SILK：direct pass-through
+ * - 其余（含误标 format=4 的 mp3）：走 convert API 转 SILK
  */
 export async function normalizeVoiceForWechat(
     input: VoiceConversionInput,
     options?: VoiceConversionOptions,
 ): Promise<VoiceConversionResult | null> {
+    const passThroughSilk = isLikelySilkPayload({
+        format: input.format,
+        mediaData: input.mediaData,
+        originalUrl: input.originalUrl,
+    });
     logger.info('normalizeVoiceForWechat start', {
         requestedFormat: input.format,
         durationMs: input.durationMs,
@@ -210,8 +294,9 @@ export async function normalizeVoiceForWechat(
         mediaEstimatedBytes: isHttpUrl(input.mediaData) ? 0 : estimateBase64Bytes(input.mediaData),
         hasOriginalUrl: Boolean(input.originalUrl?.trim()),
         originalUrl: input.originalUrl?.trim() || undefined,
+        passThroughSilk,
     });
-    if (input.format === 4) {
+    if (passThroughSilk) {
         return {
             format: 4,
             mediaData: input.mediaData,
@@ -220,6 +305,11 @@ export async function normalizeVoiceForWechat(
         };
     }
 
+    const sourceFormat = resolveSourceFormatForConversion({
+        format: input.format,
+        mediaData: input.mediaData,
+        originalUrl: input.originalUrl,
+    });
     const converter = new AudioToSilkConverter(options);
     const audioUrl = input.originalUrl?.trim() || (isHttpUrl(input.mediaData) ? input.mediaData.trim() : '');
     const inlineBase64 = isHttpUrl(input.mediaData) ? '' : normalizeBase64(input.mediaData);
@@ -243,6 +333,7 @@ export async function normalizeVoiceForWechat(
     if (!silkResult) {
         logger.warn('normalizeVoiceForWechat failed', {
             requestedFormat: input.format,
+            sourceFormat,
             triedBase64: Boolean(inlineBase64),
             triedUrl: Boolean(audioUrl),
         });
@@ -251,6 +342,7 @@ export async function normalizeVoiceForWechat(
 
     logger.info('normalizeVoiceForWechat success', {
         requestedFormat: input.format,
+        sourceFormat,
         outputFormat: 4,
         outputBase64Length: silkResult.base64.length,
         outputEstimatedBytes: estimateBase64Bytes(silkResult.base64),
