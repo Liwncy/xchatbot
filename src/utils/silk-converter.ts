@@ -69,6 +69,25 @@ function inspectSilkArrayBuffer(buffer: ArrayBuffer): {byteLength: number; heade
     };
 }
 
+function decodeBase64ToBytes(base64: string): Uint8Array {
+    const normalized = normalizeBase64(base64);
+    if (!normalized) return new Uint8Array();
+    if (typeof atob === 'function') {
+        const binary = atob(normalized);
+        const out = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+        return out;
+    }
+    const bufferCtor = (globalThis as typeof globalThis & {
+        Buffer?: {from(input: string, encoding: string): Uint8Array};
+    }).Buffer;
+    if (bufferCtor) {
+        const buf = bufferCtor.from(normalized, 'base64');
+        return buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    }
+    return new Uint8Array();
+}
+
 async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -149,15 +168,16 @@ export class AudioToSilkConverter {
                 byteLength: inspectedBuffer.byteLength,
                 silkHeaderOffset: inspectedBuffer.headerOffset,
             });
+            if (rawBuffer.byteLength <= 0) return null;
+            // 保留原始字节（含可能的 0x02 腾讯头），禁止剥头。
             if (inspectedBuffer.headerOffset > 0) {
-                logger.warn('audio->silk conversion stream had unexpected leading bytes', {
+                logger.info('audio->silk conversion stream has leading bytes before SILK header', {
                     apiUrl: this.apiUrl,
                     sourceType: source.sourceType,
-                    strippedLeadingBytes: inspectedBuffer.headerOffset,
-                    preservedRawStream: true,
+                    silkHeaderOffset: inspectedBuffer.headerOffset,
+                    byteLength: inspectedBuffer.byteLength,
                 });
             }
-            if (rawBuffer.byteLength <= 0) return null;
             const blob = new Blob([rawBuffer], {type: 'application/octet-stream'});
             return {
                 base64: await responseCloneToBase64(blob),
@@ -270,33 +290,72 @@ function resolveSourceFormatForConversion(params: {
     return 2;
 }
 
+function inferVoiceFormatFromUrl(value: string): number | null {
+    const normalized = value.toLowerCase();
+    if (/\.amr(?:[?#]|$)/i.test(normalized)) return 0;
+    if (/\.(?:spx|speex)(?:[?#]|$)/i.test(normalized)) return 1;
+    if (/\.mp3(?:[?#]|$)/i.test(normalized)) return 2;
+    if (/\.wav(?:[?#]|$)/i.test(normalized)) return 3;
+    if (/\.(?:silk|slk)(?:[?#]|$)/i.test(normalized)) return 4;
+    return null;
+}
+
 /**
- * Convert non-SILK audio sources into SILK payload when possible.
+ * Convert / normalize voice for WeChat sendVoice.
  *
- * Current strategy:
- * - format=4 且内容确为 SILK：direct pass-through
- * - 其余（含误标 format=4 的 mp3）：走 convert API 转 SILK
+ * 已验证：`api.chrelyonly.cn/convert` 产出的 SILK（常以 0x02 + #!SILK_V3 开头）可正常发送。
+ * 历史翻车点：把 0x02 前缀剥掉再发 → 微信「语音未能转换」。务必原样保留。
+ *
+ * 策略（只保留这一条主路）：
+ * 1) 已是 SILK → format=4 直通（不剥头）
+ * 2) mp3/wav/amr（base64 或 URL）→ convert API → format=4（保留完整字节，含 0x02）
+ * convert 失败直接返回 null，不再降级 mp3 URL / format=2。
  */
 export async function normalizeVoiceForWechat(
     input: VoiceConversionInput,
     options?: VoiceConversionOptions,
 ): Promise<VoiceConversionResult | null> {
+    const audioUrl = input.originalUrl?.trim() || (isHttpUrl(input.mediaData) ? input.mediaData.trim() : '');
+    const urlFormat = audioUrl ? inferVoiceFormatFromUrl(audioUrl) : null;
+    const inlineBase64 = isHttpUrl(input.mediaData) ? '' : normalizeBase64(input.mediaData);
+
+    logger.info('normalizeVoiceForWechat start', {
+        requestedFormat: input.format,
+        durationMs: input.durationMs,
+        mediaIsUrl: isHttpUrl(input.mediaData),
+        mediaBase64Length: inlineBase64.length,
+        mediaEstimatedBytes: estimateBase64Bytes(inlineBase64),
+        hasOriginalUrl: Boolean(input.originalUrl?.trim()),
+        originalUrl: input.originalUrl?.trim() || undefined,
+        urlFormat,
+    });
+
     const passThroughSilk = isLikelySilkPayload({
         format: input.format,
         mediaData: input.mediaData,
         originalUrl: input.originalUrl,
     });
-    logger.info('normalizeVoiceForWechat start', {
-        requestedFormat: input.format,
-        durationMs: input.durationMs,
-        mediaIsUrl: isHttpUrl(input.mediaData),
-        mediaBase64Length: isHttpUrl(input.mediaData) ? 0 : normalizeBase64(input.mediaData).length,
-        mediaEstimatedBytes: isHttpUrl(input.mediaData) ? 0 : estimateBase64Bytes(input.mediaData),
-        hasOriginalUrl: Boolean(input.originalUrl?.trim()),
-        originalUrl: input.originalUrl?.trim() || undefined,
-        passThroughSilk,
-    });
     if (passThroughSilk) {
+        if (audioUrl && (urlFormat === 4 || urlFormat == null)) {
+            return {
+                format: 4,
+                mediaData: audioUrl,
+                durationMs: input.durationMs,
+                converted: false,
+            };
+        }
+        if (inlineBase64) {
+            const bytes = decodeBase64ToBytes(inlineBase64);
+            // 禁止剥 0x02：人工用 convert 原文件可发，剥头后才会「未能转换」
+            const blob = new Blob([bytes], {type: 'application/octet-stream'});
+            return {
+                format: 4,
+                mediaData: await responseCloneToBase64(blob),
+                mediaBlob: blob,
+                durationMs: input.durationMs,
+                converted: false,
+            };
+        }
         return {
             format: 4,
             mediaData: input.mediaData,
@@ -311,8 +370,6 @@ export async function normalizeVoiceForWechat(
         originalUrl: input.originalUrl,
     });
     const converter = new AudioToSilkConverter(options);
-    const audioUrl = input.originalUrl?.trim() || (isHttpUrl(input.mediaData) ? input.mediaData.trim() : '');
-    const inlineBase64 = isHttpUrl(input.mediaData) ? '' : normalizeBase64(input.mediaData);
     let silkResult: {base64: string; blob: Blob} | null = null;
 
     if (audioUrl) {
@@ -321,7 +378,6 @@ export async function normalizeVoiceForWechat(
             sourceType: 'url',
         });
     }
-
     if (!silkResult && inlineBase64) {
         silkResult = await converter.convertToSilk({
             base64Audio: inlineBase64,
@@ -329,32 +385,34 @@ export async function normalizeVoiceForWechat(
         });
     }
 
-
-    if (!silkResult) {
-        logger.warn('normalizeVoiceForWechat failed', {
+    if (silkResult) {
+        logger.info('normalizeVoiceForWechat success via convert api', {
             requestedFormat: input.format,
             sourceFormat,
-            triedBase64: Boolean(inlineBase64),
-            triedUrl: Boolean(audioUrl),
+            outputFormat: 4,
+            outputBase64Length: silkResult.base64.length,
+            outputEstimatedBytes: estimateBase64Bytes(silkResult.base64),
+            silkHeaderOffset: findAsciiHeaderOffset(
+                decodeBase64Prefix(silkResult.base64, 16),
+                SILK_HEADER,
+            ),
         });
-        return null;
+        return {
+            format: 4,
+            mediaData: silkResult.base64,
+            mediaBlob: silkResult.blob,
+            durationMs: input.durationMs,
+            converted: true,
+        };
     }
 
-    logger.info('normalizeVoiceForWechat success', {
+    logger.warn('normalizeVoiceForWechat failed', {
         requestedFormat: input.format,
         sourceFormat,
-        outputFormat: 4,
-        outputBase64Length: silkResult.base64.length,
-        outputEstimatedBytes: estimateBase64Bytes(silkResult.base64),
+        triedBase64: Boolean(inlineBase64),
+        triedUrl: Boolean(audioUrl),
     });
-
-    return {
-        format: 4,
-        mediaData: silkResult.base64,
-        mediaBlob: silkResult.blob,
-        durationMs: input.durationMs,
-        converted: true,
-    };
+    return null;
 }
 
 

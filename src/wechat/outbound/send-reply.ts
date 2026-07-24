@@ -1,7 +1,6 @@
 import type {ReplyMessage} from '../../types/reply.js';
 import {logger} from '../../utils/logger.js';
 import {normalizeVoiceForWechat} from '../../utils/silk-converter.js';
-import {FileUploader} from '../../utils/file-uploader.js';
 import {fetchImageAsBase64FromUrl} from '../../utils/fetch-image.js';
 import {DEFAULT_VIDEO_DURATION, DEFAULT_VIDEO_THUMB_BASE64} from '../constants.js';
 import {WechatApi} from '../api';
@@ -32,32 +31,6 @@ function estimateBase64Bytes(value?: string): number {
     if (!normalized) return 0;
     const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
     return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
-}
-
-function resolveVoiceUploadMeta(format: number): {fileName: string; contentType: string} {
-    switch (format) {
-        case 0:
-            return {fileName: `voice-${Date.now()}.amr`, contentType: 'audio/amr'};
-        case 1:
-            return {fileName: `voice-${Date.now()}.spx`, contentType: 'audio/x-speex'};
-        case 2:
-            return {fileName: `voice-${Date.now()}.mp3`, contentType: 'audio/mpeg'};
-        case 3:
-            return {fileName: `voice-${Date.now()}.wav`, contentType: 'audio/wav'};
-        case 4:
-            return {fileName: `voice-${Date.now()}.silk`, contentType: 'application/octet-stream'};
-        default:
-            return {fileName: `voice-${Date.now()}.dat`, contentType: 'application/octet-stream'};
-    }
-}
-
-async function uploadVoiceForWechatDelivery(data: Blob | string, format: number): Promise<string | undefined> {
-    const meta = resolveVoiceUploadMeta(format);
-    const fileUrl = await FileUploader.upload(data, {
-        fileName: meta.fileName,
-        contentType: meta.contentType,
-    });
-    return fileUrl ?? undefined;
 }
 
 function ensureWechatApiSuccess(op: string, result: unknown): void {
@@ -241,21 +214,24 @@ export async function sendWechatReply(
             break;
         }
         case 'voice': {
-            const requestedFormat = Number.isFinite(reply.format) ? Number(reply.format) : 4;
+            // 主路径：mp3 base64/URL → convert → SILK(format=4) → 直发；不做 MiMo / mp3 URL 降级。
+            const requestedFormat = Number.isFinite(reply.format) ? Number(reply.format) : 2;
             const duration = Number.isFinite(reply.duration) ? Math.max(0, Number(reply.duration)) : 5000;
-            const originalUrl = reply.originalUrl?.trim() || (isHttpUrl(reply.mediaId) ? reply.mediaId.trim() : '');
-            const inlineBase64 = isHttpUrl(reply.mediaId) ? '' : normalizeBase64(reply.mediaId);
-
+            const mediaData = reply.mediaId?.trim() || '';
+            const originalUrl = reply.originalUrl?.trim() || (isHttpUrl(mediaData) ? mediaData : '');
+            const inlineBase64 = isHttpUrl(mediaData) ? '' : normalizeBase64(mediaData);
             const fallbackText = reply.fallbackText?.trim()
                 || (originalUrl ? `语音发不出去了，你可以直接打开这个链接听：${originalUrl}` : '语音没发出去，等下再试试');
+
+            if (!mediaData) {
+                throw new Error('voice 缺少 mediaId：需要本地 mp3 的 base64 或可下载 URL');
+            }
 
             logger.info('微信语音发送开始', {
                 receiver: effectiveReceiver,
                 requestedFormat,
                 duration,
-                hasOriginalUrl: Boolean(originalUrl),
-                originalUrl,
-                mediaIsUrl: isHttpUrl(reply.mediaId),
+                mediaIsUrl: isHttpUrl(mediaData),
                 mediaBase64Length: inlineBase64.length,
                 mediaEstimatedBytes: estimateBase64Bytes(inlineBase64),
             });
@@ -264,92 +240,45 @@ export async function sendWechatReply(
                 const normalizedVoice = await normalizeVoiceForWechat(
                     {
                         format: requestedFormat,
-                        mediaData: reply.mediaId,
+                        mediaData,
                         durationMs: duration,
                         originalUrl: reply.originalUrl,
                     },
-                    {
-                        convertApiUrl: options?.voiceConvertApiUrl,
-                    },
+                    {convertApiUrl: options?.voiceConvertApiUrl},
                 );
-                if (!normalizedVoice) {
-                    logger.warn('语音转换失败，无法生成可发送的 SILK 音频', {
-                        receiver: effectiveReceiver,
-                        requestedFormat,
-                        hasOriginalUrl: Boolean(reply.originalUrl?.trim()),
-                    });
+                if (!normalizedVoice || normalizedVoice.format !== 4) {
                     throw new Error(`voice conversion unavailable: format=${requestedFormat}`);
                 }
 
-                const voiceUrl = !normalizedVoice.converted && isHttpUrl(normalizedVoice.mediaData)
-                    ? normalizedVoice.mediaData.trim()
-                    : '';
-                const inlineVoiceBase64 = voiceUrl ? '' : normalizeBase64(normalizedVoice.mediaData);
-                const inlineVoiceBlob = normalizedVoice.mediaBlob;
+                const silkBase64 = isHttpUrl(normalizedVoice.mediaData)
+                    ? ''
+                    : normalizeBase64(normalizedVoice.mediaData);
+                const silkBlob = normalizedVoice.mediaBlob;
+                if (!silkBlob && !silkBase64) {
+                    throw new Error('voice conversion produced empty SILK payload');
+                }
+
                 logger.info('微信语音准备调用 sendVoice', {
                     receiver: effectiveReceiver,
-                    requestedFormat,
-                    sendFormat: normalizedVoice.format,
+                    sendFormat: 4,
                     converted: normalizedVoice.converted,
                     duration: normalizedVoice.durationMs,
-                    sendBy: voiceUrl ? 'voice_url' : (inlineVoiceBlob ? 'voice-blob' : 'voice-base64'),
-                    voiceUrl,
-                    hasVoiceBlob: Boolean(inlineVoiceBlob),
-                    voiceBlobSize: inlineVoiceBlob?.size,
-                    voiceBase64Length: voiceUrl ? 0 : inlineVoiceBase64.length,
-                    voiceEstimatedBytes: voiceUrl ? 0 : estimateBase64Bytes(inlineVoiceBase64),
+                    sendBy: silkBlob ? 'voice-blob' : 'voice-base64',
+                    voiceBlobSize: silkBlob?.size,
+                    voiceBase64Length: silkBase64.length,
+                    voiceEstimatedBytes: estimateBase64Bytes(silkBase64),
                 });
-                let result;
-                if (voiceUrl) {
-                    result = await api.sendVoice({
-                        receiver: effectiveReceiver,
-                        voice_url: voiceUrl,
-                        duration: normalizedVoice.durationMs,
-                        format: normalizedVoice.format,
-                    });
-                    ensureWechatApiSuccess('sendVoice', result);
-                } else {
-                    try {
-                        result = await api.sendVoice({
-                            receiver: effectiveReceiver,
-                            voice: inlineVoiceBlob ?? inlineVoiceBase64,
-                            duration: normalizedVoice.durationMs,
-                            format: normalizedVoice.format,
-                        });
-                        ensureWechatApiSuccess('sendVoice', result);
-                    } catch (directVoiceErr) {
-                        if (normalizedVoice.format !== 4 || !inlineVoiceBase64) {
-                            throw directVoiceErr;
-                        }
-                        const uploadedVoiceUrl = (await uploadVoiceForWechatDelivery(inlineVoiceBlob ?? inlineVoiceBase64, normalizedVoice.format))?.trim() || '';
-                        logger.info('微信语音直发失败，已尝试上传 SILK 外链重试', {
-                            receiver: effectiveReceiver,
-                            requestedFormat,
-                            sendFormat: normalizedVoice.format,
-                            uploadedVoiceUrl,
-                            uploaded: Boolean(uploadedVoiceUrl),
-                            uploadedFromBlob: Boolean(inlineVoiceBlob),
-                            voiceBlobSize: inlineVoiceBlob?.size,
-                            voiceBase64Length: inlineVoiceBase64.length,
-                            voiceEstimatedBytes: estimateBase64Bytes(inlineVoiceBase64),
-                            directError: directVoiceErr instanceof Error ? directVoiceErr.message : String(directVoiceErr),
-                        });
-                        if (!uploadedVoiceUrl) {
-                            throw directVoiceErr;
-                        }
-                        result = await api.sendVoice({
-                            receiver: effectiveReceiver,
-                            voice_url: uploadedVoiceUrl,
-                            duration: normalizedVoice.durationMs,
-                            format: normalizedVoice.format,
-                        });
-                        ensureWechatApiSuccess('sendVoice(uploaded voice_url)', result);
-                    }
-                }
+
+                const result = await api.sendVoice({
+                    receiver: effectiveReceiver,
+                    voice: silkBlob ?? silkBase64,
+                    duration: normalizedVoice.durationMs,
+                    format: 4,
+                });
+                ensureWechatApiSuccess('sendVoice', result);
                 logger.info('微信语音 sendVoice 成功', {
                     receiver: effectiveReceiver,
-                    requestedFormat,
-                    sendFormat: normalizedVoice.format,
+                    sendFormat: 4,
                     converted: normalizedVoice.converted,
                 });
                 sentRecord = toSentMessageRecord(

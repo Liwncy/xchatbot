@@ -32,11 +32,11 @@ export interface ImageReply extends ReplyBase {
 /** 语音回复 */
 export interface VoiceReply extends ReplyBase {
     type: 'voice';
-    /** 语音 URL 或 base64 媒体内容。 */
-    mediaId: string;
+    /** 语音 URL 或 base64（主路径：OpenClaw 本地 mp3 → base64）。 */
+    mediaId?: string;
     /** 语音时长（毫秒）。 */
     duration?: number;
-    /** 音频格式：0=AMR,1=SPEEX,2=MP3,3=WAVE,4=SILK。 */
+    /** 音频格式：0=AMR,1=SPEEX,2=MP3,3=WAVE,4=SILK。出站会转成 4。 */
     format?: number;
     /** 语音原始链接（发送失败时可用于降级提示）。 */
     originalUrl?: string;
