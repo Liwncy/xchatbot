@@ -294,18 +294,23 @@ export async function sendWechatReply(
                     duration,
                     error: voiceErr instanceof Error ? voiceErr.message : String(voiceErr),
                 });
-                const textResult = await api.sendText({
-                    receiver: effectiveReceiver,
-                    content: fallbackText,
-                    remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
-                });
-                ensureWechatApiSuccess('sendText(fallback)', textResult);
-                sentRecord = toSentMessageRecord(
-                    effectiveReceiver,
-                    'text',
-                    fallbackText.slice(0, 80),
-                    extractRevokeFromSendMessageResponse(effectiveReceiver, textResult),
-                );
+                try {
+                    const textResult = await api.sendText({
+                        receiver: effectiveReceiver,
+                        content: fallbackText,
+                        remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
+                    });
+                    ensureWechatApiSuccess('sendText(fallback)', textResult);
+                } catch (fallbackErr) {
+                    logger.warn('语音失败后的文本提示也没发出去', {
+                        receiver: effectiveReceiver,
+                        error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+                    });
+                }
+                // 必须向上抛：否则 outbound 会当成功，channel/模型会误报「语音已发」
+                throw voiceErr instanceof Error
+                    ? voiceErr
+                    : new Error(String(voiceErr));
             }
             break;
         }

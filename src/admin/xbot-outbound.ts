@@ -246,11 +246,12 @@ export async function handleAdminXbotOutbound(request: Request, env: Env): Promi
     }
 
     return new Response(JSON.stringify({
-        ok: true,
+        ok: results.every((item) => item.sent),
         sentCount: results.filter((item) => item.sent).length,
         failedCount: results.filter((item) => !item.sent).length,
         results,
     }, null, 2), {
+        status: results.every((item) => item.sent) ? 200 : 502,
         headers: {'Content-Type': 'application/json'},
     });
 }
