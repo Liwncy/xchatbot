@@ -335,16 +335,32 @@ export async function sendWechatReply(
                 hasOriginalUrl: Boolean(videoUrl),
                 hasLinkPicUrl: Boolean(thumbUrl),
             });
+            const videoPayload = {
+                receiver: effectiveReceiver,
+                video: videoUrl ? undefined : reply.mediaId,
+                video_url: videoUrl || undefined,
+                thumb: thumbUrl ? undefined : thumbData,
+                thumb_url: thumbUrl || undefined,
+                duration,
+            };
             try {
-                const result = await api.cdnUploadVideo({
-                    receiver: effectiveReceiver,
-                    video: videoUrl ? undefined : reply.mediaId,
-                    video_url: videoUrl || undefined,
-                    thumb: thumbUrl ? undefined : thumbData,
-                    thumb_url: thumbUrl || undefined,
-                    duration,
-                });
-                ensureWechatApiSuccess('cdnUploadVideo', result);
+                // 优先 CDN 上传；协议侧 CDN DNS 偶发失败时回退 /api/message/video
+                let result: ApiResponse<UploadVideoResponse> | ApiResponse;
+                let via: 'cdnUploadVideo' | 'sendVideo' = 'cdnUploadVideo';
+                try {
+                    result = await api.cdnUploadVideo(videoPayload);
+                    ensureWechatApiSuccess('cdnUploadVideo', result);
+                } catch (cdnErr) {
+                    logger.warn('视频 CDN 上传失败，改走 message/video', {
+                        receiver: effectiveReceiver,
+                        duration,
+                        error: cdnErr instanceof Error ? cdnErr.message : String(cdnErr),
+                    });
+                    via = 'sendVideo';
+                    result = await api.sendVideo(videoPayload);
+                    ensureWechatApiSuccess('sendVideo', result);
+                }
+                logger.info('微信视频发送成功', {receiver: effectiveReceiver, via, duration});
                 sentRecord = toSentMessageRecord(
                     effectiveReceiver,
                     reply.type,
@@ -352,7 +368,7 @@ export async function sendWechatReply(
                     extractRevokeFromUploadVideoResponse(effectiveReceiver, result as ApiResponse<UploadVideoResponse>),
                 );
             } catch (videoErr) {
-                logger.warn('视频发送失败（CDN 上传）', {
+                logger.warn('视频发送失败', {
                     receiver: effectiveReceiver,
                     duration,
                     videoBase64Length: videoUrl ? 0 : (reply.mediaId?.length ?? 0),
