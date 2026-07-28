@@ -48,8 +48,6 @@ import {aiSingPlugin} from './cognitive/ai-sing';
 import {openClawXbotPlugin} from './cognitive/openclaw-xbot';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
-// 持续验证需抢在聊天插件前：开启后群里见到 @ 就验表情
-registerPlugin(emojiStashLiveVerifyPlugin);
 registerPlugin(helpPlugin);
 registerPlugin(contactAdminPlugin);
 registerPlugin(messageRevokePlugin);
@@ -85,6 +83,8 @@ registerPlugin(emojiStashProcessPlugin);
 registerPlugin(imageIntentProcessPlugin);
 registerPlugin(emojiStashTriggerPlugin);
 registerPlugin(fakeForwardPlugin);
+// 持续验证优先级靠后：其他插件先处理，没命中再慢慢验
+registerPlugin(emojiStashLiveVerifyPlugin);
 
 // 重新导出以便外部使用
 export {

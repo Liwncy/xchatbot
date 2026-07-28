@@ -83,3 +83,16 @@ export async function putEmojiStashLiveVerify(
 export async function deleteEmojiStashLiveVerify(env: Env, roomId: string): Promise<void> {
     await env.XBOT_KV.delete(buildEmojiStashLiveVerifyKey(roomId));
 }
+
+/** 清除所有群的持续验证标志。 */
+export async function deleteAllEmojiStashLiveVerify(env: Env): Promise<void> {
+    let cursor: string | undefined;
+    do {
+        const page = await env.XBOT_KV.list({
+            prefix: EMOJI_STASH_LIVE_VERIFY_KV_PREFIX,
+            ...(cursor ? {cursor} : {}),
+        });
+        await Promise.all(page.keys.map((key) => env.XBOT_KV.delete(key.name)));
+        cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+}

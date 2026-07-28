@@ -33,6 +33,7 @@ import {parseInboundEmojiFromMessage} from './parser.js';
 import {EmojiStashRepository} from './repository.js';
 import {
     buildEmojiStashSessionKey,
+    deleteAllEmojiStashLiveVerify,
     deleteEmojiStashLiveVerify,
     deleteEmojiStashPending,
     getEmojiStashLiveVerify,
@@ -333,7 +334,8 @@ export async function stopLiveEmojiVerify(
 
 /**
  * 群内持续验证：消息含 @ 时从未发送表情中随机验一个。
- * 未开启时返回 null，让后续插件继续处理。
+ * 未开启时返回 null，让其他插件继续处理。
+ * 全部验完时清掉所有群的标志，只在当前群回复。
  */
 export async function handleLiveEmojiVerifyAt(
     message: IncomingMessage,
@@ -348,19 +350,19 @@ export async function handleLiveEmojiVerifyAt(
     const emojis = await EmojiStashRepository.listStoredEmojis(env);
     const pending = listUnsentEmojis(emojis);
     if (pending.length === 0) {
-        await deleteEmojiStashLiveVerify(env, roomId);
+        await deleteAllEmojiStashLiveVerify(env);
         return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY};
     }
 
     const target = pickRandom(pending);
     if (!target) {
-        await deleteEmojiStashLiveVerify(env, roomId);
+        await deleteAllEmojiStashLiveVerify(env);
         return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY};
     }
 
     const replies: ReplyMessage[] = [toEmojiSendReply(target)];
     if (pending.length <= 1) {
-        await deleteEmojiStashLiveVerify(env, roomId);
+        await deleteAllEmojiStashLiveVerify(env);
         replies.push({type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY});
     }
     return replies;

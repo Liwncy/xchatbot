@@ -6,8 +6,8 @@ function contentHasAtSign(content: string): boolean {
 }
 
 /**
- * 群内持续验证旁路：消息含 @ 时抢先处理，未开启则返回 null 交给后续插件。
- * 需注册在聊天类插件之前，避免被 AI 对话先吃掉。
+ * 群内持续验证旁路：消息含 @ 且无人命中时再处理。
+ * 注册靠后，让其他插件先走；未开启则返回 null。
  */
 export const emojiStashLiveVerifyPlugin: TextMessage = {
     type: 'text',
