@@ -38,12 +38,18 @@ import {yinguoImagePlugin} from './media/yinguo-image';
 import {xiuxianPlugin} from './scenarios/xiuxian';
 import {wechatChatRecordDemoPlugin} from './toolkits/wechat-chat-record';
 import {fakeForwardPlugin} from './toolkits/fake-forward';
-import {emojiStashProcessPlugin, emojiStashTriggerPlugin} from './toolkits/emoji-stash';
+import {
+    emojiStashLiveVerifyPlugin,
+    emojiStashProcessPlugin,
+    emojiStashTriggerPlugin,
+} from './toolkits/emoji-stash';
 import {xuanxuePlugin} from './scenarios/xuanxue';
 import {aiSingPlugin} from './cognitive/ai-sing';
 import {openClawXbotPlugin} from './cognitive/openclaw-xbot';
 
 // ── 内置插件 ─────────────────────────────────────────────────────────────
+// 持续验证需抢在聊天插件前：开启后群里见到 @ 就验表情
+registerPlugin(emojiStashLiveVerifyPlugin);
 registerPlugin(helpPlugin);
 registerPlugin(contactAdminPlugin);
 registerPlugin(messageRevokePlugin);

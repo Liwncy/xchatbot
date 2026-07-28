@@ -2,13 +2,19 @@ import type {Env} from '../../../types/env.js';
 import {
     EMOJI_STASH_AUTO_COLLECT_COOLDOWN_SECONDS,
     EMOJI_STASH_AUTO_COOLDOWN_KV_KEY,
+    EMOJI_STASH_LIVE_VERIFY_KV_PREFIX,
+    EMOJI_STASH_LIVE_VERIFY_TTL_SECONDS,
     EMOJI_STASH_PENDING_KV_PREFIX,
     EMOJI_STASH_PENDING_TTL_SECONDS,
 } from './constants.js';
-import type {EmojiStashPending} from './types.js';
+import type {EmojiStashLiveVerify, EmojiStashPending} from './types.js';
 
 export function buildEmojiStashPendingKey(sessionKey: string): string {
     return `${EMOJI_STASH_PENDING_KV_PREFIX}${sessionKey}`;
+}
+
+export function buildEmojiStashLiveVerifyKey(roomId: string): string {
+    return `${EMOJI_STASH_LIVE_VERIFY_KV_PREFIX}${roomId}`;
 }
 
 export async function isEmojiStashAutoCollectOnCooldown(env: Env): Promise<boolean> {
@@ -48,4 +54,32 @@ export async function putEmojiStashPending(env: Env, pending: EmojiStashPending)
 
 export async function deleteEmojiStashPending(env: Env, sessionKey: string): Promise<void> {
     await env.XBOT_KV.delete(buildEmojiStashPendingKey(sessionKey));
+}
+
+export async function getEmojiStashLiveVerify(
+    env: Env,
+    roomId: string,
+): Promise<EmojiStashLiveVerify | null> {
+    const raw = await env.XBOT_KV.get(buildEmojiStashLiveVerifyKey(roomId));
+    if (!raw?.trim()) return null;
+    try {
+        return JSON.parse(raw) as EmojiStashLiveVerify;
+    } catch {
+        return null;
+    }
+}
+
+export async function putEmojiStashLiveVerify(
+    env: Env,
+    state: EmojiStashLiveVerify,
+): Promise<void> {
+    await env.XBOT_KV.put(
+        buildEmojiStashLiveVerifyKey(state.roomId),
+        JSON.stringify(state),
+        {expirationTtl: EMOJI_STASH_LIVE_VERIFY_TTL_SECONDS},
+    );
+}
+
+export async function deleteEmojiStashLiveVerify(env: Env, roomId: string): Promise<void> {
+    await env.XBOT_KV.delete(buildEmojiStashLiveVerifyKey(roomId));
 }

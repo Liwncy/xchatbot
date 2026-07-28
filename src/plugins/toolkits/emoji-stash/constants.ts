@@ -7,10 +7,14 @@ export const EMOJI_STASH_AVATAR_URL = DEFAULT_BOT_AVATAR_URL;
 
 export const EMOJI_STASH_SHARED_KV_KEY = 'emoji-stash:shared';
 export const EMOJI_STASH_PENDING_KV_PREFIX = 'emoji-stash:pending:';
+export const EMOJI_STASH_LIVE_VERIFY_KV_PREFIX = 'emoji-stash:live-verify:';
 export const EMOJI_STASH_AUTO_COOLDOWN_KV_KEY = 'emoji-stash:auto-cooldown:global';
 
 /** pending 等待用户发表情的 TTL（秒）。 */
 export const EMOJI_STASH_PENDING_TTL_SECONDS = 5 * 60;
+
+/** 群内持续验证标志 TTL（秒）；结束时会主动清除，TTL 仅作兜底。 */
+export const EMOJI_STASH_LIVE_VERIFY_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 /** 英文 slug 名称最大长度。 */
 export const EMOJI_STASH_NAME_MAX_LENGTH = 32;
@@ -42,6 +46,12 @@ export const EMOJI_STASH_VERIFY_START_REPLY = (
         ? `先帮你${label} ${sendingCount} 个，还剩 ${remaining} 个。`
         : `先帮你${label} ${sendingCount} 个。`;
 };
+export const EMOJI_STASH_LIVE_VERIFY_DONE_REPLY = '表情已验证完毕';
+export const EMOJI_STASH_LIVE_VERIFY_ON_REPLY = (remaining: number) =>
+    `好，这群里见到 @ 就验一个，还剩 ${remaining} 个`;
+export const EMOJI_STASH_LIVE_VERIFY_ALREADY_ON_REPLY = '已经在验了';
+export const EMOJI_STASH_LIVE_VERIFY_NOT_GROUP_REPLY = '得在群里开';
+export const EMOJI_STASH_LIVE_VERIFY_NOT_ON_REPLY = '这会儿没在验';
 export const EMOJI_STASH_LIST_EMPTY_REPLY =
     '📭 聪明表情还是空的～\n发表情会自动收藏，或发送「存表情」手动收藏。';
 export const EMOJI_STASH_AI_FAIL_REPLY = 'AI 未能识别该表情，已使用默认名称保存。';

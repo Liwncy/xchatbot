@@ -1,6 +1,6 @@
 import type {IncomingMessage} from '../../../types/message.js';
 import type {Env} from '../../../types/env.js';
-import type {EmojiReply, HandlerResponse} from '../../../types/reply.js';
+import type {EmojiReply, HandlerResponse, ReplyMessage} from '../../../types/reply.js';
 import {resolvePublicImageUrlFromEmojiCdnurl} from '../../cognitive/agnes-text/resolve-image.js';
 import {isEmojiStashCategory} from './categories.js';
 import {
@@ -13,6 +13,11 @@ import {
     EMOJI_STASH_AUTO_COLLECT,
     EMOJI_STASH_AUTO_OK_REPLY,
     EMOJI_STASH_DELETE_OK_REPLY,
+    EMOJI_STASH_LIVE_VERIFY_ALREADY_ON_REPLY,
+    EMOJI_STASH_LIVE_VERIFY_DONE_REPLY,
+    EMOJI_STASH_LIVE_VERIFY_NOT_GROUP_REPLY,
+    EMOJI_STASH_LIVE_VERIFY_NOT_ON_REPLY,
+    EMOJI_STASH_LIVE_VERIFY_ON_REPLY,
     EMOJI_STASH_NOT_FOUND_REPLY,
     EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY,
     EMOJI_STASH_SAVE_OK_REPLY,
@@ -28,10 +33,13 @@ import {parseInboundEmojiFromMessage} from './parser.js';
 import {EmojiStashRepository} from './repository.js';
 import {
     buildEmojiStashSessionKey,
+    deleteEmojiStashLiveVerify,
     deleteEmojiStashPending,
+    getEmojiStashLiveVerify,
     getEmojiStashPending,
     isEmojiStashAutoCollectOnCooldown,
     markEmojiStashAutoCollectCooldown,
+    putEmojiStashLiveVerify,
     putEmojiStashPending,
 } from './storage.js';
 import type {EmojiAiMetadata, ParsedInboundEmoji, StoredEmoji} from './types.js';
@@ -254,14 +262,17 @@ function buildEmojiVerifyReplies(
     ];
 }
 
+function listUnsentEmojis(emojis: StoredEmoji[]): StoredEmoji[] {
+    return emojis.filter((item) => item.status == null);
+}
+
 export async function verifyUnsentEmojis(
     _message: IncomingMessage,
     env: Env,
     count?: number,
 ): Promise<HandlerResponse> {
     const emojis = await EmojiStashRepository.listStoredEmojis(env);
-    const pending = emojis.filter((item) => item.status == null);
-    return buildEmojiVerifyReplies(pending, 'pending', count);
+    return buildEmojiVerifyReplies(listUnsentEmojis(emojis), 'pending', count);
 }
 
 export async function retryFailedEmojis(
@@ -272,6 +283,87 @@ export async function retryFailedEmojis(
     const emojis = await EmojiStashRepository.listStoredEmojis(env);
     const failed = emojis.filter((item) => item.status === 'failed');
     return buildEmojiVerifyReplies(failed, 'failed', count);
+}
+
+export async function startLiveEmojiVerify(
+    message: IncomingMessage,
+    env: Env,
+): Promise<HandlerResponse> {
+    const roomId = message.room?.id?.trim();
+    if (!roomId) {
+        return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_NOT_GROUP_REPLY};
+    }
+
+    const existing = await getEmojiStashLiveVerify(env, roomId);
+    if (existing) {
+        return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_ALREADY_ON_REPLY};
+    }
+
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
+    const pending = listUnsentEmojis(emojis);
+    if (pending.length === 0) {
+        return {type: 'text', content: EMOJI_STASH_VERIFY_EMPTY_REPLY};
+    }
+
+    await putEmojiStashLiveVerify(env, {
+        roomId,
+        ownerId: message.from,
+        createdAt: Date.now(),
+    });
+    return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_ON_REPLY(pending.length)};
+}
+
+export async function stopLiveEmojiVerify(
+    message: IncomingMessage,
+    env: Env,
+): Promise<HandlerResponse> {
+    const roomId = message.room?.id?.trim();
+    if (!roomId) {
+        return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_NOT_GROUP_REPLY};
+    }
+
+    const existing = await getEmojiStashLiveVerify(env, roomId);
+    if (!existing) {
+        return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_NOT_ON_REPLY};
+    }
+
+    await deleteEmojiStashLiveVerify(env, roomId);
+    return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY};
+}
+
+/**
+ * 群内持续验证：消息含 @ 时从未发送表情中随机验一个。
+ * 未开启时返回 null，让后续插件继续处理。
+ */
+export async function handleLiveEmojiVerifyAt(
+    message: IncomingMessage,
+    env: Env,
+): Promise<HandlerResponse> {
+    const roomId = message.room?.id?.trim();
+    if (!roomId) return null;
+
+    const live = await getEmojiStashLiveVerify(env, roomId);
+    if (!live) return null;
+
+    const emojis = await EmojiStashRepository.listStoredEmojis(env);
+    const pending = listUnsentEmojis(emojis);
+    if (pending.length === 0) {
+        await deleteEmojiStashLiveVerify(env, roomId);
+        return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY};
+    }
+
+    const target = pickRandom(pending);
+    if (!target) {
+        await deleteEmojiStashLiveVerify(env, roomId);
+        return {type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY};
+    }
+
+    const replies: ReplyMessage[] = [toEmojiSendReply(target)];
+    if (pending.length <= 1) {
+        await deleteEmojiStashLiveVerify(env, roomId);
+        replies.push({type: 'text', content: EMOJI_STASH_LIVE_VERIFY_DONE_REPLY});
+    }
+    return replies;
 }
 
 export async function deleteStoredEmoji(

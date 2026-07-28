@@ -6,6 +6,8 @@ import {
     markEmojiStashPending,
     retryFailedEmojis,
     sendStoredEmojiByBracket,
+    startLiveEmojiVerify,
+    stopLiveEmojiVerify,
     verifyUnsentEmojis,
 } from './service.js';
 import {extractEmojiBracketSendCommand} from './parse-send.js';
@@ -21,6 +23,14 @@ function parseDeleteCommand(content: string): string | null {
 
 function isListCommand(content: string): boolean {
     return content.trim() === '表情列表';
+}
+
+function isLiveVerifyStartCommand(content: string): boolean {
+    return content.trim() === '持续验证表情';
+}
+
+function isLiveVerifyStopCommand(content: string): boolean {
+    return content.trim() === '关闭验证表情';
 }
 
 function parseBatchCount(raw?: string): number | undefined {
@@ -56,6 +66,8 @@ function buildUsageHint(): string {
         '· 表情列表（聊天记录卡片）',
         '· 验证表情（默认先验 5 个，可带数量）',
         '· 重验表情（默认先重验失败的 5 个，可带数量）',
+        '· 持续验证表情（群里开，见到 @ 就验一个）',
+        '· 关闭验证表情（结束持续验证）',
         '· [name] 或 哈哈哈哈[/funny] 发表情',
         '· [/funny] 随机分类',
         '· [#tag] 随机标签',
@@ -73,6 +85,8 @@ export const emojiStashTriggerPlugin: TextMessage = {
         return (
             isSaveCommand(trimmed)
             || isListCommand(trimmed)
+            || isLiveVerifyStartCommand(trimmed)
+            || isLiveVerifyStopCommand(trimmed)
             || parseVerifyCommand(trimmed) !== null
             || parseRetryCommand(trimmed) !== null
             || parseDeleteCommand(trimmed) !== null
@@ -89,6 +103,22 @@ export const emojiStashTriggerPlugin: TextMessage = {
 
         if (isListCommand(trimmed)) {
             return listEmojiStash(message, env);
+        }
+
+        if (isLiveVerifyStartCommand(trimmed)) {
+            const ownerErr = ensureOwner(message.from, env.BOT_OWNER_WECHAT_ID);
+            if (ownerErr) {
+                return {type: 'text', content: ownerErr};
+            }
+            return startLiveEmojiVerify(message, env);
+        }
+
+        if (isLiveVerifyStopCommand(trimmed)) {
+            const ownerErr = ensureOwner(message.from, env.BOT_OWNER_WECHAT_ID);
+            if (ownerErr) {
+                return {type: 'text', content: ownerErr};
+            }
+            return stopLiveEmojiVerify(message, env);
         }
 
         const verifyCommand = parseVerifyCommand(trimmed);

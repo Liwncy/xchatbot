@@ -42,3 +42,10 @@ export interface EmojiStashPending {
     sessionKey: string;
     createdAt: number;
 }
+
+/** 群内持续验证标志。 */
+export interface EmojiStashLiveVerify {
+    roomId: string;
+    ownerId: string;
+    createdAt: number;
+}
