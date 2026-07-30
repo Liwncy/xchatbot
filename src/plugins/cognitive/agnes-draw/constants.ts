@@ -9,7 +9,7 @@ export const AGNES_QUOTE_DRAW_KEYWORDS = ['聪明图绘图', '聪明改图', SMA
 
 export const AGNES_MODEL = 'agnes-image-2.1-flash';
 
-export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.com';
+export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.cn';
 
 export const DEFAULT_IMAGE_SIZE = '1024x768';
 

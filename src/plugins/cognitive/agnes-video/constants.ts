@@ -15,7 +15,7 @@ export const XCHATBOT_PUBLIC_BASE_URL = 'https://xbot.lwcfworker.dpdns.org';
 
 export const AGNES_VIDEO_MODEL = 'agnes-video-v2.0';
 
-export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.com';
+export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.cn';
 
 export const DEFAULT_VIDEO_WIDTH = 1152;
 export const DEFAULT_VIDEO_HEIGHT = 768;

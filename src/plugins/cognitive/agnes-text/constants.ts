@@ -3,7 +3,7 @@ export const AGNES_TEXT_TRIGGER_KEYWORDS = ['聪明闪答'] as const;
 
 export const AGNES_TEXT_MODEL = 'agnes-2.0-flash';
 
-export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.com';
+export const AGNES_API_BASE_URL = 'https://apihub.agnes-ai.cn';
 
 export const AGNES_TEXT_CHAT_COMPLETIONS_PATH = '/v1/chat/completions';
 
