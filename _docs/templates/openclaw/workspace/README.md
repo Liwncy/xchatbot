@@ -1,6 +1,6 @@
 # OpenClaw 小聪明儿 workspace 模板
 
-把本目录内容复制到 OpenClaw workspace 即可启用「底子 + 可切换说话模式」。
+把本目录内容复制到 OpenClaw workspace 即可启用「底子 + 可切换说话模式 + 持续学习 + 偷懒转交」。
 
 ## 安装
 
@@ -9,7 +9,7 @@ $src = "D:\Workspace\mygithub\xchatbot\_docs\templates\openclaw\workspace"
 $dst = "$env:USERPROFILE\.openclaw\workspace"
 
 Copy-Item "$src\SOUL.md" "$dst\SOUL.md" -Force
-Copy-Item "$src\skills\modes" "$dst\skills\modes" -Recurse -Force
+Copy-Item "$src\skills" "$dst\skills" -Recurse -Force
 ```
 
 然后重启 gateway：
@@ -18,9 +18,22 @@ Copy-Item "$src\skills\modes" "$dst\skills\modes" -Recurse -Force
 openclaw gateway restart
 ```
 
+## 目录说明
+
+| 路径 | 作用 |
+|------|------|
+| `SOUL.md` | 人设底子；含持续学习规则 |
+| `skills/modes/*` | 可切换说话/行为皮（含偷懒） |
+| `skills/learn/PENDING.md` | 转交草稿 + **待李芈仙批准的 skill 候选** |
+| `skills/lazy/ROUTES.md` | 转交路由（可自行维护；仅偷懒模式使用） |
+
+**学习依据**：接单时携带的群聊历史（不是未点名的实时旁听）。  
+**转交路由**：自己学、自己写 ROUTES（别乱写）；**具体 skill** 才要批准。  
+**偷懒**：仅切换后才按 ROUTES 安排别人。
+
 ## 模式一览
 
-与 `ai-dialog-config.json` 的 `prompts` 对应关系：
+与 `ai-dialog-config.json` 的 `prompts` 对应关系（偷懒目前主要在 OpenClaw workspace，本地 prompts 可稍后补）：
 
 | 斜杠 / 口令 | ai-dialog key | 说明 |
 |-------------|---------------|------|
@@ -28,6 +41,7 @@ openclaw gateway restart
 | `/ysqq`、切阴阳 | `ysqq` | 阴阳怪气 |
 | `/ghds`、切拱火 | `ghds` | 拱火大师 |
 | `/gxwy`、切国学 | `gxwy` | 国学文言 |
+| `/lazy`、切偷懒 | — | 偷懒：可按 ROUTES 转交其他机器人 |
 | `/normal`、恢复正常 | — | 卸掉模式，回到 SOUL 默认 |
 
 ## 用法
@@ -36,7 +50,10 @@ openclaw gateway restart
 
 - `切绿茶` / `/lcmm`
 - `阴阳怪气一点` / `/ysqq`
+- `切偷懒` / `/lazy`
 - `恢复正常` / `/normal`
+- `这段时间学到了什么` → 汇报新学的转交 + 待批 skill
+- 批准某条 **skill** → 再固化；转交口令一般不用你批
 
 每个微信群独立 session，在 A 群切的模式不影响 B 群。
 
