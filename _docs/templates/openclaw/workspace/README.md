@@ -28,7 +28,8 @@ openclaw gateway restart
 | `skills/lazy/ROUTES.md` | 转交路由（可自行维护；仅偷懒模式使用） |
 
 **学习依据**：接单时携带的群聊历史（不是未点名的实时旁听）。  
-**转交路由**：自己学、自己写 ROUTES（别乱写）；**具体 skill** 才要批准。  
+**落盘**：必须调用插件工具 `xbot_learn_write`（`pending` / `routes`），并在 `openclaw.json` 的 `tools.alsoAllow` 里放行该工具。  
+**转交路由**：有依据可自行写 routes；**具体 skill** 写 pending，要批准。  
 **偷懒**：仅切换后才按 ROUTES 安排别人。
 
 ## 模式一览

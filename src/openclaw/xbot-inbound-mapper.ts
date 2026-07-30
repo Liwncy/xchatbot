@@ -23,6 +23,8 @@ export interface XbotInboundPayload {
     timestamp: number;
     mentions?: string[];
     botMentioned?: boolean;
+    /** xchatbot 随机冒泡命中：OpenClaw 即使未点名也要跑 Agent */
+    forceDispatch?: boolean;
     wechatApiBaseUrl?: string;
     xchatbotApiBaseUrl?: string;
     xchatbotAdminToken?: string;
@@ -329,6 +331,7 @@ export function mapIncomingMessageToXbotInbound(
         mediaUrl?: string;
         mediaKind?: XbotInboundPayload['mediaKind'];
         videoUrl?: string;
+        forceDispatch?: boolean;
     },
 ): XbotInboundPayload {
     const clientId = resolveXbotChannelClientId(env);
@@ -366,6 +369,7 @@ export function mapIncomingMessageToXbotInbound(
             : message.timestamp * 1000,
         mentions,
         botMentioned,
+        ...(options?.forceDispatch ? {forceDispatch: true} : {}),
         ...(options?.wechatApiBaseUrl?.trim()
             ? {wechatApiBaseUrl: options.wechatApiBaseUrl.trim()}
             : {}),

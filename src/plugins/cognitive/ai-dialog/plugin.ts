@@ -56,26 +56,78 @@ function isAiDialogDirectTrigger(content: string): boolean {
     return /@\s*小聪明儿/u.test(trimmed);
 }
 
+export type AiDialogChatTriggerKind = 'direct' | 'follow_up' | 'ambient_bubble' | 'none';
+
+export type AiDialogChatTriggerDecision = {
+    handle: boolean;
+    kind: AiDialogChatTriggerKind;
+};
+
+/** 同一条消息内冒泡判定只掷一次，避免 openclaw 回退后 ai-dialog 再随机一次。 */
+const ambientBubbleHitByMessageId = new Map<string, number>();
+const AMBIENT_BUBBLE_HIT_TTL_MS = 60_000;
+
+function rememberAmbientBubbleHit(messageId: string): void {
+    const id = messageId.trim();
+    if (!id) return;
+    const now = Date.now();
+    ambientBubbleHitByMessageId.set(id, now);
+    for (const [key, at] of ambientBubbleHitByMessageId) {
+        if (now - at > AMBIENT_BUBBLE_HIT_TTL_MS) {
+            ambientBubbleHitByMessageId.delete(key);
+        }
+    }
+}
+
+function hasAmbientBubbleHit(messageId: string): boolean {
+    const id = messageId.trim();
+    if (!id) return false;
+    const at = ambientBubbleHitByMessageId.get(id);
+    if (!at) return false;
+    if (Date.now() - at > AMBIENT_BUBBLE_HIT_TTL_MS) {
+        ambientBubbleHitByMessageId.delete(id);
+        return false;
+    }
+    return true;
+}
+
+export async function resolveAiDialogChatTrigger(
+    message: Parameters<TextMessage['handle']>[0],
+    env: Parameters<TextMessage['handle']>[1],
+): Promise<AiDialogChatTriggerDecision> {
+    const directTrigger = isAiDialogDirectTrigger(message.content ?? '');
+    if (directTrigger) {
+        return {handle: true, kind: 'direct'};
+    }
+
+    const activatedFollowUp = await isAiDialogUserActivationActive(env, message);
+    if (activatedFollowUp) {
+        return {handle: true, kind: 'follow_up'};
+    }
+
+    if (message.source !== 'group') {
+        return {handle: false, kind: 'none'};
+    }
+
+    if (hasAmbientBubbleHit(message.messageId)) {
+        return {handle: true, kind: 'ambient_bubble'};
+    }
+
+    const runtimeConfig = await loadAiDialogRuntimeConfig(env);
+    const shouldBubble = await shouldUseAmbientGroupReply(message, env, runtimeConfig);
+    if (!shouldBubble) {
+        return {handle: false, kind: 'none'};
+    }
+    rememberAmbientBubbleHit(message.messageId);
+    return {handle: true, kind: 'ambient_bubble'};
+}
+
 export async function shouldUseAiDialogChatTrigger(
     message: Parameters<TextMessage['handle']>[0],
     env: Parameters<TextMessage['handle']>[1],
 ): Promise<boolean> {
-    const directTrigger = isAiDialogDirectTrigger(message.content ?? '');
-    const activatedFollowUp = !directTrigger && await isAiDialogUserActivationActive(env, message);
-
-    if (!directTrigger && !activatedFollowUp && message.source !== 'group') {
-        return false;
-    }
-
-    const runtimeConfig = await loadAiDialogRuntimeConfig(env);
-    if (!directTrigger && !activatedFollowUp) {
-        const shouldBubble = await shouldUseAmbientGroupReply(message, env, runtimeConfig);
-        if (!shouldBubble) {
-            return false;
-        }
-    }
-
-    return true;
+    const decision = await resolveAiDialogChatTrigger(message, env);
+    return decision.handle;
 }
 
 /**

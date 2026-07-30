@@ -13,7 +13,10 @@ import {
     resolveOpenClawMedia,
     resolveXbotChannelConfigState,
 } from '../../../openclaw/index.js';
-import {rememberAiDialogTriggerSideEffects, shouldUseAiDialogChatTrigger} from '../ai-dialog/plugin.js';
+import {
+    rememberAiDialogTriggerSideEffects,
+    resolveAiDialogChatTrigger,
+} from '../ai-dialog/plugin.js';
 
 function normalizeBoolean(value: unknown, fallback = false): boolean {
     if (typeof value === 'boolean') return value;
@@ -47,7 +50,8 @@ function isQuotedBotMessage(message: IncomingMessage, env: Env): boolean {
 async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
     if (!isOpenClawAutoForwardEnabled(env)) return null;
     const quotedBot = isQuotedBotMessage(message, env);
-    const shouldHandle = quotedBot || await shouldUseAiDialogChatTrigger(message, env);
+    const trigger = await resolveAiDialogChatTrigger(message, env);
+    const shouldHandle = quotedBot || trigger.handle;
     if (!shouldHandle) return null;
 
     const state = resolveXbotChannelConfigState(env);
@@ -76,10 +80,13 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
 
     try {
         const media = await resolveOpenClawMedia(message, env);
+        // 随机冒泡未点名：必须强制 dispatch，否则 mention 模式只攒历史不回复
+        const forceDispatch = !quotedBot && trigger.kind === 'ambient_bubble';
         const payload = mapIncomingMessageToXbotInbound(message, env, {
             wechatApiBaseUrl: apiBaseUrl,
             ...(xchatbotApiBaseUrl ? {xchatbotApiBaseUrl} : {}),
             ...(adminToken ? {xchatbotAdminToken: adminToken} : {}),
+            ...(forceDispatch ? {forceDispatch: true} : {}),
             ...(media?.url
                 ? {
                     mediaUrl: media.url,
@@ -99,9 +106,16 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
             });
         }
         const result = await forwardInboundToXbotChannel(state.config, payload);
-        if (result.dispatched === true || result.accumulated === true) {
+        // 只有真正跑了 Agent 才算接手；仅 accumulate 时放行给后续插件，避免冒泡被吞
+        if (result.dispatched === true) {
             await rememberAiDialogTriggerSideEffects(message, env, {treatAsDirect: quotedBot});
             return buildHandledReply();
+        }
+        if (result.accumulated === true && forceDispatch) {
+            logger.warn('OpenClaw 冒泡强制 dispatch 未生效，回退后续插件', {
+                messageId: message.messageId,
+                reason: result.reason,
+            });
         }
     } catch (error) {
         logger.warn('OpenClaw xbot 插件转发失败，回退后续插件', {
