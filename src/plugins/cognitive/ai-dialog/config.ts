@@ -18,6 +18,8 @@ export interface AiDialogConfig {
     group_auto_reply_enabled: boolean;
     group_auto_reply_probability: number;
     group_auto_reply_cooldown_seconds: number;
+    /** 开启冒泡时排除这些群（不随机冒泡） */
+    group_auto_reply_excluded_rooms: string[];
     services: Record<string, AiDialogServiceConfig>;
     prompts: Record<string, string>;
 }
@@ -92,6 +94,19 @@ function normalizeCooldownSeconds(value: unknown, fallback = 0): number {
     const raw = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value.trim(), 10) : Number.NaN;
     if (!Number.isFinite(raw)) return fallback;
     return Math.max(0, Math.floor(raw));
+}
+
+function normalizeChatroomIdList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    const rooms: string[] = [];
+    for (const item of value) {
+        const roomId = normalizeString(item);
+        if (!roomId || !roomId.endsWith('@chatroom') || seen.has(roomId)) continue;
+        seen.add(roomId);
+        rooms.push(roomId);
+    }
+    return rooms;
 }
 
 function normalizeServiceConfig(value: unknown): AiDialogServiceConfig | null {
@@ -174,6 +189,7 @@ export function buildAiDialogBaseConfig(env?: Pick<Env, 'AI_SYSTEM_PROMPT'>): Ai
         group_auto_reply_enabled: false,
         group_auto_reply_probability: 15,
         group_auto_reply_cooldown_seconds: 180,
+        group_auto_reply_excluded_rooms: [],
         services: {},
         prompts: {
             [DEFAULT_PROMPT_KEY]: normalizeString(env?.AI_SYSTEM_PROMPT) ?? DEFAULT_SYSTEM_PROMPT,
@@ -194,6 +210,9 @@ export function normalizeAiDialogConfig(source: unknown, env?: Pick<Env, 'AI_SYS
         group_auto_reply_enabled: normalizeBoolean(record.group_auto_reply_enabled),
         group_auto_reply_probability: normalizePercentage(record.group_auto_reply_probability, baseConfig.group_auto_reply_probability),
         group_auto_reply_cooldown_seconds: normalizeCooldownSeconds(record.group_auto_reply_cooldown_seconds, baseConfig.group_auto_reply_cooldown_seconds),
+        group_auto_reply_excluded_rooms: normalizeChatroomIdList(
+            record.group_auto_reply_excluded_rooms ?? record.groupAutoReplyExcludedRooms,
+        ),
         services: normalizeServices(record.services),
         prompts: normalizePrompts(record.prompts, baseConfig.prompts[DEFAULT_PROMPT_KEY]),
     };

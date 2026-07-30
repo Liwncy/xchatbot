@@ -13,7 +13,7 @@ import {
     resolveOpenClawMedia,
     resolveXbotChannelConfigState,
 } from '../../../openclaw/index.js';
-import {shouldUseAiDialogChatTrigger} from '../ai-dialog/plugin.js';
+import {rememberAiDialogTriggerSideEffects, shouldUseAiDialogChatTrigger} from '../ai-dialog/plugin.js';
 
 function normalizeBoolean(value: unknown, fallback = false): boolean {
     if (typeof value === 'boolean') return value;
@@ -46,7 +46,8 @@ function isQuotedBotMessage(message: IncomingMessage, env: Env): boolean {
 
 async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
     if (!isOpenClawAutoForwardEnabled(env)) return null;
-    const shouldHandle = isQuotedBotMessage(message, env) || await shouldUseAiDialogChatTrigger(message, env);
+    const quotedBot = isQuotedBotMessage(message, env);
+    const shouldHandle = quotedBot || await shouldUseAiDialogChatTrigger(message, env);
     if (!shouldHandle) return null;
 
     const state = resolveXbotChannelConfigState(env);
@@ -99,6 +100,7 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
         }
         const result = await forwardInboundToXbotChannel(state.config, payload);
         if (result.dispatched === true || result.accumulated === true) {
+            await rememberAiDialogTriggerSideEffects(message, env, {treatAsDirect: quotedBot});
             return buildHandledReply();
         }
     } catch (error) {

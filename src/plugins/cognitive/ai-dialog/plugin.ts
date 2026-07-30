@@ -1,4 +1,6 @@
 import type {TextMessage} from '../../types.js';
+import type {Env} from '../../../types/env.js';
+import type {IncomingMessage} from '../../../types/message.js';
 import {NO_PERMISSION_REPLY} from '../../../constants/messages.js';
 import {buildAiDialogMessagesFromChatLog, buildInboundSpeakerLine, isChatLogEnabled} from '../../../chat-log/index.js';
 import {logger} from '../../../utils/logger.js';
@@ -74,6 +76,43 @@ export async function shouldUseAiDialogChatTrigger(
     }
 
     return true;
+}
+
+/**
+ * 触发成功后写入连续对话窗口 / 群冒泡冷却（聪明对话与 openclaw 共用）。
+ * `treatAsDirect`：引用机器人消息等应视为点名续期的路径。
+ */
+export async function rememberAiDialogTriggerSideEffects(
+    message: IncomingMessage,
+    env: Env,
+    options?: {treatAsDirect?: boolean},
+): Promise<void> {
+    const runtimeConfig = await loadAiDialogRuntimeConfig(env);
+    const directTrigger = Boolean(options?.treatAsDirect) || isAiDialogDirectTrigger(message.content ?? '');
+    const activatedFollowUp = !directTrigger && await isAiDialogUserActivationActive(env, message);
+
+    if ((directTrigger || activatedFollowUp) && runtimeConfig.user_activation_window_seconds > 0) {
+        await markAiDialogUserActivation(env, message, runtimeConfig.user_activation_window_seconds);
+    }
+
+    if (!directTrigger && message.source === 'group') {
+        await markAiDialogGroupAutoReply(env, message, runtimeConfig.group_auto_reply_cooldown_seconds);
+    }
+}
+
+function resolveBubbleRoomIdArg(raw: string, message: IncomingMessage): string {
+    const arg = raw.trim();
+    if (arg) {
+        if (!arg.endsWith('@chatroom')) {
+            throw new Error('群 ID 格式不对，应以 @chatroom 结尾');
+        }
+        return arg;
+    }
+    const roomId = message.room?.id?.trim() ?? '';
+    if (message.source !== 'group' || !roomId) {
+        throw new Error('请提供群 ID，或在目标群里发送该命令');
+    }
+    return roomId;
 }
 
 function parseToggleValue(value: string): boolean {
@@ -220,7 +259,7 @@ function formatConfigOverview(
         `- 默认提示词：${config.default_prompt_key}`,
         `- 最大记忆轮数：${config.max_history_count}（0 表示不保存）`,
         `- 连续对话窗口：${config.user_activation_window_seconds} 秒（同一用户触发后，群聊/私聊内短时间可免提及继续聊）`,
-        `- 群聊冒泡：${config.group_auto_reply_enabled ? '开启' : '关闭'}（概率 ${config.group_auto_reply_probability}% / 冷却 ${config.group_auto_reply_cooldown_seconds} 秒）`,
+        `- 群聊冒泡：${config.group_auto_reply_enabled ? '开启' : '关闭'}（概率 ${config.group_auto_reply_probability}% / 冷却 ${config.group_auto_reply_cooldown_seconds} 秒 / 排除 ${config.group_auto_reply_excluded_rooms.length} 个群）`,
         `- 服务数量：${serviceKeys.length}`,
         `- 提示词数量：${promptKeys.length}`,
         `- 服务列表：${serviceKeys.length ? serviceKeys.join('、') : '(暂无)'}`,
@@ -235,15 +274,26 @@ function formatConfigOverview(
 }
 
 function formatGroupAutoReplyOverview(config: Awaited<ReturnType<typeof loadAiDialogRuntimeConfig>>): string {
+    const excluded = config.group_auto_reply_excluded_rooms;
     return [
         '聪明对话 群聊冒泡配置：',
         `- 状态：${config.group_auto_reply_enabled ? '开启' : '关闭'}`,
         `- 概率：${config.group_auto_reply_probability}%`,
         `- 冷却：${config.group_auto_reply_cooldown_seconds} 秒`,
         `- 连续对话窗口：${config.user_activation_window_seconds} 秒`,
-        '- 说明：仅群聊生效；@或点名“小聪明儿”时始终优先回复，不受冒泡概率和冷却限制。',
+        `- 排除群：${excluded.length ? `${excluded.length} 个` : '无'}`,
+        ...(excluded.length ? excluded.map((roomId) => `  - ${roomId}`) : []),
+        '- 说明：仅群聊生效；@或点名“小聪明儿”时始终优先回复，不受冒泡概率、冷却和排除限制。',
         '- 当前策略：优先只对提问、求助、征询意见、请求推荐等更适合接话的消息尝试随机冒泡。',
     ].join('\n');
+}
+
+function formatExcludedRooms(config: Awaited<ReturnType<typeof loadAiDialogRuntimeConfig>>): string {
+    const excluded = config.group_auto_reply_excluded_rooms;
+    if (!excluded.length) {
+        return '当前没有排除群，开启冒泡后所有群都可能接话。';
+    }
+    return [`已排除的群（共 ${excluded.length} 个）：`, ...excluded].join('\n');
 }
 
 function formatServiceList(config: Awaited<ReturnType<typeof loadAiDialogRuntimeConfig>>): string {
@@ -330,7 +380,10 @@ function buildHelpText(): string {
         '- 聪明对话 设置冒泡 开|关',
         '- 聪明对话 设置冒泡概率 0-100',
         '- 聪明对话 设置冒泡冷却 秒数',
-        '- 说明：群聊冒泡默认只会对提问 / 求助 / 征询意见类消息尝试接话',
+        '- 聪明对话 冒泡排除 [群ID]（无参则排除当前群）',
+        '- 聪明对话 冒泡取消排除 [群ID]',
+        '- 聪明对话 冒泡排除列表',
+        '- 说明：群聊冒泡默认只会对提问 / 求助 / 征询意见类消息尝试接话；排除群不会随机冒泡',
         '- 聪明对话 清空记忆',
         '- 聪明对话 服务列表 / 服务查看 服务名 / 服务删除 服务名',
         '- 聪明对话 服务新增 服务名 {json}',
@@ -362,6 +415,7 @@ async function shouldUseAmbientGroupReply(
 ): Promise<boolean> {
     if (message.source !== 'group' || !message.room?.id?.trim()) return false;
     if (!config.group_auto_reply_enabled) return false;
+    if (config.group_auto_reply_excluded_rooms.includes(message.room.id.trim())) return false;
     if (config.group_auto_reply_probability <= 0) return false;
     if (!isAmbientReplyCandidate(message.content ?? '')) return false;
     if (await isAiDialogGroupAutoReplyCoolingDown(env, message)) return false;
@@ -455,6 +509,34 @@ async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[
                 type: 'text' as const,
                 content: `已${editableConfig.group_auto_reply_enabled ? '开启' : '关闭'}群聊随机冒泡。`,
             };
+        }
+
+        if (body === '冒泡排除列表') {
+            return {type: 'text' as const, content: formatExcludedRooms(runtimeConfig)};
+        }
+
+        if (body === '冒泡排除' || body.startsWith('冒泡排除 ')) {
+            const roomId = resolveBubbleRoomIdArg(body.replace(/^冒泡排除\s*/u, ''), message);
+            if (!editableConfig.group_auto_reply_excluded_rooms.includes(roomId)) {
+                editableConfig.group_auto_reply_excluded_rooms = [
+                    ...editableConfig.group_auto_reply_excluded_rooms,
+                    roomId,
+                ];
+                await saveAiDialogConfig(env, editableConfig);
+            }
+            return {type: 'text' as const, content: `已排除群：${roomId}（该群不再随机冒泡）`};
+        }
+
+        if (body === '冒泡取消排除' || body.startsWith('冒泡取消排除 ')) {
+            const roomId = resolveBubbleRoomIdArg(body.replace(/^冒泡取消排除\s*/u, ''), message);
+            const before = editableConfig.group_auto_reply_excluded_rooms.length;
+            editableConfig.group_auto_reply_excluded_rooms = editableConfig.group_auto_reply_excluded_rooms
+                .filter((id) => id !== roomId);
+            if (editableConfig.group_auto_reply_excluded_rooms.length !== before) {
+                await saveAiDialogConfig(env, editableConfig);
+                return {type: 'text' as const, content: `已取消排除：${roomId}`};
+            }
+            return {type: 'text' as const, content: `${roomId} 本来就不在排除列表里`};
         }
 
         if (body.startsWith('设置冒泡概率 ')) {
@@ -585,8 +667,6 @@ async function handleAiDialogCommand(message: Parameters<TextMessage['handle']>[
 }
 
 async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0], env: Parameters<TextMessage['handle']>[1]) {
-    const directTrigger = isAiDialogDirectTrigger(message.content ?? '');
-    const activatedFollowUp = !directTrigger && await isAiDialogUserActivationActive(env, message);
     const shouldHandle = await shouldUseAiDialogChatTrigger(message, env);
     if (!shouldHandle) return null;
 
@@ -650,13 +730,7 @@ async function handleAiDialogChat(message: Parameters<TextMessage['handle']>[0],
             await clearAiDialogHistory(env, message);
         }
 
-        if ((directTrigger || activatedFollowUp) && runtimeConfig.user_activation_window_seconds > 0) {
-            await markAiDialogUserActivation(env, message, runtimeConfig.user_activation_window_seconds);
-        }
-
-        if (!directTrigger && message.source === 'group') {
-            await markAiDialogGroupAutoReply(env, message, runtimeConfig.group_auto_reply_cooldown_seconds);
-        }
+        await rememberAiDialogTriggerSideEffects(message, env);
 
         return {type: 'text' as const, content: reply};
     } catch (err) {
