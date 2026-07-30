@@ -109,12 +109,40 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
         // 只有真正跑了 Agent 才算接手；仅 accumulate 时放行给后续插件，避免冒泡被吞
         if (result.dispatched === true) {
             await rememberAiDialogTriggerSideEffects(message, env, {treatAsDirect: quotedBot});
+            if (forceDispatch) {
+                logger.info('OpenClaw 冒泡已接手', {
+                    messageId: message.messageId,
+                    reason: result.reason,
+                    sessionKey: result.sessionKey,
+                });
+            }
             return buildHandledReply();
         }
-        if (result.accumulated === true && forceDispatch) {
+        // 冒泡：只要不是「未点名只攒历史」，就视为 OpenClaw 已接单，禁止回落本地聪明对话
+        if (
+            forceDispatch
+            && result.accumulated !== true
+            && result.reason !== 'history-accumulated'
+        ) {
+            await rememberAiDialogTriggerSideEffects(message, env, {treatAsDirect: false});
+            logger.info('OpenClaw 冒泡已接单（无可见回复标记仍阻断本地回落）', {
+                messageId: message.messageId,
+                reason: result.reason,
+                sessionKey: result.sessionKey,
+            });
+            return buildHandledReply();
+        }
+        if (forceDispatch && result.accumulated === true) {
             logger.warn('OpenClaw 冒泡强制 dispatch 未生效，回退后续插件', {
                 messageId: message.messageId,
                 reason: result.reason,
+            });
+        } else if (forceDispatch) {
+            logger.warn('OpenClaw 冒泡未接手，回退本地聪明对话', {
+                messageId: message.messageId,
+                reason: result.reason,
+                dispatched: result.dispatched,
+                accumulated: result.accumulated,
             });
         }
     } catch (error) {
