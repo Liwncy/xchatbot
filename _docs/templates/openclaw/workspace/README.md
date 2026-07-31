@@ -27,10 +27,10 @@ openclaw gateway restart
 | `skills/learn/PENDING.md` | 转交草稿 + **待李芈仙批准的 skill 候选** |
 | `skills/lazy/ROUTES.md` | 转交路由（可自行维护；仅偷懒模式使用） |
 
-**学习依据**：接单时携带的群聊历史（不是未点名的实时旁听）。  
-**落盘**：必须调用插件工具 `xbot_learn_write`（`pending` / `routes`），并在 `openclaw.json` 的 `tools.alsoAllow` 里放行该工具。  
-**转交路由**：有依据可自行写 routes；**具体 skill** 写 pending，要批准。  
-**偷懒**：仅切换后才按 ROUTES 安排别人。
+**学习**：每次接单主动扫历史（指令 / @人有回应 / 有人答疑 / @bot），用 `xbot_learn_write` 落盘；不是实时旁听每条。  
+**转交路由**：`command` | `bot` | `human`，有依据可自行写 routes；**具体 skill** 写 pending，要批准。  
+**偷懒**：仅切换后才按 ROUTES 喊人/套指令。  
+工具需在 `openclaw.json` 的 `tools.alsoAllow` 放行。
 
 ## 模式一览
 
