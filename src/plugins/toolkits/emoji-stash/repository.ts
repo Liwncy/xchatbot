@@ -133,7 +133,7 @@ export class EmojiStashRepository {
             return parsed
                 .filter((item): item is LegacyStoredEmoji => Boolean(item && typeof item === 'object'))
                 .map((item) => normalizeStoredEmoji(item))
-                .filter((item) => Boolean(item.md5 && item.name && item.cdnurl));
+                .filter((item) => Boolean(item.md5 && item.name));
         } catch {
             return [];
         }

@@ -19,6 +19,7 @@ import {
     EMOJI_STASH_LIVE_VERIFY_NOT_ON_REPLY,
     EMOJI_STASH_LIVE_VERIFY_ON_REPLY,
     EMOJI_STASH_NOT_FOUND_REPLY,
+    EMOJI_STASH_PLACEHOLDER_CDNURL,
     EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY,
     EMOJI_STASH_SAVE_OK_REPLY,
     EMOJI_STASH_SAVE_REPLY,
@@ -45,6 +46,11 @@ import {
 } from './storage.js';
 import type {EmojiAiMetadata, ParsedInboundEmoji, StoredEmoji} from './types.js';
 
+function resolveStoredCdnurl(parsed: ParsedInboundEmoji): string {
+    const cdnurl = parsed.cdnurl?.trim() ?? '';
+    return cdnurl || EMOJI_STASH_PLACEHOLDER_CDNURL;
+}
+
 function toStoredEmoji(
     metadata: EmojiAiMetadata,
     parsed: ParsedInboundEmoji,
@@ -53,7 +59,7 @@ function toStoredEmoji(
     return {
         name: metadata.name,
         md5: parsed.md5,
-        cdnurl: parsed.cdnurl,
+        cdnurl: resolveStoredCdnurl(parsed),
         category: metadata.category,
         tags: metadata.tags,
         ...(parsed.size ? {size: parsed.size} : {}),
@@ -68,7 +74,12 @@ async function resolveAiMetadata(
     env: Env,
     parsed: ParsedInboundEmoji,
 ): Promise<{metadata: EmojiAiMetadata; aiFailed: boolean}> {
-    const imageUrl = await resolvePublicImageUrlFromEmojiCdnurl(parsed.cdnurl);
+    const cdnurl = parsed.cdnurl?.trim() ?? '';
+    if (!cdnurl || cdnurl === EMOJI_STASH_PLACEHOLDER_CDNURL) {
+        return {metadata: buildFallbackEmojiMetadata(parsed.md5), aiFailed: true};
+    }
+
+    const imageUrl = await resolvePublicImageUrlFromEmojiCdnurl(cdnurl);
     if (!imageUrl) {
         return {metadata: buildFallbackEmojiMetadata(parsed.md5), aiFailed: true};
     }
@@ -102,6 +113,14 @@ async function persistEmojiWithAi(
     };
 
     const stored = toStoredEmoji(metadata, parsed, source);
+    // 重新入库且本次无真实 cdnurl 时，保留库里已有地址
+    if (
+        existingByMd5?.cdnurl
+        && existingByMd5.cdnurl !== EMOJI_STASH_PLACEHOLDER_CDNURL
+        && stored.cdnurl === EMOJI_STASH_PLACEHOLDER_CDNURL
+    ) {
+        stored.cdnurl = existingByMd5.cdnurl;
+    }
     await EmojiStashRepository.upsertStoredEmoji(env, stored);
 
     if (source === 'auto') {
@@ -143,7 +162,7 @@ export async function saveEmojiFromMessage(
     await deleteEmojiStashPending(env, sessionKey);
 
     const parsed = parseInboundEmojiFromMessage(message);
-    if (!parsed?.md5 || !parsed.cdnurl) {
+    if (!parsed?.md5) {
         return {type: 'text', content: EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY};
     }
 
@@ -155,7 +174,7 @@ export async function saveEmojiFromQuote(
     env: Env,
     parsed: ParsedInboundEmoji,
 ): Promise<HandlerResponse> {
-    if (!parsed.md5 || !parsed.cdnurl) {
+    if (!parsed.md5?.trim()) {
         return {type: 'text', content: EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY};
     }
     return persistEmojiWithAi(message, env, parsed, 'manual');
@@ -172,7 +191,7 @@ export async function autoCollectEmojiFromMessage(
     if (pending?.ownerId === message.from) return null;
 
     const parsed = parseInboundEmojiFromMessage(message);
-    if (!parsed?.md5 || !parsed.cdnurl) return null;
+    if (!parsed?.md5) return null;
 
     return persistEmojiWithAi(message, env, parsed, 'auto');
 }

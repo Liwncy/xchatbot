@@ -9,10 +9,13 @@ function getFirstRawWechatItem(raw: unknown): WechatPushItem | null {
     return first ?? null;
 }
 
-function toParsedInboundEmoji(emoji: WechatInboundEmoji): ParsedInboundEmoji {
+function toParsedInboundEmoji(emoji: WechatInboundEmoji): ParsedInboundEmoji | null {
+    const md5 = emoji.md5?.trim() ?? '';
+    if (!md5) return null;
+    const cdnurl = emoji.cdnurl?.trim() ?? '';
     return {
-        md5: emoji.md5,
-        cdnurl: emoji.cdnurl,
+        md5,
+        ...(cdnurl ? {cdnurl} : {}),
         ...(emoji.size ? {size: emoji.size} : {}),
         ...(emoji.width ? {width: emoji.width} : {}),
         ...(emoji.height ? {height: emoji.height} : {}),
@@ -26,9 +29,9 @@ export function isWechatEmojiMessage(message: IncomingMessage): boolean {
     return item?.type === 47;
 }
 
-/** 从 IncomingMessage 解析表情 md5 与 cdnurl。 */
+/** 从 IncomingMessage 解析表情；只要有 md5 即可。 */
 export function parseInboundEmojiFromMessage(message: IncomingMessage): ParsedInboundEmoji | null {
-    if (message.emoji?.md5 && message.emoji.cdnurl) {
+    if (message.emoji?.md5?.trim()) {
         return toParsedInboundEmoji(message.emoji);
     }
 

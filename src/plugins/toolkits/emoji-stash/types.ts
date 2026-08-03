@@ -23,7 +23,8 @@ export interface StoredEmoji {
 /** 从 type 47 消息解析出的表情字段。 */
 export interface ParsedInboundEmoji {
     md5: string;
-    cdnurl: string;
+    /** 可为空；缺省入库时用占位 cdnurl。 */
+    cdnurl?: string;
     size?: number;
     width?: number;
     height?: number;

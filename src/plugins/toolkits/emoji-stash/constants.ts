@@ -27,8 +27,12 @@ export const EMOJI_STASH_AUTO_COLLECT_COOLDOWN_SECONDS = 3 * 60 * 60;
 export const EMOJI_STASH_VERIFY_DEFAULT_BATCH = 5;
 export const EMOJI_STASH_VERIFY_MAX_BATCH = 100;
 
+/** 入库时缺 cdnurl 的占位值（发表情只靠 md5）。 */
+export const EMOJI_STASH_PLACEHOLDER_CDNURL = 'https://emoji.local/placeholder';
+
 export const EMOJI_STASH_SAVE_REPLY = '请发送要收藏的表情，或引用表情后发送「存表情」。';
-export const EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY = '未能解析表情的 md5 或 cdnurl，无法保存。';
+export const EMOJI_STASH_SAVE_MISSING_FIELDS_REPLY = '没拿到表情 md5，存不了';
+export const EMOJI_STASH_QUOTE_NEED_EMOJI_REPLY = '引用表情再发「存表情」';
 export const EMOJI_STASH_SAVE_OK_REPLY = (name: string, category: string, tags: string[]) =>
     `已收藏 [${name}] /${category} ${tags.map((t) => `#${t}`).join(' ')}`;
 export const EMOJI_STASH_AUTO_OK_REPLY = '图很好，现在是我的啦[旺柴]';
