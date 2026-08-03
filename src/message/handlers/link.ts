@@ -10,6 +10,7 @@ import {handleAgnesTextQuote} from '../../plugins/cognitive/agnes-text/quote.js'
 import {handleEmojiStashQuote} from '../../plugins/toolkits/emoji-stash/quote.js';
 import {handleMessageRevokeQuote} from '../../plugins/system/message-revoke/quote.js';
 import {handleNotifyQuote} from '../../plugins/system/notify/quote.js';
+import {tryForwardOpenClawXbot} from '../../openclaw/try-forward-openclaw-xbot.js';
 import {logger} from '../../utils/logger.js';
 
 /**
@@ -52,6 +53,9 @@ export async function handleLinkMessage(
 			referFrom: message.quote.referFrom,
 			referSenderName: message.quote.referSenderName,
 		});
+		// 真微信引用是 link 类型，不会走 text 插件；专用 quote 插件未接住时转 OpenClaw
+		const openClawResponse = await tryForwardOpenClawXbot(message, env);
+		if (openClawResponse) return openClawResponse;
 		return null;
 	}
 	logger.info(`收到链接消息：${link.title} ${link.url}`);

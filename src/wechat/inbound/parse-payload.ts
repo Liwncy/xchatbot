@@ -384,6 +384,10 @@ export function parseWechatPushItem(
             },
         };
         if (parsedRefer) {
+            // 引用回复正文在 title；补到 content，供点名检测 / OpenClaw 用户消息段使用
+            if (parsedRefer.title.trim()) {
+                message.content = parsedRefer.title.trim();
+            }
             message.quote = {
                 title: parsedRefer.title,
                 referType: parsedRefer.referType,

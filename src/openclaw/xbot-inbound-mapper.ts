@@ -289,8 +289,10 @@ function buildOpenClawContent(
         ...buildQuotedExtraLines(message, mediaUrl, mediaKind, videoUrl),
         '[/引用消息]',
     ];
-    if (content) {
-        lines.push('', '[用户消息]', content, '[/用户消息]');
+    // 真引用：用户新说的话在 quote.title，content 可能为空
+    const userText = content || quote.title?.trim() || '';
+    if (userText) {
+        lines.push('', '[用户消息]', userText, '[/用户消息]');
     }
     return lines.join('\n');
 }

@@ -6,3 +6,8 @@ export {
     resolveOpenClawMediaUrl,
 } from './resolve-media-url.js';
 export type {OpenClawMediaKind, OpenClawResolvedMedia} from './resolve-media-url.js';
+export {
+    tryForwardOpenClawXbot,
+    isQuotedBotMessage,
+    withQuoteUserContent,
+} from './try-forward-openclaw-xbot.js';

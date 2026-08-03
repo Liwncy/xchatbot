@@ -172,6 +172,7 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 - xchatbot：D1 联系人群白名单（`/cm add-group`）；主人旁路不等于群已加白
 - 正文需 @ 机器人、提到机器人昵称，或入站带 `botMentioned: true`
 - `mention` 模式下未点名会返回 `accumulated=true`（只攒历史不回复），属正常
+- **真微信引用**：解析为 `link`+`quote`，专用插件未接住时会走 `tryForwardOpenClawXbot`；引用机器人消息等同点名。模拟指令 `./` 仍走 text 路径。
 
 **群里别人说话 Gateway 看不见 / 点名才有上下文**
 
