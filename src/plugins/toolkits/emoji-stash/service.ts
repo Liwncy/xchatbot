@@ -206,7 +206,6 @@ function toEmojiSendReply(target: StoredEmoji): EmojiReply {
     return {
         type: 'emoji',
         md5: target.md5,
-        emojiUrl: target.cdnurl,
     };
 }
 

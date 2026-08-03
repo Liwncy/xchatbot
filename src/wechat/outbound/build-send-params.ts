@@ -87,7 +87,7 @@ export function buildWechatReply(
             ...target,
             type: 'emoji',
             md5: reply.md5,
-            emojiUrl: reply.emojiUrl,
+            ...(reply.emojiUrl ? {emojiUrl: reply.emojiUrl} : {}),
         };
     }
 

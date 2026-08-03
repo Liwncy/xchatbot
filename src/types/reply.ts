@@ -101,10 +101,10 @@ export interface AppReply extends ReplyBase {
 /** 微信表情回复（type 47，通过网关 sendEmoji 发送）。 */
 export interface EmojiReply extends ReplyBase {
     type: 'emoji';
-    /** 表情 MD5（与 emojiUrl 一并发送）。 */
+    /** 表情 MD5（发表情只传 md5）。 */
     md5: string;
-    /** 微信 CDN URL，作为 emoji_url 传给网关。 */
-    emojiUrl: string;
+    /** 可选 CDN URL；发表情时不传，由网关按 md5 处理。 */
+    emojiUrl?: string;
 }
 
 /**

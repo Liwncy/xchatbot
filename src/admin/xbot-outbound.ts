@@ -134,8 +134,9 @@ function parseReply(entry: unknown): ReplyMessage | null {
         }
         case 'emoji': {
             const md5 = asString(record.md5);
+            if (!md5) return null;
             const emojiUrl = asString(record.emojiUrl);
-            return md5 && emojiUrl ? {type: 'emoji', md5, emojiUrl} : null;
+            return emojiUrl ? {type: 'emoji', md5, emojiUrl} : {type: 'emoji', md5};
         }
         default:
             return null;

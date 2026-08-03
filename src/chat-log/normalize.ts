@@ -173,7 +173,10 @@ function buildOutboundPayload(reply: ReplyMessage): Record<string, unknown> {
         case 'app':
             return {app_type: reply.appType};
         case 'emoji':
-            return {md5: reply.md5, emoji_url: reply.emojiUrl};
+            return {
+                md5: reply.md5,
+                ...(reply.emojiUrl ? {emoji_url: reply.emojiUrl} : {}),
+            };
         default:
             return {};
     }
