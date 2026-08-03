@@ -1,6 +1,6 @@
 # OpenClaw 小聪明儿 workspace 模板
 
-把本目录内容复制到 OpenClaw workspace 即可启用「底子 + 可切换说话模式 + 持续学习 + 偷懒转交」。
+把本目录内容复制到 OpenClaw workspace 即可启用「底子 + 可切换说话模式 + 持续学习 + 佛系转交」。
 
 ## 安装
 
@@ -23,18 +23,19 @@ openclaw gateway restart
 | 路径 | 作用 |
 |------|------|
 | `SOUL.md` | 人设底子；含持续学习规则 |
-| `skills/modes/*` | 可切换说话/行为皮（含偷懒） |
+| `skills/modes/*` | 可切换说话/行为皮（含佛系） |
 | `skills/learn/PENDING.md` | 转交草稿 + **待李芈仙批准的 skill 候选** |
-| `skills/lazy/ROUTES.md` | 转交路由（可自行维护；仅偷懒模式使用） |
+| `skills/modes/foxi/ROUTES.md` | 转交路由（与佛系 SKILL 同目录；仅佛系模式使用） |
 
-**学习**：每次接单主动扫历史（指令 / @人有回应 / 有人答疑 / @bot），用 `xbot_learn_write` 落盘；不是实时旁听每条。  
+**学习**：接单扫上下文；不够则先 `xbot_chat_history` 再 `xbot_learn_write`；不是实时旁听每条。  
 **转交路由**：`command` | `bot` | `human`，有依据可自行写 routes；**具体 skill** 写 pending，要批准。  
-**偷懒**：仅切换后才按 ROUTES 喊人/套指令。  
+**佛系**：切换后旁白≤15字；ROUTES 放宽类比转交；禁止记自己/主人目标。  
+**模式粘性**：切模式写 `skills/modes/CURRENT.md`，每轮以模式为主。  
 工具需在 `openclaw.json` 的 `tools.alsoAllow` 放行。
 
 ## 模式一览
 
-与 `ai-dialog-config.json` 的 `prompts` 对应关系（偷懒目前主要在 OpenClaw workspace，本地 prompts 可稍后补）：
+与 `ai-dialog-config.json` 的 `prompts` 对应关系（佛系目前主要在 OpenClaw workspace，本地 prompts 可稍后补）：
 
 | 斜杠 / 口令 | ai-dialog key | 说明 |
 |-------------|---------------|------|
@@ -42,7 +43,7 @@ openclaw gateway restart
 | `/ysqq`、切阴阳 | `ysqq` | 阴阳怪气 |
 | `/ghds`、切拱火 | `ghds` | 拱火大师 |
 | `/gxwy`、切国学 | `gxwy` | 国学文言 |
-| `/lazy`、切偷懒 | — | 偷懒：可按 ROUTES 转交其他机器人 |
+| `/foxi`、切佛系 | — | 佛系：少话，有活优先按 ROUTES 安排别人（旧 `/lazy` 也认） |
 | `/normal`、恢复正常 | — | 卸掉模式，回到 SOUL 默认 |
 
 ## 用法
@@ -51,7 +52,7 @@ openclaw gateway restart
 
 - `切绿茶` / `/lcmm`
 - `阴阳怪气一点` / `/ysqq`
-- `切偷懒` / `/lazy`
+- `切佛系` / `/foxi`（旧口令 `切偷懒` / `/lazy` 也可）
 - `恢复正常` / `/normal`
 - `这段时间学到了什么` → 汇报新学的转交 + 待批 skill
 - 批准某条 **skill** → 再固化；转交口令一般不用你批

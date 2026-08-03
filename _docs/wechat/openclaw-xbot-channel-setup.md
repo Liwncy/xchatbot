@@ -191,6 +191,29 @@ curl -sS https://openclaw.lwcorspro.dpdns.org/api/channels/xbot/inbound \
 - 现在都走插件顺序：显式命令插件可放前面，`openclaw-xbot` 作为兜底入口。
 - 若你要让 OpenClaw 更主动接管，就把 `openclaw-xbot` 放到更靠前的位置，或开启 `XBOT_CHANNEL_AUTO_FORWARD=true`。
 
+## OpenClaw 自带指令（仅主人）
+
+配置见 [`../templates/openclaw/xbot-channel-config.sample.json`](../templates/openclaw/xbot-channel-config.sample.json) 的 `commands.allowFrom` / `ownerAllowFrom`，以及 `channels.xbot.ownerAllowFrom`。未授权者的 `/clear` 等会被静默忽略。
+
+微信里可用通俗口令（整句；可带 @机器人），主人发送时由 xbot 频道改写成斜杠：
+
+| 通俗口令 | 等价指令 |
+|----------|----------|
+| 停下 / 别说了 / 停止 | `/stop` |
+| 重置会话 | `/reset` |
+| 新会话 / 重新开始 | `/new` |
+| 压缩上下文 / 压一下上下文 | `/compact` |
+| 会话改名 标题 / 改名 标题 | `/name 标题` |
+| 清空会话 / 清一下记录 | `/clear` |
+| 思考 high / 看思考档 | `/think high` / `/think` |
+| 换模型 xxx / 看模型 | `/model xxx` / `/model` |
+| 啰嗦开 / 啰嗦关 | `/verbose on` / `off` |
+| 快速模式开 / 关 | `/fast on` / `off` |
+| 推理可见开 / 关 | `/reasoning on` / `off` |
+| 有哪些模型 | `/models` |
+
+TOOLS / AGENTS 类（`/status` `/tools` `/agents` 等）不做白话入口；主人需要时直接打斜杠。群里慎用 `/verbose` `/reasoning`。
+
 ## 人设与说话模式
 
 OpenClaw 用人设文件 + Skill 模式包，与本地 `ai-dialog` 的 `prompts` 对齐：

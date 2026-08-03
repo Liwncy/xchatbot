@@ -81,6 +81,7 @@ async function handleOpenClawXbot(message: Parameters<TextMessage['handle']>[0],
     try {
         const media = await resolveOpenClawMedia(message, env);
         // 随机冒泡未点名：必须强制 dispatch，否则 mention 模式只攒历史不回复
+        // 通俗口令不强制入站：仍须 @/点名（或冒泡）才会进 OpenClaw
         const forceDispatch = !quotedBot && trigger.kind === 'ambient_bubble';
         const payload = mapIncomingMessageToXbotInbound(message, env, {
             wechatApiBaseUrl: apiBaseUrl,

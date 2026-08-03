@@ -1,10 +1,24 @@
 {
+  "commands": {
+    "text": true,
+    "allowFrom": {
+      "xbot": ["wxid_5jfnhtqy74xr22"],
+      "*": ["wxid_5jfnhtqy74xr22"]
+    },
+    "ownerAllowFrom": [
+      "wxid_5jfnhtqy74xr22",
+      "xbot:wxid_5jfnhtqy74xr22"
+    ]
+  },
   "channels": {
     "xbot": {
       "enabled": true,
       "wechatApiBaseUrl": "https://wxbot.lwcorspro.dpdns.org",
       "botWechatId": "wxid_ahl9az25aljx22",
       "botWechatName": "小聪明儿",
+      "ownerAllowFrom": [
+        "wxid_5jfnhtqy74xr22"
+      ],
       "dmPolicy": "open",
       "groupPolicy": "allowlist",
       "groupAllowFrom": [
