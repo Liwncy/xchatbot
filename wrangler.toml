@@ -9,8 +9,10 @@ routes = [
     { pattern = "xbot.lwcfworker.dpdns.org", zone_name = "lwcfworker.dpdns.org", custom_domain = true }
 ]
 
-[triggers]
-crons = ["* * * * *"]
+# 定时触发器已关闭（此前为每分钟一次的调度扫描）。
+# 需要恢复时取消下面两行注释即可；也可改为更低频率，如 "*/5 * * * *"。
+# [triggers]
+# crons = ["* * * * *"]
 
 [observability]
 enabled = false
