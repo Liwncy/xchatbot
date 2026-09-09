@@ -3,114 +3,126 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>人机验证</title>
+<title>你是人类吗？</title>
 <style>
-body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 24px; color: #1f2937; }
-.card { max-width: 560px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
-h1 { font-size: 20px; margin-top: 0; }
-button { margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 8px; background: #2563eb; color: white; cursor: pointer; font-size: 15px; }
-button:disabled { background: #93c5fd; cursor: not-allowed; }
-.tip { color: #6b7280; font-size: 14px; }
-.section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e5e7eb; }
-.section h2 { font-size: 15px; margin: 0 0 8px; }
-.section p, .section li { font-size: 14px; line-height: 1.65; }
-ul { margin: 8px 0 0 18px; padding: 0; }
-a { color: #2563eb; text-decoration: none; }
-a:hover { text-decoration: underline; }
-#result { margin-top: 16px; padding: 12px; border-radius: 8px; display: none; font-size: 14px; }
-#result.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-#result.fail { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-#error-banner { margin-bottom: 12px; padding: 10px 12px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; font-size: 14px; display: none; }
+  :root { --ink:#2b2118; --muted:#7a6a5c; --paper:#fff6ea; --card:#fffdf8; --line:#f0dcc4; --coral:#e56b4e; --ok:#2f7d4a; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background: radial-gradient(1200px 500px at 50% -80px, #ffe7c2 0%, var(--paper) 55%); color:var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; }
+  .wrap { max-width: 420px; margin: 0 auto; padding: 28px 18px 40px; }
+  .hero { width: 112px; height: 112px; display:block; margin: 0 auto 14px; border-radius: 28px; box-shadow: 0 10px 24px rgba(229,107,78,.18); }
+  h1 { text-align:center; font-size: 26px; margin: 0 0 8px; letter-spacing: .04em; }
+  .lead { text-align:center; color:var(--muted); font-size: 15px; line-height: 1.6; margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px 18px 18px; box-shadow: 0 8px 30px rgba(90,60,30,.06); }
+  .clock { text-align:center; font-size: 13px; color:var(--muted); margin-bottom: 14px; }
+  .clock b { color: var(--coral); font-variant-numeric: tabular-nums; }
+  .cf-turnstile { display:flex; justify-content:center; }
+  button { width:100%; margin-top: 14px; padding: 12px 16px; border:0; border-radius: 14px; background: var(--coral); color:white; cursor:pointer; font-size: 16px; font-weight: 600; }
+  button:disabled { background:#efc3b6; cursor:not-allowed; }
+  .foot { text-align:center; color:var(--muted); font-size: 13px; margin-top: 14px; line-height: 1.5; }
+  #result { display:none; margin-top: 14px; padding: 12px; border-radius: 12px; font-size: 15px; text-align:center; }
+  #result.success { display:block; background:#edf8f0; color:var(--ok); }
+  #result.fail { display:block; background:#fff1ee; color:#b42318; }
+  #error-banner { display:none; margin-bottom: 12px; padding: 10px 12px; background:#fff1ee; color:#b42318; border-radius: 12px; font-size: 14px; }
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>你是人类吗？🧐</h1>
-  <div id="error-banner"></div>
-  <p class="tip">会话ID: <code id="session-id-display">加载中…</code></p>
-  <form id="verify-form">
-    <div class="cf-turnstile" data-sitekey="0x4AAAAAADSBErUgKOZeHOX3" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>
-    <button type="submit" id="submit-btn" disabled>我是人类，提交！</button>
-  </form>
-  <p class="tip">验证完成后，认证结果会发到微信通知你。</p>
-  <div id="result"></div>
-
-  <div class="section">
-    <h2>这是在干嘛？</h2>
-    <p style="font-size:14px;line-height:1.7">就是想知道你是不是人类 🤖<br>没有别的目的，纯娱乐。</p>
+<div class="wrap">
+  <img class="hero" src="verify-cover.png" alt="" />
+  <h1>你是人类吗？</h1>
+  <p class="lead">点下面那个框就行。3 分钟内做完，超时就算你不是人。</p>
+  <div class="card">
+    <div id="error-banner"></div>
+    <p class="clock">还剩 <b id="remain">--:--</b></p>
+    <form id="verify-form">
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAADSBErUgKOZeHOX3" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>
+      <button type="submit" id="submit-btn" disabled>我是人</button>
+    </form>
+    <div id="result"></div>
+    <p class="foot">结果会发回刚才的聊天。</p>
   </div>
 </div>
-
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script>
-  // ── 配置 ──────────────────────────────────────────────
-  var WORKER_VERIFY_API = 'https://xbot.lwcfworker.dpdns.org/turnstile/api/verify';
-  // ─────────────────────────────────────────────────────
-
+  var APIS = {
+    xbot: "https://xbot.lwcfworker.dpdns.org/turnstile/api/verify",
+    mcp: "https://mcp.lwcfworker.dpdns.org/turnstile/api/verify"
+  };
+  var params = new URLSearchParams(location.search);
+  var apiKey = params.get("api") || "xbot";
+  var WORKER_VERIFY_API = APIS[apiKey] || APIS.xbot;
+  var sessionId = params.get("sid") || "";
+  var deadlineAt = Number(params.get("until") || 0);
   var turnstileToken = null;
-  var sessionId = new URLSearchParams(location.search).get('sid') || '';
-
-  document.getElementById('session-id-display').textContent = sessionId || '（缺少 sid 参数）';
 
   if (!sessionId) {
-    showBanner('缺少会话ID（sid 参数），请返回微信重新获取验证链接。');
+    showBanner("链接不完整，回聊天里重新要一张。");
+  }
+
+  function pad(n){ return n < 10 ? "0" + n : String(n); }
+  function tick(){
+    var el = document.getElementById("remain");
+    if (!deadlineAt) { el.textContent = "3:00"; return; }
+    var left = Math.max(0, Math.floor((deadlineAt - Date.now()) / 1000));
+    el.textContent = Math.floor(left / 60) + ":" + pad(left % 60);
+    if (left <= 0) {
+      showResult(false, "超时了，这次算你不是人。");
+      document.getElementById("verify-form").style.display = "none";
+      return;
+    }
+    setTimeout(tick, 1000);
   }
 
   function onTurnstileSuccess(token) {
     turnstileToken = token;
-    document.getElementById('submit-btn').disabled = false;
+    document.getElementById("submit-btn").disabled = false;
   }
-
   function onTurnstileError() {
     turnstileToken = null;
-    document.getElementById('submit-btn').disabled = true;
-    showResult(false, 'Turnstile 验证组件加载失败，请刷新页面重试。');
+    document.getElementById("submit-btn").disabled = true;
+    showResult(false, "框没出来，刷新再试。");
   }
 
-  document.getElementById('verify-form').addEventListener('submit', function(e) {
+  document.getElementById("verify-form").addEventListener("submit", function(e) {
     e.preventDefault();
-    if (!turnstileToken) { showResult(false, '请先完成 Turnstile 验证。'); return; }
-    if (!sessionId) { showResult(false, '缺少会话ID，请返回微信重新获取链接。'); return; }
-
-    var btn = document.getElementById('submit-btn');
+    if (!turnstileToken) { showResult(false, "先点下面那个框。"); return; }
+    if (!sessionId) { showResult(false, "链接不完整，回聊天里重新要一张。"); return; }
+    var btn = document.getElementById("submit-btn");
     btn.disabled = true;
-    btn.textContent = '提交中…';
-
+    btn.textContent = "看一下…";
     fetch(WORKER_VERIFY_API, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({token: turnstileToken, sessionId: sessionId}),
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({token: turnstileToken, sessionId: sessionId})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
-        showResult(true, '🎉 恭喜，经权威认证您是人类！结果已上报微信，欢迎继续做人～');
-        document.getElementById('verify-form').style.display = 'none';
+        showResult(true, "过了，你是人。回去聊天看结果。");
+        document.getElementById("verify-form").style.display = "none";
       } else {
-        showResult(false, '❌ ' + (data.error || '验证未通过，请重试。'));
+        showResult(false, data.error || "没过，不是人类。");
         btn.disabled = false;
-        btn.textContent = '提交验证';
+        btn.textContent = "我是人";
       }
     })
-    .catch(function(err) {
-      showResult(false, '网络错误，请检查连接后重试：' + err.message);
+    .catch(function() {
+      showResult(false, "网不行，再试一次。");
       btn.disabled = false;
-      btn.textContent = '提交验证';
+      btn.textContent = "我是人";
     });
   });
 
-  function showResult(success, message) {
-    var el = document.getElementById('result');
-    el.style.display = 'block';
-    el.className = success ? 'success' : 'fail';
+  function showResult(ok, message) {
+    var el = document.getElementById("result");
+    el.className = ok ? "success" : "fail";
     el.textContent = message;
   }
-
   function showBanner(message) {
-    var el = document.getElementById('error-banner');
-    el.style.display = 'block';
+    var el = document.getElementById("error-banner");
+    el.style.display = "block";
     el.textContent = message;
   }
+  tick();
 </script>
 </body>
 </html>
