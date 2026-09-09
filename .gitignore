@@ -12,6 +12,8 @@ dist/
 .tmp-xz/
 .config/
 .doc/
-.github/
+.github/*
+!.github/workflows/
+!.github/workflows/**
 .qoder/
 .tmp-parse-refer-smoke/
