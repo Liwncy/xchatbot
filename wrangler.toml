@@ -63,6 +63,12 @@ XBOT_CHANNEL_AUTO_FORWARD = "true"
 DRAW_API_BASE_URL = "https://api.siliconflow.cn/v1"
 DRAW_MODEL = "Kwai-Kolors/Kolors"
 
+MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"
+XIUXIAN_PLATFORM = "agbot"
+
+# 浏览器调试适配器。上线前改成 false。
+WEB_ADAPTER_ENABLED = "true"
+
 # 规则缓存时长（毫秒）：0=禁用缓存（实时读 KV），默认 60000
 COMMON_PLUGINS_CACHE_MS = "60000"
 

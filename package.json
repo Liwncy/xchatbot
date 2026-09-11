@@ -2,7 +2,7 @@
     "name": "xchatbot",
     "version": "0.1.0",
     "private": true,
-    "description": "Cloudflare Workers 消息处理机器人",
+    "description": "薄核：Golem 协议 + 分类型插件 + MCP / OpenClaw",
     "scripts": {
         "dev": "wrangler dev",
         "dev:scheduled": "wrangler dev --test-scheduled",
@@ -13,7 +13,6 @@
         "data": "node ./_docs/scripts/cloudflare-data-commands.cjs",
         "help:data": "node ./_docs/scripts/cloudflare-data-commands.cjs list",
         "typecheck": "tsc --noEmit",
-        "plugin-admin:smoke": "node -e \"require('node:fs').rmSync('.tmp-plugin-admin-smoke',{recursive:true,force:true})\" && tsc -p tsconfig.json --module commonjs --moduleResolution node --outDir .tmp-plugin-admin-smoke --rootDir src && node ./_docs/scripts/plugin-admin-smoke.cjs",
         "deploy": "wrangler deploy",
         "deploy:safe": "npm run data -- run sync:pull && npm run typecheck && npm run deploy",
         "deploy:safe:push": "npm run data -- run sync:push:force && npm run typecheck && npm run deploy"
