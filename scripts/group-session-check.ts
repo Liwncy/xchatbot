@@ -14,7 +14,6 @@ import {
     parseMode,
     rollChance,
 } from '../src/plugins/channel/session/policy.ts';
-import {RANDOM_REPLY_STAMP, stampRandomPrompt} from '../src/plugins/channel/session/index.ts';
 
 assert.equal(parseMode('点名'), 'mention');
 assert.equal(parseMode('MENTION'), 'mention');
@@ -103,10 +102,5 @@ assert.equal(isBotMentioned({
     ...message,
     quote: {title: '嗯', referType: 1, referFrom: 'bot', referSenderName: '小聪明儿'},
 }, '小聪明儿', 'bot'), true);
-
-stampRandomPrompt(message);
-assert.equal(message.content, `${RANDOM_REPLY_STAMP}\n你好`);
-stampRandomPrompt(message);
-assert.equal(message.content, `${RANDOM_REPLY_STAMP}\n你好`);
 
 console.log('✓ group session policy');

@@ -27,8 +27,6 @@ import {
     touchFollowWindow,
 } from './store.js';
 
-export const RANDOM_REPLY_STAMP = '系统提示：群聊随机接话';
-
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -55,12 +53,6 @@ function ownerError(from: string, ownerId: string | undefined, emptyCopy: string
     if (!owner) return emptyCopy;
     if (from.trim() !== owner) return '这事只有主人能定';
     return null;
-}
-
-export function stampRandomPrompt(message: IncomingMessage): void {
-    const body = message.content ?? '';
-    if (body.startsWith(RANDOM_REPLY_STAMP)) return;
-    message.content = body ? `${RANDOM_REPLY_STAMP}\n${body}` : RANDOM_REPLY_STAMP;
 }
 
 async function applyCommand(
@@ -203,9 +195,6 @@ export const groupSessionPlugin: Plugin = {
                 message.from,
                 settings.followUpSeconds,
             );
-        }
-        if (chanceHit && !mentioned && !followActive && !listed) {
-            stampRandomPrompt(message);
         }
         return null;
     },
