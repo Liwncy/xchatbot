@@ -42,4 +42,6 @@ export interface RecordOutboundOptions {
 export interface GetRecentMessagesOptions {
     limit?: number;
     excludeMessageId?: string;
+    sinceUnix?: number;
+    direction?: ChatDirection;
 }

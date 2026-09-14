@@ -1,5 +1,6 @@
 import type {IncomingMessage, MessageSource} from '../../core/message.js';
 import {parseInboundMedia, wechatTypeToMessageType} from './parse-media.js';
+import {resolveMentions} from './parse-mentions.js';
 import {parseWechatReferMessage} from './parse-refer.js';
 import type {WechatPushItem, WechatPushMessage} from './types.js';
 
@@ -110,6 +111,8 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
     }
 
     const body = source === 'group' ? groupMeta.content : rawContent;
+    const mentions = resolveMentions(body, item.source, item.msg_source);
+    if (mentions.length) message.mentions = mentions;
 
     if (msgType === 'link') {
         const parsedRefer = parseWechatReferMessage(body);

@@ -69,6 +69,7 @@ function inboundContent(message: IncomingMessage): string {
 function inboundPayload(message: IncomingMessage): string {
     const payload: Record<string, unknown> = {};
     if (message.quote) payload.quote = message.quote;
+    if (message.mentions?.length) payload.mentions = message.mentions;
     const media = message.media ?? message.quote?.media;
     if (media) payload.media = media;
     return JSON.stringify(payload);
@@ -346,17 +347,28 @@ export async function getRecentChatMessages(
 
     const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
     const exclude = options.excludeMessageId?.trim();
-    const result = exclude
-        ? await env.XBOT_DB.prepare(
-            `SELECT * FROM chat_message
-             WHERE session_id = ?1 AND message_id <> ?2
-             ORDER BY id DESC LIMIT ?3`,
-        ).bind(sessionId, exclude, limit).all<ChatMessageRow>()
-        : await env.XBOT_DB.prepare(
-            `SELECT * FROM chat_message
-             WHERE session_id = ?1
-             ORDER BY id DESC LIMIT ?2`,
-        ).bind(sessionId, limit).all<ChatMessageRow>();
+    const sinceUnix = options.sinceUnix;
+    const direction = options.direction;
+    const clauses = ['session_id = ?1'];
+    const binds: Array<string | number> = [sessionId];
+    if (exclude) {
+        binds.push(exclude);
+        clauses.push(`message_id <> ?${binds.length}`);
+    }
+    if (typeof sinceUnix === 'number' && Number.isFinite(sinceUnix)) {
+        binds.push(Math.floor(sinceUnix));
+        clauses.push(`created_at >= ?${binds.length}`);
+    }
+    if (direction === 'inbound' || direction === 'outbound') {
+        binds.push(direction);
+        clauses.push(`direction = ?${binds.length}`);
+    }
+    binds.push(limit);
+    const result = await env.XBOT_DB.prepare(
+        `SELECT * FROM chat_message
+         WHERE ${clauses.join(' AND ')}
+         ORDER BY id DESC LIMIT ?${binds.length}`,
+    ).bind(...binds).all<ChatMessageRow>();
 
     return (result.results ?? []).map(mapRow).reverse();
 }

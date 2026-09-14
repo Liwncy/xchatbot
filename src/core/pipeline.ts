@@ -16,12 +16,15 @@ export async function runPipeline(
             const matched = await plugin.match(message, ctx);
             if (!matched) continue;
 
+            const response = await plugin.handle(message, ctx);
+            if (response === null) continue;
+
             logger.info('插件命中', {
                 kind,
                 name: plugin.manifest.name,
                 messageId: message.messageId,
             });
-            return plugin.handle(message, ctx);
+            return response;
         }
     }
 

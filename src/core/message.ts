@@ -33,6 +33,11 @@ export interface QuoteRef {
     media?: InboundMedia;
 }
 
+export interface MentionRef {
+    id: string;
+    name?: string;
+}
+
 export interface IncomingMessage {
     platform: string;
     type: MessageType;
@@ -46,5 +51,6 @@ export interface IncomingMessage {
     room?: {id: string};
     quote?: QuoteRef;
     media?: InboundMedia;
+    mentions?: MentionRef[];
     raw: unknown;
 }

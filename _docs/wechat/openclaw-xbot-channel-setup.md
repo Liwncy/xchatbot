@@ -33,7 +33,7 @@ openclaw gateway restart
 | `XBOT_CHANNEL_GATEWAY_URL` | 可选；默认从 `AGENT_BRIDGE_BASE_URL` 去掉 `/v1` |
 | `AGENT_BRIDGE_TOKEN` | Gateway 入站鉴权，也用于 `/openclaw/outbound` |
 
-白名单、点名、官方号只在对应适配器里拦。
+私聊白名单、官方号在适配器拦。群聊启停和点名 / 随机 / 智能 / 规则在 `group-session`。
 
 ## 3. 自检
 
