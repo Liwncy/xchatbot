@@ -5,6 +5,7 @@ import {ensurePluginsRegistered} from '../../plugins/register.js';
 import {parseBool} from '../../utils/bool.js';
 import {recordInboundChatMessage, recordOutboundChatMessage} from '../../core/chat-log/index.js';
 import {getAdapter} from '../index.js';
+import {presentForWebList} from './channel.js';
 import {parseWebMessage} from './parse.js';
 import {renderWebPage} from './page.js';
 import type {WebInboundBody} from './types.js';
@@ -83,7 +84,7 @@ export async function handleWebAdapter(
         adapter: getAdapter(message.platform),
     });
 
-    const replies = toReplyArray(response);
+    const replies = presentForWebList(toReplyArray(response));
     for (const [index, reply] of replies.entries()) {
         await recordOutboundChatMessage(env, message, reply, {
             causedByMessageId: message.messageId,

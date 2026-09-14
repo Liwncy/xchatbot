@@ -9,8 +9,8 @@ export const golemAdapter: ChannelAdapter = {
 
     async send(message, replies, env) {
         const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
-        if (!apiBaseUrl) return;
-        await sendGolemReplies(apiBaseUrl, message, replies, env);
+        if (!apiBaseUrl) return [];
+        return sendGolemReplies(apiBaseUrl, message, replies, env);
     },
 
     async revoke(message, env): Promise<RevokeResult> {

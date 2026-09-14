@@ -73,12 +73,86 @@ function inboundPayload(message: IncomingMessage): string {
 }
 
 function outboundContent(reply: ReplyMessage): string {
-    return clip(reply.content.trim());
+    switch (reply.type) {
+        case 'text':
+            return clip(reply.content.trim());
+        case 'image':
+            return '[图片]';
+        case 'emoji':
+            return '[表情]';
+        case 'link':
+            return clip(reply.title.trim() || '[链接]');
+        case 'video':
+            return '[视频]';
+        case 'voice':
+            return '[语音]';
+        case 'music':
+            return clip(reply.title.trim() || '[音乐]');
+        case 'app':
+            return '[应用消息]';
+        case 'card':
+            return clip(reply.nickname?.trim() || reply.username || '[名片]');
+        case 'position':
+            return clip(reply.label?.trim() || reply.poiName?.trim() || '[位置]');
+        case 'forward':
+            return '[转发]';
+    }
 }
 
 function outboundPayload(reply: ReplyMessage, extra?: Record<string, unknown>): string {
     const payload: Record<string, unknown> = {...(extra ?? {})};
-    if (reply.mentions?.length) payload.mentions = reply.mentions;
+    switch (reply.type) {
+        case 'text':
+            if (reply.mentions?.length) payload.mentions = reply.mentions;
+            break;
+        case 'image':
+            payload.url = reply.url;
+            break;
+        case 'emoji':
+            payload.md5 = reply.md5;
+            if (reply.url) payload.emoji_url = reply.url;
+            break;
+        case 'link':
+            payload.title = reply.title;
+            payload.url = reply.url;
+            if (reply.desc) payload.desc = reply.desc;
+            if (reply.thumbUrl) payload.thumb_url = reply.thumbUrl;
+            break;
+        case 'video':
+            payload.url = reply.url;
+            if (reply.thumbUrl) payload.thumb_url = reply.thumbUrl;
+            if (reply.duration) payload.duration = reply.duration;
+            break;
+        case 'voice':
+            payload.url = reply.url;
+            if (reply.duration) payload.duration = reply.duration;
+            if (reply.format) payload.format = reply.format;
+            break;
+        case 'music':
+            payload.title = reply.title;
+            if (reply.singer) payload.singer = reply.singer;
+            if (reply.url) payload.url = reply.url;
+            if (reply.dataUrl) payload.data_url = reply.dataUrl;
+            if (reply.thumbUrl) payload.thumb_url = reply.thumbUrl;
+            break;
+        case 'app':
+            payload.app_type = reply.appType;
+            break;
+        case 'card':
+            payload.username = reply.username;
+            if (reply.nickname) payload.nickname = reply.nickname;
+            if (reply.alias) payload.alias = reply.alias;
+            break;
+        case 'position':
+            payload.lat = reply.lat;
+            payload.lon = reply.lon;
+            if (reply.label) payload.label = reply.label;
+            if (reply.poiName) payload.poi_name = reply.poiName;
+            break;
+        case 'forward':
+            payload.forward_type = reply.forwardType ?? 'image';
+            break;
+    }
     return JSON.stringify(payload);
 }
 

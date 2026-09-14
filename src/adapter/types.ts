@@ -9,8 +9,19 @@ export interface RevokeResult {
     reason?: RevokeReason;
 }
 
+export interface SendReceipt {
+    ok: boolean;
+    outboundId?: string;
+    revoke?: {
+        newId?: string;
+        clientId?: string;
+        createTime?: number;
+    };
+    data?: unknown;
+}
+
 export interface ChannelAdapter {
     readonly platform: string;
-    send(message: IncomingMessage, replies: ReplyMessage[], env: Env): Promise<void>;
+    send(message: IncomingMessage, replies: ReplyMessage[], env: Env): Promise<SendReceipt[]>;
     revoke(message: IncomingMessage, env: Env): Promise<RevokeResult>;
 }

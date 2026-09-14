@@ -77,7 +77,13 @@ export function renderWebPage(options: {tokenRequired: boolean}): string {
         const replies = Array.isArray(data.replies) ? data.replies : [];
         if (replies.length === 0 && !data.handled) add('sys', '没人接');
         for (const reply of replies) {
-          add('bot', 'bot：' + (reply.content || ''));
+          const type = reply && reply.type;
+          if (type === 'image') add('bot', 'bot：[图片] ' + (reply.url || ''));
+          else if (type === 'video') add('bot', 'bot：[视频] ' + (reply.url || ''));
+          else if (type === 'voice') add('bot', 'bot：[语音] ' + (reply.url || ''));
+          else if (type === 'emoji') add('bot', 'bot：[表情] ' + (reply.md5 || ''));
+          else if (type === 'link' || type === 'music') add('bot', 'bot：[' + (type === 'music' ? '音乐' : '链接') + '] ' + (reply.title || reply.url || ''));
+          else add('bot', 'bot：' + (reply.content || ''));
         }
       } catch (err) {
         add('sys', String(err));
