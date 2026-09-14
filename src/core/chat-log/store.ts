@@ -360,3 +360,78 @@ export async function getRecentChatMessages(
 
     return (result.results ?? []).map(mapRow).reverse();
 }
+
+export async function patchInboundMediaPublicUrl(
+    env: Env,
+    messageId: string,
+    urls: {publicUrl?: string; videoPublicUrl?: string},
+): Promise<void> {
+    if (!isChatLogEnabled(env) || !messageId.trim()) return;
+    if (!urls.publicUrl && !urls.videoPublicUrl) return;
+
+    const row = await env.XBOT_DB.prepare(
+        `SELECT payload_json FROM chat_message
+         WHERE message_id = ?1 AND direction = 'inbound' LIMIT 1`,
+    ).bind(messageId.trim()).first<{payload_json: string}>();
+    if (!row) return;
+
+    let payload: Record<string, unknown> = {};
+    try {
+        payload = row.payload_json ? JSON.parse(row.payload_json) as Record<string, unknown> : {};
+    } catch {
+        payload = {};
+    }
+    const media = (payload.media && typeof payload.media === 'object')
+        ? {...payload.media as Record<string, unknown>}
+        : {};
+    if (urls.publicUrl) media.publicUrl = urls.publicUrl;
+    if (urls.videoPublicUrl) media.videoPublicUrl = urls.videoPublicUrl;
+    payload.media = media;
+
+    await env.XBOT_DB.prepare(
+        `UPDATE chat_message SET payload_json = ?1 WHERE message_id = ?2 AND direction = 'inbound'`,
+    ).bind(JSON.stringify(payload), messageId.trim()).run();
+}
+
+const RECENT_MEDIA_WINDOW_SECONDS = 30 * 60;
+
+export async function findRecentPublicMedia(
+    env: Env,
+    message: IncomingMessage,
+): Promise<{url: string; videoUrl?: string; kind: 'image' | 'video' | 'emoji'} | null> {
+    if (!isChatLogEnabled(env)) return null;
+    const sessionId = resolveChatSession(message).sessionId;
+    const rows = await getRecentChatMessages(env, sessionId, {
+        limit: 40,
+        excludeMessageId: message.messageId,
+    });
+    const cutoff = Math.floor(Date.now() / 1000) - RECENT_MEDIA_WINDOW_SECONDS;
+
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+        const row = rows[i];
+        if (!row || row.direction !== 'inbound' || row.createdAt < cutoff) continue;
+        let payload: Record<string, unknown> = {};
+        try {
+            payload = row.payloadJson ? JSON.parse(row.payloadJson) as Record<string, unknown> : {};
+        } catch {
+            continue;
+        }
+        const media = (payload.media && typeof payload.media === 'object')
+            ? payload.media as Record<string, unknown>
+            : undefined;
+        const publicUrl = typeof media?.publicUrl === 'string' ? media.publicUrl.trim() : '';
+        if (!/^https?:\/\//iu.test(publicUrl)) continue;
+        const videoUrl = typeof media?.videoPublicUrl === 'string' ? media.videoPublicUrl.trim() : '';
+        const kind = row.msgType === 'emoji'
+            ? 'emoji'
+            : row.msgType === 'video'
+                ? 'image'
+                : 'image';
+        return {
+            url: publicUrl,
+            ...(videoUrl && /^https?:\/\//iu.test(videoUrl) ? {videoUrl} : {}),
+            kind,
+        };
+    }
+    return null;
+}

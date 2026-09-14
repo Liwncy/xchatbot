@@ -194,6 +194,31 @@ export class GolemApi {
         return response.json() as Promise<ApiResponse>;
     }
 
+    async cdnDownloadImageRaw(id: string, key: string): Promise<ArrayBuffer> {
+        return this.getBinary('/api/cdn/download/image', {id, key});
+    }
+
+    async cdnDownloadVideoRaw(id: string, key: string): Promise<ArrayBuffer> {
+        return this.getBinary('/api/cdn/download/video', {id, key});
+    }
+
+    async cdnDownloadVideoCoverRaw(id: string, key: string): Promise<ArrayBuffer> {
+        return this.getBinary('/api/cdn/download/video/cover', {id, key});
+    }
+
+    private async getBinary(path: string, query: Record<string, string>): Promise<ArrayBuffer> {
+        const url = new URL(`${this.baseUrl}${path}`);
+        for (const [name, value] of Object.entries(query)) {
+            url.searchParams.set(name, value);
+        }
+        const response = await fetch(url.toString(), {method: 'GET'});
+        if (!response.ok) {
+            const raw = (await response.text()).replace(/\s+/g, ' ').trim();
+            throw new Error(`Golem ${path} ${response.status}: ${raw.slice(0, 200)}`);
+        }
+        return response.arrayBuffer();
+    }
+
     async revokeMessage(params: RevokeParam): Promise<ApiResponse> {
         const response = await fetch(`${this.baseUrl}/api/message/revoke`, {
             method: 'POST',

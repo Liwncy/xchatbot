@@ -18,6 +18,9 @@ export interface InboundMedia {
     format?: string;
     aesKey?: string;
     fileId?: string;
+    /** 已传到 upfile 的公网地址，追问时从会话记录回灌。 */
+    publicUrl?: string;
+    videoPublicUrl?: string;
 }
 
 export interface QuoteRef {

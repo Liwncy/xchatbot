@@ -1,12 +1,12 @@
-import type {InboundMedia, IncomingMessage} from '../../../core/message.js';
+import type {IncomingMessage} from '../../../core/message.js';
 import {resolveBotId, resolveBotName} from '../../../core/bot.js';
 import {resolveChatId} from '../../../core/context.js';
 import {handledReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
 import {parseBool} from '../../../utils/bool.js';
 import {logger} from '../../../utils/logger.js';
-
-type OpenClawMediaKind = 'image' | 'video' | 'emoji';
+import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
+import {resolveOpenClawMedia, resolveOpenClawMediaKind} from './resolve-media.js';
 
 const DEFAULT_CLIENT_ID = 'xchatbot-worker';
 
@@ -25,32 +25,26 @@ function isHttpUrl(value: string | undefined): value is string {
     return Boolean(value?.trim() && /^https?:\/\//iu.test(value.trim()));
 }
 
-function resolveMedia(message: IncomingMessage): InboundMedia | undefined {
-    return message.media ?? message.quote?.media;
-}
-
-function resolveMediaKind(message: IncomingMessage): OpenClawMediaKind | undefined {
-    if (message.type === 'video' || message.quote?.referType === 43) return 'video';
-    if (message.type === 'emoji' || message.quote?.referType === 47) return 'emoji';
-    if (message.type === 'image' || message.quote?.referType === 3) return 'image';
-    const url = resolveMedia(message)?.url;
-    return isHttpUrl(url) ? 'image' : undefined;
-}
-
-function mediaAddressLabel(kind: OpenClawMediaKind | undefined): string {
+function mediaAddressLabel(kind: ReturnType<typeof resolveOpenClawMediaKind>): string {
     if (kind === 'emoji') return '表情地址';
     if (kind === 'video') return '视频地址';
     return '图片地址';
 }
 
-function buildOpenClawContent(message: IncomingMessage, mediaUrl?: string): string {
+function buildOpenClawContent(
+    message: IncomingMessage,
+    mediaUrl?: string,
+    videoUrl?: string,
+    mediaKind?: ReturnType<typeof resolveOpenClawMediaKind>,
+): string {
     const userText = message.content?.trim() || message.quote?.title?.trim() || '';
-    const media = resolveMedia(message);
-    const kind = resolveMediaKind(message);
+    const media = message.media ?? message.quote?.media;
+    const kind = mediaKind ?? resolveOpenClawMediaKind(message);
     const lines: string[] = [];
-    const url = (isHttpUrl(mediaUrl) ? mediaUrl.trim() : undefined)
-        ?? (media?.url && isHttpUrl(media.url) ? media.url.trim() : undefined);
-    if (url) lines.push(`${mediaAddressLabel(kind)}: ${url}`);
+    if (isHttpUrl(mediaUrl)) lines.push(`${mediaAddressLabel(kind)}: ${mediaUrl.trim()}`);
+    if (isHttpUrl(videoUrl) && videoUrl.trim() !== mediaUrl?.trim()) {
+        lines.push(`视频地址: ${videoUrl.trim()}`);
+    }
     if (media?.md5?.trim()) lines.push(`MD5: ${media.md5.trim()}`);
     if (!lines.length) return userText;
     if (!userText) return lines.join('\n');
@@ -108,10 +102,19 @@ export const openclawAgentPlugin: Plugin = {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         const conversationId = resolveChatId(message);
-        const media = resolveMedia(message);
-        const mediaUrl = isHttpUrl(media?.url) ? media.url.trim() : undefined;
-        const mediaKind = mediaUrl ? resolveMediaKind(message) : undefined;
-        const content = buildOpenClawContent(message, mediaUrl);
+        let resolved = await resolveOpenClawMedia(message, ctx.env);
+        if (resolved) {
+            await patchInboundMediaPublicUrl(ctx.env, message.messageId, {
+                publicUrl: resolved.url,
+                videoPublicUrl: resolved.videoUrl,
+            });
+        } else if (!message.media && !message.quote?.media) {
+            resolved = await findRecentPublicMedia(ctx.env, message);
+        }
+        const mediaUrl = resolved?.url;
+        const mediaKind = resolved?.kind;
+        const videoUrl = resolved?.videoUrl;
+        const content = buildOpenClawContent(message, mediaUrl, videoUrl, mediaKind);
 
         try {
             await fetch(`${gatewayBaseUrl}/api/channels/xbot/connect`, {
@@ -149,6 +152,7 @@ export const openclawAgentPlugin: Plugin = {
                     content,
                     ...(mediaUrl ? {mediaUrl} : {}),
                     ...(mediaKind ? {mediaKind} : {}),
+                    ...(videoUrl ? {videoUrl} : {}),
                     timestamp: message.timestamp,
                     botMentioned: message.source === 'group',
                     forceDispatch: true,

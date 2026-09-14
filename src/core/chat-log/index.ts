@@ -4,6 +4,8 @@ export {
     recordInboundChatMessage,
     recordOutboundChatMessage,
     getRecentChatMessages,
+    patchInboundMediaPublicUrl,
+    findRecentPublicMedia,
 } from './store.js';
 export type {
     ChatSessionRef,
