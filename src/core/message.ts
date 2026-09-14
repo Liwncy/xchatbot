@@ -10,6 +10,16 @@ export interface QuoteMessageId {
     createTime: number;
 }
 
+export interface InboundMedia {
+    url?: string;
+    md5?: string;
+    thumbUrl?: string;
+    duration?: number;
+    format?: string;
+    aesKey?: string;
+    fileId?: string;
+}
+
 export interface QuoteRef {
     title: string;
     referType: number;
@@ -17,6 +27,7 @@ export interface QuoteRef {
     referFrom?: string;
     referSenderName?: string;
     referMessageId?: QuoteMessageId;
+    media?: InboundMedia;
 }
 
 export interface IncomingMessage {
@@ -31,5 +42,6 @@ export interface IncomingMessage {
     content?: string;
     room?: {id: string};
     quote?: QuoteRef;
+    media?: InboundMedia;
     raw: unknown;
 }

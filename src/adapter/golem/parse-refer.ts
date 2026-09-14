@@ -1,4 +1,5 @@
 import type {QuoteMessageId, QuoteRef} from '../../core/message.js';
+import {parseQuoteMedia} from './parse-media.js';
 
 function decodeHtmlEntities(text: string): string {
     return text
@@ -90,6 +91,7 @@ export function parseWechatReferMessage(rawContent: string): QuoteRef | null {
         (chatusr && !chatusr.endsWith('@chatroom') ? chatusr : undefined)
         || (fromusr && !fromusr.endsWith('@chatroom') ? fromusr : undefined);
     const referMessageId = extractReferMessageId(refermsg);
+    const media = Number.isFinite(referType) ? parseQuoteMedia(referType, referContent) : undefined;
 
     return {
         title,
@@ -98,5 +100,6 @@ export function parseWechatReferMessage(rawContent: string): QuoteRef | null {
         ...(referFrom ? {referFrom} : {}),
         ...(referSenderName ? {referSenderName} : {}),
         ...(referMessageId ? {referMessageId} : {}),
+        ...(media ? {media} : {}),
     };
 }

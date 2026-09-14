@@ -1,4 +1,5 @@
-import type {IncomingMessage, MessageSource, MessageType} from '../../core/message.js';
+import type {IncomingMessage, MessageSource} from '../../core/message.js';
+import {parseInboundMedia, wechatTypeToMessageType} from './parse-media.js';
 import {parseWechatReferMessage} from './parse-refer.js';
 import type {WechatPushItem, WechatPushMessage} from './types.js';
 
@@ -7,25 +8,6 @@ export const GOLEM_PLATFORM = 'golem';
 
 function getItemSource(item: WechatPushItem): string {
     return item.source ?? item.msg_source ?? '';
-}
-
-function mapType(type: number): MessageType {
-    switch (type) {
-        case 1:
-            return 'text';
-        case 3:
-            return 'image';
-        case 47:
-            return 'emoji';
-        case 34:
-            return 'voice';
-        case 43:
-            return 'video';
-        case 49:
-            return 'link';
-        default:
-            return 'unknown';
-    }
 }
 
 function inferSource(item: WechatPushItem): MessageSource {
@@ -92,7 +74,7 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
     const rawContent = item.content?.value ?? item.push_content ?? '';
     const pushPreview = parsePushContentPreview(item.push_content);
     const groupMeta = source === 'group' ? parseGroupTextSender(rawContent) : {content: rawContent};
-    const msgType = mapType(item.type);
+    const msgType = wechatTypeToMessageType(item.type);
 
     const message: IncomingMessage = {
         platform: GOLEM_PLATFORM,
@@ -110,18 +92,30 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
         message.room = {id: resolveRoomId(item)};
     }
 
+    const body = source === 'group' ? groupMeta.content : rawContent;
+
     if (msgType === 'link') {
-        const parsedRefer = parseWechatReferMessage(rawContent);
+        const parsedRefer = parseWechatReferMessage(body);
         if (parsedRefer) {
             message.content = parsedRefer.title.trim() || undefined;
             message.quote = parsedRefer;
+            message.media = parsedRefer.media;
             return message;
         }
     }
 
-    message.content = (source === 'group' ? groupMeta.content : rawContent).trim()
+    message.media = parseInboundMedia(msgType, body);
+    message.content = body.trim()
         || pushPreview.previewText
         || undefined;
+    if (message.media && (msgType === 'image' || msgType === 'emoji' || msgType === 'voice' || msgType === 'video')) {
+        const preview = pushPreview.previewText?.trim();
+        if (!preview || preview.includes('<') || preview.length > 80) {
+            message.content = undefined;
+        } else {
+            message.content = preview;
+        }
+    }
     if (msgType === 'unknown') {
         message.type = 'text';
     }

@@ -69,6 +69,8 @@ function inboundContent(message: IncomingMessage): string {
 function inboundPayload(message: IncomingMessage): string {
     const payload: Record<string, unknown> = {};
     if (message.quote) payload.quote = message.quote;
+    const media = message.media ?? message.quote?.media;
+    if (media) payload.media = media;
     return JSON.stringify(payload);
 }
 
