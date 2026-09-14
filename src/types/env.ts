@@ -27,12 +27,6 @@ export interface Env {
     XBOT_CHANNEL_CLIENT_ID?: string;
     XBOT_CHANNEL_TIMEOUT_MS?: string;
     XBOT_CHANNEL_AUTO_FORWARD?: string;
-    /** true 时放行公众号 / 微信团队等系统号；默认拦截。 */
-    XBOT_CHANNEL_ALLOW_OFFICIAL?: string;
-    /** 私聊策略：allowlist（默认）/ open / disabled。 */
-    XBOT_DM_POLICY?: string;
-    /** 私聊白名单，逗号分隔 wxid；主人 BOT_OWNER_WECHAT_ID 默认在内。 */
-    XBOT_DM_ALLOW_FROM?: string;
 
     /** 浏览器调试适配器。未开时 /adapter/web 返回 404。上线前关掉。 */
     WEB_ADAPTER_ENABLED?: string;

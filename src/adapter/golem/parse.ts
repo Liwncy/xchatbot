@@ -1,4 +1,3 @@
-import {isSystemWxid} from '../../core/access.js';
 import type {IncomingMessage, MessageSource} from '../../core/message.js';
 import {parseInboundMedia, wechatTypeToMessageType} from './parse-media.js';
 import {parseWechatReferMessage} from './parse-refer.js';
@@ -6,6 +5,23 @@ import type {WechatPushItem, WechatPushMessage} from './types.js';
 
 export const MESSAGE_EXPIRE_SECONDS = 3 * 60;
 export const GOLEM_PLATFORM = 'golem';
+
+const SYSTEM_WXIDS = new Set([
+    'weixin',
+    'filehelper',
+    'fmessage',
+    'medianote',
+    'floatbottle',
+    'newsapp',
+    'officialaccounts',
+]);
+
+function isSystemWxid(wxid: string): boolean {
+    const id = wxid.trim();
+    if (!id) return false;
+    if (SYSTEM_WXIDS.has(id.toLowerCase())) return true;
+    return id.startsWith('gh_');
+}
 
 function getItemSource(item: WechatPushItem): string {
     return item.source ?? item.msg_source ?? '';

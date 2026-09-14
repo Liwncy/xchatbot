@@ -5,9 +5,9 @@ import {toReplyArray} from '../../core/reply.js';
 import {runPipeline} from '../../core/pipeline.js';
 import {logger} from '../../utils/logger.js';
 import {ensurePluginsRegistered} from '../../plugins/register.js';
+import {resolveOwnerId} from '../../core/bot.js';
 import {recordInboundChatMessage} from '../../core/chat-log/index.js';
 import {getAdapter} from '../index.js';
-import {shouldAcceptInbound} from '../../core/access.js';
 import {filterExpiredMessages, parseWechatMessages} from './parse.js';
 import type {WechatPushMessage} from './types.js';
 import {verifyWechatSignature} from './verify.js';
@@ -65,18 +65,17 @@ export async function handleGolemWebhook(
     const sendTasks: Array<{message: IncomingMessage; replies: ReplyMessage[]}> = [];
 
     const botId = env.BOT_WECHAT_ID?.trim() ?? '';
+    const ownerId = resolveOwnerId(env, 'golem');
     for (const message of activeMessages) {
         if (botId && message.from.trim() === botId) {
             continue;
         }
-        const gate = shouldAcceptInbound(message, env);
-        if (!gate.ok) {
-            logger.info('入站已跳过', {
-                reason: gate.reason,
-                from: message.from,
-                source: message.source,
-                messageId: message.messageId,
-            });
+        if (message.source === 'official') {
+            logger.info('入站已跳过', {reason: 'official', from: message.from, messageId: message.messageId});
+            continue;
+        }
+        if (message.source === 'private' && (!ownerId || message.from.trim() !== ownerId)) {
+            logger.info('入站已跳过', {reason: 'dm-allowlist', from: message.from, messageId: message.messageId});
             continue;
         }
         await recordInboundChatMessage(env, message);
