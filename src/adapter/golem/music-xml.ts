@@ -1,5 +1,6 @@
+import {randomCardAppId} from './card-appids.js';
+
 const MUSIC_APP_TYPE = 3;
-const MUSIC_APP_ID = 'wx5aa333606550dfd5';
 
 function escapeXml(value: string): string {
     return value
@@ -17,7 +18,7 @@ export function buildMusicAppXml(params: {
     dataUrl?: string;
     thumbUrl?: string;
 }): {appType: number; xml: string} {
-    const xml = `<appmsg appid="${MUSIC_APP_ID}" sdkver="0">`
+    const xml = `<appmsg appid="${randomCardAppId()}" sdkver="0">`
         + `<title>${escapeXml(params.title || '音乐')}</title>`
         + `<des>${escapeXml(params.singer ?? '')}</des>`
         + '<action></action>'
