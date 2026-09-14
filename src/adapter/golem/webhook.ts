@@ -5,8 +5,9 @@ import {toReplyArray} from '../../core/reply.js';
 import {runPipeline} from '../../core/pipeline.js';
 import {logger} from '../../utils/logger.js';
 import {ensurePluginsRegistered} from '../../plugins/register.js';
+import {recordInboundChatMessage} from '../../core/chat-log/index.js';
+import {getAdapter} from '../index.js';
 import {filterExpiredMessages, parseWechatMessages} from './parse.js';
-import {sendGolemReplies} from './send.js';
 import type {WechatPushMessage} from './types.js';
 import {verifyWechatSignature} from './verify.js';
 
@@ -59,14 +60,20 @@ export async function handleGolemWebhook(
         return json({success: true, skipped: true, reason: 'expired'});
     }
 
-    const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
+    const adapter = getAdapter('golem');
     const sendTasks: Array<{message: IncomingMessage; replies: ReplyMessage[]}> = [];
 
+    const botId = env.BOT_WECHAT_ID?.trim() ?? '';
     for (const message of activeMessages) {
+        if (botId && message.from.trim() === botId) {
+            continue;
+        }
+        await recordInboundChatMessage(env, message);
         const response = await runPipeline(message, {
             env,
             requestId: message.messageId,
             waitUntil: (promise) => ctx.waitUntil(promise),
+            adapter,
         });
         const replies = toReplyArray(response);
         if (replies.length > 0) {
@@ -74,11 +81,11 @@ export async function handleGolemWebhook(
         }
     }
 
-    if (sendTasks.length > 0 && apiBaseUrl) {
+    if (sendTasks.length > 0 && adapter) {
         ctx.waitUntil((async () => {
             for (const task of sendTasks) {
                 try {
-                    await sendGolemReplies(apiBaseUrl, task.message, task.replies);
+                    await adapter.send(task.message, task.replies, env);
                 } catch (error) {
                     logger.error('Golem 发送失败', {
                         messageId: task.message.messageId,

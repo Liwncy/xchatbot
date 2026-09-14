@@ -3,6 +3,8 @@ import {isHandledReply, toReplyArray} from '../../core/reply.js';
 import {runPipeline} from '../../core/pipeline.js';
 import {ensurePluginsRegistered} from '../../plugins/register.js';
 import {parseBool} from '../../utils/bool.js';
+import {recordInboundChatMessage, recordOutboundChatMessage} from '../../core/chat-log/index.js';
+import {getAdapter} from '../index.js';
 import {parseWebMessage} from './parse.js';
 import {renderWebPage} from './page.js';
 import type {WebInboundBody} from './types.js';
@@ -72,15 +74,27 @@ export async function handleWebAdapter(
         return json({error: error instanceof Error ? error.message : 'invalid payload'}, 400);
     }
 
+    await recordInboundChatMessage(env, message);
+
     const response = await runPipeline(message, {
         env,
         requestId: message.messageId,
         waitUntil: (promise) => ctx.waitUntil(promise),
+        adapter: getAdapter(message.platform),
     });
+
+    const replies = toReplyArray(response);
+    for (const [index, reply] of replies.entries()) {
+        await recordOutboundChatMessage(env, message, reply, {
+            causedByMessageId: message.messageId,
+            replyIndex: index,
+            replyStatus: 'sent',
+        });
+    }
 
     return json({
         ok: true,
         handled: isHandledReply(response),
-        replies: toReplyArray(response),
+        replies,
     });
 }

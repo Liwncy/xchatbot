@@ -1,4 +1,5 @@
 import type {IncomingMessage} from '../../../core/message.js';
+import {resolveBotId, resolveBotName} from '../../../core/bot.js';
 import {resolveChatId} from '../../../core/context.js';
 import {handledReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
@@ -45,7 +46,11 @@ export const openclawAgentPlugin: Plugin = {
         if (!parseBool(ctx.env.XBOT_CHANNEL_ENABLED, false)) return false;
         if (!parseBool(ctx.env.XBOT_CHANNEL_AUTO_FORWARD, false)) return false;
         if (!message.content?.trim() && !message.quote) return false;
-        return shouldHandle(message, ctx.env.BOT_WECHAT_NAME, ctx.env.BOT_WECHAT_ID);
+        return shouldHandle(
+            message,
+            resolveBotName(ctx.env),
+            resolveBotId(ctx.env, message.platform),
+        );
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         const gatewayBaseUrl = resolveGatewayBaseUrl(ctx.env);
