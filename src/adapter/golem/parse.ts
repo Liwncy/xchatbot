@@ -1,3 +1,4 @@
+import {isSystemWxid} from '../../core/access.js';
 import type {IncomingMessage, MessageSource} from '../../core/message.js';
 import {parseInboundMedia, wechatTypeToMessageType} from './parse-media.js';
 import {parseWechatReferMessage} from './parse-refer.js';
@@ -14,7 +15,7 @@ function inferSource(item: WechatPushItem): MessageSource {
     const source = getItemSource(item).toLowerCase();
     const sender = item.sender?.value ?? '';
     const receiver = item.receiver?.value ?? '';
-    if (source.includes('official')) return 'official';
+    if (source.includes('official') || isSystemWxid(sender)) return 'official';
     if (source.includes('chatroom') || sender.endsWith('@chatroom') || receiver.endsWith('@chatroom')) {
         return 'group';
     }

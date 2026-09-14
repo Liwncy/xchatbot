@@ -1,5 +1,7 @@
+import {shouldAcceptInbound} from '../../../core/access.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import {resolveBotId, resolveBotName} from '../../../core/bot.js';
+import type {Env} from '../../../types/env.js';
 import {resolveChatId} from '../../../core/context.js';
 import {handledReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
@@ -51,8 +53,15 @@ function buildOpenClawContent(
     return [userText, ...lines].join('\n');
 }
 
-function shouldHandle(message: IncomingMessage, botName?: string, botId?: string): boolean {
-    if (message.source === 'private') return true;
+function shouldHandle(
+    message: IncomingMessage,
+    env: Env,
+    botName?: string,
+    botId?: string,
+): boolean {
+    const gate = shouldAcceptInbound(message, env);
+    if (!gate.ok) return false;
+    if (message.source === 'private' || message.source === 'official') return true;
     if (message.source !== 'group') return false;
 
     const content = message.content ?? '';
@@ -80,6 +89,7 @@ export const openclawAgentPlugin: Plugin = {
         if (!message.content?.trim() && !message.quote && !message.media) return false;
         return shouldHandle(
             message,
+            ctx.env,
             resolveBotName(ctx.env),
             resolveBotId(ctx.env, message.platform),
         );
