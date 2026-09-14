@@ -1,6 +1,7 @@
 import type {Env} from './types/env.js';
 import {handleGolemWebhook} from './adapter/golem/webhook.js';
 import {handleWebAdapter} from './adapter/web/webhook.js';
+import {handleOpenclawOutbound} from './plugins/agent/openclaw/outbound.js';
 import {ensurePluginsRegistered} from './plugins/register.js';
 
 function json(data: unknown, status = 200): Response {
@@ -34,6 +35,10 @@ export async function handleFetch(
 
     if (pathname === '/adapter/web' || pathname.startsWith('/adapter/web/')) {
         return handleWebAdapter(request, env, ctx);
+    }
+
+    if (pathname === '/openclaw/outbound') {
+        return handleOpenclawOutbound(request, env);
     }
 
     return new Response('Not Found', {status: 404});

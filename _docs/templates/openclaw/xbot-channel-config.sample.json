@@ -1,33 +1,10 @@
 {
-  "commands": {
-    "text": true,
-    "allowFrom": {
-      "xbot": ["wxid_5jfnhtqy74xr22"],
-      "*": ["wxid_5jfnhtqy74xr22"]
-    },
-    "ownerAllowFrom": [
-      "wxid_5jfnhtqy74xr22",
-      "xbot:wxid_5jfnhtqy74xr22"
-    ]
-  },
   "channels": {
     "xbot": {
       "enabled": true,
-      "wechatApiBaseUrl": "https://wxbot.lwcorspro.dpdns.org",
-      "botWechatId": "wxid_ahl9az25aljx22",
-      "botWechatName": "小聪明儿",
-      "ownerAllowFrom": [
-        "wxid_5jfnhtqy74xr22"
-      ],
-      "dmPolicy": "open",
-      "groupPolicy": "allowlist",
-      "groupAllowFrom": [
-        "替换为你的群聊 roomId@chatroom"
-      ],
-      "requireMention": true,
-      "groupReplyMode": "mention",
-      "historyLimit": 50,
-      "historyForce": true,
+      "xchatbotApiBaseUrl": "https://xbot.lwcfworker.dpdns.org",
+      "xchatbotToken": "与 AGENT_BRIDGE_TOKEN 相同",
+      "botName": "小聪明儿",
       "accounts": {
         "Primary": {
           "enabled": true,

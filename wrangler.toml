@@ -51,13 +51,12 @@ AI_SYSTEM_PROMPT = "你是群里的「小聪明儿」，18 岁，活泼机灵。
 
 AGENT_BRIDGE_TIMEOUT_MS = "900000"
 # AGENT_BRIDGE_BASE_URL / AGENT_BRIDGE_TOKEN 已在 wrangler secret 中配置
-# 开启后 webhook 会把消息转发到 OpenClaw xbot 频道（dispatched 时跳过本地插件）
+# 开启后 webhook 把已放行消息 POST 到 OpenClaw xbot inbound；回复走 /openclaw/outbound
 XBOT_CHANNEL_ENABLED = "true"
 XBOT_CHANNEL_AUTO_FORWARD = "true"
 # 可选覆盖；默认从 AGENT_BRIDGE_BASE_URL 去掉 /v1
 # XBOT_CHANNEL_GATEWAY_URL = "https://openclaw.example.com"
 # XBOT_CHANNEL_GATEWAY_TOKEN（secret，默认同 AGENT_BRIDGE_TOKEN）
-# XBOT_CHANNEL_CLIENT_ID = "xchatbot-worker"
 # XBOT_CHANNEL_TIMEOUT_MS = "120000"
 
 # 共享绘图 DrawService（OpenAI 兼容；换服务商改下面三项即可）

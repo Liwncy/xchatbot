@@ -1,5 +1,6 @@
 import type {IncomingMessage} from '../../../core/message.js';
-import {resolveBotId, resolveBotName} from '../../../core/bot.js';
+import {resolveBotId, resolveBotName, resolveOwnerId} from '../../../core/bot.js';
+import type {Env} from '../../../types/env.js';
 import {resolveChatId} from '../../../core/context.js';
 import {handledReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
@@ -7,8 +8,6 @@ import {parseBool} from '../../../utils/bool.js';
 import {logger} from '../../../utils/logger.js';
 import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
 import {resolveOpenClawMedia, resolveOpenClawMediaKind} from './resolve-media.js';
-
-const DEFAULT_CLIENT_ID = 'xchatbot-worker';
 
 function resolveGatewayBaseUrl(env: {
     XBOT_CHANNEL_GATEWAY_URL?: string;
@@ -31,8 +30,22 @@ function mediaAddressLabel(kind: ReturnType<typeof resolveOpenClawMediaKind>): s
     return '图片地址';
 }
 
+function buildSpeakerPrefix(message: IncomingMessage, env: Env): string {
+    const ownerId = resolveOwnerId(env, message.platform);
+    const isOwner = Boolean(ownerId && message.from.trim() === ownerId);
+    const nick = message.senderName?.trim() ?? '';
+    const speaker = message.source === 'group' && nick && nick !== message.from
+        ? `${message.from}/${nick}`
+        : message.from;
+    const scope = message.source === 'group'
+        ? `group:${message.room?.id ?? ''}`
+        : `user:${message.from}`;
+    return `[${speaker}${isOwner ? ' owner' : ''} scope=${scope}]`;
+}
+
 function buildOpenClawContent(
     message: IncomingMessage,
+    env: Env,
     mediaUrl?: string,
     videoUrl?: string,
     mediaKind?: ReturnType<typeof resolveOpenClawMediaKind>,
@@ -46,9 +59,11 @@ function buildOpenClawContent(
         lines.push(`视频地址: ${videoUrl.trim()}`);
     }
     if (media?.md5?.trim()) lines.push(`MD5: ${media.md5.trim()}`);
-    if (!lines.length) return userText;
-    if (!userText) return lines.join('\n');
-    return [userText, ...lines].join('\n');
+    const body = lines.length
+        ? (userText ? [userText, ...lines].join('\n') : lines.join('\n'))
+        : userText;
+    const prefix = buildSpeakerPrefix(message, env);
+    return body ? `${prefix} ${body}` : prefix;
 }
 
 function shouldHandle(message: IncomingMessage, botName?: string, botId?: string): boolean {
@@ -93,7 +108,6 @@ export const openclawAgentPlugin: Plugin = {
             return null;
         }
 
-        const clientId = ctx.env.XBOT_CHANNEL_CLIENT_ID?.trim() || DEFAULT_CLIENT_ID;
         const timeoutRaw = Number.parseInt(String(ctx.env.XBOT_CHANNEL_TIMEOUT_MS ?? ''), 10);
         const timeoutMs = Number.isFinite(timeoutRaw) && timeoutRaw > 0
             ? Math.min(timeoutRaw, 900_000)
@@ -114,24 +128,9 @@ export const openclawAgentPlugin: Plugin = {
         const mediaUrl = resolved?.url;
         const mediaKind = resolved?.kind;
         const videoUrl = resolved?.videoUrl;
-        const content = buildOpenClawContent(message, mediaUrl, videoUrl, mediaKind);
+        const content = buildOpenClawContent(message, ctx.env, mediaUrl, videoUrl, mediaKind);
 
         try {
-            await fetch(`${gatewayBaseUrl}/api/channels/xbot/connect`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    accountId: 'Primary',
-                    clientId,
-                    connId: clientId,
-                    wechatApiBaseUrl: ctx.env.WECHAT_API_BASE_URL,
-                }),
-                signal: controller.signal,
-            });
-
             const response = await fetch(`${gatewayBaseUrl}/api/channels/xbot/inbound`, {
                 method: 'POST',
                 headers: {
@@ -140,23 +139,19 @@ export const openclawAgentPlugin: Plugin = {
                 },
                 body: JSON.stringify({
                     accountId: 'Primary',
-                    clientId,
-                    connId: clientId,
                     messageId: message.messageId,
                     source: message.source === 'group' ? 'group' : 'private',
                     from: message.from,
                     senderName: message.senderName,
                     conversationId,
                     roomId: message.room?.id,
+                    platform: message.platform,
                     type: message.type,
                     content,
                     ...(mediaUrl ? {mediaUrl} : {}),
                     ...(mediaKind ? {mediaKind} : {}),
                     ...(videoUrl ? {videoUrl} : {}),
                     timestamp: message.timestamp,
-                    botMentioned: message.source === 'group',
-                    forceDispatch: true,
-                    wechatApiBaseUrl: ctx.env.WECHAT_API_BASE_URL,
                 }),
                 signal: controller.signal,
             });

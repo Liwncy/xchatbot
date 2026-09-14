@@ -24,7 +24,6 @@ export interface Env {
     XBOT_CHANNEL_ENABLED?: string;
     XBOT_CHANNEL_GATEWAY_URL?: string;
     XBOT_CHANNEL_GATEWAY_TOKEN?: string;
-    XBOT_CHANNEL_CLIENT_ID?: string;
     XBOT_CHANNEL_TIMEOUT_MS?: string;
     XBOT_CHANNEL_AUTO_FORWARD?: string;
 
