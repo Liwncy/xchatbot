@@ -1,13 +1,24 @@
 import type {Env} from '../../types/env.js';
 import {NORMAL_ID, type RoleplayCharacter} from './types.js';
 
-const CATALOG_KEY = 'roleplay:catalog';
 const EXIT_COMMANDS = ['退出角色', '取消扮演', '不当了', '别演了'];
 const NAME_PREFIXES = ['扮演', '当', '换成'];
 const RESERVED = [
     '正常', '角色', '扮演', '当', '换成', '加角色', '增加角色', '新增角色',
     '退出角色', '取消扮演', '不当了', '别演了', '当前角色', '小聪明儿', 'normal',
 ];
+
+type CatalogRow = {
+    role_key: string;
+    name: string;
+    triggers: string;
+    instruction: string;
+    ack: string;
+    status: string;
+    sort_no: number;
+};
+
+let schemaReady: Promise<void> | null = null;
 
 function normalize(raw: string): string {
     return raw.trim().toLowerCase().replace(/\s+/gu, '');
@@ -18,19 +29,59 @@ function parseTriggers(raw: string | undefined): string[] {
     return raw.split(/[,，;；]/u).map((item) => item.trim()).filter(Boolean);
 }
 
-async function loadAll(env: Env): Promise<RoleplayCharacter[]> {
-    const raw = await env.XBOT_KV.get(CATALOG_KEY);
-    if (!raw) return [];
-    try {
-        const parsed = JSON.parse(raw) as {characters?: RoleplayCharacter[]};
-        return Array.isArray(parsed.characters) ? parsed.characters : [];
-    } catch {
-        return [];
+async function ensureSchema(db: D1Database): Promise<void> {
+    if (!schemaReady) {
+        schemaReady = (async () => {
+            await db.prepare(
+                `CREATE TABLE IF NOT EXISTS roleplay_character (
+                    role_key TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    triggers TEXT NOT NULL DEFAULT '',
+                    instruction TEXT NOT NULL,
+                    ack TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    sort_no INTEGER NOT NULL DEFAULT 100
+                )`,
+            ).run();
+            await db.prepare(
+                'CREATE INDEX IF NOT EXISTS idx_roleplay_character_status ON roleplay_character(status, sort_no)',
+            ).run();
+        })();
     }
+    await schemaReady;
 }
 
-async function saveAll(env: Env, characters: RoleplayCharacter[]): Promise<void> {
-    await env.XBOT_KV.put(CATALOG_KEY, JSON.stringify({characters}));
+function mapRow(row: CatalogRow): RoleplayCharacter {
+    return {
+        id: row.role_key,
+        name: row.name,
+        triggers: parseTriggers(row.triggers),
+        instruction: row.instruction,
+        ack: row.ack,
+    };
+}
+
+async function loadAll(env: Env): Promise<RoleplayCharacter[]> {
+    await ensureSchema(env.XBOT_DB);
+    const result = await env.XBOT_DB.prepare(
+        `SELECT role_key, name, triggers, instruction, ack, status, sort_no
+         FROM roleplay_character
+         WHERE status = 'active'
+         ORDER BY sort_no ASC, role_key ASC`,
+    ).all<CatalogRow>();
+    return (result.results ?? []).map(mapRow);
+}
+
+async function loadNameTokens(env: Env): Promise<Array<{id: string; name: string; triggers: string[]}>> {
+    await ensureSchema(env.XBOT_DB);
+    const result = await env.XBOT_DB.prepare(
+        'SELECT role_key, name, triggers FROM roleplay_character',
+    ).all<Pick<CatalogRow, 'role_key' | 'name' | 'triggers'>>();
+    return (result.results ?? []).map((row) => ({
+        id: row.role_key,
+        name: row.name,
+        triggers: parseTriggers(row.triggers),
+    }));
 }
 
 export function isQueryCommand(command: string): boolean {
@@ -79,19 +130,20 @@ export async function createCharacter(
     if (name.length > 32 || normalize(name) === NORMAL_ID || RESERVED.some((item) => normalize(item) === normalize(name))) {
         return '这名字不行';
     }
-    const characters = await loadAll(env);
     const want = normalize(name);
-    for (const row of characters) {
+    for (const row of await loadNameTokens(env)) {
         if (normalize(row.id) === want || normalize(row.name) === want) return '已经有这个了';
-        if ((row.triggers ?? []).some((alias) => normalize(alias) === want)) return '已经有这个了';
+        if (row.triggers.some((alias) => normalize(alias) === want)) return '已经有这个了';
     }
-    characters.push({
-        id: name,
-        name,
-        triggers: parseTriggers(''),
-        instruction,
-        ack: `好，${name}。`,
-    });
-    await saveAll(env, characters);
+    await ensureSchema(env.XBOT_DB);
+    try {
+        await env.XBOT_DB.prepare(
+            `INSERT INTO roleplay_character
+                (role_key, name, triggers, instruction, ack, status, sort_no)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(name, name, '', instruction, `好，${name}。`, 'active', 200).run();
+    } catch {
+        return '已经有这个了';
+    }
     return null;
 }
