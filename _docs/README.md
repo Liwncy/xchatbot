@@ -29,7 +29,7 @@
   - 看：[`templates/ai/mimo-tts-config.sample.json`](templates/ai/mimo-tts-config.sample.json)
   - 看：[`plugins/ai/mimo-tts-plugin-design.md`](plugins/ai/mimo-tts-plugin-design.md)
 - **修仙玩法**
-  - 存档和规则在 `cf-mcp-tools`。本仓库只留 `src/plugins/command/xiuxian`，把 `修仙*` 转到 MCP。
+  - 存档和规则在 `cf-mcp-tools`。本仓库 `#修仙*` / `#庄园*` / 玄学口令 / 规则口令转到 MCP。
 
 ## 目录结构
 

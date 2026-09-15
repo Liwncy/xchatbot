@@ -4,11 +4,12 @@ import {inspectPlugin} from './channel/inspect/index.js';
 import {roleplayPlugin} from './channel/roleplay/index.js';
 import {revokePlugin} from './channel/revoke/index.js';
 import {xiuxianCommandPlugin} from './command/xiuxian/index.js';
+import {mcpToolsCommandPlugin} from './command/mcp-tools/index.js';
 import {unknownCommandPlugin} from './command/unknown/index.js';
 import {openclawAgentPlugin} from './agent/openclaw/index.js';
 
 // channel：群门禁 / #查记录 / #扮演 / #撤回，不进大脑
-// command：#修仙 快路径；未识别的 #口令在此拦下
+// command：#修仙 / #庄园 / #玄学 / 规则口令；未识别的 #口令在此拦下
 // agent：只把 core 已拼好的正文交给当前大脑
 
 let registered = false;
@@ -20,6 +21,7 @@ export function ensurePluginsRegistered(): void {
     registerPlugin(roleplayPlugin);
     registerPlugin(revokePlugin);
     registerPlugin(xiuxianCommandPlugin);
+    registerPlugin(mcpToolsCommandPlugin);
     registerPlugin(unknownCommandPlugin);
     registerPlugin(openclawAgentPlugin);
     registered = true;
