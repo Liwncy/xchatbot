@@ -28,13 +28,13 @@ export function renderWebPage(options: {tokenRequired: boolean}): string {
   <main>
     <h1>Web 适配器</h1>
     <div class="meta">
-      <input id="userId" placeholder="用户 ID（可填 wxid 接已有修仙号）" value="web-user" />
+      <input id="userId" placeholder="用户 ID" value="web-user" />
       <input id="userName" placeholder="显示名（可选）" />
     </div>
     ${options.tokenRequired ? '<input id="token" placeholder="WEB_ADAPTER_TOKEN" />' : ''}
     <div id="log"></div>
     <form id="form">
-      <textarea id="content" placeholder="修仙状态" required></textarea>
+      <textarea id="content" placeholder="说点什么" required></textarea>
       <button type="submit">发送</button>
     </form>
   </main>

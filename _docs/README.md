@@ -28,10 +28,8 @@
   - 看：[`templates/ai/ai-dialog-config.sample.json`](templates/ai/ai-dialog-config.sample.json)
   - 看：[`templates/ai/mimo-tts-config.sample.json`](templates/ai/mimo-tts-config.sample.json)
   - 看：[`plugins/ai/mimo-tts-plugin-design.md`](plugins/ai/mimo-tts-plugin-design.md)
-- **想了解修仙玩法**
-  - 先看：[`../src/plugins/scenarios/xiuxian/README.md`](../src/plugins/scenarios/xiuxian/README.md)
-  - 再看：[`plugins/xiuxian/xiuxian-roadmap.md`](plugins/xiuxian/xiuxian-roadmap.md)
-  - 落库时看：[`plugins/xiuxian/xiuxian-mvp.sql`](plugins/xiuxian/xiuxian-mvp.sql)
+- **修仙玩法**
+  - 存档和规则在 `cf-mcp-tools`。本仓库只留 `src/plugins/command/xiuxian`，把 `修仙*` 转到 MCP。
 
 ## 目录结构
 
@@ -42,7 +40,6 @@ _docs/
   plugins/        # 插件相关设计文档（按插件领域再分层）
     ai/           # AI 对话 / TTS / 唱歌相关设计
     common/       # 历史公共文档目录（含规则引擎 / 插件管理设计稿）
-    xiuxian/      # 修仙玩法设计、SQL
   scheduler/      # 定时任务中心设计、API 草案、SQL
   templates/      # 可复制到 .config/ 的配置样例模板
   wechat/         # 微信网关相关文档
@@ -71,12 +68,6 @@ _docs/
 - `scheduler-api-draft.md`：管理接口草案
 - `scheduler-mvp.sql`：调度中心建表 SQL
 
-#### `plugins/xiuxian/`
-
-- `xiuxian-mvp.sql`：修仙玩法 D1 表结构
-- `xiuxian-roadmap.md`：修仙玩法路线图
-- `xiuxian-structure-plan.md`：修仙结构设计稿
-
 #### `plugins/common/`
 
 > 说明：这里只是文档存放目录；对应规则实现已迁移到 `src/plugins/rule-engine/`。
@@ -98,7 +89,6 @@ _docs/
 - [`templates/ai/mimo-tts-config.sample.json`](templates/ai/mimo-tts-config.sample.json)：AI 唱歌 / MiMo TTS 配置样例
 - [`templates/plugin-config/common-plugins.json`](templates/plugin-config/common-plugins.json)：`common` 基础规则样例
 - [`templates/plugin-config/common-plugins-dynamic.json`](templates/plugin-config/common-plugins-dynamic.json)：`dynamic` 动态参数规则样例
-- [`templates/xiuxian/xiuxian-set-config.sample.json`](templates/xiuxian/xiuxian-set-config.sample.json)：修仙装备套装示例配置
 
 若你是从项目主文档跳转过来的，也可以回看：[`../README.md`](../README.md)
 
@@ -112,7 +102,6 @@ _docs/
 如果你需要引用 `_docs` 下的插件文档，请优先使用 `plugins/` 下的新路径，例如：
 
 - `_docs/scheduler/scheduler-mvp.sql`
-- `_docs/plugins/xiuxian/xiuxian-mvp.sql`
 - `_docs/plugins/ai/mimo-tts-plugin-design.md`
 - `_docs/plugins/common/rule-plugin-admin-design.md`
 - `_docs/templates/plugin-config/common-plugins.json`

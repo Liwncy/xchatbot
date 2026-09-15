@@ -16,8 +16,6 @@ const groups = [
     {
         title: 'B. D1 命令',
         commands: [
-            {id: 'd1:migrate:local', description: '初始化本地修仙玩法表。', shell: 'wrangler d1 execute xbotdata --local --file "./_docs/xiuxian/xiuxian-mvp.sql"'},
-            {id: 'd1:migrate:remote', description: '初始化远端修仙玩法表。', shell: 'wrangler d1 execute xbotdata --remote --file "./_docs/xiuxian/xiuxian-mvp.sql"'},
             {id: 'd1:migrate:local:scheduler', description: '初始化本地调度中心表。', shell: 'wrangler d1 execute xbotdata --local --file "./_docs/scheduler/scheduler-mvp.sql"'},
             {id: 'd1:migrate:remote:scheduler', description: '初始化远端调度中心表。', shell: 'wrangler d1 execute xbotdata --remote --file "./_docs/scheduler/scheduler-mvp.sql"'},
             {id: 'd1:migrate:local:roleplay', description: '初始化本地演法角色表并灌入目录。', shell: 'wrangler d1 execute xbotdata --local --file "./_docs/roleplay/roleplay-character.sql"'},
@@ -53,10 +51,6 @@ const groups = [
             {id: 'kv:get:local:ai-sing-config', description: '读取本地聪明唱歌 / MiMo TTS 配置。', shell: 'wrangler kv key get --binding XBOT_KV "plugins:ai-sing:config" --local'},
             {id: 'kv:set:remote:ai-sing-config', description: '写入远端聪明唱歌 / MiMo TTS 配置（读取 .config/ai/mimo-tts-config.json）。', shell: `node ./_docs/scripts/init-local-configs.cjs --quiet && wrangler kv key put --binding XBOT_KV "plugins:ai-sing:config" --path "${CONFIG_ROOT}/ai/mimo-tts-config.json" --remote`},
             {id: 'kv:get:remote:ai-sing-config', description: '读取远端聪明唱歌 / MiMo TTS 配置。', shell: 'wrangler kv key get --binding XBOT_KV "plugins:ai-sing:config" --remote'},
-            {id: 'kv:set:local:xiuxian:set-config', description: '写入本地修仙装备套装配置（读取 .config/xiuxian/xiuxian-set-config.json）。', shell: `node ./_docs/scripts/init-local-configs.cjs --quiet && wrangler kv key put --binding XBOT_KV "xiuxian:equipment:set-config" --path "${CONFIG_ROOT}/xiuxian/xiuxian-set-config.json" --local`},
-            {id: 'kv:get:local:xiuxian:set-config', description: '读取本地修仙装备套装配置。', shell: 'wrangler kv key get --binding XBOT_KV "xiuxian:equipment:set-config" --local'},
-            {id: 'kv:set:remote:xiuxian:set-config', description: '写入远端修仙装备套装配置（读取 .config/xiuxian/xiuxian-set-config.json）。', shell: `node ./_docs/scripts/init-local-configs.cjs --quiet && wrangler kv key put --binding XBOT_KV "xiuxian:equipment:set-config" --path "${CONFIG_ROOT}/xiuxian/xiuxian-set-config.json" --remote`},
-            {id: 'kv:get:remote:xiuxian:set-config', description: '读取远端修仙装备套装配置。', shell: 'wrangler kv key get --binding XBOT_KV "xiuxian:equipment:set-config" --remote'},
         ],
     },
     {

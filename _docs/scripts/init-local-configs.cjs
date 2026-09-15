@@ -26,11 +26,6 @@ const mappings = [
         target: path.join(configRoot, 'ai', 'mimo-tts-config.json'),
         description: '聪明唱歌 / MiMo TTS 配置',
     },
-    {
-        sample: path.join(projectRoot, '_docs', 'templates', 'xiuxian', 'xiuxian-set-config.sample.json'),
-        target: path.join(configRoot, 'xiuxian', 'xiuxian-set-config.json'),
-        description: '修仙装备套装配置',
-    },
 ];
 
 const quiet = process.argv.includes('--quiet');
