@@ -3,11 +3,15 @@
 OpenClaw 只连 xchatbot。微信 / Golem / Web 都由 xchatbot 适配器进出。
 
 ```text
-适配器 → xchatbot webhook
-       → POST /api/channels/xbot/inbound  （带 platform）
-       → OpenClaw Agent
-       → POST xchatbot /openclaw/outbound
-       → 原适配器发出去
+适配器 parse / send
+  → channel：群门禁 / 演法口令 / 撤回
+  → command：紧前缀快路径
+  → core 拼正文（身份前缀、近窗、演法垫）
+  → agent：只把正文交给当前大脑（现在是 OpenClaw）
+  → POST xchatbot /openclaw/outbound
+  → 适配器发出去
+
+MCP 两条：cf-mcp-tools（画图等）/ xchatbot /mcp（查记录）
 ```
 
 ## 1. OpenClaw
@@ -18,7 +22,7 @@ openclaw plugins enable xbot
 openclaw gateway restart
 ```
 
-`openclaw.json` 只配 xchatbot 地址和 token，见 [`../templates/openclaw/xbot-channel-config.sample.json`](../templates/openclaw/xbot-channel-config.sample.json)。
+`openclaw.json` 配 xchatbot 地址、token，以及通道自己的 MCP（查记录），见 [`../templates/openclaw/xbot-channel-config.sample.json`](../templates/openclaw/xbot-channel-config.sample.json)。
 
 | 字段 | 说明 |
 |------|------|
@@ -31,7 +35,7 @@ openclaw gateway restart
 |------|------|
 | `XBOT_CHANNEL_ENABLED` / `XBOT_CHANNEL_AUTO_FORWARD` | 都为 `true` 才转发 |
 | `XBOT_CHANNEL_GATEWAY_URL` | 可选；默认从 `AGENT_BRIDGE_BASE_URL` 去掉 `/v1` |
-| `AGENT_BRIDGE_TOKEN` | Gateway 入站鉴权，也用于 `/openclaw/outbound` |
+| `AGENT_BRIDGE_TOKEN` | Gateway 入站鉴权，也用于 `/openclaw/outbound` 和通道 `/mcp` |
 
 私聊白名单、官方号在适配器拦。群聊启停和点名 / 随机 / 智能 / 规则在 `group-session`。
 

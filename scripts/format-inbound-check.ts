@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import {resolveMentions} from '../src/adapter/golem/parse-mentions.ts';
-import {formatCurrentInbound, prependRecentContext} from '../src/plugins/agent/openclaw/format-inbound.ts';
+import {formatCurrentInbound, prependRecentContext} from '../src/core/inbound.ts';
 import type {IncomingMessage} from '../src/core/message.ts';
 import type {Env} from '../src/types/env.ts';
 
 const env = {
     BOT_OWNER_WECHAT_ID: 'wxid_owner',
-} as Env;
+    XBOT_KV: {
+        get: async () => null,
+        put: async () => undefined,
+        delete: async () => undefined,
+    },
+} as unknown as Env;
 
 const base: IncomingMessage = {
     platform: 'golem',
@@ -31,7 +36,7 @@ const base: IncomingMessage = {
 }
 
 {
-    const text = formatCurrentInbound({
+    const text = await formatCurrentInbound({
         ...base,
         from: 'wxid_owner',
         senderName: '李芈仙',

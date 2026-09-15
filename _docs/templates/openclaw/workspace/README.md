@@ -26,11 +26,13 @@ openclaw gateway restart
 | `skills/mcp-tools/SKILL.md` | 何时调 CF MCP、怎么填参数 |
 | `skills/outbound-reply/SKILL.md` | 图 / 语音 / 链接卡等怎么写成协议行 |
 
-**办事**：先读 `mcp-tools`，再调已挂到 OpenClaw 的 CF MCP。不要调用已删除的 `xbot_learn_write` / `xbot_chat_history`。  
+**办事**：先读 `mcp-tools`。画图/天气等走 CF MCP；查通道记录走 xchatbot 自己的 `/mcp`（`agbot_chat_history` / `agbot_chat_get`）。不要调用已删除的 `xbot_learn_write` / `xbot_chat_history`。  
 **发出去**：非纯文本按 `outbound-reply` 写 `image:` / `audio:` / `link:` 等单独一行。  
 话风只看 `SOUL.md`，没有可切换的说话模式 skill。
 
-群聊门禁在 xchatbot，对齐 one-agbot：默认歇着，主人发「开始」后才聊。默认点名（@ / 提名字 / 引用我）；主人可改「随机模式」「智能模式」「全量模式」「规则模式」，以及「概率 20」「跟聊 60」。能进 Agent 的消息按语境直接回，不要再判断有没有点名。
+群聊门禁、演法口令、身份前缀和演法垫都在 xchatbot 框架层，不绑某个大脑。换 OpenClaw / SnailAI 都吃同一份正文。
+
+群聊默认歇着，主人发「开始」后才聊。默认点名（@ / 提名字 / 引用我）；主人可改「随机模式」「智能模式」「全量模式」「规则模式」，以及「概率 20」「跟聊 60」。能进 Agent 的消息按语境直接回，不要再判断有没有点名。
 
 ## 身份规则
 

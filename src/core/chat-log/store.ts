@@ -5,6 +5,7 @@ import {resolveBotId, resolveBotName} from '../bot.js';
 import {logger} from '../../utils/logger.js';
 import {resolveChatSession} from './session.js';
 import type {
+    ChatHistorySearch,
     ChatMessageRecord,
     GetRecentMessagesOptions,
     RecordOutboundOptions,
@@ -371,6 +372,85 @@ export async function getRecentChatMessages(
     ).bind(...binds).all<ChatMessageRow>();
 
     return (result.results ?? []).map(mapRow).reverse();
+}
+
+export async function queryChatMessages(
+    env: Env,
+    query: ChatHistorySearch,
+): Promise<ChatMessageRecord[]> {
+    if (!isChatLogEnabled(env) || !query.sessionId.trim()) return [];
+    await ensureSchema(env.XBOT_DB);
+
+    const limit = Math.max(1, Math.min(query.limit, 200));
+    const clauses = ['session_id = ?1'];
+    const binds: Array<string | number> = [query.sessionId.trim()];
+    if (query.platform?.trim()) {
+        binds.push(query.platform.trim());
+        clauses.push(`platform = ?${binds.length}`);
+    }
+    if (query.direction === 'inbound' || query.direction === 'outbound') {
+        binds.push(query.direction);
+        clauses.push(`direction = ?${binds.length}`);
+    }
+    if (typeof query.sinceUnix === 'number' && Number.isFinite(query.sinceUnix)) {
+        binds.push(Math.floor(query.sinceUnix));
+        clauses.push(`created_at >= ?${binds.length}`);
+    }
+    if (typeof query.untilUnix === 'number' && Number.isFinite(query.untilUnix)) {
+        binds.push(Math.floor(query.untilUnix));
+        clauses.push(`created_at < ?${binds.length}`);
+    }
+    if (query.senderId?.trim() && query.senderName?.trim()) {
+        binds.push(query.senderId.trim());
+        const idIdx = binds.length;
+        binds.push(`%${query.senderName.trim()}%`);
+        const nameIdx = binds.length;
+        clauses.push(`(sender_id = ?${idIdx} OR sender_id LIKE ?${nameIdx} OR sender_name LIKE ?${nameIdx})`);
+    } else if (query.senderId?.trim()) {
+        binds.push(query.senderId.trim());
+        clauses.push(`sender_id = ?${binds.length}`);
+    } else if (query.senderName?.trim()) {
+        binds.push(`%${query.senderName.trim()}%`);
+        clauses.push(`(sender_id LIKE ?${binds.length} OR sender_name LIKE ?${binds.length})`);
+    }
+    if (query.keyword?.trim()) {
+        binds.push(`%${query.keyword.trim()}%`);
+        clauses.push(`content_text LIKE ?${binds.length}`);
+    }
+    if (query.msgType?.trim()) {
+        binds.push(query.msgType.trim());
+        clauses.push(`msg_type = ?${binds.length}`);
+    }
+    const pageOlder = typeof query.beforeId === 'number' && query.beforeId > 0;
+    const pageNewer = !pageOlder && typeof query.afterId === 'number' && query.afterId > 0;
+    if (pageOlder) {
+        binds.push(query.beforeId as number);
+        clauses.push(`id < ?${binds.length}`);
+    } else if (pageNewer) {
+        binds.push(query.afterId as number);
+        clauses.push(`id > ?${binds.length}`);
+    }
+    const chronologicalAsc = pageNewer || (query.sinceUnix != null && !pageOlder);
+    binds.push(limit);
+    const result = await env.XBOT_DB.prepare(
+        `SELECT * FROM chat_message
+         WHERE ${clauses.join(' AND ')}
+         ORDER BY id ${chronologicalAsc ? 'ASC' : 'DESC'} LIMIT ?${binds.length}`,
+    ).bind(...binds).all<ChatMessageRow>();
+    const rows = (result.results ?? []).map(mapRow);
+    return chronologicalAsc ? rows : rows.reverse();
+}
+
+export async function getChatMessagesById(
+    env: Env,
+    messageId: string,
+): Promise<ChatMessageRecord[]> {
+    if (!isChatLogEnabled(env) || !messageId.trim()) return [];
+    await ensureSchema(env.XBOT_DB);
+    const result = await env.XBOT_DB.prepare(
+        `SELECT * FROM chat_message WHERE message_id = ?1 ORDER BY id ASC LIMIT 20`,
+    ).bind(messageId.trim()).all<ChatMessageRow>();
+    return (result.results ?? []).map(mapRow);
 }
 
 export async function patchInboundMediaPublicUrl(

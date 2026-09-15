@@ -1,10 +1,19 @@
-import type {IncomingMessage, MentionRef, QuoteRef} from '../../../core/message.js';
-import {resolveOwnerId} from '../../../core/bot.js';
-import {getRecentChatMessages} from '../../../core/chat-log/index.js';
-import {resolveChatSession} from '../../../core/chat-log/session.js';
-import type {ChatMessageRecord} from '../../../core/chat-log/types.js';
-import type {Env} from '../../../types/env.js';
-import {resolveOpenClawMediaKind, type OpenClawMediaKind} from './resolve-media.js';
+import type {Env} from '../types/env.js';
+import {resolveOwnerId} from './bot.js';
+import {getRecentChatMessages} from './chat-log/index.js';
+import {resolveChatSession} from './chat-log/session.js';
+import type {ChatMessageRecord} from './chat-log/types.js';
+import type {IncomingMessage, MentionRef, QuoteRef} from './message.js';
+import {currentCharacter, wrapUserContent} from './roleplay/index.js';
+
+/** 任何大脑入站前共用：身份前缀、近窗上下文、演法垫。 */
+export type InboundMediaKind = 'image' | 'video' | 'emoji';
+
+export type InboundMediaHint = {
+    url?: string;
+    videoUrl?: string;
+    kind?: InboundMediaKind;
+};
 
 const CONTEXT_WINDOW_MINUTES = 10;
 const CONTEXT_MAX_MESSAGES = 15;
@@ -42,7 +51,7 @@ function speakerLabel(id: string, name?: string): string {
     return !nick || nick === userId ? userId : `${userId}/${nick}`;
 }
 
-function mediaAddressLabel(kind: OpenClawMediaKind | undefined): string {
+function mediaAddressLabel(kind: InboundMediaKind | undefined): string {
     if (kind === 'emoji') return '表情地址';
     if (kind === 'video') return '视频地址';
     return '图片地址';
@@ -61,6 +70,13 @@ function quoteTypeLabel(referType: number | undefined): string {
         default:
             return '';
     }
+}
+
+function inferMediaKind(message: IncomingMessage): InboundMediaKind | undefined {
+    if (message.type === 'video' || message.quote?.referType === 43) return 'video';
+    if (message.type === 'emoji' || message.quote?.referType === 47) return 'emoji';
+    if (message.type === 'image' || message.quote?.referType === 3) return 'image';
+    return isHttpUrl((message.media ?? message.quote?.media)?.url) ? 'image' : undefined;
 }
 
 function readableQuoteText(quote: QuoteRef): string {
@@ -98,14 +114,15 @@ function appendMediaTokens(text: string, md5?: string, url?: string): string {
     return next.trim();
 }
 
-export function buildSpeakerPrefix(message: IncomingMessage, env: Env): string {
+export async function buildSpeakerPrefix(message: IncomingMessage, env: Env): Promise<string> {
     const ownerId = resolveOwnerId(env, message.platform);
     const isOwner = Boolean(ownerId && message.from.trim() === ownerId);
     const speaker = speakerLabel(message.from, message.senderName);
+    const role = (await currentCharacter(env, message))?.name?.trim();
     const scope = message.source === 'group'
         ? `group:${message.room?.id ?? ''}`
         : `user:${message.from}`;
-    return `[${speaker}${isOwner ? ' owner' : ''} scope=${scope}]`;
+    return `[${speaker}${isOwner ? ' owner' : ''}${role ? ` role=${role}` : ''} scope=${scope}]`;
 }
 
 function formatQuote(quote: QuoteRef | undefined, mediaUrl?: string): string {
@@ -135,12 +152,12 @@ function formatMentions(mentions: MentionRef[] | undefined): string[] {
     });
 }
 
-export function formatCurrentInbound(
+export async function formatCurrentInbound(
     message: IncomingMessage,
     env: Env,
-    media?: {url?: string; videoUrl?: string; kind?: OpenClawMediaKind},
-): string {
-    const kind = media?.kind ?? resolveOpenClawMediaKind(message);
+    media?: InboundMediaHint,
+): Promise<string> {
+    const kind = media?.kind ?? inferMediaKind(message);
     const mediaRef = message.media ?? message.quote?.media;
     const parts: string[] = [];
     let caption = captionForType(message);
@@ -171,7 +188,7 @@ export function formatCurrentInbound(
 
     parts.push(...formatMentions(message.mentions));
     const body = parts.join('\n').trim();
-    const prefix = buildSpeakerPrefix(message, env);
+    const prefix = await buildSpeakerPrefix(message, env);
     return body ? `${prefix} ${body}` : prefix;
 }
 
@@ -228,12 +245,13 @@ export function prependRecentContext(
     ].join('\n');
 }
 
-export async function buildOpenClawInboundContent(
+export async function buildInboundContent(
     message: IncomingMessage,
     env: Env,
-    media?: {url?: string; videoUrl?: string; kind?: OpenClawMediaKind},
+    media?: InboundMediaHint,
 ): Promise<string> {
-    const current = formatCurrentInbound(message, env, media);
+    const current = await formatCurrentInbound(message, env, media);
+    let assembled = current;
     try {
         const sessionId = resolveChatSession(message).sessionId;
         const rows = await getRecentChatMessages(env, sessionId, {
@@ -242,8 +260,9 @@ export async function buildOpenClawInboundContent(
             sinceUnix: Math.floor(Date.now() / 1000) - CONTEXT_WINDOW_MINUTES * 60,
             direction: 'inbound',
         });
-        return prependRecentContext(current, rows);
+        assembled = prependRecentContext(current, rows);
     } catch {
-        return current;
+        assembled = current;
     }
+    return wrapUserContent(assembled, await currentCharacter(env, message));
 }

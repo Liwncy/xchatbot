@@ -1,6 +1,6 @@
 import type {IncomingMessage} from '../../../core/message.js';
 import type {PluginContext} from '../../../core/context.js';
-import {resolveBotId, resolveBotName, resolveOwnerId} from '../../../core/bot.js';
+import {resolveBotId, resolveBotName, resolveOwnerId, stripBotPrefix} from '../../../core/bot.js';
 import {handledReply, textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
 import {logger} from '../../../utils/logger.js';
@@ -17,6 +17,7 @@ import {
     type GroupCommand,
     type GroupSettings,
 } from './policy.js';
+import {tryHandleRoleplay} from '../../../core/roleplay/index.js';
 import {
     ensureGroupSettings,
     getGroupSettings,
@@ -26,19 +27,6 @@ import {
     setGroupSessionActive,
     touchFollowWindow,
 } from './store.js';
-
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-export function stripBotPrefix(content: string, botName?: string, botId?: string): string {
-    let text = content.trim();
-    for (const token of [botName?.trim(), botId?.trim()]) {
-        if (!token) continue;
-        text = text.replace(new RegExp(`^[@＠]?\\s*${escapeRegExp(token)}[\\s,，:：]*`, 'u'), '').trim();
-    }
-    return text;
-}
 
 function commandOf(message: IncomingMessage, ctx: PluginContext): string {
     return stripBotPrefix(
@@ -152,9 +140,6 @@ export const groupSessionPlugin: Plugin = {
         const command = parseGroupCommand(commandOf(message, ctx));
         if (command) return applyCommand(command, message, ctx, roomId);
 
-        const active = await isGroupSessionActive(ctx.env, message.platform, roomId);
-        if (!active) return handledReply();
-
         const settings = await getGroupSettings(ctx.env, message.platform, roomId);
         const mentioned = isBotMentioned(
             message,
@@ -174,6 +159,13 @@ export const groupSessionPlugin: Plugin = {
             listed,
             chanceHit,
         });
+        const ownerId = resolveOwnerId(ctx.env, message.platform);
+        const isOwner = Boolean(ownerId && message.from.trim() === ownerId);
+        const roleplayReply = await tryHandleRoleplay(ctx.env, message, commandOf(message, ctx));
+        if (roleplayReply && (isOwner || allowed)) return textReply(roleplayReply);
+
+        const active = await isGroupSessionActive(ctx.env, message.platform, roomId);
+        if (!active) return handledReply();
         if (!allowed) {
             logger.info('群策略未放行', {
                 platform: message.platform,

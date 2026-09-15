@@ -4,6 +4,7 @@ import {parseRepliesFromText} from '../../../core/outbound.js';
 import type {ReplyMessage} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
 import type {Env} from '../../../types/env.js';
+import {authorizeOpenClawRequest} from './auth.js';
 
 function json(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data), {
@@ -14,16 +15,6 @@ function json(data: unknown, status = 200): Response {
 
 function asString(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
-}
-
-function authorize(request: Request, env: Env): boolean {
-    const expected = env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim();
-    if (!expected) return false;
-    const header = request.headers.get('authorization') ?? '';
-    const token = header.toLowerCase().startsWith('bearer ')
-        ? header.slice(7).trim()
-        : '';
-    return token === expected;
 }
 
 function parseSource(raw: unknown, roomId: string): MessageSource {
@@ -120,7 +111,7 @@ export async function handleOpenclawOutbound(
     if (request.method !== 'POST') {
         return new Response('Method Not Allowed', {status: 405});
     }
-    if (!authorize(request, env)) {
+    if (!authorizeOpenClawRequest(request, env)) {
         return json({ok: false, error: 'unauthorized'}, 401);
     }
 

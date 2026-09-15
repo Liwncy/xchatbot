@@ -42,6 +42,7 @@ BOT_WECHAT_ID = "wxid_ahl9az25aljx22"  # 机器人自己的微信 ID（建议填
 # BOT_WECHAT_NAME 已并入 BOT_NAME；没配 BOT_NAME 时仍可读这个
 BOT_WECHAT_NAME = "小聪明儿"
 CHAT_LOG_ENABLE = "true"
+APP_LOG_ENABLE = "true"
 
 # AI plugin configuration（硅基流动）
 AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"

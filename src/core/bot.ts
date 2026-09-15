@@ -19,3 +19,17 @@ export function resolveOwnerId(env: Env, platform: string): string {
     }
     return env.BOT_OWNER_ID?.trim() ?? '';
 }
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** 去掉开头的 @机器人名 / 机器人 id，给通道口令用。 */
+export function stripBotPrefix(content: string, botName?: string, botId?: string): string {
+    let text = content.trim();
+    for (const token of [botName?.trim(), botId?.trim()]) {
+        if (!token) continue;
+        text = text.replace(new RegExp(`^[@＠]?\\s*${escapeRegExp(token)}[\\s,，:：]*`, 'u'), '').trim();
+    }
+    return text;
+}

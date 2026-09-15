@@ -12,5 +12,20 @@
         }
       }
     }
+  },
+  "mcp": {
+    "servers": {
+      "cf-mcp-tools": {
+        "url": "https://mcp.lwcfworker.dpdns.org/mcp",
+        "transport": "streamable-http"
+      },
+      "xchatbot": {
+        "url": "https://xbot.lwcfworker.dpdns.org/mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "Authorization": "Bearer 与 AGENT_BRIDGE_TOKEN 相同"
+        }
+      }
+    }
   }
 }

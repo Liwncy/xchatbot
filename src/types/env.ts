@@ -34,4 +34,6 @@ export interface Env {
 
     /** 会话记录。未设或 true 时写入 D1 chat_message。 */
     CHAT_LOG_ENABLE?: string;
+    /** 运行日志。未设或 true 时把 warn/error 写入 D1 app_log。 */
+    APP_LOG_ENABLE?: string;
 }

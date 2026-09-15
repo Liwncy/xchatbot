@@ -45,3 +45,18 @@ export interface GetRecentMessagesOptions {
     sinceUnix?: number;
     direction?: ChatDirection;
 }
+
+export type ChatHistorySearch = {
+    sessionId: string;
+    platform?: string;
+    direction?: ChatDirection;
+    sinceUnix?: number;
+    untilUnix?: number;
+    senderId?: string;
+    senderName?: string;
+    keyword?: string;
+    msgType?: string;
+    beforeId?: number;
+    afterId?: number;
+    limit: number;
+};

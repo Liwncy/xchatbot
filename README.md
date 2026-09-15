@@ -1,25 +1,28 @@
 # xchatbot
 
-Cloudflare Worker 上的薄核：收 Golem 微信协议，按 **channel → command → agent** 调度插件。玩法在 `cf-mcp-tools`。
+Cloudflare Worker 上的薄核：收协议、做门禁、拼给大脑的正文。玩法 MCP 在 `cf-mcp-tools`，通道记录 MCP 在本 Worker `/mcp`。
 
-旧代码冻在 `archive/pre-plugin-core`。当前工作分支是 `rebuild/plugin-core`。
+## 分工
+
+| 层 | 职责 | 不负责 |
+|---|---|---|
+| 适配器 | 解析 / 发出（Golem、Web） | 门禁、演法、大脑 |
+| channel | 群门禁、演法口令、撤回 | 拼正文、调模型 |
+| command | 紧前缀快路径（如 `修仙`） | 自然语言办事 |
+| core | 身份前缀、近窗上下文、演法垫、查记录 | 某个大脑的协议 |
+| agent | 把已拼好的正文交给当前大脑 | 口令、门禁、演法绑定 |
+| MCP | `cf-mcp-tools` 画图等；本 Worker `/mcp` 查记录、查运行日志 | 出站协议 |
 
 ## 一条消息
 
 ```text
-/webhook/wechat
-  → Golem 验签 / 解析
-  → channel 插件（撤回）
-  → command 插件（修仙 → MCP）
-  → agent 插件（OpenClaw）
-  → Golem 发出
+适配器 parse
+  → channel（门禁 / 演法口令 / 撤回）
+  → command（紧前缀）
+  → core 拼正文
+  → agent（现在是 OpenClaw）
+  → 适配器 send
 ```
-
-## 第一刀插件
-
-- `wechat-revoke`：引用机器人消息再发「撤回」
-- `xiuxian`：口令以「修仙」开头，转 `xiuxian_action`
-- `openclaw`：前两级没接住再转发 Gateway
 
 停用某个插件：往 KV `plugins:runtime:disabled` 写 JSON 数组，例如 `["openclaw"]`。
 

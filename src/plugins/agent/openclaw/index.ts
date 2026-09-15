@@ -4,7 +4,7 @@ import type {Plugin} from '../../runtime/types.js';
 import {parseBool} from '../../../utils/bool.js';
 import {logger} from '../../../utils/logger.js';
 import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
-import {buildOpenClawInboundContent} from './format-inbound.js';
+import {buildInboundContent} from '../../../core/inbound.js';
 import {resolveOpenClawMedia} from './resolve-media.js';
 
 function resolveGatewayBaseUrl(env: {
@@ -61,7 +61,7 @@ export const openclawAgentPlugin: Plugin = {
         const mediaUrl = resolved?.url;
         const mediaKind = resolved?.kind;
         const videoUrl = resolved?.videoUrl;
-        const content = await buildOpenClawInboundContent(message, ctx.env, {
+        const content = await buildInboundContent(message, ctx.env, {
             url: mediaUrl,
             videoUrl,
             kind: mediaKind,
