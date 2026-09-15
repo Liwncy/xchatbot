@@ -83,22 +83,14 @@ function mapRow(row: AppLogRow): AppLogRecord {
 export async function recordAppLog(env: Env, entry: WriteAppLog): Promise<void> {
     if (!isAppLogEnabled(env) || !entry.summary.trim()) return;
     try {
-        await ensureSchema(env.XBOT_DB);
         await env.XBOT_DB.prepare(
-            `INSERT INTO app_log (
-                created_at, level, stage, summary, detail,
-                platform, session_id, message_id, plugin_name
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+            `INSERT INTO app_log (created_at, level, message, detail_json)
+             VALUES (?1, ?2, ?3, ?4)`,
         ).bind(
             Math.floor(Date.now() / 1000),
             entry.level === 'error' ? 'error' : 'warn',
-            (entry.stage ?? '').trim(),
             clip(entry.summary, MAX_SUMMARY),
-            clip(entry.detail ?? '', MAX_DETAIL),
-            (entry.platform ?? '').trim(),
-            (entry.sessionId ?? '').trim(),
-            (entry.messageId ?? '').trim(),
-            (entry.pluginName ?? '').trim(),
+            clip(entry.detail ?? '', MAX_DETAIL) || '[]',
         ).run();
     } catch (error) {
         console.error('运行日志写入失败', error instanceof Error ? error.message : String(error));

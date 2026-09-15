@@ -5,15 +5,24 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 preview_urls = true
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 路由
+# ══════════════════════════════════════════════════════════════════════════════
 routes = [
     { pattern = "xbot.lwcfworker.dpdns.org", zone_name = "lwcfworker.dpdns.org", custom_domain = true }
 ]
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 定时任务
 # 必须写空数组再 deploy，注释掉 [triggers] 不会卸掉线上已有 cron。
 # 恢复调度：改成 crons = ["*/5 * * * *"] 后再 deploy。
+# ══════════════════════════════════════════════════════════════════════════════
 [triggers]
 crons = []
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 可观测性
+# ══════════════════════════════════════════════════════════════════════════════
 [observability]
 enabled = false
 head_sampling_rate = 1
@@ -29,73 +38,66 @@ enabled = false
 persist = false
 head_sampling_rate = 1
 
-[vars]
-# 加密值在开发时可以放在.dev.vars文件中，生产环境通过wrangler secret进行设置例如AI_API_KEY等敏感信息
-
-# WeChat Personal Account bridge/gateway configuration (set via wrangler secret or .dev.vars for local)
-# WECHAT_TOKEN = "your_webhook_hmac_token"
-WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
-BOT_NAME = "小聪明儿"
-BOT_OWNER_WECHAT_ID = "wxid_5jfnhtqy74xr22"  # 机器人主人的微信ID，用于识别消息来源
-BOT_OWNER_WECHAT_NAME = "李芈仙"
-BOT_WECHAT_ID = "wxid_ahl9az25aljx22"  # 机器人自己的微信 ID（建议填写；私聊入站也可从 message.to 推断）
-# BOT_WECHAT_NAME 已并入 BOT_NAME；没配 BOT_NAME 时仍可读这个
-BOT_WECHAT_NAME = "小聪明儿"
-CHAT_LOG_ENABLE = "true"
-APP_LOG_ENABLE = "true"
-
-# AI plugin configuration（硅基流动）
-AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-# AI_API_KEY（secret）
-AI_MODEL = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
-AI_SYSTEM_PROMPT = "你是群里的「小聪明儿」，18 岁，活泼机灵。说话像真人在微信里唠嗑：轻松、口语、俏皮一点，别端着，也别像念说明书。优先短回复，一两句够就一两句；别人没追问就别写长文、别列一二三、别上大段 Markdown。偶尔句末带一个表情（👌😅🤔），别每条都堆，别用「（歪头）」这种括号表演。能帮忙就帮忙，口吻像朋友随口答，不像客服。别提自己是 AI/机器人/助手；禁止「作为AI」「根据你的问题」「希望对你有帮助」这类套话。心里偏着李芈仙，别没事 cue 他。"
-
-AGENT_BRIDGE_TIMEOUT_MS = "900000"
-# AGENT_BRIDGE_BASE_URL / AGENT_BRIDGE_TOKEN 已在 wrangler secret 中配置
-# 开启后 webhook 把已放行消息 POST 到 OpenClaw xbot inbound；回复走 /openclaw/outbound
-XBOT_CHANNEL_ENABLED = "true"
-XBOT_CHANNEL_AUTO_FORWARD = "true"
-# 可选覆盖；默认从 AGENT_BRIDGE_BASE_URL 去掉 /v1
-# XBOT_CHANNEL_GATEWAY_URL = "https://openclaw.example.com"
-# XBOT_CHANNEL_GATEWAY_TOKEN（secret，默认同 AGENT_BRIDGE_TOKEN）
-# XBOT_CHANNEL_TIMEOUT_MS = "120000"
-
-# 大脑：未设或 openclaw 走 OpenClaw；snailai 走 SnailAI OpenAPI（同步对话）
-# AGENT_BRAIN = "openclaw"
-# SNAIL_AI_BASE_URL = "https://snailai.example.com"
-# SNAIL_AI_PREFIX = "snail-ai"
-# SNAIL_AI_AGENT_ID = "1"
-# SNAIL_AI_TIMEOUT_MS = "180000"
-# SNAIL_AI_APP_ID / SNAIL_AI_TOKEN 用 wrangler secret，不要写进本文件
-
-# 共享绘图 DrawService（OpenAI 兼容；换服务商改下面三项即可）
-# DRAW_API_KEY（secret）
-DRAW_API_BASE_URL = "https://api.siliconflow.cn/v1"
-DRAW_MODEL = "Kwai-Kolors/Kolors"
-
-MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"
-# 加别人的 MCP：catalog.ts 的 MCP_SERVERS 登记后，再在这里加 URL，token 用 secret。
-XIUXIAN_PLATFORM = "agbot"
-
-# 浏览器调试适配器。上线前改成 false。
-WEB_ADAPTER_ENABLED = "true"
-
-# 规则缓存时长（毫秒）：0=禁用缓存（实时读 KV），默认 60000
-COMMON_PLUGINS_CACHE_MS = "60000"
-
-# TURNSTILE 验证配置（Cloudflare Turnstile，替代 reCAPTCHA，保护表单免受垃圾邮件和滥用）
-# TURNSTILE_SITE_KEY（secret）
-# TURNSTILE_SECRET_KEY（secret）
-# TURNSTILE_BASE_URL（secret）
-TURNSTILE_PAGE_URL = "https://liwncy.github.io/xchatbot"
-
-# ── KV 命名空间绑定 ──
+# ══════════════════════════════════════════════════════════════════════════════
+# 系统绑定：KV / D1
+# ══════════════════════════════════════════════════════════════════════════════
 [[kv_namespaces]]
 binding = "XBOT_KV"
 id = "b9e4e9631e9849efb433441111db831f"
 
-# ── D1 数据库绑定 ──
 [[d1_databases]]
 binding = "XBOT_DB"
 database_name = "xbotdata"
 database_id = "941571aa-a060-4d08-9cad-44b439b03c11"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 业务变量
+# 密钥放 .dev.vars（本地）或 wrangler secret（线上），不要写进本文件。
+# ══════════════════════════════════════════════════════════════════════════════
+[vars]
+
+# ── 机器人身份 ────────────────────────────────────────────────────────────────
+BOT_NAME = "小聪明儿"
+BOT_OWNER_WECHAT_ID = "wxid_5jfnhtqy74xr22"
+BOT_OWNER_WECHAT_NAME = "李芈仙"
+BOT_WECHAT_ID = "wxid_ahl9az25aljx22"
+# BOT_WECHAT_NAME 已并入 BOT_NAME；没配 BOT_NAME 时仍可读这个
+BOT_WECHAT_NAME = "小聪明儿"
+
+# ── Golem / 微信通道 ──────────────────────────────────────────────────────────
+# WECHAT_TOKEN（secret）
+WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
+
+# ── 日志 ──────────────────────────────────────────────────────────────────────
+CHAT_LOG_ENABLE = "true"
+APP_LOG_ENABLE = "true"
+
+# ── OpenClaw 频道 ─────────────────────────────────────────────────────────────
+# AGENT_BRIDGE_BASE_URL / AGENT_BRIDGE_TOKEN（secret）
+# 开启后 webhook 把已放行消息 POST 到 OpenClaw xbot inbound；回复走 /openclaw/outbound
+XBOT_CHANNEL_ENABLED = "true"
+XBOT_CHANNEL_AUTO_FORWARD = "true"
+# XBOT_CHANNEL_GATEWAY_URL = "https://openclaw.example.com"
+# XBOT_CHANNEL_GATEWAY_TOKEN（secret，默认同 AGENT_BRIDGE_TOKEN）
+# XBOT_CHANNEL_TIMEOUT_MS = "120000"
+
+# ── 大脑 ──────────────────────────────────────────────────────────────────────
+# 未设或 openclaw 走 OpenClaw；snailai 走 SnailAI OpenAPI（同步对话）
+# Worker 不能用 IP 直连（Cloudflare 1003），SnailAI 需域名后再开。
+# AGENT_BRAIN = "openclaw"
+# SNAIL_AI_BASE_URL = "http://snailai.example.com:9900"
+# SNAIL_AI_APP_ID = "1"
+# SNAIL_AI_PREFIX = "snail-ai"
+# SNAIL_AI_AGENT_ID = "1"
+# SNAIL_AI_TIMEOUT_MS = "180000"
+# SNAIL_AI_TOKEN（secret）
+
+# ── MCP ───────────────────────────────────────────────────────────────────────
+MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"
+# 加别人的 MCP：catalog.ts 的 MCP_SERVERS 登记后，再在这里加 URL，token 用 secret。
+XIUXIAN_PLATFORM = "agbot"
+
+# ── Web 调试适配器 ────────────────────────────────────────────────────────────
+# 上线前改成 false。
+WEB_ADAPTER_ENABLED = "true"
+# WEB_ADAPTER_TOKEN（secret，可选）

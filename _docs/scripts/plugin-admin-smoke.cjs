@@ -772,7 +772,6 @@ async function main() {
         }),
         XBOT_DB: {},
         BOT_OWNER_WECHAT_ID: 'owner-wechat-id',
-        COMMON_PLUGINS_CACHE_MS: '0',
     };
     const originalDynamicFetch = global.fetch;
     const dynamicFetchCalls = [];
