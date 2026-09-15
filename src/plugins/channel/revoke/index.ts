@@ -1,6 +1,7 @@
 import type {IncomingMessage} from '../../../core/message.js';
 import type {PluginContext} from '../../../core/context.js';
 import {resolveBotId, resolveBotName, resolveOwnerId} from '../../../core/bot.js';
+import {markedCommand} from '../../../core/command-mark.js';
 import {textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {RevokeReason} from '../../../adapter/types.js';
 import type {Plugin} from '../../runtime/types.js';
@@ -17,17 +18,14 @@ const REVOKE_COPY: Record<RevokeReason, string> = {
     failed: '没撤成，再试下',
 };
 
-function commandText(message: IncomingMessage): string {
-    const content = message.content?.trim() ?? '';
-    const quoteTitle = message.quote?.title?.trim() ?? '';
-    return quoteTitle || content;
+function revokeCommand(message: IncomingMessage, ctx: PluginContext): string | null {
+    return markedCommand(message, ctx.env);
 }
 
-function matchesRevokeCommand(message: IncomingMessage): boolean {
-    const content = message.content?.trim() ?? '';
-    const text = commandText(message);
-    if (content === HELP_COMMAND || text === HELP_COMMAND) return true;
-    return /^撤回(?:\s+\d+)?$/u.test(content) || /^撤回(?:\s+\d+)?$/u.test(text);
+function matchesRevokeCommand(command: string | null): boolean {
+    if (command == null) return false;
+    if (command === HELP_COMMAND) return true;
+    return /^撤回(?:\s+\d+)?$/u.test(command);
 }
 
 function ensureOwner(from: string, ownerId?: string): string | null {
@@ -56,20 +54,20 @@ export const revokePlugin: Plugin = {
         priority: 10,
         impl: 'local',
     },
-    match(message) {
+    match(message, ctx) {
         if (message.type !== 'text' && message.type !== 'link') return false;
-        return matchesRevokeCommand(message);
+        return matchesRevokeCommand(revokeCommand(message, ctx));
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         try {
             const ownerErr = ensureOwner(message.from, resolveOwnerId(ctx.env, message.platform));
             if (ownerErr) return textReply(ownerErr);
 
-            const text = commandText(message);
-            if (text === HELP_COMMAND || message.content?.trim() === HELP_COMMAND) {
+            const text = revokeCommand(message, ctx) ?? '';
+            if (text === HELP_COMMAND) {
                 return textReply([
                     '撤我发的：',
-                    '引用我发的那条，再发「撤回」',
+                    '引用我发的那条，再发「#撤回」',
                     '',
                     '按条数撤还没接上，先引用再撤',
                 ].join('\n'));

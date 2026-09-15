@@ -1,6 +1,7 @@
 import type {IncomingMessage} from '../../../core/message.js';
 import type {PluginContext} from '../../../core/context.js';
-import {resolveBotId, resolveBotName, resolveOwnerId, stripBotPrefix} from '../../../core/bot.js';
+import {resolveBotId, resolveBotName, resolveOwnerId} from '../../../core/bot.js';
+import {markedCommand} from '../../../core/command-mark.js';
 import {handledReply, textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
 import {logger} from '../../../utils/logger.js';
@@ -28,12 +29,8 @@ import {
     touchFollowWindow,
 } from './store.js';
 
-function commandOf(message: IncomingMessage, ctx: PluginContext): string {
-    return stripBotPrefix(
-        message.content?.trim() ?? '',
-        resolveBotName(ctx.env),
-        resolveBotId(ctx.env, message.platform),
-    );
+function commandOf(message: IncomingMessage, ctx: PluginContext): string | null {
+    return markedCommand(message, ctx.env);
 }
 
 function ownerError(from: string, ownerId: string | undefined, emptyCopy: string): string | null {
@@ -137,8 +134,11 @@ export const groupSessionPlugin: Plugin = {
         const roomId = message.room?.id;
         if (!roomId) return handledReply();
 
-        const command = parseGroupCommand(commandOf(message, ctx));
-        if (command) return applyCommand(command, message, ctx, roomId);
+        const marked = commandOf(message, ctx);
+        if (marked != null) {
+            const command = parseGroupCommand(marked);
+            if (command) return applyCommand(command, message, ctx, roomId);
+        }
 
         const settings = await getGroupSettings(ctx.env, message.platform, roomId);
         const mentioned = isBotMentioned(
@@ -161,8 +161,14 @@ export const groupSessionPlugin: Plugin = {
         });
         const ownerId = resolveOwnerId(ctx.env, message.platform);
         const isOwner = Boolean(ownerId && message.from.trim() === ownerId);
-        const roleplayReply = await tryHandleRoleplay(ctx.env, message, commandOf(message, ctx));
-        if (roleplayReply && (isOwner || allowed)) return textReply(roleplayReply);
+        if (marked != null) {
+            const roleplayReply = await tryHandleRoleplay(ctx.env, message, marked);
+            if (roleplayReply) {
+                if (isOwner || allowed) return textReply(roleplayReply);
+                return textReply('这会儿先不演');
+            }
+            return null;
+        }
 
         const active = await isGroupSessionActive(ctx.env, message.platform, roomId);
         if (!active) return handledReply();

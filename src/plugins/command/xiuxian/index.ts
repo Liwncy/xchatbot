@@ -1,3 +1,4 @@
+import {markedCommand} from '../../../core/command-mark.js';
 import {textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
 import {callMcpTool} from '../../../mcp/client.js';
@@ -5,8 +6,8 @@ import {mapMcpResult} from '../../../mcp/map-result.js';
 
 const DEFAULT_MCP_URL = 'https://mcp.lwcfworker.dpdns.org/mcp';
 
-function matchXiuxian(content: string): boolean {
-    return content.trim().startsWith('修仙');
+function matchXiuxian(command: string): boolean {
+    return command.startsWith('修仙');
 }
 
 export const xiuxianCommandPlugin: Plugin = {
@@ -17,13 +18,14 @@ export const xiuxianCommandPlugin: Plugin = {
         priority: 20,
         impl: 'mcp',
     },
-    match(message) {
-        return Boolean(message.content && matchXiuxian(message.content));
+    match(message, ctx) {
+        const command = markedCommand(message, ctx.env);
+        return command != null && matchXiuxian(command);
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         const url = ctx.env.MCP_TOOLS_URL?.trim() || DEFAULT_MCP_URL;
         const platform = ctx.env.XIUXIAN_PLATFORM?.trim() || 'agbot';
-        const text = message.content?.trim() ?? '';
+        const text = markedCommand(message, ctx.env) ?? '';
 
         try {
             const result = await callMcpTool(url, {

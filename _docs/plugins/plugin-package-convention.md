@@ -21,7 +21,7 @@
 | 小目录 | `cognitive/ai-sing/` | 多文件，但 export 文件不统一（`ai-sing.ts` vs `index.ts`） |
 | 大文件 + 游离配置 | `cognitive/ai-dialog.ts` + 同级 `config.ts` | 配置与插件本体不在同一包内 |
 | 单文件多插件 | `cognitive/intent-image.ts` | 两个 plugin 挤在一个文件 |
-| 场景子系统 | `scenarios/xiuxian/`、`scenarios/xuanxue/` | 内部分层已有，但缺少与轻量插件对齐的对外约定 |
+| 场景子系统 | `scenarios/xuanxue/` | 内部分层已有，但缺少与轻量插件对齐的对外约定 |
 
 本规范的核心约定：
 
@@ -81,7 +81,6 @@ src/plugins/
 │   ├── human-verify/
 │   └── ...
 └── scenarios/
-    ├── xiuxian/
     └── xuanxue/
 ```
 
@@ -194,18 +193,14 @@ cognitive/intent-image/
 
 对外仍遵守：**根目录 `index.ts` 只 export 一个 `xxxPlugin`**。
 
-#### XL-A：命令驱动（修仙）
+#### XL-A：命令驱动（前缀转 MCP）
+
+修仙存档已迁到 `cf-mcp-tools`。本仓库只留 `#修仙*` 快路径：
 
 ```text
-scenarios/xiuxian/
-├── index.ts              # export { xiuxianPlugin }
-├── app/                  # 命令解析、路由、服务编排、回复兜底
-├── features/             # 按玩法域：handlers + reply + shared
-├── core/                 # types / balance / repository / constants
-└── README.md
+src/plugins/command/xiuxian/
+└── index.ts              # export { xiuxianCommandPlugin }，匹配 #修仙* 后转 xiuxian_action
 ```
-
-详见：[`xiuxian-structure-plan.md`](xiuxian/xiuxian-structure-plan.md)
 
 #### XL-B：规则驱动（玄学）
 
@@ -222,7 +217,7 @@ scenarios/xuanxue/
 **规则：**
 
 - 子系统内部允许自定义分层，但**不在能力域根目录**平铺业务文件。
-- 子系统内的 `types.ts` 指玄学/修仙领域类型，与 `plugins/types.ts` 框架类型区分。
+- 子系统内的 `types.ts` 指玄学等领域类型，与 `plugins/types.ts` 框架类型区分。
 
 ---
 
@@ -308,7 +303,7 @@ rule-engine/
 | human-verify | toolkits | S | `toolkits/human-verify/` | |
 | random-friend | toolkits | S | `toolkits/random-friend/` | |
 | wechat-chat-record | toolkits | S | `toolkits/wechat-chat-record/` | |
-| xiuxian | scenarios | XL-A | `scenarios/xiuxian/` | 已符合，保持 |
+| xiuxian | command | S | `command/xiuxian/` | 仅前缀转发 MCP，玩法不在本仓库 |
 | xuanxue | scenarios | XL-B | `scenarios/xuanxue/` | 已符合，保持 |
 | common/dynamic engine | rule-engine | 特殊 | `rule-engine/` | 不插件包化 |
 
@@ -356,7 +351,6 @@ rule-engine/
 ## 11. 相关文档
 
 - 能力域与目录重构蓝图：[`../architecture/xchatbot-structure-refactor-plan.md`](../architecture/xchatbot-structure-refactor-plan.md)
-- 修仙子系统内部分层：[`xiuxian/xiuxian-structure-plan.md`](xiuxian/xiuxian-structure-plan.md)
 - 规则引擎与管理：[`common/rule-plugin-admin-design.md`](common/rule-plugin-admin-design.md)
 
 ---

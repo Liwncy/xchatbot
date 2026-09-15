@@ -95,7 +95,7 @@ function msg(partial: Partial<IncomingMessage> = {}): IncomingMessage {
 async function main() {
     assert.equal(await tryHandleRoleplay(env, msg({from: 'wxid_other'}), '加角色 猫娘 你是猫娘'), '这个我加不了');
     assert.equal(await tryHandleRoleplay(env, msg(), '加角色'), '名字和演法写一起，换行也行');
-    assert.equal(await tryHandleRoleplay(env, msg(), '加角色 猫娘 你是猫娘，短句。'), '好，记下了。说扮演猫娘就行');
+    assert.equal(await tryHandleRoleplay(env, msg(), '加角色 猫娘 你是猫娘，短句。'), '好，记下了。说 #扮演 猫娘 就行');
     assert.equal(await tryHandleRoleplay(env, msg(), '加角色 猫娘 再写一遍'), '已经有这个了');
     assert.equal(await matchCommandId(env, '扮演猫娘'), '猫娘');
     assert.equal(await matchCommandId(env, '今天天气'), null);
