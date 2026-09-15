@@ -8,6 +8,7 @@ import {
     isQueryCommand,
     matchCommandId,
 } from './catalog.js';
+import {resetSnailaiConversation} from '../snailai-session.js';
 import {clearBoundRoleKey, getBoundRoleKey, setBoundRoleKey} from './store.js';
 import {NORMAL_ID, type RoleplayCharacter} from './types.js';
 
@@ -77,12 +78,14 @@ export async function tryHandleRoleplay(
     const previous = await getBoundRoleKey(env, message);
     if (targetId === NORMAL_ID) {
         await clearBoundRoleKey(env, message);
+        if (previous) await resetSnailaiConversation(env, message);
         logger.info('演法已退', {platform: message.platform, from: message.from});
         return '好，不当了。';
     }
     const character = await getCharacter(env, targetId);
     if (!character) return null;
     await setBoundRoleKey(env, message, character.id);
+    if (previous !== character.id) await resetSnailaiConversation(env, message);
     logger.info('演法已切', {from: previous, to: character.id});
     return character.ack || `好，${character.name}。`;
 }

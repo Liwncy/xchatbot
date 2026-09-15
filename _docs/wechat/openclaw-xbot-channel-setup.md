@@ -7,7 +7,7 @@ OpenClaw 只连 xchatbot。微信 / Golem / Web 都由 xchatbot 适配器进出�
   → channel：群门禁 / 演法口令 / 撤回
   → command：紧前缀快路径
   → core 拼正文（身份前缀、近窗、演法垫）
-  → agent：只把正文交给当前大脑（现在是 OpenClaw）
+  → agent：只把正文交给当前大脑（OpenClaw 或 SnailAI）
   → POST xchatbot /openclaw/outbound
   → 适配器发出去
 

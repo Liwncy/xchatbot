@@ -28,6 +28,22 @@ export interface Env {
     XBOT_CHANNEL_TIMEOUT_MS?: string;
     XBOT_CHANNEL_AUTO_FORWARD?: string;
 
+    /**
+     * 自然语言交给哪颗大脑。`openclaw`（默认）或 `snailai`。
+     * 门禁 / `#` 口令 / 正文拼装不跟这个走。
+     */
+    AGENT_BRAIN?: string;
+    /** SnailAI 服务根，例如 `https://host:8900`；若已是 `.../openapi/v1` 则原样用。 */
+    SNAIL_AI_BASE_URL?: string;
+    /** OpenAPI 路径前缀，默认 `snail-ai`。 */
+    SNAIL_AI_PREFIX?: string;
+    SNAIL_AI_APP_ID?: string;
+    SNAIL_AI_TOKEN?: string;
+    /** 智能体 id，默认 1。 */
+    SNAIL_AI_AGENT_ID?: string;
+    /** 同步对话超时，默认 180000。 */
+    SNAIL_AI_TIMEOUT_MS?: string;
+
     /** 浏览器调试适配器。未开时 /adapter/web 返回 404。上线前关掉。 */
     WEB_ADAPTER_ENABLED?: string;
     /** 可选。设置后 POST /adapter/web/message 需要 Bearer。 */

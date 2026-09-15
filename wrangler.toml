@@ -60,6 +60,14 @@ XBOT_CHANNEL_AUTO_FORWARD = "true"
 # XBOT_CHANNEL_GATEWAY_TOKEN（secret，默认同 AGENT_BRIDGE_TOKEN）
 # XBOT_CHANNEL_TIMEOUT_MS = "120000"
 
+# 大脑：未设或 openclaw 走 OpenClaw；snailai 走 SnailAI OpenAPI（同步对话）
+# AGENT_BRAIN = "openclaw"
+# SNAIL_AI_BASE_URL = "https://snailai.example.com"
+# SNAIL_AI_PREFIX = "snail-ai"
+# SNAIL_AI_AGENT_ID = "1"
+# SNAIL_AI_TIMEOUT_MS = "180000"
+# SNAIL_AI_APP_ID / SNAIL_AI_TOKEN 用 wrangler secret，不要写进本文件
+
 # 共享绘图 DrawService（OpenAI 兼容；换服务商改下面三项即可）
 # DRAW_API_KEY（secret）
 DRAW_API_BASE_URL = "https://api.siliconflow.cn/v1"
