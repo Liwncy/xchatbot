@@ -15,6 +15,7 @@ export interface Env {
     /** @deprecated 用 BOT_NAME。没配 BOT_NAME 时仍当对外名。 */
     BOT_WECHAT_NAME?: string;
 
+    /** 自家 cf-mcp-tools。`#` 口令默认打这里。加别的 MCP 在 catalog.ts 的 MCP_SERVERS 登记后再加对应绑定。 */
     MCP_TOOLS_URL?: string;
     MCP_TOOLS_TOKEN?: string;
     XIUXIAN_PLATFORM?: string;

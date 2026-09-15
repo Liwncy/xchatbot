@@ -195,13 +195,14 @@ cognitive/intent-image/
 
 #### XL-A：命令驱动（前缀转 MCP）
 
-玩法存档已迁到 `cf-mcp-tools`。本仓库只留 `#` 快路径：
+玩法存档已迁到 `cf-mcp-tools`。本仓库 `#` 快捷口令集中在一处：
 
 ```text
-src/plugins/command/xiuxian/
-└── index.ts              # #修仙* → xiuxian_action
 src/plugins/command/mcp-tools/
-└── index.ts              # #庄园* / 玄学口令 / 其余 # 规则口令
+├── index.ts              # 插件入口
+├── catalog.ts            # 加工具 / 加 MCP 入口只改这里
+├── dispatch.ts           # 匹配 → 调 MCP → HandlerResponse
+└── keywords.ts           # 关键词表（玄学等，以后也往这儿加）
 ```
 
 #### XL-B：规则驱动（玄学）
@@ -305,8 +306,7 @@ rule-engine/
 | human-verify | toolkits | S | `toolkits/human-verify/` | |
 | random-friend | toolkits | S | `toolkits/random-friend/` | |
 | wechat-chat-record | toolkits | S | `toolkits/wechat-chat-record/` | |
-| xiuxian | command | S | `command/xiuxian/` | `#修仙*` 转发 MCP |
-| mcp-tools | command | S | `command/mcp-tools/` | `#庄园*` / 玄学 / 规则口令 |
+| mcp-tools | command | S | `command/mcp-tools/` | `#` 快捷调用全部 CF MCP 工具 |
 | xuanxue | scenarios | XL-B | `scenarios/xuanxue/` | 已符合，保持 |
 | common/dynamic engine | rule-engine | 特殊 | `rule-engine/` | 不插件包化 |
 

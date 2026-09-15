@@ -66,6 +66,7 @@ DRAW_API_BASE_URL = "https://api.siliconflow.cn/v1"
 DRAW_MODEL = "Kwai-Kolors/Kolors"
 
 MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"
+# 加别人的 MCP：catalog.ts 的 MCP_SERVERS 登记后，再在这里加 URL，token 用 secret。
 XIUXIAN_PLATFORM = "agbot"
 
 # 浏览器调试适配器。上线前改成 false。

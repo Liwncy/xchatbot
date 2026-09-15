@@ -1,4 +1,13 @@
-/** 与 cf-mcp-tools `xuanxue/rules.ts` 对齐，按长度降序以免短词抢先。 */
+/**
+ * 关键词表。动词/前缀对不上时，按这里的词去匹配。
+ *
+ * 以后别的玩法词表也往这个文件加：一张表 + 一组 match/text，
+ * 再在 catalog.ts 的 KEYWORDS 里挂一条路由即可。
+ *
+ * 词按长度降序，避免短词抢走长词。
+ */
+
+/** 跟 cf-mcp-tools `xuanxue/rules.ts` 对齐。 */
 export const XUANXUE_KEYWORDS = [
     '八字流年财运分析',
     '八字财运分析',
