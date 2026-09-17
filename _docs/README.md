@@ -17,6 +17,7 @@
   - 看：[`wechat/openclaw-xbot-channel-setup.md`](wechat/openclaw-xbot-channel-setup.md)
   - OpenClaw 配置样例：[`templates/openclaw/xbot-channel-config.sample.json`](templates/openclaw/xbot-channel-config.sample.json)
   - 切到 SnailAI 大脑：[`wechat/snailai-brain-setup.md`](wechat/snailai-brain-setup.md)
+  - 切到 QwenPaw 大脑：[`wechat/qwenpaw-brain-setup.md`](wechat/qwenpaw-brain-setup.md)
 - **想了解定时任务中心**
   - 看：[`scheduler/cloudflare-scheduler-design.md`](scheduler/cloudflare-scheduler-design.md)
   - 再看：[`scheduler/scheduler-api-draft.md`](scheduler/scheduler-api-draft.md)
@@ -98,6 +99,7 @@ _docs/
 - `swagger.json`：微信网关接口文档源
 - `openclaw-xbot-channel-setup.md`：OpenClaw 频道联调
 - `snailai-brain-setup.md`：SnailAI 大脑联调
+- `qwenpaw-brain-setup.md`：QwenPaw 大脑联调
 - `fake-forward-plugin-design.md`：伪造转发插件设计稿（MVP）
 
 ## 迁移说明

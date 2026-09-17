@@ -29,7 +29,7 @@ export interface Env {
     XBOT_CHANNEL_AUTO_FORWARD?: string;
 
     /**
-     * 自然语言交给哪颗大脑。`openclaw`（默认）或 `snailai`。
+     * 自然语言交给哪颗大脑。`openclaw`（默认）、`snailai` 或 `qwenpaw`。
      * 门禁 / `#` 口令 / 正文拼装不跟这个走。
      */
     AGENT_BRAIN?: string;
@@ -43,6 +43,16 @@ export interface Env {
     SNAIL_AI_AGENT_ID?: string;
     /** 同步对话超时，默认 180000。 */
     SNAIL_AI_TIMEOUT_MS?: string;
+
+    /**
+     * QwenPaw 公网根，例如 trycloudflare 或 named hostname。
+     * Worker 会 POST `{QWENPAW_BASE_URL}/api/channels/xbot/inbound`。
+     */
+    QWENPAW_BASE_URL?: string;
+    /** 入站 Bearer；未设时回退 AGENT_BRIDGE_TOKEN。 */
+    QWENPAW_TOKEN?: string;
+    /** QwenPaw inbound 超时，默认同 XBOT_CHANNEL_TIMEOUT_MS / 120000。 */
+    QWENPAW_TIMEOUT_MS?: string;
 
     /** 浏览器调试适配器。未开时 /adapter/web 返回 404。上线前关掉。 */
     WEB_ADAPTER_ENABLED?: string;

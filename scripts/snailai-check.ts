@@ -14,7 +14,9 @@ assert.equal(resolveAgentBrain({} as Env), 'openclaw');
 assert.equal(resolveAgentBrain({AGENT_BRAIN: 'OpenClaw'} as Env), 'openclaw');
 assert.equal(resolveAgentBrain({AGENT_BRAIN: 'snailai'} as Env), 'snailai');
 assert.equal(resolveAgentBrain({AGENT_BRAIN: 'snail-ai'} as Env), 'snailai');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'snail'} as Env), 'snailai');
+assert.equal(resolveAgentBrain({AGENT_BRAIN: 'qwenpaw'} as Env), 'qwenpaw');
+assert.equal(resolveAgentBrain({AGENT_BRAIN: 'qwen-paw'} as Env), 'qwenpaw');
+assert.equal(resolveAgentBrain({AGENT_BRAIN: 'agentscope'} as Env), 'qwenpaw');
 
 assert.equal(readSnailAiConfig({} as Env), null);
 assert.equal(readSnailAiConfig({

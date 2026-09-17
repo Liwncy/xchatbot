@@ -1,22 +1,26 @@
 import {resolveAgentBrain} from '../../../core/brain.js';
-import {resolveChatId} from '../../../core/context.js';
-import {handledReply, type HandlerResponse} from '../../../core/reply.js';
+import {type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
 import {parseBool} from '../../../utils/bool.js';
 import {logger} from '../../../utils/logger.js';
-import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
-import {buildInboundContent} from '../../../core/inbound.js';
-import {resolveOpenClawMedia} from './resolve-media.js';
+import {forwardXbotInbound, trimBaseUrl} from '../xbot-inbound.js';
 
 function resolveGatewayBaseUrl(env: {
     XBOT_CHANNEL_GATEWAY_URL?: string;
     AGENT_BRIDGE_BASE_URL?: string;
 }): string | undefined {
-    const explicit = env.XBOT_CHANNEL_GATEWAY_URL?.trim();
-    if (explicit) return explicit.replace(/\/+$/u, '');
-    const bridge = env.AGENT_BRIDGE_BASE_URL?.trim().replace(/\/+$/u, '');
+    const explicit = trimBaseUrl(env.XBOT_CHANNEL_GATEWAY_URL);
+    if (explicit) return explicit;
+    const bridge = trimBaseUrl(env.AGENT_BRIDGE_BASE_URL);
     if (!bridge) return undefined;
     return bridge.endsWith('/v1') ? bridge.slice(0, -3) : bridge;
+}
+
+function resolveTimeoutMs(env: {XBOT_CHANNEL_TIMEOUT_MS?: string}): number {
+    const timeoutRaw = Number.parseInt(String(env.XBOT_CHANNEL_TIMEOUT_MS ?? ''), 10);
+    return Number.isFinite(timeoutRaw) && timeoutRaw > 0
+        ? Math.min(timeoutRaw, 900_000)
+        : 120_000;
 }
 
 export const openclawAgentPlugin: Plugin = {
@@ -42,71 +46,13 @@ export const openclawAgentPlugin: Plugin = {
             logger.warn('OpenClaw 未配齐，跳过');
             return null;
         }
-
-        const timeoutRaw = Number.parseInt(String(ctx.env.XBOT_CHANNEL_TIMEOUT_MS ?? ''), 10);
-        const timeoutMs = Number.isFinite(timeoutRaw) && timeoutRaw > 0
-            ? Math.min(timeoutRaw, 900_000)
-            : 120_000;
-
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        const conversationId = resolveChatId(message);
-        let resolved = await resolveOpenClawMedia(message, ctx.env);
-        if (resolved) {
-            await patchInboundMediaPublicUrl(ctx.env, message.messageId, {
-                publicUrl: resolved.url,
-                videoPublicUrl: resolved.videoUrl,
-            });
-        } else if (!message.media && !message.quote?.media) {
-            resolved = await findRecentPublicMedia(ctx.env, message);
-        }
-        const mediaUrl = resolved?.url;
-        const mediaKind = resolved?.kind;
-        const videoUrl = resolved?.videoUrl;
-        const content = await buildInboundContent(message, ctx.env, {
-            url: mediaUrl,
-            videoUrl,
-            kind: mediaKind,
+        return forwardXbotInbound({
+            message,
+            env: ctx.env,
+            gatewayBaseUrl,
+            token,
+            timeoutMs: resolveTimeoutMs(ctx.env),
+            logLabel: 'OpenClaw',
         });
-
-        try {
-            const response = await fetch(`${gatewayBaseUrl}/api/channels/xbot/inbound`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    accountId: 'Primary',
-                    messageId: message.messageId,
-                    source: message.source === 'group' ? 'group' : 'private',
-                    from: message.from,
-                    senderName: message.senderName,
-                    conversationId,
-                    roomId: message.room?.id,
-                    platform: message.platform,
-                    type: message.type,
-                    content,
-                    ...(mediaUrl ? {mediaUrl} : {}),
-                    ...(mediaKind ? {mediaKind} : {}),
-                    ...(videoUrl ? {videoUrl} : {}),
-                    timestamp: message.timestamp,
-                }),
-                signal: controller.signal,
-            });
-
-            if (!response.ok) {
-                logger.warn('OpenClaw inbound 失败', {status: response.status});
-                return null;
-            }
-            return handledReply();
-        } catch (error) {
-            logger.warn('OpenClaw 转发失败', {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            return null;
-        } finally {
-            clearTimeout(timer);
-        }
     },
 };

@@ -6,11 +6,12 @@ import {revokePlugin} from './channel/revoke/index.js';
 import {mcpToolsCommandPlugin} from './command/mcp-tools/index.js';
 import {unknownCommandPlugin} from './command/unknown/index.js';
 import {openclawAgentPlugin} from './agent/openclaw/index.js';
+import {qwenpawAgentPlugin} from './agent/qwenpaw/index.js';
 import {snailaiAgentPlugin} from './agent/snailai/index.js';
 
 // channel：群门禁 / #查记录 / #扮演 / #撤回，不进大脑
 // command：# 快捷调用 MCP；未识别的 #口令在此拦下
-// agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI 二选一）
+// agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI / QwenPaw）
 
 let registered = false;
 
@@ -24,5 +25,6 @@ export function ensurePluginsRegistered(): void {
     registerPlugin(unknownCommandPlugin);
     registerPlugin(openclawAgentPlugin);
     registerPlugin(snailaiAgentPlugin);
+    registerPlugin(qwenpawAgentPlugin);
     registered = true;
 }
