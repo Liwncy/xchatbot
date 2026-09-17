@@ -84,7 +84,7 @@ XBOT_CHANNEL_AUTO_FORWARD = "true"
 # ── 大脑 ──────────────────────────────────────────────────────────────────────
 # 未设或 openclaw 走 OpenClaw；snailai 走 SnailAI；qwenpaw 走 QwenPaw 频道插件。
 # Worker 不能用 IP 直连（Cloudflare 1003），QwenPaw / SnailAI 都要域名。
-# AGENT_BRAIN = "openclaw"
+AGENT_BRAIN = "openclaw"
 # SNAIL_AI_BASE_URL = "http://snailai.example.com:8900"
 # SNAIL_AI_APP_ID = "1"
 # SNAIL_AI_PREFIX = "snail-ai"
@@ -94,8 +94,8 @@ XBOT_CHANNEL_AUTO_FORWARD = "true"
 
 # ── QwenPaw 频道 ──────────────────────────────────────────────────────────────
 # QWENPAW_TOKEN（secret，未设则回退 AGENT_BRIDGE_TOKEN）
-AGENT_BRAIN = "qwenpaw"
-QWENPAW_BASE_URL = "https://summary-stronger-usual-automotive.trycloudflare.com"
+# AGENT_BRAIN = "qwenpaw"
+# QWENPAW_BASE_URL = "https://summary-stronger-usual-automotive.trycloudflare.com"
 # QWENPAW_TIMEOUT_MS = "120000"
 
 # ── MCP ───────────────────────────────────────────────────────────────────────
