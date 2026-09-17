@@ -156,6 +156,17 @@ function rewriteHelpHash(response: HandlerResponse, from: string, to: string): H
     return rewrite(response);
 }
 
+const voice: MapFn = (result) => {
+    const raw = asRecord(result.raw);
+    const url = pickUrl(raw, ['url', 'audioUrl', 'audio_url']);
+    if (!url) return mapMcpResult(result, '没念出来，再试下');
+    const duration = typeof raw?.duration === 'number' && raw.duration > 0
+        ? String(Math.round(raw.duration))
+        : '';
+    const format = str(raw?.format) || 'mp3';
+    return parseRepliesFromText(duration ? `audio:${url}|${duration}|${format}` : `audio:${url}||${format}`);
+};
+
 const image: MapFn = (result) => {
     const raw = asRecord(result.raw);
     const url = pickUrl(raw, ['url', 'imageUrl', 'image_url']);
@@ -409,6 +420,7 @@ const MAPPERS: Record<MapperName, MapFn> = {
     'video-job': videoJob,
     'parse-video': parseVideo,
     emoji,
+    voice,
 };
 
 // ── 入口 ──────────────────────────────────────────────

@@ -66,7 +66,8 @@ export type MapperName =
     | 'adventure'
     | 'video-job'
     | 'parse-video'
-    | 'emoji';
+    | 'emoji'
+    | 'voice';
 
 type RouteBase = {
     /** 不写则打 `cf`。 */
@@ -185,6 +186,31 @@ function drawArgs(ctx: CallCtx): ArgsResult {
     return promptArg('prompt', `画什么写后面，比如 #${ctx.verb} 一只猫`)(ctx);
 }
 
+function voiceListArgs(ctx: CallCtx): ArgsResult {
+    const parts = ctx.tail.split(/\s+/u).filter(Boolean);
+    const last = parts.at(-1) ?? '';
+    let page = 1;
+    let query = ctx.tail.trim();
+    if (parts.length && /^\d+$/u.test(last)) {
+        page = Math.max(1, Number(last));
+        query = parts.slice(0, -1).join(' ');
+    }
+    return ok({
+        ...(query ? {query} : {}),
+        ...(page > 1 ? {page} : {}),
+    });
+}
+
+function speechArgs(ctx: CallCtx): ArgsResult {
+    if (!ctx.tail) return need(`要念的字写后面，比如 #${ctx.verb} 你好呀`);
+    const parts = ctx.tail.split(/\s+/u).filter(Boolean);
+    const first = parts[0] ?? '';
+    if (parts.length >= 2) {
+        return ok({text: parts.slice(1).join(' '), voice: first, fallbackText: ctx.tail});
+    }
+    return ok({text: ctx.tail});
+}
+
 function searchArgs(ctx: CallCtx): ArgsResult {
     return promptArg('query', `搜什么写后面，比如 #${ctx.verb} 今天新闻`)(ctx);
 }
@@ -296,9 +322,11 @@ function xuanxueArgs(ctx: CallCtx): ArgsResult {
 
 /** 动词口令。更长的优先，所以「修仙探索」不会被前缀「修仙」吃掉。 */
 export const VERBS: VerbRoute[] = [
-    // 图 / 视频
+    // 图 / 语音 / 视频
     {verbs: ['画图'], tool: 'draw_image', fail: '没画成，再试下', args: drawArgs, map: 'image'},
     {verbs: ['快画'], tool: 'draw_image_fast', fail: '没画成，再试下', args: drawArgs, map: 'image'},
+    {verbs: ['朗读'], tool: 'synthesize_speech', fail: '没念出来，再试下', args: speechArgs, map: 'voice'},
+    {verbs: ['音色'], tool: 'list_speech_voices', fail: '音色没查到', args: voiceListArgs, map: 'reply'},
     {verbs: ['识图'], tool: 'recognize_image', fail: '没认出来，再试下', args: imageUrlArgs, map: 'json'},
     {verbs: ['做视频'], tool: 'submit_agnes_video', fail: '没交出去，再试下', args: videoPromptArgs, map: 'video-job'},
     {verbs: ['查视频'], tool: 'query_agnes_video', fail: '还没做好', args: (ctx) => ctx.tail ? ok({videoId: ctx.tail.split(/\s+/u)[0]}) : need('把视频 id 写后面，比如 #查视频 abcd'), map: 'video'},
