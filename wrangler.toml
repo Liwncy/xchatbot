@@ -107,3 +107,9 @@ XIUXIAN_PLATFORM = "agbot"
 # 上线前改成 false。
 WEB_ADAPTER_ENABLED = "true"
 # WEB_ADAPTER_TOKEN（secret，可选）
+
+# silk-wasm：按二进制打包，Golem 发送前把 WAV/PCM 转成微信 SILK
+[[rules]]
+globs = ["**/*.wasm"]
+type = "Data"
+fallthrough = true

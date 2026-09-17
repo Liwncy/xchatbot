@@ -163,7 +163,7 @@ const voice: MapFn = (result) => {
     const duration = typeof raw?.duration === 'number' && raw.duration > 0
         ? String(Math.round(raw.duration))
         : '';
-    const format = str(raw?.format) || 'mp3';
+    const format = str(raw?.format) || 'wav';
     return parseRepliesFromText(duration ? `audio:${url}|${duration}|${format}` : `audio:${url}||${format}`);
 };
 

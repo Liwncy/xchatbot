@@ -106,15 +106,20 @@ export class GolemApi {
 
     async sendVoice(params: {
         receiver: string;
-        voiceUrl: string;
         duration: number;
         format: number;
+        voiceUrl?: string;
+        voice?: Blob;
     }): Promise<ApiResponse> {
         const form = new FormData();
         form.append('receiver', params.receiver);
-        form.append('voice_url', params.voiceUrl);
         form.append('duration', String(params.duration));
         form.append('format', String(params.format));
+        if (params.voice) {
+            form.append('voice', params.voice, 'voice.silk');
+        } else if (params.voiceUrl) {
+            form.append('voice_url', params.voiceUrl);
+        }
         const response = await fetch(`${this.baseUrl}/api/message/voice`, {
             method: 'POST',
             body: form,

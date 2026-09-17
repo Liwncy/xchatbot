@@ -8,6 +8,7 @@ import type {ApiResponse} from './types.js';
 import type {SendReceipt} from '../types.js';
 import {GolemApi} from './api.js';
 import {buildMusicAppXml} from './music-xml.js';
+import {fetchAndEncodeGolemVoice} from './silk.js';
 
 const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
     image: '图没发出去',
@@ -68,22 +69,6 @@ function looksLikeHttp(value?: string): value is string {
     return lower.startsWith('http://') || lower.startsWith('https://');
 }
 
-function voiceDurationMs(duration?: number): number {
-    if (!duration || duration <= 0) return 1000;
-    return duration <= 180 ? duration * 1000 : duration;
-}
-
-function voiceFormat(raw?: string): number {
-    if (!raw) return 2;
-    if (/^\d+$/u.test(raw)) return Number(raw);
-    const lower = raw.trim().toLowerCase();
-    if (lower.includes('amr')) return 0;
-    if (lower.includes('speex')) return 1;
-    if (lower.includes('wav')) return 3;
-    if (lower.includes('silk')) return 4;
-    return 2;
-}
-
 async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage): Promise<ApiResponse> {
     switch (reply.type) {
         case 'text':
@@ -112,13 +97,22 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage):
                 thumb: reply.thumbUrl ? undefined : new Blob([DEFAULT_THUMB_JPEG], {type: 'image/jpeg'}),
                 duration: reply.duration && reply.duration > 0 ? reply.duration : 10,
             });
-        case 'voice':
-            return api.sendVoice({
-                receiver,
-                voiceUrl: reply.url,
-                duration: voiceDurationMs(reply.duration),
-                format: voiceFormat(reply.format),
-            });
+        case 'voice': {
+            try {
+                const silk = await fetchAndEncodeGolemVoice(reply.url);
+                return api.sendVoice({
+                    receiver,
+                    voice: silk.blob,
+                    duration: silk.durationMs,
+                    format: silk.format,
+                });
+            } catch (error) {
+                logger.warn('Golem 语音转 silk 失败，降级成链接', {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                return {code: -1, message: 'silk encode failed'};
+            }
+        }
         case 'music': {
             if (looksLikeHttp(reply.dataUrl)) {
                 const music = buildMusicAppXml({
