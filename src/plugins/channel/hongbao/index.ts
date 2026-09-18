@@ -19,11 +19,11 @@ export const hongbaoPlugin: Plugin = {
             && Boolean(ctx.adapter?.claimHongbao);
     },
     async handle(message, ctx): Promise<HandlerResponse> {
-        return claimHongbao(message, ctx);
+        return grabInboundHongbao(message, ctx);
     },
 };
 
-async function claimHongbao(message: IncomingMessage, ctx: PluginContext): Promise<HandlerResponse> {
+async function grabInboundHongbao(message: IncomingMessage, ctx: PluginContext): Promise<HandlerResponse> {
     const nativeUrl = message.hongbao?.nativeUrl?.trim() ?? '';
     const claim = ctx.adapter?.claimHongbao;
     if (!nativeUrl || !claim) return handledReply();

@@ -65,7 +65,7 @@ assert.equal(parseHongbaoMessage('你好'), null);
     assert.match(message?.rawXml ?? '', /<type>2001<\/type>/u);
 }
 
-assert.equal(THANKS_LINES.length, 20);
+assert.equal(THANKS_LINES.length, 29);
 assert.equal(new Set(THANKS_LINES).size, THANKS_LINES.length);
 {
     const reply = thanksReply({
