@@ -92,18 +92,16 @@ export async function handleGolemWebhook(
     }
 
     if (sendTasks.length > 0 && adapter) {
-        ctx.waitUntil((async () => {
-            for (const task of sendTasks) {
-                try {
-                    await adapter.send(task.message, task.replies, env);
-                } catch (error) {
-                    logger.error('Golem 发送失败', {
-                        messageId: task.message.messageId,
-                        error: error instanceof Error ? error.message : String(error),
-                    });
-                }
+        for (const task of sendTasks) {
+            try {
+                await adapter.send(task.message, task.replies, env);
+            } catch (error) {
+                logger.error('Golem 发送失败', {
+                    messageId: task.message.messageId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
             }
-        })());
+        }
     }
 
     return json({success: true});

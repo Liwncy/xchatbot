@@ -8,7 +8,7 @@ import type {ApiResponse} from './types.js';
 import type {SendReceipt} from '../types.js';
 import {GolemApi} from './api.js';
 import {buildMusicAppXml} from './music-xml.js';
-import {fetchAndEncodeGolemVoice} from './silk.js';
+import {encodeAudioUrlToSilk} from '../../utils/silk/index.js';
 
 const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
     image: '图没发出去',
@@ -69,7 +69,7 @@ function looksLikeHttp(value?: string): value is string {
     return lower.startsWith('http://') || lower.startsWith('https://');
 }
 
-async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage): Promise<ApiResponse> {
+async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, env: Env): Promise<ApiResponse> {
     switch (reply.type) {
         case 'text':
             return api.sendText({
@@ -99,15 +99,22 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage):
             });
         case 'voice': {
             try {
-                const silk = await fetchAndEncodeGolemVoice(reply.url);
-                return api.sendVoice({
-                    receiver,
-                    voice: silk.blob,
-                    duration: silk.durationMs,
-                    format: silk.format,
-                });
+                const parts = await encodeAudioUrlToSilk(reply.url, env);
+                if (!parts.length) return {code: -1, message: 'silk encode failed'};
+                let last: ApiResponse = {code: -1, message: 'silk encode failed'};
+                for (const [index, silk] of parts.entries()) {
+                    if (index > 0) await new Promise((resolve) => setTimeout(resolve, 250));
+                    last = await api.sendVoice({
+                        receiver,
+                        voice: silk.blob,
+                        duration: silk.durationMs,
+                        format: silk.format,
+                    });
+                }
+                return last.code === 0 ? last : {...last, code: 0};
             } catch (error) {
                 logger.warn('Golem 语音转 silk 失败，降级成链接', {
+                    url: reply.url,
                     error: error instanceof Error ? error.message : String(error),
                 });
                 return {code: -1, message: 'silk encode failed'};
@@ -188,13 +195,15 @@ function degrade(reply: ReplyMessage): ReplyMessage | null {
     }
 }
 
-async function sendOne(api: GolemApi, receiver: string, reply: ReplyMessage): Promise<ApiResponse> {
-    const first = await sendNative(api, receiver, reply);
+async function sendOne(api: GolemApi, receiver: string, reply: ReplyMessage, env: Env): Promise<ApiResponse> {
+    const first = await sendNative(api, receiver, reply, env);
     if (first.code === 0) return first;
+    // 语音文件已经递进 Golem 后再补链接，会变成「气泡 + 卡片」两条。
+    if (reply.type === 'voice' && first.message !== 'silk encode failed') return first;
     const next = degrade(reply);
     if (!next) return first;
     logger.warn('Golem 降级发送', {from: reply.type, to: next.type});
-    return sendNative(api, receiver, next);
+    return sendNative(api, receiver, next, env);
 }
 
 function toReceipt(result: ApiResponse): SendReceipt {
@@ -250,7 +259,7 @@ export async function sendGolemReplies(
         const target = reply.to ?? receiver;
         let receipt: SendReceipt;
         try {
-            const result = await sendOne(api, target, reply);
+            const result = await sendOne(api, target, reply, env);
             receipt = toReceipt(result);
             if (!receipt.ok) {
                 logger.error('Golem 发送失败', {

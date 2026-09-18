@@ -24,6 +24,44 @@ function serializeRevokeParam(params: RevokeParam): string {
     return `{${fields.join(',')}}`;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+    return value && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : undefined;
+}
+
+function pickCode(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && /^-?\d+$/u.test(value.trim())) return Number(value.trim());
+    return undefined;
+}
+
+function looksDelivered(rec: Record<string, unknown>): boolean {
+    if (rec.new_id != null || rec.size != null || rec.id != null || rec.end_flag != null) return true;
+    const list = Array.isArray(rec.list) ? asRecord(rec.list[0]) : undefined;
+    return Boolean(list && (pickCode(list.code) === 0 || list.new_id != null));
+}
+
+/** 文件上传成功时 Golem 常把语音包直接摊在根上，没有顶层 code。 */
+function asApiResponse(raw: unknown): ApiResponse {
+    const rec = asRecord(raw);
+    if (!rec) return {code: -1, message: 'invalid response', data: raw};
+    const data = asRecord(rec.data);
+    const nested = asRecord(data?.base_response) ?? asRecord(rec.base_response);
+    const payload = data ?? rec;
+    const topCode = pickCode(rec.code);
+    const nestedCode = pickCode(nested?.code);
+    return {
+        code: topCode ?? nestedCode ?? (looksDelivered(payload) || looksDelivered(rec) ? 0 : -1),
+        message: typeof rec.message === 'string'
+            ? rec.message
+            : typeof nested?.message === 'string'
+                ? nested.message
+                : '',
+        data: rec.data !== undefined ? rec.data : raw,
+    };
+}
+
 export class GolemApi {
     private readonly baseUrl: string;
 
@@ -124,7 +162,7 @@ export class GolemApi {
             method: 'POST',
             body: form,
         });
-        return response.json() as Promise<ApiResponse>;
+        return asApiResponse(await response.json());
     }
 
     async sendApp(params: {receiver: string; appType: number; xml: string}): Promise<ApiResponse> {

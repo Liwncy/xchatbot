@@ -67,6 +67,7 @@ BOT_WECHAT_NAME = "小聪明儿"
 # ── Golem / 微信通道 ──────────────────────────────────────────────────────────
 # WECHAT_TOKEN（secret）
 WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
+# SILK_CONVERT_URL = "https://api.chrelyonly.cn/convert"  # 默认已用这个；设 off 则只用本地 wasm
 
 # ── 日志 ──────────────────────────────────────────────────────────────────────
 CHAT_LOG_ENABLE = "true"
@@ -108,8 +109,8 @@ XIUXIAN_PLATFORM = "agbot"
 WEB_ADAPTER_ENABLED = "true"
 # WEB_ADAPTER_TOKEN（secret，可选）
 
-# silk-wasm：按二进制打包，Golem 发送前把 WAV/PCM 转成微信 SILK
+# silk-wasm：部署时预编译，Worker 运行时不能从字节再编译 wasm
 [[rules]]
 globs = ["**/*.wasm"]
-type = "Data"
+type = "CompiledWasm"
 fallthrough = true

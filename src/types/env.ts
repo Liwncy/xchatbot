@@ -59,6 +59,12 @@ export interface Env {
     /** 可选。设置后 POST /adapter/web/message 需要 Bearer。 */
     WEB_ADAPTER_TOKEN?: string;
 
+    /**
+     * 远程 WAV/MP3 → SILK。默认 `https://api.chrelyonly.cn/convert`。
+     * 设为 `off` 则只用本地 wasm。
+     */
+    SILK_CONVERT_URL?: string;
+
     /** 会话记录。未设或 true 时写入 D1 chat_message。 */
     CHAT_LOG_ENABLE?: string;
     /** 运行日志。未设或 true 时把 warn/error 写入 D1 app_log。 */
