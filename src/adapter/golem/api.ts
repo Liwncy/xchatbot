@@ -289,6 +289,18 @@ export class GolemApi {
         return response.json() as Promise<ApiResponse>;
     }
 
+    async grabHongbao(params: {nativeUrl: string; inWay: 0 | 1}): Promise<ApiResponse> {
+        const response = await fetch(`${this.baseUrl}/api/payment/hongbao/grab`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                native_url: params.nativeUrl,
+                in_way: params.inWay,
+            }),
+        });
+        return asApiResponse(await response.json());
+    }
+
     async revokeMessage(params: RevokeParam): Promise<ApiResponse> {
         const response = await fetch(`${this.baseUrl}/api/message/revoke`, {
             method: 'POST',

@@ -14,6 +14,8 @@ export function getAdapter(platform: string): ChannelAdapter | undefined {
 export type {
     ChannelAdapter,
     DirectoryPerson,
+    HongbaoClaimResult,
+    HongbaoScene,
     RevokeReason,
     RevokeResult,
     RoomMember,

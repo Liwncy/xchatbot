@@ -1,4 +1,5 @@
 import type {IncomingMessage, MessageSource} from '../../core/message.js';
+import {parseHongbaoMessage} from './parse-hongbao.js';
 import {parseInboundMedia, wechatTypeToMessageType} from './parse-media.js';
 import {resolveMentions} from './parse-mentions.js';
 import {parseWechatReferMessage} from './parse-refer.js';
@@ -109,12 +110,22 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
     if (source === 'group') {
         message.room = {id: resolveRoomId(item)};
     }
+    if (rawContent.includes('<')) {
+        message.rawXml = rawContent;
+    }
 
     const body = source === 'group' ? groupMeta.content : rawContent;
     const mentions = resolveMentions(body, item.source, item.msg_source);
     if (mentions.length) message.mentions = mentions;
 
     if (msgType === 'link') {
+        const hongbao = parseHongbaoMessage(body);
+        if (hongbao) {
+            message.type = 'hongbao';
+            message.content = hongbao.title;
+            message.hongbao = {nativeUrl: hongbao.nativeUrl};
+            return message;
+        }
         const parsedRefer = parseWechatReferMessage(body);
         if (parsedRefer) {
             message.content = parsedRefer.title.trim() || undefined;

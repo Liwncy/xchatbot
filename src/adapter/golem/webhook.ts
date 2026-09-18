@@ -3,6 +3,7 @@ import type {IncomingMessage} from '../../core/message.js';
 import type {ReplyMessage} from '../../core/reply.js';
 import {toReplyArray} from '../../core/reply.js';
 import {runPipeline} from '../../core/pipeline.js';
+import {runWithLogContext} from '../../core/app-log/context.js';
 import {logger} from '../../utils/logger.js';
 import {ensurePluginsRegistered} from '../../plugins/register.js';
 import {resolveOwnerId} from '../../core/bot.js';
@@ -61,12 +62,24 @@ export async function handleGolemWebhook(
         return json({success: true, skipped: true, reason: 'expired'});
     }
 
+    ctx.waitUntil(runWithLogContext(
+        {env, waitUntil: (promise) => ctx.waitUntil(promise)},
+        () => processGolemInbound(activeMessages, env, ctx),
+    ));
+    return json({success: true, accepted: activeMessages.length});
+}
+
+async function processGolemInbound(
+    messages: IncomingMessage[],
+    env: Env,
+    ctx: ExecutionContext,
+): Promise<void> {
     const adapter = getAdapter('golem');
     const sendTasks: Array<{message: IncomingMessage; replies: ReplyMessage[]}> = [];
-
     const botId = env.BOT_WECHAT_ID?.trim() ?? '';
     const ownerId = resolveOwnerId(env, 'golem');
-    for (const message of activeMessages) {
+
+    for (const message of messages) {
         if (botId && message.from.trim() === botId) {
             continue;
         }
@@ -78,31 +91,35 @@ export async function handleGolemWebhook(
             logger.info('入站已跳过', {reason: 'dm-allowlist', from: message.from, messageId: message.messageId});
             continue;
         }
-        await recordInboundChatMessage(env, message);
-        const response = await runPipeline(message, {
-            env,
-            requestId: message.messageId,
-            waitUntil: (promise) => ctx.waitUntil(promise),
-            adapter,
-        });
-        const replies = toReplyArray(response);
-        if (replies.length > 0) {
-            sendTasks.push({message, replies});
-        }
-    }
-
-    if (sendTasks.length > 0 && adapter) {
-        for (const task of sendTasks) {
-            try {
-                await adapter.send(task.message, task.replies, env);
-            } catch (error) {
-                logger.error('Golem 发送失败', {
-                    messageId: task.message.messageId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
+        try {
+            await recordInboundChatMessage(env, message);
+            const response = await runPipeline(message, {
+                env,
+                requestId: message.messageId,
+                waitUntil: (promise) => ctx.waitUntil(promise),
+                adapter,
+            });
+            const replies = toReplyArray(response);
+            if (replies.length > 0) {
+                sendTasks.push({message, replies});
             }
+        } catch (error) {
+            logger.error('入站处理失败', {
+                messageId: message.messageId,
+                error: error instanceof Error ? error.message : String(error),
+            });
         }
     }
 
-    return json({success: true});
+    if (sendTasks.length === 0 || !adapter) return;
+    for (const task of sendTasks) {
+        try {
+            await adapter.send(task.message, task.replies, env);
+        } catch (error) {
+            logger.error('Golem 发送失败', {
+                messageId: task.message.messageId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
 }

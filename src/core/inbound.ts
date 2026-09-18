@@ -87,6 +87,7 @@ function readableQuoteText(quote: QuoteRef): string {
 }
 
 function captionForType(message: IncomingMessage): string {
+    if (message.type === 'hongbao') return '[红包]';
     const userText = message.content?.trim() ?? '';
     if (userText && !userText.startsWith('[')) return userText;
     switch (message.type) {

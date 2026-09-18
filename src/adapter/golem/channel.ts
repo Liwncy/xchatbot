@@ -1,7 +1,7 @@
 import {resolveChatId} from '../../core/context.js';
 import type {ChatRecordReply, ReplyMessage} from '../../core/reply.js';
 import type {Env} from '../../types/env.js';
-import type {ChannelAdapter, DirectoryPerson, RevokeResult, RoomMember} from '../types.js';
+import type {ChannelAdapter, DirectoryPerson, HongbaoClaimResult, RevokeResult, RoomMember} from '../types.js';
 import {buildRevokeParam, GolemApi} from './api.js';
 import {emitChatRecordLine} from './chat-record.js';
 import {isDirectoryMiss, mapDirectoryPeople} from './directory.js';
@@ -74,8 +74,46 @@ export const golemAdapter: ChannelAdapter = {
         if (reply.type === 'app') return `app:${reply.appType} ${reply.xml}`;
         return null;
     },
+
+    async claimHongbao(nativeUrl, scene, env): Promise<HongbaoClaimResult> {
+        const api = golemApi(env);
+        if (!api) return {ok: false, reason: 'unavailable'};
+        const result = await api.grabHongbao({
+            nativeUrl,
+            inWay: scene === 'group' ? 0 : 1,
+        });
+        if (result.code !== 0) return {ok: false, reason: 'failed'};
+        return {ok: true, amountFen: pickHongbaoAmount(result.data)};
+    },
 };
 
 function emitChatRecord(reply: ChatRecordReply): string {
     return emitChatRecordLine(reply.items, reply.title, reply.summary, reply.desc);
+}
+
+function pickHongbaoAmount(data: unknown): number | undefined {
+    const rec = data && typeof data === 'object' && !Array.isArray(data)
+        ? data as Record<string, unknown>
+        : undefined;
+    if (!rec) return undefined;
+    const direct = rec.amount ?? rec.rec_amount ?? rec.receive_amount ?? rec.recAmount;
+    if (typeof direct === 'number' && Number.isFinite(direct) && direct > 0) return Math.floor(direct);
+    if (typeof direct === 'string' && /^\d+$/u.test(direct.trim())) return Number(direct.trim());
+
+    const text = rec.text;
+    const raw = typeof text === 'string'
+        ? text
+        : text && typeof text === 'object' && !Array.isArray(text) && typeof (text as {buffer?: unknown}).buffer === 'string'
+            ? (text as {buffer: string}).buffer
+            : '';
+    if (!raw) return undefined;
+    try {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        const amount = parsed.amount ?? parsed.rec_amount ?? parsed.receive_amount ?? parsed.recAmount;
+        if (typeof amount === 'number' && Number.isFinite(amount) && amount > 0) return Math.floor(amount);
+        if (typeof amount === 'string' && /^\d+$/u.test(amount.trim())) return Number(amount.trim());
+    } catch {
+        return undefined;
+    }
+    return undefined;
 }

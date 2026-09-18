@@ -1,6 +1,6 @@
 export type MessageSource = 'private' | 'group' | 'official';
 
-export type MessageType = 'text' | 'image' | 'emoji' | 'voice' | 'video' | 'link' | 'unknown';
+export type MessageType = 'text' | 'image' | 'emoji' | 'voice' | 'video' | 'link' | 'hongbao' | 'unknown';
 
 export interface QuoteMessageId {
     newId: number;
@@ -52,5 +52,8 @@ export interface IncomingMessage {
     quote?: QuoteRef;
     media?: InboundMedia;
     mentions?: MentionRef[];
+    hongbao?: {nativeUrl: string};
+    /** Golem 推过来的原文，一般是 type=49 的 XML。 */
+    rawXml?: string;
     raw: unknown;
 }

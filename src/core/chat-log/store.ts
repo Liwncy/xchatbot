@@ -62,6 +62,8 @@ function inboundContent(message: IncomingMessage): string {
             return '[视频]';
         case 'link':
             return clip(message.quote?.title?.trim() || message.content?.trim() || '[链接]');
+        case 'hongbao':
+            return '[红包]';
         default:
             return clip(message.content?.trim() ?? '');
     }
@@ -73,6 +75,8 @@ function inboundPayload(message: IncomingMessage): string {
     if (message.mentions?.length) payload.mentions = message.mentions;
     const media = message.media ?? message.quote?.media;
     if (media) payload.media = media;
+    const rawXml = message.rawXml?.trim();
+    if (rawXml) payload.rawXml = clip(rawXml);
     return JSON.stringify(payload);
 }
 

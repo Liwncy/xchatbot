@@ -39,6 +39,14 @@ export interface RoomMember {
     avatarUrl?: string;
 }
 
+export type HongbaoScene = 'group' | 'private';
+
+export interface HongbaoClaimResult {
+    ok: boolean;
+    amountFen?: number;
+    reason?: 'unavailable' | 'failed';
+}
+
 export interface ChannelAdapter {
     readonly platform: string;
     send(message: IncomingMessage, replies: ReplyMessage[], env: Env): Promise<SendReceipt[]>;
@@ -46,4 +54,5 @@ export interface ChannelAdapter {
     searchDirectory?(query: string, env: Env): Promise<DirectoryPerson[]>;
     findRoomMember?(roomId: string, name: string, env: Env): Promise<RoomMember | null>;
     toOutboundText?(reply: ReplyMessage): string | null;
+    claimHongbao?(nativeUrl: string, scene: HongbaoScene, env: Env): Promise<HongbaoClaimResult>;
 }
