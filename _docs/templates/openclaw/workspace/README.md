@@ -26,7 +26,7 @@ openclaw gateway restart
 | `skills/mcp-tools/SKILL.md` | 何时调 CF MCP、怎么填参数 |
 | `skills/outbound-reply/SKILL.md` | 图 / 语音 / 链接卡等怎么写成协议行 |
 
-**办事**：先读 `mcp-tools`。画图/天气等走 CF MCP；查通道记录走 xchatbot 自己的 `/mcp`（`agbot_chat_history` / `agbot_chat_get`）。不要调用已删除的 `xbot_learn_write` / `xbot_chat_history`。  
+**办事**：先读 `mcp-tools`。画图/天气等走 CF MCP；查通道记录和表情库走 xchatbot 自己的 `/mcp`。不要调用已删除的 `xbot_learn_write` / `xbot_chat_history`。  
 **发出去**：非纯文本按 `outbound-reply` 写 `image:` / `audio:` / `link:` 等单独一行。  
 话风只看 `SOUL.md`，没有可切换的说话模式 skill。
 

@@ -48,6 +48,7 @@ export const MCP_SERVERS = {
 } as const satisfies Record<string, McpServerDef>;
 
 export type McpServerId = keyof typeof MCP_SERVERS;
+export type RouteServer = McpServerId | 'local';
 
 /** 把 MCP 返回收成哪类框架回复，实现见 dispatch.ts。 */
 export type MapperName =
@@ -70,8 +71,8 @@ export type MapperName =
     | 'voice';
 
 type RouteBase = {
-    /** 不写则打 `cf`。 */
-    server?: McpServerId;
+    /** 不写则打 `cf`。`local` 走本 Worker，不经过公共 MCP。 */
+    server?: RouteServer;
     tool: string;
     ownerOnly?: boolean;
     fail: string;
@@ -300,7 +301,7 @@ function emojiSaveArgs(ctx: CallCtx): ArgsResult {
     if (!imageUrl && !md5) return need('引用表情或把图链 / md5 写后面');
     return ok({
         ...(md5 ? {md5} : {}),
-        ...(imageUrl ? {imageUrl} : {}),
+        ...(imageUrl ? {imgUrl: imageUrl} : {}),
         description: ctx.tail.replace(imageUrl, '').replace(md5, '').trim() || undefined,
     });
 }
@@ -384,14 +385,14 @@ export const VERBS: VerbRoute[] = [
     {verbs: ['随机图'], tool: 'fetch_yinguo_image', fail: '图没取到', args: (ctx) => ok({allowRaw: ctx.tail === '原图'}), map: 'image'},
     {verbs: ['解析视频'], tool: 'parse_short_video', fail: '这条解析不了', args: parseVideoArgs, map: 'parse-video'},
     // 表情 / 时间 / 回声
-    {verbs: ['搜表情'], tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #搜表情'), map: 'emoji'},
-    {verbs: ['收藏表情'], tool: 'emoji_save', ownerOnly: true, fail: '没存上', args: emojiSaveArgs, map: 'emoji'},
-    {verbs: ['取表情'], tool: 'emoji_get', fail: '没找着', args: (ctx) => {
+    {verbs: ['搜表情'], server: 'local', tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #搜表情'), map: 'emoji'},
+    {verbs: ['收藏表情'], server: 'local', tool: 'emoji_save', ownerOnly: true, fail: '没存上', args: emojiSaveArgs, map: 'emoji'},
+    {verbs: ['取表情'], server: 'local', tool: 'emoji_get', fail: '没找着', args: (ctx) => {
         if (!ctx.tail) return need('名字或 md5 写后面');
         const md5 = md5Of(ctx.tail);
         return ok(md5 ? {md5} : {name: ctx.tail});
     }, map: 'emoji'},
-    {verbs: ['改表情'], tool: 'emoji_update', ownerOnly: true, fail: '没改成', args: (ctx) => {
+    {verbs: ['改表情'], server: 'local', tool: 'emoji_update', ownerOnly: true, fail: '没改成', args: (ctx) => {
         const parts = ctx.tail.split(/\s+/u).filter(Boolean);
         if (parts.length < 2) return need('名字和新说明写后面，比如 #改表情 摊手 无奈');
         return ok({name: parts[0], description: parts.slice(1).join(' ')});

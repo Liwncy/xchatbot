@@ -1,6 +1,6 @@
 # xchatbot
 
-Cloudflare Worker 上的薄核：收协议、做门禁、拼给大脑的正文。玩法 MCP 在 `cf-mcp-tools`，通道记录 MCP 在本 Worker `/mcp`。
+Cloudflare Worker 上的薄核：收协议、做门禁、拼给大脑的正文。玩法 MCP 在 `cf-mcp-tools`，通道记录和表情库 MCP 在本 Worker `/mcp`。
 
 ## 分工
 
@@ -11,7 +11,7 @@ Cloudflare Worker 上的薄核：收协议、做门禁、拼给大脑的正文�
 | command | `#` 快捷调用 MCP 工具；未识别的 `#` 口令 | 自然语言办事 |
 | core | 身份前缀、近窗上下文、演法垫、查记录 | 某个大脑的协议 |
 | agent | 把已拼好的正文交给当前大脑 | 口令、门禁、演法绑定 |
-| MCP | `cf-mcp-tools` 画图等；本 Worker `/mcp` 查记录、查运行日志 | 出站协议 |
+| MCP | `cf-mcp-tools` 画图等；本 Worker `/mcp` 查记录、查运行日志、表情库 | 出站协议 |
 
 ## 一条消息
 

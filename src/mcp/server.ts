@@ -2,8 +2,18 @@ import {McpServer} from '@modelcontextprotocol/server';
 import {z} from 'zod';
 import {getChatHistoryByMessageId, searchChatHistory} from '../core/chat-log/search.js';
 import {searchAppLogs} from '../core/app-log/search.js';
+import {emojiGet, emojiSave, emojiSearch, emojiUpdate} from '../core/emoji-stash/index.js';
 import {runFakeForward} from '../plugins/channel/fake-forward/index.js';
 import type {Env} from '../types/env.js';
+
+function jsonResult(value: unknown) {
+    return textResult(JSON.stringify(value, null, 2));
+}
+
+function errorResult(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {content: [{type: 'text' as const, text: message}], isError: true};
+}
 
 function textResult(text: string) {
     return {content: [{type: 'text' as const, text}]};
@@ -114,6 +124,114 @@ export function createChannelMcpServer(env: Env): McpServer {
             }),
         },
         async (input) => textResult(await runFakeForward(env, input)),
+    );
+
+    server.registerTool(
+        'emoji_search',
+        {
+            description:
+                '搜通道自己的表情/梗图库。用中文搜，如 无奈、猫、摊手。'
+                + '有 md5 的按指纹发表情，没有就用 imgUrl 当普通图。默认只搜启用的；includeInactive 才带停用/损坏。'
+                + '闲聊接话不要调。',
+            inputSchema: z.object({
+                query: z.string().describe('搜索词，如 无奈 / 猫'),
+                category: z.string().optional()
+                    .describe('可选分类：funny|meme|cute|react|sad|angry|love|animal|work|misc'),
+                includeInactive: z.boolean().optional().describe('是否包含未启用'),
+                limit: z.number().int().min(1).max(30).optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                return jsonResult(await emojiSearch(env, {
+                    query: input.query,
+                    category: input.category,
+                    includeInactive: Boolean(input.includeInactive),
+                    limit: input.limit,
+                }));
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'emoji_save',
+        {
+            description:
+                '把表情/梗图存进通道图库。至少给 md5 或 imgUrl。'
+                + '从聊天记录收藏时用返回行里的 md5= / url=，不要编。'
+                + '改名字说明标签请用 emoji_update，不要再用本工具。闲聊不要自动乱存。',
+            inputSchema: z.object({
+                md5: z.string().optional().describe('32 位十六进制指纹，可空'),
+                imgUrl: z.string().optional().describe('公网图链'),
+                name: z.string().optional(),
+                description: z.string().optional().describe('中文一句，给搜索用'),
+                tags: z.array(z.string()).optional().describe('中文关键词，如 [无奈, 摊手]'),
+                category: z.string().optional(),
+                status: z.string().optional().describe('pending|active|disabled|broken'),
+                mime: z.string().optional(),
+                source: z.string().optional(),
+                width: z.number().int().optional(),
+                height: z.number().int().optional(),
+                size: z.number().int().optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                return jsonResult(await emojiSave(env, input));
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'emoji_get',
+        {
+            description: '按 md5 或 name 取一条图库记录（含未启用）。',
+            inputSchema: z.object({
+                md5: z.string().optional(),
+                name: z.string().optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                const item = await emojiGet(env, input);
+                return jsonResult(item ?? {found: false});
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'emoji_update',
+        {
+            description:
+                '按主人反馈改已有图库条目。用 md5 / name / id 定位，只改给到的字段。'
+                + '不自动新建，不猜图。',
+            inputSchema: z.object({
+                md5: z.string().optional().describe('按当前 md5 定位'),
+                name: z.string().optional().describe('按当前 name 定位'),
+                id: z.number().int().optional(),
+                newName: z.string().optional(),
+                description: z.string().optional(),
+                tags: z.array(z.string()).optional(),
+                category: z.string().optional(),
+                status: z.string().optional(),
+                mime: z.string().optional(),
+                imgUrl: z.string().optional(),
+                md5Value: z.string().optional().describe('设置或清空 md5，空字符串清空'),
+            }),
+        },
+        async (input) => {
+            try {
+                return jsonResult(await emojiUpdate(env, input));
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
     );
 
     return server;

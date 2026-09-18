@@ -25,8 +25,9 @@ import {
     type CallCtx,
     type MapperName,
     type MatchedRoute,
-    type McpServerId,
+    type RouteServer,
 } from './catalog.js';
+import {emojiGet, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
 
 type MapFn = (result: McpToolResult, ctx: CallCtx) => HandlerResponse;
 
@@ -85,7 +86,8 @@ function envBinding(env: Env, key: string): string {
     return typeof value === 'string' ? value.trim() : '';
 }
 
-function resolveMcpEndpoint(env: Env, server: McpServerId): {url: string; token?: string} | null {
+function resolveMcpEndpoint(env: Env, server: RouteServer): {url: string; token?: string} | null {
+    if (server === 'local') return {url: 'local'};
     const def = MCP_SERVERS[server];
     if (!def) return null;
     const url = envBinding(env, def.urlEnv) || def.fallbackUrl || '';
@@ -94,12 +96,67 @@ function resolveMcpEndpoint(env: Env, server: McpServerId): {url: string; token?
     return token ? {url, token} : {url};
 }
 
+function asLocalResult(value: unknown): McpToolResult {
+    return {ok: true, raw: value, text: JSON.stringify(value)};
+}
+
+async function callLocalTool(env: Env, name: string, args: Record<string, unknown>): Promise<McpToolResult> {
+    if (name === 'emoji_search') {
+        return asLocalResult(await emojiSearch(env, {
+            query: String(args.query ?? ''),
+            category: typeof args.category === 'string' ? args.category : undefined,
+            includeInactive: Boolean(args.includeInactive),
+            limit: typeof args.limit === 'number' ? args.limit : undefined,
+        }));
+    }
+    if (name === 'emoji_save') {
+        return asLocalResult(await emojiSave(env, {
+            md5: typeof args.md5 === 'string' ? args.md5 : undefined,
+            imgUrl: typeof args.imgUrl === 'string' ? args.imgUrl : undefined,
+            name: typeof args.name === 'string' ? args.name : undefined,
+            description: typeof args.description === 'string' ? args.description : undefined,
+            tags: Array.isArray(args.tags) ? args.tags.map((tag) => String(tag)) : undefined,
+            category: typeof args.category === 'string' ? args.category : undefined,
+            status: typeof args.status === 'string' ? args.status : undefined,
+            mime: typeof args.mime === 'string' ? args.mime : undefined,
+            source: typeof args.source === 'string' ? args.source : undefined,
+            width: typeof args.width === 'number' ? args.width : undefined,
+            height: typeof args.height === 'number' ? args.height : undefined,
+            size: typeof args.size === 'number' ? args.size : undefined,
+        }));
+    }
+    if (name === 'emoji_get') {
+        const item = await emojiGet(env, {
+            md5: typeof args.md5 === 'string' ? args.md5 : undefined,
+            name: typeof args.name === 'string' ? args.name : undefined,
+        });
+        return asLocalResult(item ?? {found: false});
+    }
+    if (name === 'emoji_update') {
+        return asLocalResult(await emojiUpdate(env, {
+            md5: typeof args.md5 === 'string' ? args.md5 : undefined,
+            name: typeof args.name === 'string' ? args.name : undefined,
+            id: typeof args.id === 'number' ? args.id : undefined,
+            newName: typeof args.newName === 'string' ? args.newName : undefined,
+            description: typeof args.description === 'string' ? args.description : undefined,
+            tags: Array.isArray(args.tags) ? args.tags.map((tag) => String(tag)) : undefined,
+            category: typeof args.category === 'string' ? args.category : undefined,
+            status: typeof args.status === 'string' ? args.status : undefined,
+            mime: typeof args.mime === 'string' ? args.mime : undefined,
+            imgUrl: typeof args.imgUrl === 'string' ? args.imgUrl : undefined,
+            md5Value: typeof args.md5Value === 'string' ? args.md5Value : undefined,
+        }));
+    }
+    throw new Error(`local tool missing: ${name}`);
+}
+
 async function callServerMcp(
     env: Env,
-    server: McpServerId,
+    server: RouteServer,
     name: string,
     args: Record<string, unknown>,
 ): Promise<McpToolResult> {
+    if (server === 'local') return callLocalTool(env, name, args);
     const endpoint = resolveMcpEndpoint(env, server);
     if (!endpoint) throw new Error(`MCP server not configured: ${server}`);
     return callMcpTool(endpoint.url, {
@@ -169,7 +226,7 @@ const voice: MapFn = (result) => {
 
 const image: MapFn = (result) => {
     const raw = asRecord(result.raw);
-    const url = pickUrl(raw, ['url', 'imageUrl', 'image_url']);
+    const url = pickUrl(raw, ['url', 'imgUrl', 'imageUrl', 'img_url', 'image_url']);
     if (url) return parseRepliesFromText(`image:${url}`);
     return mapMcpResult(result, '没画成，再试下');
 };
@@ -305,7 +362,7 @@ const emoji: MapFn = (result) => {
     const first = asRecord(Array.isArray(items) ? items[0] : items);
     if (!first) return textReply('没找着');
     const md5 = str(first.md5);
-    const url = pickUrl(first, ['imageUrl', 'url']);
+    const url = pickUrl(first, ['imgUrl', 'imageUrl', 'url']);
     if (md5) return parseRepliesFromText(url ? `emoji:${md5}|${url}` : `emoji:${md5}`);
     if (url) return parseRepliesFromText(`image:${url}`);
     return textReply(str(first.name) || '好了');
@@ -446,7 +503,7 @@ function isTextReply(value: unknown): value is HandlerResponse {
 /** 修仙选肢要先拉 status 拿到当前 version，否则服务端拒。 */
 async function withAdventureVersion(
     ctx: CallCtx,
-    server: McpServerId,
+    server: RouteServer,
     args: Record<string, unknown>,
 ): Promise<Record<string, unknown> | HandlerResponse> {
     if (args.action !== 'choose') return args;
