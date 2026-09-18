@@ -123,6 +123,29 @@ function firstHttpUrl(text: string): string {
     return match?.[0]?.replace(/[)\]}>，。！？,.]+$/u, '') ?? '';
 }
 
+function xmlTagText(xml: string, tag: string): string {
+    const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i').exec(xml);
+    return match?.[1]?.replace(/<[^>]+>/gu, '').trim() ?? '';
+}
+
+function stripQuotedSenderPrefix(text: string): string {
+    const separatorIndex = text.indexOf(':\n');
+    if (separatorIndex <= 0 || separatorIndex > 80) return text;
+    return text.slice(separatorIndex + 2).trim() || text;
+}
+
+/** 引用消息里能当口令参数的正文。不要用 quote.title，那是自己刚打的字。 */
+export function quotedArgText(message: IncomingMessage): string {
+    const raw = message.quote?.referContent?.trim() ?? '';
+    if (!raw) return '';
+    if (!raw.includes('<')) return stripQuotedSenderPrefix(raw);
+    return xmlTagText(raw, 'title') || xmlTagText(raw, 'des') || xmlTagText(raw, 'desc');
+}
+
+function argText(ctx: CallCtx): string {
+    return ctx.tail.trim() || quotedArgText(ctx.message);
+}
+
 function mediaUrl(message: IncomingMessage, tail: string): string {
     return firstHttpUrl(tail)
         || message.media?.publicUrl?.trim()
@@ -179,11 +202,14 @@ function parsePairs(raw: string): Record<string, string> {
 }
 
 function promptArg(field: string, hint: string) {
-    return (ctx: CallCtx): ArgsResult => ctx.tail ? ok({[field]: ctx.tail}) : need(hint);
+    return (ctx: CallCtx): ArgsResult => {
+        const text = argText(ctx);
+        return text ? ok({[field]: text}) : need(hint);
+    };
 }
 
 function drawArgs(ctx: CallCtx): ArgsResult {
-    return promptArg('prompt', `画什么写后面，比如 #${ctx.verb} 一只猫`)(ctx);
+    return promptArg('prompt', `画什么写后面，也可以先引用那条再发 #${ctx.verb}`)(ctx);
 }
 
 function voiceListArgs(ctx: CallCtx): ArgsResult {
@@ -202,17 +228,25 @@ function voiceListArgs(ctx: CallCtx): ArgsResult {
 }
 
 function speechArgs(ctx: CallCtx): ArgsResult {
-    if (!ctx.tail) return need(`要念的字写后面，比如 #${ctx.verb} 你好呀`);
-    const parts = ctx.tail.split(/\s+/u).filter(Boolean);
-    const first = parts[0] ?? '';
-    if (parts.length >= 2) {
-        return ok({text: parts.slice(1).join(' '), voice: first, fallbackText: ctx.tail});
+    const quoted = quotedArgText(ctx.message);
+    const tail = ctx.tail.trim();
+    const parts = tail.split(/\s+/u).filter(Boolean);
+    const voice = parts[0] ?? '';
+
+    if (quoted && parts.length <= 1) {
+        return voice
+            ? ok({text: quoted, voice, fallbackText: quoted})
+            : ok({text: quoted});
     }
-    return ok({text: ctx.tail});
+    if (parts.length >= 2) {
+        return ok({text: parts.slice(1).join(' '), voice, fallbackText: tail});
+    }
+    if (tail) return ok({text: tail});
+    return need(`要念的字写后面，也可以先引用那条再发 #${ctx.verb}`);
 }
 
 function searchArgs(ctx: CallCtx): ArgsResult {
-    return promptArg('query', `搜什么写后面，比如 #${ctx.verb} 今天新闻`)(ctx);
+    return promptArg('query', `搜什么写后面，也可以先引用那条再发 #${ctx.verb}`)(ctx);
 }
 
 function imageUrlArgs(ctx: CallCtx): ArgsResult {
@@ -222,9 +256,10 @@ function imageUrlArgs(ctx: CallCtx): ArgsResult {
 }
 
 function videoPromptArgs(ctx: CallCtx): ArgsResult {
-    if (!ctx.tail) return need('镜头怎么走写后面，比如 #做视频 镜头往前推');
+    const prompt = argText(ctx);
+    if (!prompt) return need('镜头怎么走写后面，也可以先引用那条再发 #做视频');
     const imageUrl = mediaUrl(ctx.message, '');
-    return ok(imageUrl ? {prompt: ctx.tail, imageUrl} : {prompt: ctx.tail});
+    return ok(imageUrl ? {prompt, imageUrl} : {prompt});
 }
 
 function ticketArgs(ctx: CallCtx): ArgsResult {
@@ -254,10 +289,7 @@ function humanStartArgs(ctx: CallCtx): ArgsResult {
 }
 
 function parseVideoArgs(ctx: CallCtx): ArgsResult {
-    const text = ctx.tail
-        || ctx.message.quote?.title?.trim()
-        || ctx.message.quote?.referContent?.trim()
-        || '';
+    const text = argText(ctx);
     if (!text) return need('把分享口令或链接写后面，也可以先引用那条再发 #解析视频');
     return ok({text});
 }
@@ -337,8 +369,11 @@ export const VERBS: VerbRoute[] = [
     {verbs: ['找话题'], tool: 'trend_chat_candidates', fail: '这会儿没合适话题', args: (ctx) => ok(ctx.tail ? {context: ctx.tail} : {}), map: 'json'},
     // 诗词 / 车票 / 目录
     {verbs: ['诗词'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => ok(ctx.tail ? {author: ctx.tail} : {}), map: 'poem'},
-    {verbs: ['飞花令'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => ctx.tail ? ok({char: [...ctx.tail][0] ?? ctx.tail}) : need('字写后面，比如 #飞花令 春'), map: 'poem'},
-    {verbs: ['搜诗'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，比如 #搜诗 静夜思'), map: 'poem'},
+    {verbs: ['飞花令'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => {
+        const text = argText(ctx);
+        return text ? ok({char: [...text][0] ?? text}) : need('字写后面，也可以先引用那条再发 #飞花令');
+    }, map: 'poem'},
+    {verbs: ['搜诗'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，也可以先引用那条再发 #搜诗'), map: 'poem'},
     {verbs: ['车票'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},
     {verbs: ['免费AI', '免费ai'], tool: 'free_ai_lookup', fail: '目录没查到', args: (ctx) => ok({query: ctx.tail || '免费 API'}), map: 'reply'},
     // 人机验证 / 好看 / 解析
@@ -349,7 +384,7 @@ export const VERBS: VerbRoute[] = [
     {verbs: ['随机图'], tool: 'fetch_yinguo_image', fail: '图没取到', args: (ctx) => ok({allowRaw: ctx.tail === '原图'}), map: 'image'},
     {verbs: ['解析视频'], tool: 'parse_short_video', fail: '这条解析不了', args: parseVideoArgs, map: 'parse-video'},
     // 表情 / 时间 / 回声
-    {verbs: ['搜表情'], tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，比如 #搜表情 猫'), map: 'emoji'},
+    {verbs: ['搜表情'], tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #搜表情'), map: 'emoji'},
     {verbs: ['收藏表情'], tool: 'emoji_save', ownerOnly: true, fail: '没存上', args: emojiSaveArgs, map: 'emoji'},
     {verbs: ['取表情'], tool: 'emoji_get', fail: '没找着', args: (ctx) => {
         if (!ctx.tail) return need('名字或 md5 写后面');
@@ -362,7 +397,10 @@ export const VERBS: VerbRoute[] = [
         return ok({name: parts[0], description: parts.slice(1).join(' ')});
     }, map: 'json'},
     {verbs: ['现在几点', '几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
-    {verbs: ['回声'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => ctx.tail ? ok({message: ctx.tail}) : need('要原样回去的字写后面'), map: 'text'},
+    {verbs: ['回声'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {
+        const text = argText(ctx);
+        return text ? ok({message: text}) : need('要原样回去的字写后面，也可以先引用那条再发 #回声');
+    }, map: 'text'},
     // 修仙探索（须排在前缀「修仙」之前）
     {verbs: ['修仙探索', '继续探索'], tool: 'xiuxian_adventure', fail: '这会儿没有在探的剧情', args: (ctx) => ok({action: 'status', ...identityArgs(ctx)}), map: 'adventure'},
     {verbs: ['修仙选'], tool: 'xiuxian_adventure', fail: '这会儿选不了', args: (ctx) => {
