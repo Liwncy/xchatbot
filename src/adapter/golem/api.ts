@@ -262,6 +262,33 @@ export class GolemApi {
         return response.arrayBuffer();
     }
 
+    async getChatroomMembers(chatroom: string): Promise<unknown> {
+        const id = encodeURIComponent(chatroom.trim());
+        const response = await fetch(`${this.baseUrl}/api/chatroom/members/${id}`, {method: 'GET'});
+        if (!response.ok) {
+            const raw = (await response.text()).replace(/\s+/g, ' ').trim();
+            throw new Error(`Golem /api/chatroom/members ${response.status}: ${raw.slice(0, 200)}`);
+        }
+        return response.json();
+    }
+
+    async searchContacts(params: {
+        keyword: string;
+        fromScene?: number;
+        searchScene?: number;
+    }): Promise<ApiResponse> {
+        const response = await fetch(`${this.baseUrl}/api/contacts/search`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                keyword: params.keyword,
+                from_scene: params.fromScene ?? 1,
+                search_scene: params.searchScene ?? 2,
+            }),
+        });
+        return response.json() as Promise<ApiResponse>;
+    }
+
     async revokeMessage(params: RevokeParam): Promise<ApiResponse> {
         const response = await fetch(`${this.baseUrl}/api/message/revoke`, {
             method: 'POST',

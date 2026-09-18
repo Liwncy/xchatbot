@@ -2,6 +2,7 @@ import {McpServer} from '@modelcontextprotocol/server';
 import {z} from 'zod';
 import {getChatHistoryByMessageId, searchChatHistory} from '../core/chat-log/search.js';
 import {searchAppLogs} from '../core/app-log/search.js';
+import {runFakeForward} from '../plugins/channel/fake-forward/index.js';
 import type {Env} from '../types/env.js';
 
 function textResult(text: string) {
@@ -94,6 +95,25 @@ export function createChannelMcpServer(env: Env): McpServer {
             }),
         },
         async (input) => textResult(await searchAppLogs(env, input)),
+    );
+
+    server.registerTool(
+        'golem_fake_forward',
+        {
+            description:
+                '把一段对白做成微信聊天记录卡片。'
+                + '对方说编聊天记录、做聊天记录卡、假聊天记录、伪造聊天记录、编一段群聊记录时用。'
+                + 'script 每行「姓名|时间|内容」，时间可空；有角色没台词先问，不要自己编。'
+                + '角色写群里显示的名字（被@的人就照抄「被@」行里的名字），是群友的话卡片会自动署他的微信名并配上头像，你不用管。'
+                + '群里把 group 填成 scope=group: 后面那串。成功后配文一句，下一行把协议行原样发出。闲聊接话不要调。',
+            inputSchema: z.object({
+                script: z.string().describe('必填。每行：姓名|时间|内容。时间 HH:mm 或 YYYY-MM-DD HH:mm，可空'),
+                title: z.string().optional().describe('可选。默认「群聊的聊天记录」'),
+                group: z.string().optional().describe('可选。群 id；私聊留空'),
+                platform: z.string().optional().describe('可选 golem / web，默认 golem'),
+            }),
+        },
+        async (input) => textResult(await runFakeForward(env, input)),
     );
 
     return server;

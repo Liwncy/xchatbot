@@ -100,6 +100,8 @@ function outboundContent(reply: ReplyMessage): string {
             return clip(reply.label?.trim() || reply.poiName?.trim() || '[位置]');
         case 'forward':
             return '[转发]';
+        case 'chat-record':
+            return clip(reply.title?.trim() || '[聊天记录]');
     }
 }
 
@@ -155,6 +157,10 @@ function outboundPayload(reply: ReplyMessage, extra?: Record<string, unknown>): 
             break;
         case 'forward':
             payload.forward_type = reply.forwardType ?? 'image';
+            break;
+        case 'chat-record':
+            if (reply.title) payload.title = reply.title;
+            payload.items = reply.items.length;
             break;
     }
     return JSON.stringify(payload);

@@ -85,6 +85,22 @@ export interface ForwardReply {
     to?: string;
 }
 
+export interface ChatRecordItem {
+    nickname: string;
+    content: string;
+    avatarUrl?: string;
+    timestampMs: number;
+}
+
+export interface ChatRecordReply {
+    type: 'chat-record';
+    items: ChatRecordItem[];
+    title?: string;
+    summary?: string;
+    desc?: string;
+    to?: string;
+}
+
 export interface HandledReply {
     kind: 'handled';
 }
@@ -100,7 +116,8 @@ export type ReplyMessage =
     | AppReply
     | CardReply
     | PositionReply
-    | ForwardReply;
+    | ForwardReply
+    | ChatRecordReply;
 
 export type HandlerResponse = ReplyMessage | ReplyMessage[] | HandledReply | null;
 
@@ -140,6 +157,13 @@ export function musicReply(
 
 export function appReply(appType: number, xml: string): AppReply {
     return {type: 'app', appType, xml};
+}
+
+export function chatRecordReply(
+    items: ChatRecordItem[],
+    extras?: Pick<ChatRecordReply, 'title' | 'summary' | 'desc' | 'to'>,
+): ChatRecordReply {
+    return {type: 'chat-record', items, ...extras};
 }
 
 export function handledReply(): HandledReply {

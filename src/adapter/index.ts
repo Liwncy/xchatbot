@@ -11,4 +11,11 @@ export function getAdapter(platform: string): ChannelAdapter | undefined {
     return adapters[platform];
 }
 
-export type {ChannelAdapter, RevokeReason, RevokeResult, SendReceipt} from './types.js';
+export type {
+    ChannelAdapter,
+    DirectoryPerson,
+    RevokeReason,
+    RevokeResult,
+    RoomMember,
+    SendReceipt,
+} from './types.js';

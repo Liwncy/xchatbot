@@ -3,13 +3,15 @@ import {groupSessionPlugin} from './channel/session/index.js';
 import {inspectPlugin} from './channel/inspect/index.js';
 import {roleplayPlugin} from './channel/roleplay/index.js';
 import {revokePlugin} from './channel/revoke/index.js';
+import {randomFriendPlugin} from './channel/random-friend/index.js';
+import {fakeForwardPlugin} from './channel/fake-forward/index.js';
 import {mcpToolsCommandPlugin} from './command/mcp-tools/index.js';
 import {unknownCommandPlugin} from './command/unknown/index.js';
 import {openclawAgentPlugin} from './agent/openclaw/index.js';
 import {qwenpawAgentPlugin} from './agent/qwenpaw/index.js';
 import {snailaiAgentPlugin} from './agent/snailai/index.js';
 
-// channel：群门禁 / #查记录 / #扮演 / #撤回，不进大脑
+// channel：群门禁 / #查记录 / #扮演 / #撤回 / 随机朋友 / 伪转发，不进大脑
 // command：# 快捷调用 MCP；未识别的 #口令在此拦下
 // agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI / QwenPaw）
 
@@ -21,6 +23,8 @@ export function ensurePluginsRegistered(): void {
     registerPlugin(inspectPlugin);
     registerPlugin(roleplayPlugin);
     registerPlugin(revokePlugin);
+    registerPlugin(randomFriendPlugin);
+    registerPlugin(fakeForwardPlugin);
     registerPlugin(mcpToolsCommandPlugin);
     registerPlugin(unknownCommandPlugin);
     registerPlugin(openclawAgentPlugin);

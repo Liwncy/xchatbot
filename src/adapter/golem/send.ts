@@ -7,6 +7,7 @@ import {logger} from '../../utils/logger.js';
 import type {ApiResponse} from './types.js';
 import type {SendReceipt} from '../types.js';
 import {GolemApi} from './api.js';
+import {buildChatRecordXml, CHAT_RECORD_APP_TYPE} from './chat-record.js';
 import {buildMusicAppXml} from './music-xml.js';
 import {encodeAudioUrlToSilk} from '../../utils/silk/index.js';
 
@@ -21,6 +22,7 @@ const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
     card: '名片没发出去',
     position: '位置没发出去',
     forward: '转发没发出去',
+    'chat-record': '这张卡没发出去',
 };
 
 const DEFAULT_THUMB_JPEG = Uint8Array.from([
@@ -145,6 +147,12 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, 
         }
         case 'app':
             return api.sendApp({receiver, appType: reply.appType, xml: reply.xml});
+        case 'chat-record':
+            return api.sendApp({
+                receiver,
+                appType: CHAT_RECORD_APP_TYPE,
+                xml: buildChatRecordXml(reply.items, reply.title, reply.summary, reply.desc),
+            });
         case 'card':
             return api.sendCard({
                 receiver,

@@ -19,6 +19,13 @@ export function presentForWeb(reply: ReplyMessage): ReplyMessage {
         }
         case 'app':
             return textReply('这条应用消息这边看不了');
+        case 'chat-record': {
+            const title = reply.title?.trim() || '聊天记录';
+            const lines = reply.items
+                .filter((item) => item.nickname.trim() && item.content.trim())
+                .map((item) => `${item.nickname.trim()}：${item.content.trim()}`);
+            return textReply(lines.length ? `${title}\n${lines.join('\n')}` : title);
+        }
         case 'card':
             return textReply(reply.nickname?.trim() || reply.username ? `名片：${reply.nickname || reply.username}` : '一张名片');
         case 'position': {
@@ -41,6 +48,12 @@ export const webAdapter: ChannelAdapter = {
 
     async revoke(): Promise<RevokeResult> {
         return {ok: false, reason: 'unsupported'};
+    },
+
+    toOutboundText(reply) {
+        if (reply.type !== 'chat-record') return null;
+        const presented = presentForWeb(reply);
+        return presented.type === 'text' ? presented.content : null;
     },
 };
 
