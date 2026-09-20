@@ -28,6 +28,7 @@ import {
     type RouteServer,
 } from './catalog.js';
 import {emojiGet, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
+import {runLlmConfig} from '../../../core/llm/index.js';
 
 type MapFn = (result: McpToolResult, ctx: CallCtx) => HandlerResponse;
 
@@ -131,6 +132,9 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
             name: typeof args.name === 'string' ? args.name : undefined,
         });
         return asLocalResult(item ?? {found: false});
+    }
+    if (name === 'llm_config') {
+        return asLocalResult(await runLlmConfig(env, String(args.tail ?? '')));
     }
     if (name === 'emoji_update') {
         return asLocalResult(await emojiUpdate(env, {

@@ -385,6 +385,7 @@ export const VERBS: VerbRoute[] = [
     {verbs: ['随机图'], tool: 'fetch_yinguo_image', fail: '图没取到', args: (ctx) => ok({allowRaw: ctx.tail === '原图'}), map: 'image'},
     {verbs: ['解析视频'], tool: 'parse_short_video', fail: '这条解析不了', args: parseVideoArgs, map: 'parse-video'},
     // 表情 / 时间 / 回声
+    {verbs: ['模型'], server: 'local', tool: 'llm_config', ownerOnly: true, fail: '没配成', args: (ctx) => ok({tail: ctx.tail}), map: 'json'},
     {verbs: ['搜表情'], server: 'local', tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #搜表情'), map: 'emoji'},
     {verbs: ['收藏表情'], server: 'local', tool: 'emoji_save', ownerOnly: true, fail: '没存上', args: emojiSaveArgs, map: 'emoji'},
     {verbs: ['取表情'], server: 'local', tool: 'emoji_get', fail: '没找着', args: (ctx) => {

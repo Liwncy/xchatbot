@@ -12,11 +12,13 @@ import {
     getEmojiById,
     getEmojiByMd5,
     getEmojiByName,
+    insertEmojiIfNew,
     listEmojiNames,
     normalizeEmojiStatus,
     searchEmojis,
     upsertEmoji,
 } from './repository.js';
+import {labelEmojiFromImage} from './label.js';
 import type {EmojiPublicItem, EmojiRecord} from './types.js';
 import {pickDurableImageUrl} from './urls.js';
 
@@ -83,6 +85,35 @@ export async function emojiGet(
     if (!md5 && !name) throw new Error('请提供 md5 或 name');
     const row = md5 ? await getEmojiByMd5(db, md5) : await getEmojiByName(db, name ?? '');
     return row ? toPublic(row) : null;
+}
+
+export async function emojiCollectInbound(
+    env: Env,
+    options: {md5?: string; imgUrl?: string; source?: string},
+): Promise<boolean> {
+    if (!env.XBOT_DB) return false;
+    let md5: string;
+    try {
+        const normalized = normalizeMd5(options.md5);
+        if (!normalized) return false;
+        md5 = normalized;
+    } catch {
+        return false;
+    }
+    if (await getEmojiByMd5(env.XBOT_DB, md5)) return false;
+
+    const storeUrl = pickDurableImageUrl(options.imgUrl);
+    const seeUrl = storeUrl || options.imgUrl?.trim() || '';
+    const labeled = seeUrl ? await labelEmojiFromImage(env, seeUrl) : null;
+    return insertEmojiIfNew(env.XBOT_DB, {
+        name: `e${md5}`,
+        description: labeled?.description || '收到的表情',
+        md5,
+        imgUrl: storeUrl,
+        category: labeled?.category ?? 'misc',
+        tags: labeled?.tags.length ? labeled.tags : ['表情'],
+        source: options.source?.trim() || 'inbound',
+    });
 }
 
 export async function emojiSave(

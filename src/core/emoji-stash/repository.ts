@@ -266,3 +266,37 @@ export async function upsertEmoji(db: D1Database, input: UpsertEmojiInput): Prom
     if (!created) throw new Error('emoji insert 后读取失败');
     return created;
 }
+
+/** 群内自动收：已有同 md5 / 同名就跳过，不读整表。 */
+export async function insertEmojiIfNew(
+    db: D1Database,
+    input: {
+        name: string;
+        description: string;
+        md5: string;
+        imgUrl: string;
+        category: EmojiStashCategory;
+        tags: string[];
+        source: string;
+    },
+): Promise<boolean> {
+    await ensureEmojiSchema(db);
+    const now = Date.now();
+    const result = await db.prepare(
+        `INSERT OR IGNORE INTO emoji_stash (
+            name, description, md5, img_url, mime, category, tags_json,
+            status, size, width, height, source, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, NULL, ?, ?, 'active', NULL, NULL, NULL, ?, ?, ?)`,
+    ).bind(
+        input.name.trim().toLowerCase(),
+        input.description.trim(),
+        input.md5.trim().toLowerCase(),
+        (input.imgUrl ?? '').trim(),
+        input.category,
+        JSON.stringify(input.tags),
+        input.source.trim(),
+        now,
+        now,
+    ).run();
+    return (result.meta.changes ?? 0) > 0;
+}
