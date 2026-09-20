@@ -1,6 +1,7 @@
 import type {Env} from '../../types/env.js';
 import {
     deleteLlmConfig,
+    getDefaultLlmConfig,
     getLlmConfig,
     listLlmConfigs,
     setDefaultLlmConfig,
@@ -9,13 +10,11 @@ import {
 } from './repository.js';
 import {normalizeLlmType, parseLlmType, type LlmConfig, type LlmType} from './types.js';
 
-const DEFAULT_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const DEFAULT_MODEL = 'Qwen/Qwen2.5-7B-Instruct';
-
 const HELP = [
     '看已有的：#模型',
-    '加一套：#模型 加 名字 钥匙',
-    '指定用途：#模型 加 名字 类型 embedding 钥匙',
+    '加一套：#模型 加 名字 地址 模型 钥匙',
+    '同类型已有在用的，可只写：#模型 加 名字 钥匙',
+    '指定用途：#模型 加 名字 类型 embedding 地址 模型 钥匙',
     '类型：chat / embedding / rerank / image / speech',
     '换着用：#模型 用 名字',
     '停用：#模型 停 名字',
@@ -64,19 +63,21 @@ function takeType(tokens: string[]): {type: LlmType; rest: string[]} {
 function parseAdd(tokens: string[]): {
     name: string;
     type: LlmType;
-    apiUrl: string;
+    apiUrl?: string;
     apiKey: string;
-    model: string;
+    model?: string;
 } | string {
     const name = normalizeName(tokens[0] ?? '');
     if (!name) return '名字写后面';
     const {type, rest} = takeType(tokens.slice(1));
     if (!rest.length) return '钥匙写后面';
-    const apiUrl = rest.find((item) => /^https?:\/\//iu.test(item)) || DEFAULT_API_URL;
-    const model = rest.find((item) => item.includes('/') && !/^https?:\/\//iu.test(item)) || DEFAULT_MODEL;
-    const apiKey = rest.find((item) => item !== apiUrl && item !== model)?.trim() ?? '';
-    if (!apiKey) return '钥匙写后面';
-    return {name, type, apiUrl, apiKey, model};
+    const apiUrl = rest.find((item) => /^https?:\/\//iu.test(item));
+    const apiKey = rest.find((item) => (
+        item !== apiUrl && (item.includes(':') || /^sk-/iu.test(item))
+    )) || rest.filter((item) => item !== apiUrl).at(-1) || '';
+    if (!apiKey.trim()) return '钥匙写后面';
+    const model = rest.find((item) => item !== apiUrl && item !== apiKey);
+    return {name, type, apiUrl, apiKey: apiKey.trim(), model};
 }
 
 function parsePatch(tokens: string[]): {
@@ -140,7 +141,19 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
     if (action === '加' || action === '存') {
         const parsed = parseAdd(rest);
         if (typeof parsed === 'string') return {message: parsed};
-        const saved = await upsertLlmConfig(env, parsed);
+        const inherit = await getDefaultLlmConfig(env, parsed.type);
+        const apiUrl = parsed.apiUrl || inherit?.apiUrl;
+        const model = parsed.model || inherit?.model;
+        if (!apiUrl || !model) {
+            return {message: '地址和模型名也写上，比如 #模型 加 名字 地址 模型 钥匙'};
+        }
+        const saved = await upsertLlmConfig(env, {
+            name: parsed.name,
+            type: parsed.type,
+            apiUrl,
+            apiKey: parsed.apiKey,
+            model,
+        });
         return {
             message: saved.isDefault
                 ? `好，${saved.name} 记下了，${saved.type} 先用这套`
