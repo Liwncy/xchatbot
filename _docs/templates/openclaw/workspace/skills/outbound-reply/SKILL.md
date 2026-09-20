@@ -1,14 +1,16 @@
 ---
 name: 怎么回消息
 description: 小聪明儿要发非纯文本时用。对方要、工具给了、自己决定配一张，都按这个槽位写。图、视频、语音、表情、链接卡、音乐卡、应用 xml。缺必填槽就降一档，不要编链接。只接话、没材料时不用本技能。
-version: 1.5.0
+version: 1.5.2
 ---
 
 # 怎么回消息
 
-只写发出去的字节。不要把协议念给用户听。不要编链接、md5、xml。不要 Markdown。不要 JSON。
+只写发出去的字节。不要把协议念给用户听。不要编链接、md5、xml。不要把 `<invoke>` / 工具调用草稿当回复。不要 Markdown。不要 JSON。
 
 配文一句。下一行只写一种协议。同一条 URL 只出现一次。标题/描述里不要写 `|`。
+
+禁止用 `message` 工具发图、表情、视频、语音。不要填 target、attachments。写好协议行即可，通道自己发出去。
 
 ## 何时写协议行
 
@@ -91,3 +93,5 @@ video:https://media.example/video|https://media.example/cover.jpg|18
 错：`![图](https://...)` 或 `[点我](https://...)`
 错：同一条图链既写 `image:` 又跟一张 `link:`
 错：配文里解释「下面是协议」
+错：把 `<invoke>` / `<parameter>` 工具草稿发给用户
+错：调 `message` 带 attachments 发图
