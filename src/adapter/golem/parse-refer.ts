@@ -1,14 +1,5 @@
 import type {QuoteMessageId, QuoteRef} from '../../core/message.js';
-import {parseQuoteMedia} from './parse-media.js';
-
-function decodeHtmlEntities(text: string): string {
-    return text
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'");
-}
+import {decodeXmlDeep, parseQuoteMedia} from './parse-media.js';
 
 function stripGroupPrefix(content: string): string {
     const separatorIndex = content.indexOf(':\n');
@@ -37,7 +28,7 @@ function parseReferNumericTag(refermsg: string, tags: string[]): number | undefi
 }
 
 function extractClientIdTextFromMsgsource(msgsource: string): string | undefined {
-    const normalized = decodeHtmlEntities(msgsource).trim();
+    const normalized = decodeXmlDeep(msgsource).trim();
     if (!normalized) return undefined;
     const attrMatch = normalized.match(/clientmsgid="(\d+)"/i)
         ?? normalized.match(/client_msgid="(\d+)"/i);
@@ -83,7 +74,7 @@ export function parseWechatReferMessage(rawContent: string): QuoteRef | null {
 
     const refermsg = refermsgMatch[0];
     const referType = Number.parseInt(pickXmlTagValue(refermsg, 'type') ?? '', 10);
-    const referContent = decodeHtmlEntities(pickXmlTagValue(refermsg, 'content') ?? '');
+    const referContent = decodeXmlDeep(pickXmlTagValue(refermsg, 'content') ?? '');
     const fromusr = pickXmlTagValue(refermsg, 'fromusr');
     const chatusr = pickXmlTagValue(refermsg, 'chatusr');
     const referSenderName = pickXmlTagValue(refermsg, 'displayname');
@@ -91,7 +82,9 @@ export function parseWechatReferMessage(rawContent: string): QuoteRef | null {
         (chatusr && !chatusr.endsWith('@chatroom') ? chatusr : undefined)
         || (fromusr && !fromusr.endsWith('@chatroom') ? fromusr : undefined);
     const referMessageId = extractReferMessageId(refermsg);
-    const media = Number.isFinite(referType) ? parseQuoteMedia(referType, referContent) : undefined;
+    const media = Number.isFinite(referType)
+        ? parseQuoteMedia(referType, referContent, referType === 47 ? decodeXmlDeep(refermsg) : undefined)
+        : undefined;
 
     return {
         title,

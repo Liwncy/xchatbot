@@ -9,6 +9,17 @@ function decodeHtmlEntities(text: string): string {
         .replace(/&amp;/g, '&');
 }
 
+/** 引用表情 content 常套两三层实体，解到不再变化。 */
+export function decodeXmlDeep(text: string): string {
+    let current = text;
+    for (let i = 0; i < 4; i += 1) {
+        const next = decodeHtmlEntities(current);
+        if (next === current) return next;
+        current = next;
+    }
+    return current;
+}
+
 function pickXmlAttr(xml: string, attr: string): string | undefined {
     const doubleQuoted = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`, 'i');
     const doubleMatch = xml.match(doubleQuoted);
@@ -31,7 +42,7 @@ function firstAttr(xml: string, attrs: string[]): string {
 }
 
 function decodeXmlUrl(value: string): string {
-    return decodeHtmlEntities(value).replace(/&amp;/g, '&');
+    return decodeXmlDeep(value).replace(/&amp;/g, '&').replace(/\s+/gu, '');
 }
 
 function looksLikeHttp(value: string): boolean {
@@ -54,9 +65,11 @@ function locatorOf(raw: string): Pick<InboundMedia, 'url' | 'fileId'> {
 function extractEmojiXml(xml: string): string {
     const start = xml.toLowerCase().indexOf('<emoji');
     if (start < 0) return xml;
-    const end = xml.indexOf('>', start);
-    if (end < 0) return xml.slice(start);
-    return xml.slice(start, end + 1);
+    const from = xml.slice(start);
+    const close = from.toLowerCase().indexOf('</emoji>');
+    if (close >= 0) return from.slice(0, close + 8);
+    const end = from.indexOf('>');
+    return end < 0 ? from : from.slice(0, end + 1);
 }
 
 function attachHttpThumb(media: InboundMedia, thumbRaw: string): void {
@@ -86,7 +99,7 @@ export function wechatTypeToMessageType(type: number): MessageType {
 }
 
 export function parseInboundMedia(type: MessageType, rawXml: string): InboundMedia | undefined {
-    const xml = decodeHtmlEntities(rawXml).trim();
+    const xml = decodeXmlDeep(rawXml).trim();
     if (!xml || type === 'text' || type === 'link' || type === 'unknown') return undefined;
 
     if (type === 'emoji') {
@@ -143,7 +156,12 @@ export function parseInboundMedia(type: MessageType, rawXml: string): InboundMed
     return undefined;
 }
 
-export function parseQuoteMedia(referType: number, referContent?: string): InboundMedia | undefined {
-    if (!referContent?.trim()) return undefined;
-    return parseInboundMedia(wechatTypeToMessageType(referType), referContent);
+export function parseQuoteMedia(
+    referType: number,
+    referContent?: string,
+    fallbackXml?: string,
+): InboundMedia | undefined {
+    const type = wechatTypeToMessageType(referType);
+    return parseInboundMedia(type, referContent ?? '')
+        ?? (fallbackXml?.trim() ? parseInboundMedia(type, fallbackXml) : undefined);
 }

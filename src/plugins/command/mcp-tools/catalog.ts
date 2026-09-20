@@ -162,6 +162,16 @@ function md5Of(text: string): string {
     return match?.[1]?.toLowerCase() ?? '';
 }
 
+function mediaMd5(message: IncomingMessage, tail: string): string {
+    const fromMedia = message.media?.md5?.trim().toLowerCase()
+        || message.quote?.media?.md5?.trim().toLowerCase()
+        || '';
+    if (/^[0-9a-f]{32}$/u.test(fromMedia)) return fromMedia;
+    return md5Of(tail)
+        || md5Of(message.quote?.referContent ?? '')
+        || md5Of(message.rawXml ?? '');
+}
+
 function verifyTarget(message: IncomingMessage, env: Env): {id: string; name: string} {
     const botId = resolveBotId(env, message.platform);
     const other = (message.mentions ?? []).find((item) => item.id.trim() && item.id.trim() !== botId);
@@ -297,7 +307,7 @@ function parseVideoArgs(ctx: CallCtx): ArgsResult {
 
 function emojiSaveArgs(ctx: CallCtx): ArgsResult {
     const imageUrl = mediaUrl(ctx.message, ctx.tail);
-    const md5 = md5Of(ctx.tail);
+    const md5 = mediaMd5(ctx.message, ctx.tail);
     if (!imageUrl && !md5) return need('引用表情或把图链 / md5 写后面');
     return ok({
         ...(md5 ? {md5} : {}),
