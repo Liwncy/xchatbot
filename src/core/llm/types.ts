@@ -1,10 +1,13 @@
 export const LLM_TYPES = ['chat', 'embedding', 'rerank', 'image', 'speech'] as const;
+export const LLM_STATUSES = ['active', 'disabled'] as const;
 
 export type LlmType = (typeof LLM_TYPES)[number];
+export type LlmStatus = (typeof LLM_STATUSES)[number];
 
 export interface LlmConfig {
     name: string;
     type: LlmType;
+    status: LlmStatus;
     apiUrl: string;
     apiKey: string;
     model: string;
@@ -39,4 +42,8 @@ export function parseLlmType(value: string | undefined): LlmType | null {
 
 export function normalizeLlmType(value: string | undefined): LlmType {
     return parseLlmType(value) ?? 'chat';
+}
+
+export function normalizeLlmStatus(value: string | null | undefined): LlmStatus {
+    return value?.trim().toLowerCase() === 'disabled' ? 'disabled' : 'active';
 }

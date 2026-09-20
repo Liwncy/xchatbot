@@ -4,6 +4,7 @@ import {
     getLlmConfig,
     listLlmConfigs,
     setDefaultLlmConfig,
+    setLlmConfigStatus,
     upsertLlmConfig,
 } from './repository.js';
 import {normalizeLlmType, parseLlmType, type LlmConfig, type LlmType} from './types.js';
@@ -17,6 +18,8 @@ const HELP = [
     '指定用途：#模型 加 名字 类型 embedding 钥匙',
     '类型：chat / embedding / rerank / image / speech',
     '换着用：#模型 用 名字',
+    '停用：#模型 停 名字',
+    '再用：#模型 开 名字',
     '改钥匙：#模型 改 名字 钥匙 新的',
     '删掉：#模型 删 名字',
 ].join('\n');
@@ -32,9 +35,9 @@ function maskKey(key: string): string {
 }
 
 function formatConfig(item: LlmConfig, showKey: boolean): string {
-    const mark = item.isDefault ? '（在用）' : '';
+    const mark = item.status === 'disabled' ? '（停了）' : item.isDefault ? '（在用）' : '';
     const key = showKey ? item.apiKey : maskKey(item.apiKey);
-    return `${item.name}${mark}\n类型 ${item.type}\n模型 ${item.model}\n地址 ${item.apiUrl}\n钥匙 ${key}`;
+    return `${item.name}${mark}\n类型 ${item.type}\n状态 ${item.status}\n模型 ${item.model}\n地址 ${item.apiUrl}\n钥匙 ${key}`;
 }
 
 function takeType(tokens: string[]): {type: LlmType; rest: string[]} {
@@ -169,6 +172,20 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
         return {message: saved ? `好，${saved.type} 换成 ${saved.name} 了` : '没这套'};
     }
 
+    if (action === '停' || action === '关') {
+        const name = normalizeName(rest[0] ?? '');
+        if (!name) return {message: '停哪套写后面'};
+        const saved = await setLlmConfigStatus(env, name, 'disabled');
+        return {message: saved ? `好，${name} 停了` : '没这套'};
+    }
+
+    if (action === '开' || action === '启用') {
+        const name = normalizeName(rest[0] ?? '');
+        if (!name) return {message: '开哪套写后面'};
+        const saved = await setLlmConfigStatus(env, name, 'active');
+        return {message: saved ? `好，${name} 开了` : '没这套'};
+    }
+
     if (action === '删' || action === '去掉') {
         const name = normalizeName(rest[0] ?? '');
         if (!name) return {message: '删哪套写后面'};
@@ -186,7 +203,7 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
     if (action && rest.length === 0) {
         const item = await getLlmConfig(env, normalizeName(action));
         if (item) return {message: formatConfig(item, true)};
-        if (['加', '改', '用', '切', '换成', '删', '去掉', '看'].includes(action)) {
+        if (['加', '改', '用', '切', '换成', '停', '关', '开', '启用', '删', '去掉', '看'].includes(action)) {
             return {message: HELP};
         }
     }
@@ -195,7 +212,7 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
     if (!items.length) return {message: `还没配。\n${HELP}`};
     return {
         message: items.map((item) => (
-            `${item.isDefault ? '▶ ' : ''}${item.name}  ${item.type}  ${item.model}  ${maskKey(item.apiKey)}`
+            `${item.status === 'disabled' ? '⏸ ' : item.isDefault ? '▶ ' : ''}${item.name}  ${item.type}  ${item.model}  ${maskKey(item.apiKey)}`
         )).join('\n'),
     };
 }

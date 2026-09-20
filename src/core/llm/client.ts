@@ -17,7 +17,8 @@ export async function resolveLlmConfig(
 ): Promise<LlmConfig | null> {
     if (name?.trim()) {
         const named = await getLlmConfig(env, name.trim().toLowerCase());
-        if (named) return named;
+        if (named?.status === 'active') return named;
+        return null;
     }
     return getDefaultLlmConfig(env, normalizeLlmType(type));
 }
