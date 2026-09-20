@@ -8,11 +8,12 @@ interface LlmRow {
     api_url: string;
     api_key: string;
     model: string;
+    support_image: number | null;
     is_default: number;
     updated_at: number;
 }
 
-const COLUMNS = 'name, type, status, api_url, api_key, model, is_default, updated_at';
+const COLUMNS = 'name, type, status, api_url, api_key, model, support_image, is_default, updated_at';
 
 let schemaReady: Promise<void> | undefined;
 
@@ -27,6 +28,7 @@ export async function ensureLlmSchema(db: D1Database): Promise<void> {
                     api_url TEXT NOT NULL,
                     api_key TEXT NOT NULL,
                     model TEXT NOT NULL,
+                    support_image INTEGER NOT NULL DEFAULT 0,
                     is_default INTEGER NOT NULL DEFAULT 0,
                     updated_at INTEGER NOT NULL
                 )`,
@@ -37,6 +39,13 @@ export async function ensureLlmSchema(db: D1Database): Promise<void> {
                 ).run();
             } catch {
                 // 已有 status 列
+            }
+            try {
+                await db.prepare(
+                    'ALTER TABLE llm_config ADD COLUMN support_image INTEGER NOT NULL DEFAULT 0',
+                ).run();
+            } catch {
+                // 已有 support_image 列
             }
             await db.prepare(
                 'CREATE INDEX IF NOT EXISTS idx_llm_config_type_default ON llm_config(type, is_default)',
@@ -54,6 +63,7 @@ function mapRow(row: LlmRow): LlmConfig {
         apiUrl: row.api_url,
         apiKey: row.api_key,
         model: row.model,
+        supportImage: row.support_image === 1,
         isDefault: row.is_default === 1,
         updatedAt: row.updated_at,
     };
@@ -94,18 +104,23 @@ export async function getLlmConfig(env: Env, name: string): Promise<LlmConfig | 
     return row ? mapRow(row) : null;
 }
 
-export async function getDefaultLlmConfig(env: Env, type: LlmType = 'chat'): Promise<LlmConfig | null> {
+export async function getDefaultLlmConfig(
+    env: Env,
+    type: LlmType = 'chat',
+    options?: {supportImage?: boolean},
+): Promise<LlmConfig | null> {
     const db = requireDb(env);
     await ensureLlmSchema(db);
+    const imageFilter = options?.supportImage ? ' AND support_image = 1' : '';
     const row = await db.prepare(
         `SELECT ${COLUMNS} FROM llm_config
-         WHERE type = ? AND status = 'active' AND is_default = 1 LIMIT 1`,
+         WHERE type = ? AND status = 'active' AND is_default = 1${imageFilter} LIMIT 1`,
     ).bind(type).first<LlmRow>();
     if (row) return mapRow(row);
     const first = await db.prepare(
         `SELECT ${COLUMNS} FROM llm_config
-         WHERE type = ? AND status = 'active'
-         ORDER BY name ASC LIMIT 1`,
+         WHERE type = ? AND status = 'active'${imageFilter}
+         ORDER BY is_default DESC, name ASC LIMIT 1`,
     ).bind(type).first<LlmRow>();
     return first ? mapRow(first) : null;
 }
@@ -118,6 +133,7 @@ export async function upsertLlmConfig(
         apiUrl: string;
         apiKey: string;
         model: string;
+        supportImage?: boolean;
         status?: LlmStatus;
         makeDefault?: boolean;
     },
@@ -126,6 +142,7 @@ export async function upsertLlmConfig(
     await ensureLlmSchema(db);
     const existing = await getLlmConfig(env, input.name);
     const status = input.status ?? existing?.status ?? 'active';
+    const supportImage = input.supportImage ?? existing?.supportImage ?? false;
     const sameTypeCount = await db.prepare(
         "SELECT COUNT(*) AS cnt FROM llm_config WHERE type = ? AND status = 'active'",
     ).bind(input.type).first<{cnt: number}>();
@@ -141,14 +158,15 @@ export async function upsertLlmConfig(
             .run();
     }
     await db.prepare(
-        `INSERT INTO llm_config (name, type, status, api_url, api_key, model, is_default, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO llm_config (name, type, status, api_url, api_key, model, support_image, is_default, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(name) DO UPDATE SET
             type = excluded.type,
             status = excluded.status,
             api_url = excluded.api_url,
             api_key = excluded.api_key,
             model = excluded.model,
+            support_image = excluded.support_image,
             is_default = excluded.is_default,
             updated_at = excluded.updated_at`,
     ).bind(
@@ -158,6 +176,7 @@ export async function upsertLlmConfig(
         input.apiUrl,
         input.apiKey,
         input.model,
+        supportImage ? 1 : 0,
         makeDefault ? 1 : 0,
         now,
     ).run();

@@ -11,6 +11,7 @@ export interface LlmConfig {
     apiUrl: string;
     apiKey: string;
     model: string;
+    supportImage: boolean;
     isDefault: boolean;
     updatedAt: number;
 }
@@ -46,4 +47,17 @@ export function normalizeLlmType(value: string | undefined): LlmType {
 
 export function normalizeLlmStatus(value: string | null | undefined): LlmStatus {
     return value?.trim().toLowerCase() === 'disabled' ? 'disabled' : 'active';
+}
+
+const IMAGE_FLAG = new Set(['图片', '识图', '看图', 'vision']);
+
+export function isImageFlagToken(value: string | undefined): boolean {
+    return IMAGE_FLAG.has(value?.trim().toLowerCase() ?? '');
+}
+
+export function parseOnOff(value: string | undefined): boolean | undefined {
+    const key = value?.trim().toLowerCase() ?? '';
+    if (['开', '能', '是', '1', 'on', 'true'].includes(key)) return true;
+    if (['关', '不能', '否', '0', 'off', 'false'].includes(key)) return false;
+    return undefined;
 }

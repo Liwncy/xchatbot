@@ -5,6 +5,7 @@ import {normalizeLlmType, type LlmConfig, type LlmType} from './types.js';
 export interface LlmChatOptions {
     system?: string;
     user: string;
+    imageUrl?: string;
     model?: string;
     name?: string;
     type?: LlmType;
@@ -21,6 +22,18 @@ export async function resolveLlmConfig(
         return null;
     }
     return getDefaultLlmConfig(env, normalizeLlmType(type));
+}
+
+async function resolveForRequest(env: Env, options: LlmChatOptions): Promise<LlmConfig | null> {
+    if (options.name?.trim()) {
+        const named = await resolveLlmConfig(env, options.name, options.type ?? 'chat');
+        if (!named) return null;
+        if (options.imageUrl && !named.supportImage) return null;
+        return named;
+    }
+    return getDefaultLlmConfig(env, normalizeLlmType(options.type ?? 'chat'), {
+        supportImage: Boolean(options.imageUrl),
+    });
 }
 
 export function extractJsonObject(text: string): Record<string, unknown> | null {
@@ -41,15 +54,32 @@ export function extractJsonObject(text: string): Record<string, unknown> | null 
 }
 
 export async function requestLlmText(env: Env, options: LlmChatOptions): Promise<string | null> {
-    const config = await resolveLlmConfig(env, options.name, options.type ?? 'chat');
+    const config = await resolveForRequest(env, options);
     if (!config) return null;
     const user = options.user.trim();
-    if (!user) return null;
+    const imageUrl = options.imageUrl?.trim() ?? '';
+    if (!user && !imageUrl) return null;
 
-    const messages: Array<{role: 'system' | 'user'; content: string}> = [];
+    const messages: Array<{
+        role: 'system' | 'user';
+        content: string | Array<
+            | {type: 'text'; text: string}
+            | {type: 'image_url'; image_url: {url: string}}
+        >;
+    }> = [];
     const system = options.system?.trim();
     if (system) messages.push({role: 'system', content: system});
-    messages.push({role: 'user', content: user});
+    if (imageUrl) {
+        messages.push({
+            role: 'user',
+            content: [
+                ...(user ? [{type: 'text' as const, text: user}] : []),
+                {type: 'image_url', image_url: {url: imageUrl}},
+            ],
+        });
+    } else {
+        messages.push({role: 'user', content: user});
+    }
 
     const response = await fetch(config.apiUrl, {
         method: 'POST',

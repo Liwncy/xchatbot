@@ -8,17 +8,19 @@ import {
     setLlmConfigStatus,
     upsertLlmConfig,
 } from './repository.js';
-import {normalizeLlmType, parseLlmType, type LlmConfig, type LlmType} from './types.js';
+import {isImageFlagToken, normalizeLlmType, parseLlmType, parseOnOff, type LlmConfig, type LlmType} from './types.js';
 
 const HELP = [
     '看已有的：#模型',
     '加一套：#模型 加 名字 地址 模型 钥匙',
     '同类型已有在用的，可只写：#模型 加 名字 钥匙',
+    '能看图的：#模型 加 名字 地址 模型 钥匙 图片',
     '指定用途：#模型 加 名字 类型 embedding 地址 模型 钥匙',
     '类型：chat / embedding / rerank / image / speech',
     '换着用：#模型 用 名字',
     '停用：#模型 停 名字',
     '再用：#模型 开 名字',
+    '开看图：#模型 改 名字 图片 开',
     '改钥匙：#模型 改 名字 钥匙 新的',
     '删掉：#模型 删 名字',
 ].join('\n');
@@ -36,7 +38,7 @@ function maskKey(key: string): string {
 function formatConfig(item: LlmConfig, showKey: boolean): string {
     const mark = item.status === 'disabled' ? '（停了）' : item.isDefault ? '（在用）' : '';
     const key = showKey ? item.apiKey : maskKey(item.apiKey);
-    return `${item.name}${mark}\n类型 ${item.type}\n状态 ${item.status}\n模型 ${item.model}\n地址 ${item.apiUrl}\n钥匙 ${key}`;
+    return `${item.name}${mark}\n类型 ${item.type}\n状态 ${item.status}\n看图 ${item.supportImage ? '能' : '不能'}\n模型 ${item.model}\n地址 ${item.apiUrl}\n钥匙 ${key}`;
 }
 
 function takeType(tokens: string[]): {type: LlmType; rest: string[]} {
@@ -50,6 +52,7 @@ function takeType(tokens: string[]): {type: LlmType; rest: string[]} {
             if (!inline) i += 1;
             continue;
         }
+        if (isImageFlagToken(raw)) continue;
         const parsed = parseLlmType(raw);
         if (parsed && leftover.length === 0) {
             type = parsed;
@@ -66,9 +69,11 @@ function parseAdd(tokens: string[]): {
     apiUrl?: string;
     apiKey: string;
     model?: string;
+    supportImage?: boolean;
 } | string {
     const name = normalizeName(tokens[0] ?? '');
     if (!name) return '名字写后面';
+    const supportImage = tokens.slice(1).some((item) => isImageFlagToken(item.split('=', 1)[0]));
     const {type, rest} = takeType(tokens.slice(1));
     if (!rest.length) return '钥匙写后面';
     const apiUrl = rest.find((item) => /^https?:\/\//iu.test(item));
@@ -77,7 +82,7 @@ function parseAdd(tokens: string[]): {
     )) || rest.filter((item) => item !== apiUrl).at(-1) || '';
     if (!apiKey.trim()) return '钥匙写后面';
     const model = rest.find((item) => item !== apiUrl && item !== apiKey);
-    return {name, type, apiUrl, apiKey: apiKey.trim(), model};
+    return {name, type, apiUrl, apiKey: apiKey.trim(), model, supportImage: supportImage || undefined};
 }
 
 function parsePatch(tokens: string[]): {
@@ -85,14 +90,21 @@ function parsePatch(tokens: string[]): {
     apiUrl?: string;
     apiKey?: string;
     model?: string;
+    supportImage?: boolean;
 } | string {
     if (!tokens.length) return '要改的写后面，比如 钥匙 新的';
-    const patch: {type?: LlmType; apiUrl?: string; apiKey?: string; model?: string} = {};
+    const patch: {type?: LlmType; apiUrl?: string; apiKey?: string; model?: string; supportImage?: boolean} = {};
     for (let i = 0; i < tokens.length; i += 1) {
         const raw = tokens[i]?.trim() ?? '';
         const next = tokens[i + 1]?.trim() ?? '';
         const [key, inline] = raw.split('=', 2);
         const field = (inline ? key : raw).replace(/：$/, '');
+        if (isImageFlagToken(field)) {
+            const flagged = parseOnOff(inline || next);
+            patch.supportImage = flagged ?? true;
+            if (!inline && flagged !== undefined) i += 1;
+            continue;
+        }
         const value = inline || next;
         if (!value) continue;
         if (field === '钥匙' || field === 'key' || field === 'apikey') {
@@ -124,7 +136,7 @@ function parsePatch(tokens: string[]): {
         else if (raw.includes('/') && !patch.model) patch.model = raw;
         else if (!patch.apiKey) patch.apiKey = raw;
     }
-    if (!patch.apiUrl && !patch.apiKey && !patch.model && !patch.type) {
+    if (!patch.apiUrl && !patch.apiKey && !patch.model && !patch.type && patch.supportImage === undefined) {
         return '要改的写后面，比如 钥匙 新的';
     }
     return patch;
@@ -153,6 +165,7 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
             apiUrl,
             apiKey: parsed.apiKey,
             model,
+            supportImage: parsed.supportImage,
         });
         return {
             message: saved.isDefault
@@ -174,6 +187,7 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
             apiUrl: parsed.apiUrl || existing.apiUrl,
             apiKey: parsed.apiKey || existing.apiKey,
             model: parsed.model || existing.model,
+            supportImage: parsed.supportImage,
         });
         return {message: `改好了，还是 ${name}`};
     }
@@ -225,7 +239,7 @@ export async function runLlmConfig(env: Env, tail: string): Promise<{message: st
     if (!items.length) return {message: `还没配。\n${HELP}`};
     return {
         message: items.map((item) => (
-            `${item.status === 'disabled' ? '⏸ ' : item.isDefault ? '▶ ' : ''}${item.name}  ${item.type}  ${item.model}  ${maskKey(item.apiKey)}`
+            `${item.status === 'disabled' ? '⏸ ' : item.isDefault ? '▶ ' : ''}${item.name}  ${item.type}${item.supportImage ? ' 看图' : ''}  ${item.model}  ${maskKey(item.apiKey)}`
         )).join('\n'),
     };
 }
