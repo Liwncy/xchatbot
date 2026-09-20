@@ -35,6 +35,24 @@ export function fallbackEmojiName(seed: string): string {
     return slug.startsWith('emoji_') ? slug : `emoji_${slug.slice(0, 12)}`;
 }
 
+/** 自动收当时用 md5 顶的占位名，可以重标。 */
+export function isPlaceholderEmojiName(name: string): boolean {
+    const normalized = name.trim().toLowerCase();
+    return /^e[0-9a-f]{32}$/u.test(normalized) || /^emoji_[a-f0-9_]+$/u.test(normalized);
+}
+
+export function nameFromEmojiLabel(
+    labeled: {name?: string; description?: string; tags?: string[]} | null,
+    existingNames: string[],
+    seed: string,
+): string {
+    const desired = labeled?.name?.trim()
+        || labeled?.description?.trim()
+        || labeled?.tags?.slice(0, 2).join('')
+        || '表情';
+    return resolveUniqueEmojiName(desired, existingNames, seed);
+}
+
 export function fallbackEmojiTags(category: EmojiStashCategory): string[] {
     return [EMOJI_STASH_CATEGORY_LABELS[category]];
 }

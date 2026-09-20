@@ -6,15 +6,26 @@ import {
     isEmojiStashCategory,
     type EmojiStashCategory,
 } from './categories.js';
+import {readImageMeta, type ImageMeta} from './image-meta.js';
 
 export interface EmojiLabel {
+    name: string;
     description: string;
     tags: string[];
     category: EmojiStashCategory;
+    size?: number;
+    width?: number | null;
+    height?: number | null;
+    mime?: string | null;
 }
 
-function normalizeLabel(raw: Record<string, unknown>): EmojiLabel | null {
-    const description = String(raw.description ?? '').replace(/\s+/gu, '').trim().slice(0, 16);
+function normalizeChineseName(raw: unknown): string {
+    const name = String(raw ?? '').replace(/\s+/gu, '').trim().slice(0, 8);
+    return name && /[\u4e00-\u9fff]/u.test(name) ? name : '';
+}
+
+export function normalizeLabel(raw: Record<string, unknown>): EmojiLabel | null {
+    const description = String(raw.description ?? '').replace(/\s+/gu, '').trim().slice(0, 36);
     const tags = Array.isArray(raw.tags)
         ? raw.tags
             .map((tag) => String(tag).replace(/[#[\]【】\s]/gu, '').trim())
@@ -25,7 +36,8 @@ function normalizeLabel(raw: Record<string, unknown>): EmojiLabel | null {
     const categoryRaw = String(raw.category ?? '').trim().toLowerCase();
     const category = isEmojiStashCategory(categoryRaw) ? categoryRaw : 'misc';
     if (!description || !/[\u4e00-\u9fff]/u.test(description) || tags.length < 2) return null;
-    return {description, tags, category};
+    const name = normalizeChineseName(raw.name) || description.slice(0, 8) || tags.slice(0, 2).join('');
+    return {name, description, tags, category};
 }
 
 function needsPublicCopy(url: string): boolean {
@@ -37,34 +49,63 @@ function needsPublicCopy(url: string): boolean {
     }
 }
 
-async function publicImageUrl(imageUrl: string): Promise<string> {
-    if (!needsPublicCopy(imageUrl)) return imageUrl;
+export async function prepareEmojiImage(imageUrl: string): Promise<{url: string; meta: ImageMeta}> {
     const response = await fetch(imageUrl);
     if (!response.ok) throw new Error(`图没拉下来 ${response.status}`);
     const mime = response.headers.get('content-type')?.split(';')[0]?.trim() || 'image/gif';
-    const uploaded = await FileUploader.upload(await response.arrayBuffer(), {
+    const buffer = await response.arrayBuffer();
+    const meta = readImageMeta(buffer, mime);
+    if (!needsPublicCopy(imageUrl)) return {url: imageUrl, meta};
+    const uploaded = await FileUploader.upload(buffer, {
         fileName: mime.includes('gif') ? 'emoji.gif' : 'emoji.jpg',
         contentType: mime.includes('octet-stream') ? 'image/gif' : mime,
     });
     if (!uploaded) throw new Error('图没转出去');
-    return uploaded;
+    return {url: uploaded, meta};
 }
 
-export async function labelEmojiFromImage(env: Env, imageUrl: string): Promise<EmojiLabel | null> {
+export async function inspectEmojiFromImage(
+    env: Env,
+    imageUrl: string,
+): Promise<{labeled: EmojiLabel | null; meta: ImageMeta | null}> {
     const url = imageUrl.trim();
-    if (!/^https?:\/\//iu.test(url)) return null;
+    if (!/^https?:\/\//iu.test(url)) return {labeled: null, meta: null};
+
+    let prepared: {url: string; meta: ImageMeta};
+    try {
+        prepared = await prepareEmojiImage(url);
+    } catch (error) {
+        logger.warn('表情图没拉下来', {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return {labeled: null, meta: null};
+    }
+
     try {
         const raw = await requestLlmJson(env, {
             type: 'chat',
             system: LLM_PROMPTS.emojiLabel,
             user: '给这张表情写检索字段。',
-            imageUrl: await publicImageUrl(url),
+            imageUrl: prepared.url,
         });
-        return raw ? normalizeLabel(raw) : null;
+        const labeled = raw ? normalizeLabel(raw) : null;
+        return {
+            labeled: labeled
+                ? {
+                    ...labeled,
+                    size: prepared.meta.size,
+                    width: prepared.meta.width,
+                    height: prepared.meta.height,
+                    mime: prepared.meta.mime,
+                }
+                : null,
+            meta: prepared.meta,
+        };
     } catch (error) {
         logger.warn('表情标签没写成', {
             error: error instanceof Error ? error.message : String(error),
         });
-        return null;
+        return {labeled: null, meta: prepared.meta};
     }
 }
+

@@ -408,6 +408,7 @@ export const VERBS: VerbRoute[] = [
         if (parts.length < 2) return need('名字和新说明写后面，比如 #改表情 摊手 无奈');
         return ok({name: parts[0], description: parts.slice(1).join(' ')});
     }, map: 'json'},
+    {verbs: ['重标表情', '补表情名'], server: 'local', tool: 'emoji_relabel', ownerOnly: true, fail: '没标成', args: () => ok({}), map: 'json'},
     {verbs: ['现在几点', '几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
     {verbs: ['回声'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {
         const text = argText(ctx);

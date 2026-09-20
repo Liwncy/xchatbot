@@ -27,7 +27,7 @@ import {
     type MatchedRoute,
     type RouteServer,
 } from './catalog.js';
-import {emojiGet, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
+import {emojiGet, emojiRelabelPlaceholders, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
 import {runLlmConfig} from '../../../core/llm/index.js';
 
 type MapFn = (result: McpToolResult, ctx: CallCtx) => HandlerResponse;
@@ -135,6 +135,9 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
     }
     if (name === 'llm_config') {
         return asLocalResult(await runLlmConfig(env, String(args.tail ?? '')));
+    }
+    if (name === 'emoji_relabel') {
+        return asLocalResult(await emojiRelabelPlaceholders(env, {limit: 20, llmLimit: 5}));
     }
     if (name === 'emoji_update') {
         return asLocalResult(await emojiUpdate(env, {
@@ -365,6 +368,7 @@ const emoji: MapFn = (result) => {
     const items = raw?.items ?? raw?.results ?? (raw?.found === false ? [] : raw ? [raw] : []);
     const first = asRecord(Array.isArray(items) ? items[0] : items);
     if (!first) return textReply('没找着');
+    if (str(first.status) === 'disabled') return textReply('这张禁了');
     const md5 = str(first.md5);
     const url = pickUrl(first, ['imgUrl', 'imageUrl', 'url']);
     if (md5) return parseRepliesFromText(url ? `emoji:${md5}|${url}` : `emoji:${md5}`);

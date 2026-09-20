@@ -107,6 +107,33 @@ export async function listEmojiNames(db: D1Database): Promise<string[]> {
     return (result.results ?? []).map((row) => row.name.trim().toLowerCase());
 }
 
+function isPlaceholderNameRow(name: string): boolean {
+    const normalized = name.trim().toLowerCase();
+    return /^e[0-9a-f]{32}$/u.test(normalized) || /^emoji_[a-f0-9_]+$/u.test(normalized);
+}
+
+export async function listPlaceholderEmojis(db: D1Database, limit: number): Promise<EmojiRecord[]> {
+    await ensureEmojiSchema(db);
+    const take = Math.min(Math.max(limit, 1), 80);
+    const result = await db.prepare(
+        `SELECT * FROM emoji_stash
+         WHERE (length(name) = 33 AND name LIKE 'e%') OR name LIKE 'emoji_%'
+         ORDER BY id ASC LIMIT ?`,
+    ).bind(take).all<EmojiRow>();
+    return (result.results ?? [])
+        .map(mapRow)
+        .filter((row) => isPlaceholderNameRow(row.name));
+}
+
+export async function countPlaceholderEmojis(db: D1Database): Promise<number> {
+    await ensureEmojiSchema(db);
+    const result = await db.prepare(
+        `SELECT name FROM emoji_stash
+         WHERE (length(name) = 33 AND name LIKE 'e%') OR name LIKE 'emoji_%'`,
+    ).all<{name: string}>();
+    return (result.results ?? []).filter((row) => isPlaceholderNameRow(row.name)).length;
+}
+
 export async function getEmojiByMd5(db: D1Database, md5: string): Promise<EmojiRecord | null> {
     await ensureEmojiSchema(db);
     const normalized = md5.trim().toLowerCase();
@@ -177,6 +204,40 @@ export async function searchEmojis(
         total: Number(countRow?.cnt ?? 0),
         items: (result.results ?? []).map(mapRow),
     };
+}
+
+export async function listEmojis(
+    db: D1Database,
+    options?: {includeDisabled?: boolean; limit?: number},
+): Promise<EmojiRecord[]> {
+    await ensureEmojiSchema(db);
+    const limit = Math.min(Math.max(options?.limit ?? 200, 1), 200);
+    const where = options?.includeDisabled ? '' : "WHERE status = 'active'";
+    const result = await db.prepare(
+        `SELECT * FROM emoji_stash ${where} ORDER BY category ASC, name ASC LIMIT ?`,
+    ).bind(limit).all<EmojiRow>();
+    return (result.results ?? []).map(mapRow);
+}
+
+export async function pickRandomEmoji(
+    db: D1Database,
+    options?: {category?: string; tag?: string},
+): Promise<EmojiRecord | null> {
+    await ensureEmojiSchema(db);
+    const where = ["status = 'active'"];
+    const binds: unknown[] = [];
+    if (options?.category) {
+        where.push('category = ?');
+        binds.push(options.category);
+    }
+    if (options?.tag) {
+        where.push('tags_json LIKE ?');
+        binds.push(`%${options.tag.replace(/[%_]/g, '')}%`);
+    }
+    const row = await db.prepare(
+        `SELECT * FROM emoji_stash WHERE ${where.join(' AND ')} ORDER BY RANDOM() LIMIT 1`,
+    ).bind(...binds).first<EmojiRow>();
+    return row ? mapRow(row) : null;
 }
 
 export interface UpsertEmojiInput {
@@ -278,6 +339,10 @@ export async function insertEmojiIfNew(
         category: EmojiStashCategory;
         tags: string[];
         source: string;
+        mime?: string | null;
+        size?: number | null;
+        width?: number | null;
+        height?: number | null;
     },
 ): Promise<boolean> {
     await ensureEmojiSchema(db);
@@ -286,14 +351,18 @@ export async function insertEmojiIfNew(
         `INSERT OR IGNORE INTO emoji_stash (
             name, description, md5, img_url, mime, category, tags_json,
             status, size, width, height, source, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, NULL, ?, ?, 'active', NULL, NULL, NULL, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
     ).bind(
         input.name.trim().toLowerCase(),
         input.description.trim(),
         input.md5.trim().toLowerCase(),
         (input.imgUrl ?? '').trim(),
+        input.mime?.trim() || null,
         input.category,
         JSON.stringify(input.tags),
+        input.size ?? null,
+        input.width ?? null,
+        input.height ?? null,
         input.source.trim(),
         now,
         now,

@@ -37,3 +37,15 @@ export function normalizeEmojiStashCategory(value: string): EmojiStashCategory {
     if (isEmojiStashCategory(normalized)) return normalized;
     return 'misc';
 }
+
+/** 认 english key 或中文标签。对不上返回 null，不要默默掉进杂项。 */
+export function resolveEmojiStashCategoryToken(value: string): EmojiStashCategory | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const lowered = trimmed.toLowerCase();
+    if (isEmojiStashCategory(lowered)) return lowered;
+    for (const [key, label] of Object.entries(EMOJI_STASH_CATEGORY_LABELS)) {
+        if (label === trimmed) return key as EmojiStashCategory;
+    }
+    return null;
+}

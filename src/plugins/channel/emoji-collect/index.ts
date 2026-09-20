@@ -1,5 +1,5 @@
 import type {PluginContext} from '../../../core/context.js';
-import {emojiCollectInbound} from '../../../core/emoji-stash/index.js';
+import {emojiCollectInbound, emojiRelabelPlaceholders} from '../../../core/emoji-stash/index.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {HandlerResponse} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
@@ -28,16 +28,23 @@ export const emojiCollectPlugin: Plugin = {
         const source = message.source === 'group'
             ? `group:${message.room?.id ?? ''}`
             : `user:${message.from}`;
-        ctx.waitUntil(emojiCollectInbound(ctx.env, {
-            md5,
-            imgUrl,
-            source,
-        }).catch((error) => {
-            logger.warn('表情没收下', {
-                messageId: message.messageId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-        }));
+        ctx.waitUntil((async () => {
+            try {
+                await emojiCollectInbound(ctx.env, {md5, imgUrl, source});
+            } catch (error) {
+                logger.warn('表情没收下', {
+                    messageId: message.messageId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+            try {
+                await emojiRelabelPlaceholders(ctx.env, {limit: 12, llmLimit: 1});
+            } catch (error) {
+                logger.warn('旧表情没重标上', {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        })());
         return null;
     },
 };

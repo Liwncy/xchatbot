@@ -1,24 +1,30 @@
 import type {Env} from '../../types/env.js';
 import {FileUploader} from '../../utils/file-uploader.js';
-import {normalizeEmojiStashCategory} from './categories.js';
+import {normalizeEmojiStashCategory, resolveEmojiStashCategoryToken} from './categories.js';
 import {
     fallbackEmojiName,
     fallbackEmojiTags,
+    isPlaceholderEmojiName,
+    nameFromEmojiLabel,
     normalizeTags,
     resolveUniqueEmojiName,
 } from './names.js';
 import {describeEmoji} from './tag-zh.js';
 import {
+    countPlaceholderEmojis,
     getEmojiById,
     getEmojiByMd5,
     getEmojiByName,
     insertEmojiIfNew,
     listEmojiNames,
+    listEmojis,
+    listPlaceholderEmojis,
     normalizeEmojiStatus,
+    pickRandomEmoji,
     searchEmojis,
     upsertEmoji,
 } from './repository.js';
-import {labelEmojiFromImage} from './label.js';
+import {inspectEmojiFromImage} from './label.js';
 import type {EmojiPublicItem, EmojiRecord} from './types.js';
 import {pickDurableImageUrl} from './urls.js';
 
@@ -104,16 +110,116 @@ export async function emojiCollectInbound(
 
     const storeUrl = pickDurableImageUrl(options.imgUrl);
     const seeUrl = storeUrl || options.imgUrl?.trim() || '';
-    const labeled = seeUrl ? await labelEmojiFromImage(env, seeUrl) : null;
+    const inspected = seeUrl ? await inspectEmojiFromImage(env, seeUrl) : {labeled: null, meta: null};
+    const labeled = inspected.labeled;
+    const existingNames = await listEmojiNames(env.XBOT_DB);
     return insertEmojiIfNew(env.XBOT_DB, {
-        name: `e${md5}`,
+        name: nameFromEmojiLabel(labeled, existingNames, md5),
         description: labeled?.description || '收到的表情',
         md5,
         imgUrl: storeUrl,
         category: labeled?.category ?? 'misc',
         tags: labeled?.tags.length ? labeled.tags : ['表情'],
         source: options.source?.trim() || 'inbound',
+        mime: inspected.meta?.mime ?? labeled?.mime,
+        size: inspected.meta?.size ?? labeled?.size,
+        width: inspected.meta?.width ?? labeled?.width,
+        height: inspected.meta?.height ?? labeled?.height,
     });
+}
+
+const GENERIC_EMOJI_DESC = /^(收到的表情|表情)$/u;
+const HAS_CJK = /[\u4e00-\u9fff]/u;
+
+function labelFromExisting(row: EmojiRecord): {name?: string; description?: string; tags: string[]; category?: EmojiRecord['category']} | null {
+    const description = row.description.trim();
+    const tags = row.tags.filter((tag) => HAS_CJK.test(tag) && tag !== '表情');
+    const descOk = HAS_CJK.test(description) && !GENERIC_EMOJI_DESC.test(description);
+    if (!descOk && !tags.length) return null;
+    return {
+        name: descOk ? description.slice(0, 8) : tags.slice(0, 2).join(''),
+        description: descOk ? description : undefined,
+        tags: tags.length ? tags : row.tags,
+        category: row.category,
+    };
+}
+
+function descriptionNeedsRefresh(description: string): boolean {
+    const text = description.trim();
+    if (!text || GENERIC_EMOJI_DESC.test(text) || !HAS_CJK.test(text)) return true;
+    return [...text].length < 16;
+}
+
+export async function emojiRelabelPlaceholders(
+    env: Env,
+    options?: {limit?: number; llmLimit?: number},
+): Promise<{updated: number; skipped: number; remaining: number; names: string[]; message: string}> {
+    if (!env.XBOT_DB) {
+        return {updated: 0, skipped: 0, remaining: 0, names: [], message: '库还没接上'};
+    }
+    const db = env.XBOT_DB;
+    const limit = Math.min(Math.max(options?.limit ?? 8, 1), 40);
+    let llmBudget = Math.min(Math.max(options?.llmLimit ?? 2, 0), 8);
+    const candidates = await listPlaceholderEmojis(db, Math.min(limit + 8, 50));
+    const existingNames = await listEmojiNames(db);
+    let updated = 0;
+    let skipped = 0;
+    const names: string[] = [];
+
+    for (const row of candidates) {
+        if (updated >= limit) break;
+        if (!isPlaceholderEmojiName(row.name)) {
+            skipped += 1;
+            continue;
+        }
+        let labeled = labelFromExisting(row);
+        let meta = {mime: row.mime, size: row.size, width: row.width, height: row.height};
+        const seeUrl = pickDurableImageUrl(row.imgUrl);
+        if (llmBudget > 0 && seeUrl && (!labeled || descriptionNeedsRefresh(row.description))) {
+            const seen = await inspectEmojiFromImage(env, seeUrl);
+            if (seen.labeled) labeled = seen.labeled;
+            if (seen.meta) meta = seen.meta;
+            llmBudget -= 1;
+        }
+        if (!labeled) {
+            skipped += 1;
+            continue;
+        }
+        const nextName = nameFromEmojiLabel(
+            labeled,
+            existingNames.filter((name) => name !== row.name),
+            row.md5 ?? String(row.id),
+        );
+        await upsertEmoji(db, {
+            existingId: row.id,
+            name: nextName,
+            description: labeled.description?.trim() || row.description,
+            md5: row.md5,
+            imgUrl: row.imgUrl,
+            mime: meta.mime,
+            category: labeled.category ?? row.category,
+            tags: labeled.tags.length ? labeled.tags : row.tags,
+            status: row.status,
+            size: meta.size,
+            width: meta.width,
+            height: meta.height,
+            source: row.source,
+        });
+        existingNames.push(nextName);
+        names.push(nextName);
+        updated += 1;
+    }
+
+    const remaining = await countPlaceholderEmojis(db);
+    let message = '没有要重标的';
+    if (updated) {
+        const shown = names.slice(0, 8).join('、');
+        const extra = remaining ? `，还剩 ${remaining} 个` : '';
+        message = shown ? `好，标了 ${updated} 个：${shown}${extra}` : `好，标了 ${updated} 个${extra}`;
+    } else if (remaining) {
+        message = skipped ? `这批没标上，还剩 ${remaining} 个` : `还剩 ${remaining} 个`;
+    }
+    return {updated, skipped, remaining, names, message};
 }
 
 export async function emojiSave(
@@ -170,7 +276,11 @@ export async function emojiSave(
         mime: options.mime?.trim() || rehosted.mime || existing?.mime || null,
         category,
         tags,
-        status: options.status ? normalizeEmojiStatus(options.status) : (existing?.status ?? 'active'),
+        status: options.status
+            ? normalizeEmojiStatus(options.status)
+            : existing?.status === 'disabled'
+                ? 'disabled'
+                : (existing?.status ?? 'active'),
         size: options.size ?? existing?.size ?? null,
         width: options.width ?? existing?.width ?? null,
         height: options.height ?? existing?.height ?? null,
@@ -270,4 +380,73 @@ export async function emojiUpdate(
         source: existing.source,
     });
     return toPublic(record);
+}
+
+export type EmojiPickResult =
+    | {ok: true; item: EmojiPublicItem}
+    | {ok: false; reason: 'missing' | 'banned' | 'bad-category'};
+
+export async function emojiPickByName(env: Env, name: string): Promise<EmojiPickResult> {
+    const row = await getEmojiByName(requireDb(env), name);
+    if (!row) return {ok: false, reason: 'missing'};
+    if (row.status === 'disabled' || !row.md5) {
+        return {ok: false, reason: row.status === 'disabled' ? 'banned' : 'missing'};
+    }
+    return {ok: true, item: toPublic(row)};
+}
+
+export async function emojiPickRandom(
+    env: Env,
+    options?: {category?: string; tag?: string},
+): Promise<EmojiPickResult> {
+    let category: string | undefined;
+    if (options?.category) {
+        const resolved = resolveEmojiStashCategoryToken(options.category);
+        if (!resolved) return {ok: false, reason: 'bad-category'};
+        category = resolved;
+    }
+    const row = await pickRandomEmoji(requireDb(env), {
+        category,
+        tag: options?.tag?.trim(),
+    });
+    if (!row?.md5) return {ok: false, reason: 'missing'};
+    return {ok: true, item: toPublic(row)};
+}
+
+export async function emojiListAll(env: Env): Promise<EmojiRecord[]> {
+    return listEmojis(requireDb(env), {includeDisabled: true, limit: 200});
+}
+
+export async function emojiBan(
+    env: Env,
+    options: {md5?: string; name?: string; imgUrl?: string},
+): Promise<{name: string; already: boolean} | null> {
+    const db = requireDb(env);
+    let md5: string | null = null;
+    try {
+        md5 = options.md5 ? normalizeMd5(options.md5) : null;
+    } catch {
+        md5 = null;
+    }
+    const name = options.name?.trim();
+    let existing = md5 ? await getEmojiByMd5(db, md5) : null;
+    if (!existing && name) existing = await getEmojiByName(db, name);
+    if (!existing) return null;
+    if (existing.status === 'disabled') return {name: existing.name, already: true};
+    await upsertEmoji(db, {
+        existingId: existing.id,
+        name: existing.name,
+        description: existing.description,
+        md5: existing.md5 ?? md5,
+        imgUrl: pickDurableImageUrl(options.imgUrl, existing.imgUrl),
+        mime: existing.mime,
+        category: existing.category,
+        tags: existing.tags,
+        status: 'disabled',
+        size: existing.size,
+        width: existing.width,
+        height: existing.height,
+        source: existing.source,
+    });
+    return {name: existing.name, already: false};
 }
