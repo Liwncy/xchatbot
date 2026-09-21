@@ -12,6 +12,7 @@ import {
 
 const APP_LINE = /^app:(\d+)\s+(<.+)$/iu;
 const EMOJI_LINE = /^(?:emoji:)([0-9a-f]{32})(?:\|([^|]*))?(?:\s+(https?:\/\/\S+))?$/iu;
+const AT_LINE = /^at:([^\s|]+)\|(.+)$/isu;
 
 function looksLikeHttp(value: string): boolean {
     const lower = value.trim().toLowerCase();
@@ -118,6 +119,15 @@ function parseAppLine(line: string): ReplyMessage | null {
     return appReply(appType, xml);
 }
 
+function parseAtLine(line: string): ReplyMessage | null {
+    const match = AT_LINE.exec(line.trim());
+    if (!match) return null;
+    const wxid = match[1].trim();
+    const content = match[2].trim();
+    if (!wxid || !content) return null;
+    return {type: 'text', content, mentions: [wxid]};
+}
+
 function parseOutboundLine(line: string): ReplyMessage | null {
     const trimmed = line.trim();
     if (!trimmed) return null;
@@ -130,6 +140,7 @@ function parseOutboundLine(line: string): ReplyMessage | null {
     if (lower.startsWith('music:')) return parseMusicLine(trimmed.slice(6));
     if (lower.startsWith('emoji:')) return parseEmojiLine(trimmed);
     if (lower.startsWith('app:')) return parseAppLine(trimmed);
+    if (lower.startsWith('at:')) return parseAtLine(trimmed);
     return null;
 }
 

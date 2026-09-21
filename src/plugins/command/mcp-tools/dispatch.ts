@@ -28,6 +28,7 @@ import {
     type RouteServer,
 } from './catalog.js';
 import {emojiGet, emojiRelabelPlaceholders, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
+import {formatPeerList, peerBan, peerMatch, peerSave, peerSearch} from '../../../core/peer-roster/index.js';
 import {runLlmConfig} from '../../../core/llm/index.js';
 
 type MapFn = (result: McpToolResult, ctx: CallCtx) => HandlerResponse;
@@ -135,6 +136,43 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
     }
     if (name === 'llm_config') {
         return asLocalResult(await runLlmConfig(env, String(args.tail ?? '')));
+    }
+    if (name === 'peer_search') {
+        const items = await peerSearch(env, {
+            scope: String(args.scope ?? ''),
+            query: String(args.query ?? ''),
+            includeInactive: Boolean(args.includeInactive),
+        });
+        return asLocalResult({items, reply: formatPeerList(items)});
+    }
+    if (name === 'peer_save') {
+        const item = await peerSave(env, {
+            scope: String(args.scope ?? ''),
+            wxid: typeof args.wxid === 'string' ? args.wxid : undefined,
+            name: String(args.name ?? ''),
+            topic: String(args.topic ?? ''),
+            template: typeof args.template === 'string' ? args.template : undefined,
+            mention: typeof args.mention === 'boolean' ? args.mention : undefined,
+            fallback: Boolean(args.fallback),
+            platform: typeof args.platform === 'string' ? args.platform : undefined,
+        });
+        return asLocalResult({...item, reply: `记下了，下次${item.topic}找${item.name}`});
+    }
+    if (name === 'peer_match') {
+        return asLocalResult(await peerMatch(env, {
+            scope: String(args.scope ?? ''),
+            query: String(args.query ?? ''),
+            platform: typeof args.platform === 'string' ? args.platform : undefined,
+        }));
+    }
+    if (name === 'peer_ban') {
+        const item = await peerBan(env, {
+            scope: String(args.scope ?? ''),
+            id: typeof args.id === 'number' ? args.id : undefined,
+            wxid: typeof args.wxid === 'string' ? args.wxid : undefined,
+            topic: typeof args.topic === 'string' ? args.topic : undefined,
+        });
+        return asLocalResult(item ? {...item, reply: '好，不喊了'} : {found: false});
     }
     if (name === 'emoji_relabel') {
         return asLocalResult(await emojiRelabelPlaceholders(env, {limit: 20, llmLimit: 5}));
@@ -383,6 +421,11 @@ const json: MapFn = (result) => {
     if (raw.deleted === false) return textReply('没删掉');
     if (raw.updated === false) return textReply('没改成');
     if (raw.saved === false) return textReply('没存上');
+    const outbound = str(raw.outbound);
+    if (outbound) {
+        const spoken = str(raw.reply);
+        return parseRepliesFromText(spoken ? `${spoken}\n${outbound}` : outbound);
+    }
     const spoken = str(raw.result) || str(raw.reply) || str(raw.message);
     if (spoken && raw.total == null && raw.rules == null) return textReply(clip(spoken));
     for (const key of ['items', 'topics', 'list', 'candidates', 'hits', 'results', 'platforms']) {

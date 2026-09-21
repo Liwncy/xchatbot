@@ -363,6 +363,86 @@ function xuanxueArgs(ctx: CallCtx): ArgsResult {
     });
 }
 
+function peerScopeOf(message: IncomingMessage): string {
+    return message.source === 'group'
+        ? `group:${message.room?.id ?? ''}`
+        : `user:${message.from}`;
+}
+
+function peerPersonOf(ctx: CallCtx): {wxid: string; name: string} | null {
+    const botId = resolveBotId(ctx.env, ctx.message.platform);
+    const other = (ctx.message.mentions ?? []).find((item) => item.id.trim() && item.id.trim() !== botId);
+    if (other) return {wxid: other.id.trim(), name: other.name?.trim() || other.id.trim()};
+    const quote = ctx.message.quote;
+    const from = quote?.referFrom?.trim() ?? '';
+    if (from && from !== botId) {
+        return {wxid: from, name: quote?.referSenderName?.trim() || from};
+    }
+    return null;
+}
+
+function peerTalkArgs(ctx: CallCtx): ArgsResult {
+    const person = peerPersonOf(ctx);
+    if (!person) return need('先点名或引用他');
+    const topic = ctx.tail.replace(/^会/u, '').trim();
+    if (!topic) return need('他会啥写后面，比如 #记他 点歌');
+    return ok({
+        scope: peerScopeOf(ctx.message),
+        wxid: person.wxid,
+        name: person.name,
+        topic,
+        fallback: topic === '兜底',
+        platform: ctx.message.platform,
+    });
+}
+
+function peerShoutArgs(ctx: CallCtx): ArgsResult {
+    const person = peerPersonOf(ctx);
+    if (!person) return need('先点名或引用他');
+    const tail = ctx.tail.trim();
+    if (!tail) return need('口令写后面，比如 #记口令 点歌 music {问}');
+    const parts = tail.split(/\s+/u).filter(Boolean);
+    const topic = (parts[0] ?? '').replace(/^会/u, '');
+    const template = parts.slice(1).join(' ') || topic;
+    if (!topic) return need('会啥和口令写后面');
+    return ok({
+        scope: peerScopeOf(ctx.message),
+        wxid: person.wxid,
+        name: person.name,
+        topic,
+        template,
+        platform: ctx.message.platform,
+    });
+}
+
+function peerSearchArgs(ctx: CallCtx): ArgsResult {
+    return ok({
+        scope: peerScopeOf(ctx.message),
+        query: ctx.tail.trim(),
+    });
+}
+
+function peerMatchArgs(ctx: CallCtx): ArgsResult {
+    const query = argText(ctx);
+    if (!query) return need('要甩的事写后面');
+    return ok({
+        scope: peerScopeOf(ctx.message),
+        query,
+        platform: ctx.message.platform,
+    });
+}
+
+function peerBanArgs(ctx: CallCtx): ArgsResult {
+    const person = peerPersonOf(ctx);
+    const topic = ctx.tail.replace(/^会/u, '').trim();
+    if (!person && !topic) return need('点名他，或把会啥写后面');
+    return ok({
+        scope: peerScopeOf(ctx.message),
+        wxid: person?.wxid,
+        topic: topic || undefined,
+    });
+}
+
 /** 动词口令。更长的优先，所以「修仙探索」不会被前缀「修仙」吃掉。 */
 export const VERBS: VerbRoute[] = [
     // 图 / 语音 / 视频
@@ -409,6 +489,11 @@ export const VERBS: VerbRoute[] = [
         return ok({name: parts[0], description: parts.slice(1).join(' ')});
     }, map: 'json'},
     {verbs: ['重标表情', '补表情名'], server: 'local', tool: 'emoji_relabel', ownerOnly: true, fail: '没标成', args: () => ok({}), map: 'json'},
+    {verbs: ['记他'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerTalkArgs, map: 'json'},
+    {verbs: ['记口令'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerShoutArgs, map: 'json'},
+    {verbs: ['搜能人', '花名册'], server: 'local', tool: 'peer_search', fail: '这群还没记谁', args: peerSearchArgs, map: 'json'},
+    {verbs: ['转交', '甩活'], server: 'local', tool: 'peer_match', fail: '不会', args: peerMatchArgs, map: 'json'},
+    {verbs: ['禁口令', '禁他'], server: 'local', tool: 'peer_ban', ownerOnly: true, fail: '没禁成', args: peerBanArgs, map: 'json'},
     {verbs: ['现在几点', '几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
     {verbs: ['回声'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {
         const text = argText(ctx);

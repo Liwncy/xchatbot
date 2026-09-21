@@ -3,6 +3,7 @@ import {z} from 'zod';
 import {getChatHistoryByMessageId, searchChatHistory} from '../core/chat-log/search.js';
 import {searchAppLogs} from '../core/app-log/search.js';
 import {emojiGet, emojiSave, emojiSearch, emojiUpdate} from '../core/emoji-stash/index.js';
+import {formatPeerList, peerBan, peerMatch, peerSave, peerSearch} from '../core/peer-roster/index.js';
 import {runFakeForward} from '../plugins/channel/fake-forward/index.js';
 import type {Env} from '../types/env.js';
 
@@ -228,6 +229,98 @@ export function createChannelMcpServer(env: Env): McpServer {
         async (input) => {
             try {
                 return jsonResult(await emojiUpdate(env, input));
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'peer_search',
+        {
+            description:
+                '查本群花名册：谁会接这类话。闲聊不要调。'
+                + 'scope 从本条前缀原样抄。query 写会啥或人名，空着列出全部。',
+            inputSchema: z.object({
+                scope: z.string().describe('必填。本条前缀里的 scope，如 group:123@chatroom'),
+                query: z.string().optional().describe('会啥或人名，可空'),
+                includeInactive: z.boolean().optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                const items = await peerSearch(env, input);
+                return jsonResult({items, reply: formatPeerList(items)});
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'peer_match',
+        {
+            description:
+                '按对方原话对花名册，拼好该喊谁、喊什么。'
+                + '命中后把返回的 outbound 行原样贴出去，不要自己改口令，不要自己办事。'
+                + 'scope 从本条前缀原样抄。query 只用对方原话。',
+            inputSchema: z.object({
+                scope: z.string().describe('必填。本条前缀里的 scope'),
+                query: z.string().describe('对方原话，不要带身份前缀'),
+            }),
+        },
+        async (input) => {
+            try {
+                return jsonResult(await peerMatch(env, input));
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'peer_save',
+        {
+            description:
+                '把群友或机器人记进花名册。对方明确说记下才用。'
+                + 'topic 是会啥。template 空着就是人话；golem::info 这种整句照念；'
+                + 'music {问} 或 music 老鼠爱大米 是带空。不要记自己或主人。',
+            inputSchema: z.object({
+                scope: z.string().describe('必填。本条前缀里的 scope'),
+                wxid: z.string().optional().describe('被记的人 wxid'),
+                name: z.string().describe('群里那个名'),
+                topic: z.string().describe('会啥，如 点歌、写脚本、兜底'),
+                template: z.string().optional().describe('喊法。空=人话'),
+                mention: z.boolean().optional().describe('要不要 @，默认照念免@、其余要@'),
+                fallback: z.boolean().optional().describe('对不上时兜底'),
+                platform: z.string().optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                const item = await peerSave(env, input);
+                return jsonResult({...item, reply: `记下了，下次${item.topic}找${item.name}`});
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'peer_ban',
+        {
+            description: '花名册里不再喊他或某条会啥。改状态，不删。',
+            inputSchema: z.object({
+                scope: z.string(),
+                id: z.number().int().optional(),
+                wxid: z.string().optional(),
+                topic: z.string().optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                const item = await peerBan(env, input);
+                return jsonResult(item ? {...item, reply: '好，不喊了'} : {found: false});
             } catch (error) {
                 return errorResult(error);
             }
