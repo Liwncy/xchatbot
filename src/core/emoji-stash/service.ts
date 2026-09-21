@@ -414,7 +414,7 @@ export async function emojiPickRandom(
 }
 
 export async function emojiListAll(env: Env): Promise<EmojiRecord[]> {
-    return listEmojis(requireDb(env), {includeDisabled: true, limit: 200});
+    return listEmojis(requireDb(env), {includeDisabled: true});
 }
 
 export async function emojiBan(

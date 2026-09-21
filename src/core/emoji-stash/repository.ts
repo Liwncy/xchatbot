@@ -211,11 +211,16 @@ export async function listEmojis(
     options?: {includeDisabled?: boolean; limit?: number},
 ): Promise<EmojiRecord[]> {
     await ensureEmojiSchema(db);
-    const limit = Math.min(Math.max(options?.limit ?? 200, 1), 200);
     const where = options?.includeDisabled ? '' : "WHERE status = 'active'";
-    const result = await db.prepare(
-        `SELECT * FROM emoji_stash ${where} ORDER BY category ASC, name ASC LIMIT ?`,
-    ).bind(limit).all<EmojiRow>();
+    const order = 'ORDER BY category ASC, name ASC';
+    if (options?.limit == null) {
+        const result = await db.prepare(`SELECT * FROM emoji_stash ${where} ${order}`).all<EmojiRow>();
+        return (result.results ?? []).map(mapRow);
+    }
+    const limit = Math.max(Math.floor(options.limit), 1);
+    const result = await db.prepare(`SELECT * FROM emoji_stash ${where} ${order} LIMIT ?`)
+        .bind(limit)
+        .all<EmojiRow>();
     return (result.results ?? []).map(mapRow);
 }
 
