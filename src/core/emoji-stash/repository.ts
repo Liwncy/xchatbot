@@ -148,7 +148,7 @@ export async function getEmojiByName(db: D1Database, name: string): Promise<Emoj
     await ensureEmojiSchema(db);
     const normalized = name.trim().toLowerCase();
     if (!normalized) return null;
-    const row = await db.prepare('SELECT * FROM emoji_stash WHERE name = ? LIMIT 1')
+    const row = await db.prepare('SELECT * FROM emoji_stash WHERE lower(name) = ? LIMIT 1')
         .bind(normalized)
         .first<EmojiRow>();
     return row ? mapRow(row) : null;
