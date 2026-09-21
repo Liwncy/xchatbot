@@ -187,9 +187,6 @@ function degrade(reply: ReplyMessage): ReplyMessage | null {
         case 'voice':
             return looksLikeHttp(reply.url) ? linkReply('语音', reply.url, '点开听听') : null;
         case 'emoji':
-            if (reply.url && looksLikeHttp(reply.url)) {
-                return linkReply('表情', reply.url, '点开看看');
-            }
             return null;
         case 'music': {
             const url = (reply.url && looksLikeHttp(reply.url)) ? reply.url : reply.dataUrl;
@@ -290,7 +287,7 @@ export async function sendGolemReplies(
         receipts.push(receipt);
         replyIndex += 1;
 
-        if (receipt.ok || reply.type === 'text') continue;
+        if (receipt.ok || reply.type === 'text' || reply.type === 'emoji') continue;
 
         const fallback = textReply(FAIL_COPY[reply.type]);
         try {

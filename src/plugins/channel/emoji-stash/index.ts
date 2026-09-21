@@ -71,7 +71,7 @@ function parseBan(text: string): {hit: boolean; name?: string; md5?: string} {
 
 function sendable(item: {md5?: string | null; imgUrl?: string}): HandlerResponse {
     const md5 = item.md5?.trim() ?? '';
-    if (!md5) return textReply('没找着能发的');
+    if (!md5) return null;
     return emojiReply(md5, item.imgUrl);
 }
 
@@ -82,9 +82,8 @@ async function sendBracket(env: PluginContext['env'], command: EmojiBracketComma
             ? await emojiPickRandom(env, {category: command.value})
             : await emojiPickRandom(env, {tag: command.value});
     if (picked.ok) return sendable(picked.item);
-    if (picked.reason === 'banned') return textReply('这张禁了');
     if (picked.reason === 'bad-category') return textReply('没这个类 🤔');
-    return textReply('没找着这张 🤔');
+    return null;
 }
 
 export const emojiStashPlugin: Plugin = {

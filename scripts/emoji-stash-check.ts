@@ -34,6 +34,14 @@ assert.deepEqual(extractEmojiBracketCommand('哈哈哈哈[/funny]'), {type: 'cat
 assert.deepEqual(extractEmojiBracketCommand('来一张[#无奈]'), {type: 'tag', value: '无奈'});
 assert.deepEqual(extractEmojiBracketCommand('发[摊手猫]呗'), {type: 'name', value: '摊手猫'});
 assert.deepEqual(extractEmojiBracketCommand('[摊手]后面又[/cute]'), {type: 'category', value: 'cute'});
+assert.equal(extractEmojiBracketCommand('[狗头]'), null);
+assert.equal(extractEmojiBracketCommand('[表情]'), null);
+assert.equal(extractEmojiBracketCommand('[Smile]'), null);
+assert.equal(extractEmojiBracketCommand('[Doge]'), null);
+assert.equal(extractEmojiBracketCommand('[裂开]'), null);
+assert.equal(extractEmojiBracketCommand('好的[微笑]'), null);
+assert.deepEqual(extractEmojiBracketCommand('好的[微笑][摊手猫]'), {type: 'name', value: '摊手猫'});
+assert.deepEqual(extractEmojiBracketCommand('[#无奈]'), {type: 'tag', value: '无奈'});
 assert.equal(extractEmojiBracketCommand('没有括号'), null);
 assert.equal(fallbackEmojiName('37dffdc4c975ef8bee6852e770e2e5d6').startsWith('emoji_'), true);
 assert.equal(resolveUniqueEmojiName('shrug_cat', ['shrug_cat'], 'x'), 'shrug_cat_2');
