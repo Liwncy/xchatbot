@@ -263,7 +263,7 @@ export function createChannelMcpServer(env: Env): McpServer {
             description:
                 '按花名册路线拼 outbound。先 peer_search 查本群路线并按「会啥」选一条，再把它的 id 传进来。'
                 + 'query 只用来拼喊法，不要拿原话去撞字。'
-                + '命中后把 outbound 原样贴出去，不要自己改口令，不要自己办事。'
+                + '命中后把返回的 reply 原样发出去，那就是转交，不要再加旁白，不要自己改口令。'
                 + 'scope 从本条前缀原样抄。',
             inputSchema: z.object({
                 scope: z.string().describe('必填。本条前缀里的 scope'),

@@ -110,14 +110,15 @@ export async function peerMatch(
 }
 
 function packMatch(route: PeerRoute, ask: string, text: string, fallback: boolean): PeerMatch {
+    const outbound = route.mention ? (outboundLine(route.wxid, text) || text) : text;
     return {
         ok: true,
         fallback,
         route,
         ask,
         text,
-        outbound: route.mention ? (outboundLine(route.wxid, text) || text) : text,
-        reply: fallback ? '喊她了' : '喊了',
+        outbound,
+        reply: outbound || text || '不会',
     };
 }
 
