@@ -12,7 +12,7 @@ import {
 
 const APP_LINE = /^app:(\d+)\s+(<.+)$/iu;
 const EMOJI_LINE = /^(?:emoji:)([0-9a-f]{32})(?:\|([^|]*))?(?:\s+(https?:\/\/\S+))?$/iu;
-const AT_LINE = /^at:([^\s|]+)\|(.+)$/isu;
+const AT_LINE = /^at:([^\s|]+)(?:\||\s*[·•]\s*)(.+)$/isu;
 
 function looksLikeHttp(value: string): boolean {
     const lower = value.trim().toLowerCase();
@@ -144,6 +144,13 @@ function parseOutboundLine(line: string): ReplyMessage | null {
     return null;
 }
 
+/** 模型常把 at: 挤进同一行或改成「at:wxid · 正文」。先拆开再按行解析。 */
+export function normalizeOutboundText(text: string): string {
+    return text
+        .replace(/(^|[^\n])[ \t]*at:/giu, '$1\nat:')
+        .replace(/^at:([^\s|]+)\s*[·•]\s*/gimu, 'at:$1|');
+}
+
 /** 配文与单独一行协议拆成多条回复。槽位与 outbound-reply Skill 对齐。 */
 export function parseRepliesFromText(text: string): ReplyMessage[] {
     const replies: ReplyMessage[] = [];
@@ -155,7 +162,7 @@ export function parseRepliesFromText(text: string): ReplyMessage[] {
         buffer.length = 0;
     };
 
-    for (const line of text.split(/\r?\n/u)) {
+    for (const line of normalizeOutboundText(text).split(/\r?\n/u)) {
         const parsed = parseOutboundLine(line);
         if (parsed) {
             flush();

@@ -71,6 +71,15 @@ assert.equal(replies.length, 2);
 assert.deepEqual(replies[0], {type: 'text', content: '喊了'});
 assert.deepEqual(replies[1], {type: 'text', content: '@火 发掌嘴表情', mentions: ['wxid_abc']});
 
+const mashed = parseRepliesFromText('喊她了 at:wxid_qh0zt0a3xtrb29 · @陌私语 发个老牛子的表情');
+assert.equal(mashed.length, 2);
+assert.deepEqual(mashed[0], {type: 'text', content: '喊她了'});
+assert.deepEqual(mashed[1], {
+    type: 'text',
+    content: '@陌私语 发个老牛子的表情',
+    mentions: ['wxid_qh0zt0a3xtrb29'],
+});
+
 assert.equal(stripLeadAt('@火 music 老鼠爱大米'), 'music 老鼠爱大米');
 assert.equal(looksLikePeerShout('golem::info'), true);
 assert.equal(looksLikePeerShout('music 老鼠爱大米'), true);

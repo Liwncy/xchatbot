@@ -71,12 +71,18 @@ function looksLikeHttp(value?: string): value is string {
     return lower.startsWith('http://') || lower.startsWith('https://');
 }
 
+/** 微信点名要在 @群名 后跟 U+2005，普通空格只是字，点不醒对方。 */
+function withMentionSpacer(content: string, mentions?: string[]): string {
+    if (!mentions?.length) return content;
+    return content.replace(/^([@＠][^\s@＠\u2005]+)[ \t]+/u, '$1\u2005');
+}
+
 async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, env: Env): Promise<ApiResponse> {
     switch (reply.type) {
         case 'text':
             return api.sendText({
                 receiver,
-                content: reply.content,
+                content: withMentionSpacer(reply.content, reply.mentions),
                 remind: reply.mentions?.length ? reply.mentions.join(',') : undefined,
             });
         case 'image':
