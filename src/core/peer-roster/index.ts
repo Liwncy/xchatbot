@@ -13,6 +13,7 @@ export {
 export {
     assertPeerTargetAllowed,
     formatPeerList,
+    pickPeerRoute,
     peerBan,
     peerList,
     peerMatch,

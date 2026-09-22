@@ -119,7 +119,6 @@ export async function confirmPeerPending(env: Env, message: IncomingMessage): Pr
     return true;
 }
 
-export async function peerCollectInbound(env: Env, message: IncomingMessage): Promise<void> {
-    await confirmPeerPending(env, message);
-    await offerPeerPending(env, message);
+export async function peerCollectInbound(_env: Env, _message: IncomingMessage): Promise<void> {
+    return;
 }

@@ -6,6 +6,7 @@ import {
     pendingKvKey,
     stripLeadAt,
 } from '../src/core/peer-roster/collect.ts';
+import {pickPeerRoute} from '../src/core/peer-roster/service.ts';
 import {
     extractAsk,
     inferShoutType,
@@ -13,6 +14,7 @@ import {
     outboundLine,
     renderShout,
 } from '../src/core/peer-roster/template.ts';
+import type {PeerRoute} from '../src/core/peer-roster/types.ts';
 
 assert.equal(inferShoutType('golem::info'), 'fixed');
 assert.equal(inferShoutType('一言'), 'fixed');
@@ -80,5 +82,36 @@ assert.equal(looksLikePeerShout('来首老鼠爱大米'), false);
 assert.deepEqual(parsePeerShout('@火 music 老鼠爱大米'), {topic: 'music', template: 'music {问}'});
 assert.deepEqual(parsePeerShout('golem::info'), {topic: 'golem::info', template: 'golem::info'});
 assert.equal(pendingKvKey('golem', '561@chatroom', 'wxid_x'), 'peer:pending:golem:561@chatroom:wxid_x');
+
+function route(partial: Partial<PeerRoute> & Pick<PeerRoute, 'topic' | 'name'>): PeerRoute {
+    return {
+        id: 1,
+        scope: 'group:1@chatroom',
+        wxid: 'wxid_ma',
+        type: 'talk',
+        template: '',
+        mention: true,
+        example: '',
+        fallback: false,
+        status: 'active',
+        createdAt: 0,
+        updatedAt: 0,
+        ...partial,
+    };
+}
+
+const draw = route({id: 1, topic: '画画', name: '老马'});
+const music = route({id: 2, topic: '点歌', name: '火', wxid: 'wxid_huo', type: 'tail', template: 'music {问}'});
+const fallback = route({id: 3, topic: '兜底', name: '老马', fallback: true});
+const roster = [draw, music, fallback];
+
+assert.equal(pickPeerRoute(roster, {id: 2})?.id, 2);
+assert.equal(pickPeerRoute(roster, {id: 999}), undefined);
+assert.equal(pickPeerRoute(roster, {topic: '画画'})?.id, 1);
+assert.equal(pickPeerRoute(roster, {topic: '兜底'})?.id, 3);
+assert.equal(pickPeerRoute(roster, {})?.id, 3);
+assert.equal(pickPeerRoute(roster, {topic: '来张图'})?.id, 3);
+assert.equal(pickPeerRoute(roster, {name: '火', topic: '点歌'})?.id, 2);
+assert.equal(pickPeerRoute([draw, music], {topic: '兜底'}), undefined);
 
 console.log('peer-roster-check ok');

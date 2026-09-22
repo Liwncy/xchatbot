@@ -50,33 +50,47 @@ export async function peerBan(
     return disablePeerRoute(env.XBOT_DB, input.scope, input);
 }
 
-function scoreRoute(row: PeerRoute, query: string): number {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return row.fallback ? 1 : 0;
-    if (row.topic.toLowerCase() === needle) return 100;
-    if (row.topic.toLowerCase().includes(needle)) return 80;
-    if (needle.includes(row.topic.toLowerCase())) return 70;
-    if (row.template && needle.includes(shoutLead(row.template))) return 60;
-    if (row.name.toLowerCase().includes(needle) || row.example.toLowerCase().includes(needle)) return 30;
-    if (row.fallback) return 5;
-    return 0;
+function sameText(left: string, right: string): boolean {
+    return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
-function shoutLead(template: string): string {
-    return template.replace('{问}', '').replace(/@\S+\s*/u, '').trim().toLowerCase();
+/** 按 agent 点的会啥/人取行，不拿对方原话做包含匹配。 */
+export function pickPeerRoute(
+    rows: PeerRoute[],
+    pick: {id?: number; topic?: string; name?: string; wxid?: string},
+): PeerRoute | undefined {
+    if (pick.id != null) {
+        return Number.isInteger(pick.id) && pick.id > 0
+            ? rows.find((row) => row.id === pick.id)
+            : undefined;
+    }
+    const topic = pick.topic?.trim() ?? '';
+    const name = pick.name?.trim() ?? '';
+    const wxid = pick.wxid?.trim() ?? '';
+    let pool = rows;
+    if (wxid) {
+        const hit = pool.filter((row) => row.wxid === wxid);
+        if (hit.length) pool = hit;
+    }
+    if (name) {
+        const hit = pool.filter((row) => sameText(row.name, name));
+        if (hit.length) pool = hit;
+    }
+    if (topic && topic !== '兜底') {
+        const hit = pool.find((row) => sameText(row.topic, topic))
+            ?? rows.find((row) => sameText(row.topic, topic));
+        if (hit) return hit;
+    }
+    return pool.find((row) => row.fallback) ?? rows.find((row) => row.fallback);
 }
 
 export async function peerMatch(
     env: Env,
-    input: {scope: string; query: string; platform?: string},
+    input: {scope: string; query: string; id?: number; topic?: string; name?: string; wxid?: string; platform?: string},
 ): Promise<PeerMatch> {
     const query = input.query.trim();
     const rows = await listPeerRoutes(env.XBOT_DB, input.scope);
-    const ranked = rows
-        .map((row) => ({row, score: scoreRoute(row, query)}))
-        .filter((item) => item.score > 0)
-        .sort((left, right) => right.score - left.score);
-    const picked = ranked[0]?.row ?? rows.find((row) => row.fallback);
+    const picked = pickPeerRoute(rows, input);
     if (!picked) {
         return {ok: false, fallback: false, ask: query, text: '', outbound: '', reply: '不会'};
     }
@@ -92,7 +106,7 @@ export async function peerMatch(
         }
         return {ok: false, fallback: false, ask, route: picked, text: '', outbound: '', reply: '不会'};
     }
-    return packMatch(picked, ask || query, rendered.text, Boolean(picked.fallback && ranked[0]?.score === 5));
+    return packMatch(picked, ask || query, rendered.text, Boolean(picked.fallback));
 }
 
 function packMatch(route: PeerRoute, ask: string, text: string, fallback: boolean): PeerMatch {
@@ -102,7 +116,7 @@ function packMatch(route: PeerRoute, ask: string, text: string, fallback: boolea
         route,
         ask,
         text,
-        outbound: outboundLine(route.wxid, text) || text,
+        outbound: route.mention ? (outboundLine(route.wxid, text) || text) : text,
         reply: fallback ? '喊她了' : '喊了',
     };
 }
@@ -123,6 +137,6 @@ export function formatPeerList(rows: PeerRoute[]): string {
         const shout = row.type === 'talk' ? '人话' : row.type === 'fixed' ? '照念' : '带空';
         const at = row.mention ? '@' : '免@';
         const sample = row.template || '人话';
-        return `${row.name} · ${row.topic} · ${shout}/${at} · ${sample}`;
+        return `#${row.id} · ${row.name} · ${row.topic} · ${shout}/${at} · ${sample}`;
     }).join('\n');
 }

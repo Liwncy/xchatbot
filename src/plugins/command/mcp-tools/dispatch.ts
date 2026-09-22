@@ -162,6 +162,10 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
         return asLocalResult(await peerMatch(env, {
             scope: String(args.scope ?? ''),
             query: String(args.query ?? ''),
+            id: typeof args.id === 'number' ? args.id : undefined,
+            topic: typeof args.topic === 'string' ? args.topic : undefined,
+            name: typeof args.name === 'string' ? args.name : undefined,
+            wxid: typeof args.wxid === 'string' ? args.wxid : undefined,
             platform: typeof args.platform === 'string' ? args.platform : undefined,
         }));
     }

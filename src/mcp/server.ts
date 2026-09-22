@@ -261,12 +261,17 @@ export function createChannelMcpServer(env: Env): McpServer {
         'peer_match',
         {
             description:
-                '按对方原话对花名册，拼好该喊谁、喊什么。'
-                + '命中后把返回的 outbound 行原样贴出去，不要自己改口令，不要自己办事。'
-                + 'scope 从本条前缀原样抄。query 只用对方原话。',
+                '按花名册路线拼 outbound。先 peer_search 查本群路线并按「会啥」选一条，再把它的 id 传进来。'
+                + 'query 只用来拼喊法，不要拿原话去撞字。'
+                + '命中后把 outbound 原样贴出去，不要自己改口令，不要自己办事。'
+                + 'scope 从本条前缀原样抄。',
             inputSchema: z.object({
                 scope: z.string().describe('必填。本条前缀里的 scope'),
-                query: z.string().describe('对方原话，不要带身份前缀'),
+                query: z.string().describe('对方原话，用来拼喊法'),
+                id: z.number().int().positive().optional().describe('peer_search 返回的路线 id，优先使用'),
+                topic: z.string().optional().describe('兼容旧用法：精确的会啥'),
+                name: z.string().optional().describe('兼容旧用法：群里那个名'),
+                wxid: z.string().optional().describe('兼容旧用法：对方 wxid'),
             }),
         },
         async (input) => {
