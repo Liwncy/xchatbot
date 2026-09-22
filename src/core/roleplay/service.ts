@@ -14,10 +14,19 @@ import {NORMAL_ID, type RoleplayCharacter} from './types.js';
 
 const ADD_CMD = /^(?:加角色|增加角色|新增角色)\s*[:：]?\s*(.*)$/su;
 
+const ROLE_HINT = '[演法] 正事只调 peer_search / peer_match，不要自己画、搜、发表情。闲聊糊一句。';
+
 export function wrapUserContent(content: string, character: RoleplayCharacter | null): string {
     const instruction = character?.instruction?.trim() ?? '';
     if (!instruction) return content;
-    return `${instruction}\n\n${content}`;
+    const marker = '[本条]';
+    const index = content.indexOf(marker);
+    if (index < 0) {
+        return `${instruction}\n\n${content}\n${ROLE_HINT}`;
+    }
+    const before = content.slice(0, index + marker.length);
+    const current = content.slice(index + marker.length).replace(/^\n/u, '');
+    return `${before}\n${instruction}\n${current}\n${ROLE_HINT}`;
 }
 
 export async function currentCharacter(
