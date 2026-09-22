@@ -15,7 +15,6 @@ import type {IncomingMessage} from '../../../core/message.js';
 import type {Env} from '../../../types/env.js';
 import {
     FALLBACK,
-    identityArgs,
     isOwner,
     KEYWORDS,
     LOCAL,
@@ -395,8 +394,8 @@ const time: MapFn = (result) => {
 
 const adventure: MapFn = (result) => {
     const raw = asRecord(result.raw);
-    const message = str(raw?.message) || str(raw?.text);
-    if (message) return textReply(message);
+    const spoken = str(raw?.replyText) || result.replyText || str(raw?.message) || str(raw?.text);
+    if (spoken) return textReply(spoken);
     const status = str(raw?.status);
     if (status === 'none') return textReply('这会儿没有在探的剧情');
     const step = raw?.currentStep;
@@ -548,29 +547,6 @@ function catalogReply(): HandlerResponse {
     ].join('\n'));
 }
 
-function isTextReply(value: unknown): value is HandlerResponse {
-    return Boolean(value)
-        && typeof value === 'object'
-        && !Array.isArray(value)
-        && (value as {type?: unknown}).type === 'text';
-}
-
-/** 修仙选肢要先拉 status 拿到当前 version，否则服务端拒。 */
-async function withAdventureVersion(
-    ctx: CallCtx,
-    server: RouteServer,
-    args: Record<string, unknown>,
-): Promise<Record<string, unknown> | HandlerResponse> {
-    if (args.action !== 'choose') return args;
-    const status = await callServerMcp(ctx.env, server, 'xiuxian_adventure', {
-        action: 'status',
-        ...identityArgs(ctx),
-    });
-    const version = Number(asRecord(status.raw)?.version);
-    if (!Number.isFinite(version) || version <= 0) return textReply('这会儿没有在探的剧情');
-    return {...args, version};
-}
-
 export async function dispatchMcpCommand(
     command: string,
     message: IncomingMessage,
@@ -602,11 +578,6 @@ export async function dispatchMcpCommand(
 
     let args = prepared.args;
     try {
-        if (route.tool === 'xiuxian_adventure') {
-            const filled = await withAdventureVersion(ctx, server, args);
-            if (isTextReply(filled)) return filled;
-            args = filled;
-        }
         const result = await callServerMcp(env, server, route.tool, args);
         const mapped = MAPPERS[route.map](result, ctx);
         if (matched.kind === 'prefix' && matched.route.helpRewrite) {

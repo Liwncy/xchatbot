@@ -443,7 +443,7 @@ function peerBanArgs(ctx: CallCtx): ArgsResult {
     });
 }
 
-/** 动词口令。更长的优先，所以「修仙探索」不会被前缀「修仙」吃掉。 */
+/** 动词口令。更长的优先，所以「修仙游历」不会被前缀「修仙」吃掉。 */
 export const VERBS: VerbRoute[] = [
     // 图 / 语音 / 视频
     {verbs: ['画图'], tool: 'draw_image', fail: '没画成，再试下', args: drawArgs, map: 'image'},
@@ -499,12 +499,13 @@ export const VERBS: VerbRoute[] = [
         const text = argText(ctx);
         return text ? ok({message: text}) : need('要原样回去的字写后面，也可以先引用那条再发 #回声');
     }, map: 'text'},
-    // 修仙探索（须排在前缀「修仙」之前）
-    {verbs: ['修仙探索', '继续探索'], tool: 'xiuxian_adventure', fail: '这会儿没有在探的剧情', args: (ctx) => ok({action: 'status', ...identityArgs(ctx)}), map: 'adventure'},
-    {verbs: ['修仙选'], tool: 'xiuxian_adventure', fail: '这会儿选不了', args: (ctx) => {
+    // 修仙游历（须排在前缀「修仙」之前。修仙探索留给前缀，走一次性结算）
+    {verbs: ['修仙生剧'], tool: 'xiuxian_adventure', ownerOnly: true, fail: '这回没写成，再试下', args: (ctx) => ok({action: 'generate', hint: ctx.tail || undefined, ...identityArgs(ctx)}), map: 'adventure'},
+    {verbs: ['修仙游历', '继续游历'], tool: 'xiuxian_adventure', fail: '这会儿没游成，再试下', args: (ctx) => ok({action: 'play', ...identityArgs(ctx)}), map: 'adventure'},
+    {verbs: ['游历选'], tool: 'xiuxian_adventure', fail: '这会儿选不了', args: (ctx) => {
         const index = Number.parseInt(ctx.tail.replace(/^[选]/u, ''), 10);
-        if (index < 1 || index > 4) return need('选项写成 #修仙选1 到 #修仙选4');
-        return ok({action: 'choose', optionIndex: index, version: 0, ...identityArgs(ctx)});
+        if (index < 1 || index > 4) return need('选项写成 #游历选1 到 #游历选4');
+        return ok({action: 'choose', optionIndex: index, ...identityArgs(ctx)});
     }, map: 'adventure'},
     // 规则库维护（主人）
     {verbs: ['规则搜索'], tool: 'rule_search', fail: '没搜到', args: (ctx) => ok({query: ctx.tail || undefined, includeInactive: ctx.tail.includes('含停用')}), map: 'json'},
