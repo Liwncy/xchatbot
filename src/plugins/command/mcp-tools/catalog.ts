@@ -256,6 +256,20 @@ function speechArgs(ctx: CallCtx): ArgsResult {
     return need(`要念的字写后面，也可以先引用那条再发 #${ctx.verb}`);
 }
 
+function judgeArgs(ctx: CallCtx): ArgsResult {
+    const quoted = quotedArgText(ctx.message);
+    const tail = ctx.tail.trim();
+    if (quoted) {
+        return tail ? ok({sentence: quoted, ask: tail}) : need('问题写后面');
+    }
+    const bar = tail.search(/[|｜]/u);
+    if (bar <= 0) return need('把要判断的那句放最前面，用 | 隔开');
+    const sentence = tail.slice(0, bar).trim();
+    const ask = tail.slice(bar + 1).trim();
+    if (!sentence || !ask) return need('把要判断的那句放最前面，用 | 隔开');
+    return ok({sentence, ask});
+}
+
 function searchArgs(ctx: CallCtx): ArgsResult {
     return promptArg('query', `搜什么写后面，也可以先引用那条再发 #${ctx.verb}`)(ctx);
 }
@@ -495,6 +509,7 @@ export const VERBS: VerbRoute[] = [
     {verbs: ['转交', '甩活'], server: 'local', tool: 'peer_match', fail: '不会', args: peerMatchArgs, map: 'json'},
     {verbs: ['禁口令', '禁他'], server: 'local', tool: 'peer_ban', ownerOnly: true, fail: '没禁成', args: peerBanArgs, map: 'json'},
     {verbs: ['现在几点', '几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
+    {verbs: ['判断'], tool: 'judge_speech', fail: '没判成，再试下', args: judgeArgs, map: 'reply'},
     {verbs: ['回声'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {
         const text = argText(ctx);
         return text ? ok({message: text}) : need('要原样回去的字写后面，也可以先引用那条再发 #回声');
