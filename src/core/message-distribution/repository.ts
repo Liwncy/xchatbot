@@ -131,8 +131,7 @@ function normalizeTargets(targets: DistributionTarget[]): DistributionTarget[] {
         const platform = target.platform.trim();
         const id = target.id.trim();
         if (!platform || !id) continue;
-        const kind = target.kind === 'group' ? 'group' : 'user';
-        unique.set(`${platform}:${kind}:${id}`, {platform, kind, id});
+        unique.set(`${platform}:${id}`, {platform, id});
     }
     const result = [...unique.values()];
     if (result.length === 0) throw new Error('至少配一个目标');
@@ -273,7 +272,7 @@ export async function claimDistributionDelivery(
 ): Promise<boolean> {
     const db = requireDb(env);
     await ensureDistributionSchema(db);
-    const targetKey = `${target.platform}:${target.kind}:${target.id}`;
+    const targetKey = `${target.platform}:${target.id}`;
     const deliveryKey = `${platform}:${messageId}:${ruleId}:${targetKey}`;
     const result = await db.prepare(
         `INSERT OR IGNORE INTO message_distribution_delivery

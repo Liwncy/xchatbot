@@ -7,7 +7,6 @@ export type DistributionFallback = 'rebuild' | 'text' | 'skip';
 
 export interface DistributionTarget {
     platform: string;
-    kind: 'group' | 'user';
     id: string;
 }
 
@@ -59,7 +58,7 @@ export const DEFAULT_CONTENT_POLICY: DistributionContentPolicy = {
     mode: 'auto',
     output: 'auto',
     fallback: 'rebuild',
-    includeSource: true,
+    includeSource: false,
     includeSender: false,
     includeOriginalUrl: true,
     maxInputChars: 12_000,

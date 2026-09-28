@@ -8,7 +8,10 @@ import {
     saveDistributionRule,
     setDistributionRuleStatus,
 } from '../../../core/message-distribution/repository.js';
-import {buildDistributionReplies} from '../../../core/message-distribution/transform.js';
+import {
+    buildDistributionReplies,
+    buildDistributionRepliesWithPolicy,
+} from '../../../core/message-distribution/transform.js';
 import {
     DEFAULT_CONTENT_POLICY,
     type DistributionContentPolicy,
@@ -18,16 +21,29 @@ import {
 } from '../../../core/message-distribution/types.js';
 import {textReply, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
 import type {PluginContext} from '../../../core/context.js';
+import {dispatchDistribution} from '../../channel/message-distribution/dispatch.js';
 import type {Plugin} from '../../runtime/types.js';
-import {parseDistributionCommand, type DistributionCommand} from './parse.js';
+import {
+    parseDistributionCommand,
+    parseOneShotDistributionCommand,
+    type DistributionCommand,
+    type OneShotDistributionCommand,
+} from './parse.js';
 
 const HELP = [
     '分发规则这样配：',
-    '#分发规则 新增 名称=科技资讯 会话=gh_xxx 类型=文章 关键词=AI 内容=自动 目标=群:xxx',
+    '#分发规则 新增 名称=科技资讯 会话=gh_xxx 类型=文章 关键词=AI 内容=自动 目标=123@chatroom',
     '#分发规则 内容 科技资讯 模式=AI 要求="压缩成100字" 输出=图文 失败=重建',
     '#分发规则 列表',
     '#分发规则 查看 科技资讯',
     '#分发规则 启用/停用/删除/测试 科技资讯',
+].join('\n');
+
+const ONE_SHOT_HELP = [
+    '一次发出去：',
+    '#分发 wxid_a,123@chatroom 今晚八点集合',
+    '也可以引用一条消息，再发：',
+    '#分发 wxid_a,123@chatroom',
 ].join('\n');
 
 const TYPE_NAMES: Record<string, MessageType> = {
@@ -63,18 +79,14 @@ function parseTargets(value: string | undefined, message: IncomingMessage): Dist
         if (entry === '当前') {
             const id = message.chatId;
             if (!id) throw new Error('当前目标认不出来');
-            return {platform: message.platform, kind: message.source === 'group' ? 'group' : 'user', id};
+            return {platform: message.platform, id};
         }
         const platformMatch = entry.match(/^([\w-]+)\/([\s\S]+)$/u);
         const platform = platformMatch?.[1] ?? message.platform;
         const body = platformMatch?.[2] ?? entry;
-        const targetMatch = body.match(/^(群|私聊):(.+)$/u);
-        if (!targetMatch?.[2]?.trim()) throw new Error(`目标「${entry}」写法不对`);
-        return {
-            platform,
-            kind: targetMatch[1] === '群' ? 'group' : 'user',
-            id: targetMatch[2].trim(),
-        };
+        const id = body.replace(/^(?:群|私聊):/u, '').trim();
+        if (!id) throw new Error(`目标「${entry}」写法不对`);
+        return {platform, id};
     });
 }
 
@@ -173,7 +185,7 @@ function ruleInput(rule: DistributionRule): DistributionRuleInput {
 
 function ruleSummary(rule: DistributionRule): string {
     const chats = rule.chatIds.length ? rule.chatIds.join(',') : '全部';
-    const targets = rule.targets.map((item) => `${item.platform}/${item.kind}:${item.id}`).join(',');
+    const targets = rule.targets.map((item) => `${item.platform}/${item.id}`).join(',');
     const filters = [
         rule.messageTypes.length ? `类型=${rule.messageTypes.join(',')}` : '',
         rule.keywords.length ? `关键词=${rule.keywords.join(',')}` : '',
@@ -214,12 +226,54 @@ function quotedMessage(message: IncomingMessage): IncomingMessage | null {
     return {
         ...message,
         type,
-        messageId: `${message.messageId}:preview`,
-        content: quote.title || quote.referContent,
+        content: quote.referContent?.trim() || undefined,
         rawXml: quote.referContent?.includes('<') ? quote.referContent : undefined,
         media: quote.media,
         quote: undefined,
+        app: undefined,
+        hongbao: undefined,
+        mentions: undefined,
     };
+}
+
+function textMessage(message: IncomingMessage, content: string): IncomingMessage {
+    return {
+        ...message,
+        type: 'text',
+        content,
+        rawXml: undefined,
+        media: undefined,
+        quote: undefined,
+        app: undefined,
+        hongbao: undefined,
+        mentions: undefined,
+    };
+}
+
+async function applyOneShotCommand(
+    command: OneShotDistributionCommand,
+    message: IncomingMessage,
+    ctx: PluginContext,
+): Promise<string> {
+    if (Object.keys(command.values).length === 0) return ONE_SHOT_HELP;
+    const targets = parseTargets(command.values.目标, message);
+    requirePushTargets(targets, ctx);
+    const body = command.values.正文?.trim() ?? '';
+    const payloads: IncomingMessage[] = [];
+    if (body) payloads.push(textMessage(message, body));
+    const quoted = quotedMessage(message);
+    if (quoted) payloads.push(quoted);
+    if (payloads.length === 0) return '写上正文，或者引用一条消息';
+
+    const policy = policyFrom(command.values);
+    const replies: ReplyMessage[] = [];
+    for (const payload of payloads) {
+        replies.push(...await buildDistributionRepliesWithPolicy(ctx.env, payload, policy, targets));
+    }
+    const result = await dispatchDistribution(message, ctx, targets, replies);
+    if (result.sent === 0) return replies.length ? '没发成，再试下' : '这条没东西可发';
+    if (result.failed > 0) return `发了 ${result.sent} 个，还有 ${result.failed} 个没成 😅`;
+    return result.sent === 1 ? '发过去了 👌' : `都发过去了，${result.sent} 个 👌`;
 }
 
 async function applyCommand(
@@ -292,18 +346,26 @@ export const messageDistributionCommandPlugin: Plugin = {
     },
     match(message, ctx) {
         const command = markedCommand(message, ctx.env);
-        return command != null && parseDistributionCommand(command) != null;
+        return command != null && (
+            parseDistributionCommand(command) != null
+            || parseOneShotDistributionCommand(command) != null
+        );
     },
     async handle(message, ctx): Promise<HandlerResponse> {
-        const command = parseDistributionCommand(markedCommand(message, ctx.env) ?? '');
-        if (!command) return null;
+        const rawCommand = markedCommand(message, ctx.env) ?? '';
+        const oneShot = parseOneShotDistributionCommand(rawCommand);
+        const command = parseDistributionCommand(rawCommand);
+        if (!command && !oneShot) return null;
         const ownerId = resolveOwnerId(ctx.env, message.platform);
         if (!ownerId || message.senderId.trim() !== ownerId) return textReply('这事只有主人能改');
         try {
-            return textReply(await applyCommand(command, message, ctx));
+            return textReply(oneShot
+                ? await applyOneShotCommand(oneShot, message, ctx)
+                : await applyCommand(command as DistributionCommand, message, ctx));
         } catch (error) {
             const messageText = error instanceof Error ? error.message : '';
-            return textReply(/[\u3400-\u9fff]/u.test(messageText) ? messageText : '没配成，再试下');
+            const fallback = oneShot ? '没发成，再试下' : '没配成，再试下';
+            return textReply(/[\u3400-\u9fff]/u.test(messageText) ? messageText : fallback);
         }
     },
 };

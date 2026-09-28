@@ -8,6 +8,10 @@ export type DistributionCommand =
     | {kind: 'content'; name: string; values: Record<string, string>}
     | {kind: 'test'; name: string};
 
+export interface OneShotDistributionCommand {
+    values: Record<string, string>;
+}
+
 function unquote(value: string): string {
     const raw = value.trim();
     if (raw.length >= 2 && (
@@ -70,4 +74,22 @@ export function parseDistributionCommand(command: string): DistributionCommand |
         return {kind: 'status', name, active: body.startsWith('启用')};
     }
     return {kind: 'help'};
+}
+
+export function parseOneShotDistributionCommand(command: string): OneShotDistributionCommand | null {
+    const match = command.trim().match(/^分发(?:\s+([\s\S]*))?$/u);
+    if (!match) return null;
+    const body = match[1]?.trim() ?? '';
+    if (!body || body === '帮助') return {values: {}};
+    if (/^[\p{L}\w]+=/u.test(body)) return {values: parseKeyValues(body)};
+
+    const separator = body.search(/\s/u);
+    const targets = separator < 0 ? body : body.slice(0, separator).trim();
+    const tail = separator < 0 ? '' : body.slice(separator).trim();
+    if (!tail) return {values: {目标: targets}};
+
+    const options = parseKeyValues(tail);
+    return Object.keys(options).length > 0 && /^[\p{L}\w]+=/u.test(tail)
+        ? {values: {目标: targets, ...options}}
+        : {values: {目标: targets, 正文: tail}};
 }

@@ -11,7 +11,7 @@ import {
     type ReplyMessage,
 } from '../reply.js';
 import {distributionSearchText} from './matcher.js';
-import type {DistributionContentPolicy, DistributionRule} from './types.js';
+import type {DistributionContentPolicy, DistributionRule, DistributionTarget} from './types.js';
 
 function sourceLine(message: IncomingMessage, policy: DistributionContentPolicy): string {
     const parts: string[] = [];
@@ -136,16 +136,16 @@ async function aiTransform(
     }
 }
 
-export async function buildDistributionReplies(
+export async function buildDistributionRepliesWithPolicy(
     env: Env,
     message: IncomingMessage,
-    rule: DistributionRule,
+    policy: DistributionContentPolicy,
+    targets: DistributionTarget[],
 ): Promise<ReplyMessage[]> {
-    const policy = rule.contentPolicy;
     if (policy.mode === 'ai') return aiTransform(env, message, policy);
     if (policy.mode === 'rebuild') return rebuild(message, policy);
 
-    const allSamePlatform = rule.targets.every((target) => target.platform === message.platform);
+    const allSamePlatform = targets.every((target) => target.platform === message.platform);
     if (message.rawXml && allSamePlatform && (policy.mode === 'original' || policy.mode === 'auto')) {
         return [{type: 'forward', xml: message.rawXml}];
     }
@@ -153,4 +153,12 @@ export async function buildDistributionReplies(
         return textVersion(message, {...policy, includeOriginalUrl: false});
     }
     return policy.mode === 'original' ? fallback(message, policy) : rebuild(message, policy);
+}
+
+export function buildDistributionReplies(
+    env: Env,
+    message: IncomingMessage,
+    rule: DistributionRule,
+): Promise<ReplyMessage[]> {
+    return buildDistributionRepliesWithPolicy(env, message, rule.contentPolicy, rule.targets);
 }

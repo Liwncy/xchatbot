@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
 import {parseWechatAppMessage} from '../src/adapter/golem/parse-appmsg.ts';
+import type {PluginContext} from '../src/core/context.ts';
 import type {Env} from '../src/types/env.ts';
 import type {IncomingMessage} from '../src/core/message.ts';
 import {matchesDistributionRule} from '../src/core/message-distribution/matcher.ts';
@@ -12,7 +13,10 @@ import {
 import {
     parseDistributionCommand,
     parseKeyValues,
+    parseOneShotDistributionCommand,
 } from '../src/plugins/command/message-distribution/parse.ts';
+import {dispatchDistribution} from '../src/plugins/channel/message-distribution/dispatch.ts';
+import {messageDistributionCommandPlugin} from '../src/plugins/command/message-distribution/index.ts';
 
 const articleXml = `
 <msg>
@@ -72,6 +76,21 @@ assert.deepEqual(parseDistributionCommand('分发规则 内容 科技资讯 模�
     name: '科技资讯',
     values: {模式: 'AI', 输出: '图文'},
 });
+assert.deepEqual(parseOneShotDistributionCommand('分发 目标=wxid_a,123@chatroom 正文="今晚八点集合"'), {
+    values: {
+        目标: 'wxid_a,123@chatroom',
+        正文: '今晚八点集合',
+    },
+});
+assert.deepEqual(parseOneShotDistributionCommand('分发 wxid_a,wxid_b 今晚八点集合'), {
+    values: {
+        目标: 'wxid_a,wxid_b',
+        正文: '今晚八点集合',
+    },
+});
+assert.deepEqual(parseOneShotDistributionCommand('分发 wxid_a,wxid_b'), {
+    values: {目标: 'wxid_a,wxid_b'},
+});
 
 const message: IncomingMessage = {
     platform: 'golem',
@@ -96,7 +115,7 @@ const rule: DistributionRule = {
     chatIds: ['gh_news'],
     messageTypes: ['link'],
     keywords: ['文章'],
-    targets: [{platform: 'web', kind: 'user', id: 'reader'}],
+    targets: [{platform: 'web', id: 'reader'}],
     contentPolicy: {
         ...DEFAULT_CONTENT_POLICY,
         mode: 'auto',
@@ -114,7 +133,7 @@ async function main(): Promise<void> {
     const rebuilt = await buildDistributionReplies({} as Env, message, rule);
     assert.deepEqual(rebuilt, [{
         type: 'link',
-        title: '一篇文章\n来源：gh_news',
+        title: '一篇文章',
         url: 'https://example.com/post?a=1&b=2',
         desc: '文章摘要',
         thumbUrl: 'https://example.com/thumb.jpg',
@@ -122,9 +141,66 @@ async function main(): Promise<void> {
 
     const original = await buildDistributionReplies({} as Env, message, {
         ...rule,
-        targets: [{platform: 'golem', kind: 'group', id: 'room@chatroom'}],
+        targets: [{platform: 'golem', id: 'room@chatroom'}],
     });
     assert.deepEqual(original, [{type: 'forward', xml: articleXml}]);
+
+    let deliveredChatId = '';
+    let deliveredTargets: string[] = [];
+    const ctx = {
+        env: {} as Env,
+        requestId: 'one-shot',
+        waitUntil() {},
+        adapter: {
+            platform: 'web',
+            supportsProactiveSend: true,
+            async send(targetMessage: IncomingMessage, replies: Array<{to?: string}>) {
+                deliveredChatId = targetMessage.chatId;
+                deliveredTargets = replies.map((reply) => reply.to ?? '');
+                return replies.map(() => ({ok: true}));
+            },
+            async revoke() {
+                return {ok: false as const, reason: 'unsupported' as const};
+            },
+        },
+    } as PluginContext;
+    const dispatched = await dispatchDistribution(message, ctx, rule.targets, rebuilt);
+    assert.deepEqual(dispatched, {sent: 1, failed: 0, skipped: 0});
+    assert.equal(deliveredChatId, 'reader');
+    assert.deepEqual(deliveredTargets, ['reader']);
+
+    let orderedContents: string[] = [];
+    const commandMessage: IncomingMessage = {
+        platform: 'web',
+        type: 'link',
+        source: 'private',
+        chatId: 'owner',
+        senderId: 'owner',
+        to: 'bot',
+        timestamp: 1,
+        messageId: 'one-shot-message',
+        content: '#分发 reader 开头说明',
+        quote: {
+            title: '#分发 reader 开头说明',
+            referType: 1,
+            referContent: '引用正文',
+        },
+        raw: {},
+    };
+    const commandCtx = {
+        ...ctx,
+        env: {BOT_OWNER_ID: 'owner'} as Env,
+        adapter: {
+            ...ctx.adapter,
+            async send(_targetMessage: IncomingMessage, replies: Array<{type: string; content?: string}>) {
+                orderedContents = replies.map((reply) => reply.content ?? reply.type);
+                return replies.map(() => ({ok: true}));
+            },
+        },
+    } as PluginContext;
+    const commandReply = await messageDistributionCommandPlugin.handle(commandMessage, commandCtx);
+    assert.deepEqual(orderedContents, ['开头说明', '引用正文']);
+    assert.deepEqual(commandReply, {type: 'text', content: '发过去了 👌'});
 
     console.log('message-distribution-check ok');
 }
