@@ -4,7 +4,7 @@ import {linkReply, textReply, type ReplyMessage} from '../../core/reply.js';
 import {recordOutboundChatMessage} from '../../core/chat-log/index.js';
 import {logger} from '../../utils/logger.js';
 import type {ApiResponse} from './types.js';
-import type {SendReceipt} from '../types.js';
+import type {SendOptions, SendReceipt} from '../types.js';
 import {GolemApi} from './api.js';
 import {buildChatRecordXml, CHAT_RECORD_APP_TYPE} from './chat-record.js';
 import {buildMusicAppXml} from './music-xml.js';
@@ -265,6 +265,7 @@ export async function sendGolemReplies(
     message: IncomingMessage,
     replies: ReplyMessage[],
     env: Env,
+    options?: SendOptions,
 ): Promise<SendReceipt[]> {
     const api = new GolemApi(apiBaseUrl);
     const receiver = message.chatId;
@@ -304,7 +305,12 @@ export async function sendGolemReplies(
         previousTarget = target;
         replyIndex += 1;
 
-        if (receipt.ok || reply.type === 'text' || reply.type === 'emoji') continue;
+        if (
+            receipt.ok
+            || reply.type === 'text'
+            || reply.type === 'emoji'
+            || options?.failureNotice === false
+        ) continue;
 
         const fallback = textReply(FAIL_COPY[reply.type]);
         try {

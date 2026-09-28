@@ -11,7 +11,7 @@ import {
     type ReplyMessage,
 } from '../reply.js';
 import {distributionSearchText} from './matcher.js';
-import type {DistributionContentPolicy, DistributionRule, DistributionTarget} from './types.js';
+import type {DistributionContentPolicy, DistributionRule} from './types.js';
 
 function sourceLine(message: IncomingMessage, policy: DistributionContentPolicy): string {
     const parts: string[] = [];
@@ -140,15 +140,10 @@ export async function buildDistributionRepliesWithPolicy(
     env: Env,
     message: IncomingMessage,
     policy: DistributionContentPolicy,
-    targets: DistributionTarget[],
 ): Promise<ReplyMessage[]> {
     if (policy.mode === 'ai') return aiTransform(env, message, policy);
     if (policy.mode === 'rebuild') return rebuild(message, policy);
 
-    const allSamePlatform = targets.every((target) => target.platform === message.platform);
-    if (message.rawXml && allSamePlatform && (policy.mode === 'original' || policy.mode === 'auto')) {
-        return [{type: 'forward', xml: message.rawXml}];
-    }
     if (message.type === 'text') {
         return textVersion(message, {...policy, includeOriginalUrl: false});
     }
@@ -160,5 +155,5 @@ export function buildDistributionReplies(
     message: IncomingMessage,
     rule: DistributionRule,
 ): Promise<ReplyMessage[]> {
-    return buildDistributionRepliesWithPolicy(env, message, rule.contentPolicy, rule.targets);
+    return buildDistributionRepliesWithPolicy(env, message, rule.contentPolicy);
 }

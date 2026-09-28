@@ -5,6 +5,7 @@ import {buildRevokeParam, GolemApi} from './api.js';
 import {emitChatRecordLine} from './chat-record.js';
 import {isDirectoryMiss, mapDirectoryPeople} from './directory.js';
 import {GOLEM_PLATFORM} from './parse.js';
+import {prepareGolemDistributionMessage, toGolemOutboundReplies} from './outbound.js';
 import {GolemChatroomRoster, isChatroom} from './roster.js';
 import {sendGolemReplies} from './send.js';
 
@@ -17,10 +18,10 @@ export const golemAdapter: ChannelAdapter = {
     platform: GOLEM_PLATFORM,
     supportsProactiveSend: true,
 
-    async send(message, replies, env) {
+    async send(message, replies, env, options) {
         const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
         if (!apiBaseUrl) return [];
-        return sendGolemReplies(apiBaseUrl, message, replies, env);
+        return sendGolemReplies(apiBaseUrl, message, replies, env, options);
     },
 
     async revoke(message, env): Promise<RevokeResult> {
@@ -43,6 +44,14 @@ export const golemAdapter: ChannelAdapter = {
         const result = await new GolemApi(apiBaseUrl).revokeMessage(param);
         if (result.code !== 0) return {ok: false, reason: 'expired'};
         return {ok: true};
+    },
+
+    toOutboundReplies(message, env) {
+        return toGolemOutboundReplies(message, env);
+    },
+
+    prepareForDistribution(message, env) {
+        return prepareGolemDistributionMessage(message, env);
     },
 
     async searchDirectory(query, env): Promise<DirectoryPerson[]> {

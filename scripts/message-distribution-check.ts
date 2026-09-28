@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
 import {parseWechatAppMessage} from '../src/adapter/golem/parse-appmsg.ts';
+import {toGolemOutboundReplies} from '../src/adapter/golem/outbound.ts';
 import type {PluginContext} from '../src/core/context.ts';
 import type {Env} from '../src/types/env.ts';
 import type {IncomingMessage} from '../src/core/message.ts';
@@ -143,7 +144,20 @@ async function main(): Promise<void> {
         ...rule,
         targets: [{platform: 'golem', id: 'room@chatroom'}],
     });
-    assert.deepEqual(original, [{type: 'forward', xml: articleXml}]);
+    assert.deepEqual(original, rebuilt);
+
+    const nativeArticle = await toGolemOutboundReplies(message, {} as Env);
+    assert.deepEqual(nativeArticle, [{type: 'app', appType: 5, xml: articleXml.trim()}]);
+
+    const emojiReplies = await toGolemOutboundReplies({
+        ...message,
+        type: 'emoji',
+        content: undefined,
+        app: undefined,
+        rawXml: '<msg><emoji md5="emoji-md5"/></msg>',
+        media: {md5: 'emoji-md5'},
+    }, {} as Env);
+    assert.deepEqual(emojiReplies, [{type: 'emoji', md5: 'emoji-md5'}]);
 
     let deliveredChatId = '';
     let deliveredTargets: string[] = [];
@@ -159,12 +173,23 @@ async function main(): Promise<void> {
                 deliveredTargets = replies.map((reply) => reply.to ?? '');
                 return replies.map(() => ({ok: true}));
             },
+            async toOutboundReplies(sourceMessage: IncomingMessage) {
+                return sourceMessage.type === 'link'
+                    ? [{type: 'text' as const, content: 'web 原样内容'}]
+                    : null;
+            },
             async revoke() {
                 return {ok: false as const, reason: 'unsupported' as const};
             },
         },
     } as PluginContext;
-    const dispatched = await dispatchDistribution(message, ctx, rule.targets, rebuilt);
+    const dispatched = await dispatchDistribution(
+        message,
+        ctx,
+        rule.targets,
+        [message],
+        rule.contentPolicy,
+    );
     assert.deepEqual(dispatched, {sent: 1, failed: 0, skipped: 0});
     assert.equal(deliveredChatId, 'reader');
     assert.deepEqual(deliveredTargets, ['reader']);

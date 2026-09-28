@@ -1,7 +1,6 @@
 import {markedCommand} from '../../../core/command-mark.js';
 import {matchesDistributionRule} from '../../../core/message-distribution/matcher.js';
 import {listDistributionRules} from '../../../core/message-distribution/repository.js';
-import {buildDistributionReplies} from '../../../core/message-distribution/transform.js';
 import {handledReply, type HandlerResponse} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
 import type {Plugin} from '../../runtime/types.js';
@@ -25,8 +24,7 @@ export const messageDistributionPlugin: Plugin = {
         const rules = await listDistributionRules(ctx.env, true);
         const matched = rules.filter((rule) => matchesDistributionRule(rule, message));
         for (const rule of matched) {
-            const replies = await buildDistributionReplies(ctx.env, message, rule);
-            ctx.waitUntil(dispatchDistribution(message, ctx, rule.targets, replies, {
+            ctx.waitUntil(dispatchDistribution(message, ctx, rule.targets, [message], rule.contentPolicy, {
                 dedupeRuleId: rule.id,
             }).catch((error) => {
                 logger.error('消息分发失败', {

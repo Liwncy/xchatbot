@@ -9,10 +9,6 @@ import {
     setDistributionRuleStatus,
 } from '../../../core/message-distribution/repository.js';
 import {
-    buildDistributionReplies,
-    buildDistributionRepliesWithPolicy,
-} from '../../../core/message-distribution/transform.js';
-import {
     DEFAULT_CONTENT_POLICY,
     type DistributionContentPolicy,
     type DistributionRule,
@@ -21,7 +17,10 @@ import {
 } from '../../../core/message-distribution/types.js';
 import {textReply, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
 import type {PluginContext} from '../../../core/context.js';
-import {dispatchDistribution} from '../../channel/message-distribution/dispatch.js';
+import {
+    buildDistributionTargetReplies,
+    dispatchDistribution,
+} from '../../channel/message-distribution/dispatch.js';
 import type {Plugin} from '../../runtime/types.js';
 import {
     parseDistributionCommand,
@@ -266,12 +265,8 @@ async function applyOneShotCommand(
     if (payloads.length === 0) return '写上正文，或者引用一条消息';
 
     const policy = policyFrom(command.values);
-    const replies: ReplyMessage[] = [];
-    for (const payload of payloads) {
-        replies.push(...await buildDistributionRepliesWithPolicy(ctx.env, payload, policy, targets));
-    }
-    const result = await dispatchDistribution(message, ctx, targets, replies);
-    if (result.sent === 0) return replies.length ? '没发成，再试下' : '这条没东西可发';
+    const result = await dispatchDistribution(message, ctx, targets, payloads, policy);
+    if (result.sent === 0) return result.failed > 0 ? '没发成，再试下' : '这条没东西可发';
     if (result.failed > 0) return `发了 ${result.sent} 个，还有 ${result.failed} 个没成 😅`;
     return result.sent === 1 ? '发过去了 👌' : `都发过去了，${result.sent} 个 👌`;
 }
@@ -332,7 +327,12 @@ async function applyCommand(
     if (!existing) return '没找着这条规则';
     const quoted = quotedMessage(message);
     if (!quoted) return '引用一条消息再测';
-    const replies = await buildDistributionReplies(ctx.env, quoted, existing);
+    const replies = await buildDistributionTargetReplies(
+        [quoted],
+        ctx,
+        existing.contentPolicy,
+        existing.targets[0]?.platform ?? message.platform,
+    );
     return previewText(replies);
 }
 
