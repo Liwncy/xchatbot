@@ -48,7 +48,7 @@ async function applyCommand(
 ): Promise<HandlerResponse> {
     const isSession = command.kind === 'enable' || command.kind === 'disable' || command.kind === 'status';
     const denied = ownerError(
-        message.from,
+        message.senderId,
         resolveOwnerId(ctx.env, message.platform),
         isSession ? '群里还没设主人，没法开' : '群里还没设主人，没法改模式',
     );
@@ -128,10 +128,10 @@ export const groupSessionPlugin: Plugin = {
         impl: 'local',
     },
     async match(message) {
-        return message.source === 'group' && Boolean(message.room?.id);
+        return message.source === 'group' && Boolean(message.chatId);
     },
     async handle(message, ctx): Promise<HandlerResponse> {
-        const roomId = message.room?.id;
+        const roomId = message.chatId;
         if (!roomId) return handledReply();
 
         const marked = commandOf(message, ctx);
@@ -148,8 +148,8 @@ export const groupSessionPlugin: Plugin = {
         );
         const followOn = followUpApplies(settings.mode) && settings.followUpSeconds > 0;
         const followActive = followOn
-            && await isFollowActive(ctx.env, message.platform, roomId, message.from);
-        const listed = matchesRuleUser(settings, message.from)
+            && await isFollowActive(ctx.env, message.platform, roomId, message.senderId);
+        const listed = matchesRuleUser(settings, message.senderId)
             || matchesKeyword(settings, message.content ?? '');
         const needChance = settings.mode === 'random' || settings.mode === 'smart';
         const chanceHit = needChance && rollChance(settings.replyChancePercent);
@@ -160,7 +160,7 @@ export const groupSessionPlugin: Plugin = {
             chanceHit,
         });
         const ownerId = resolveOwnerId(ctx.env, message.platform);
-        const isOwner = Boolean(ownerId && message.from.trim() === ownerId);
+        const isOwner = Boolean(ownerId && message.senderId.trim() === ownerId);
         if (marked != null) {
             const roleplayReply = await tryHandleRoleplay(ctx.env, message, marked);
             if (roleplayReply) {
@@ -190,7 +190,7 @@ export const groupSessionPlugin: Plugin = {
                 ctx.env,
                 message.platform,
                 roomId,
-                message.from,
+                message.senderId,
                 settings.followUpSeconds,
             );
         }

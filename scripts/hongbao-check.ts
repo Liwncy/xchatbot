@@ -60,6 +60,8 @@ assert.equal(parseHongbaoMessage('你好'), null);
     });
     assert.equal(message?.type, 'hongbao');
     assert.equal(message?.source, 'group');
+    assert.equal(message?.chatId, '123@chatroom');
+    assert.equal(message?.senderId, 'wxid_a');
     assert.equal(message?.hongbao?.nativeUrl, nativeUrl);
     assert.equal(message?.content, '恭喜发财，大吉大利');
     assert.match(message?.rawXml ?? '', /<type>2001<\/type>/u);
@@ -72,7 +74,8 @@ assert.equal(new Set(THANKS_LINES).size, THANKS_LINES.length);
         platform: 'golem',
         type: 'hongbao',
         source: 'group',
-        from: 'wxid_a',
+        chatId: '123@chatroom',
+        senderId: 'wxid_a',
         senderName: '张三',
         to: '123@chatroom',
         timestamp: 1,

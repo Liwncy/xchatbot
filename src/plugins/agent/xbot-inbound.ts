@@ -1,4 +1,3 @@
-import {resolveChatId} from '../../core/context.js';
 import {handledReply, type HandlerResponse} from '../../core/reply.js';
 import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
 import {buildInboundContent} from '../../core/inbound.js';
@@ -25,7 +24,7 @@ export async function forwardXbotInbound(args: {
     const {message, env, gatewayBaseUrl, token, timeoutMs, extraHeaders, logLabel} = args;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const conversationId = resolveChatId(message);
+    const conversationId = message.chatId;
     let resolved = await resolveOpenClawMedia(message, env);
     if (resolved) {
         await patchInboundMediaPublicUrl(env, message.messageId, {
@@ -56,10 +55,10 @@ export async function forwardXbotInbound(args: {
                 accountId: 'Primary',
                 messageId: message.messageId,
                 source: message.source === 'group' ? 'group' : 'private',
-                from: message.from,
+                from: message.senderId,
                 senderName: message.senderName,
                 conversationId,
-                roomId: message.room?.id,
+                roomId: message.source === 'group' ? message.chatId : undefined,
                 platform: message.platform,
                 type: message.type,
                 content,

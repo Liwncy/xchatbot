@@ -13,7 +13,7 @@ export const peerCollectPlugin: Plugin = {
         impl: 'local',
     },
     match(message) {
-        return message.source === 'group' && Boolean(message.room?.id?.trim() && message.from.trim());
+        return message.source === 'group' && Boolean(message.chatId.trim() && message.senderId.trim());
     },
     async handle(message, ctx: PluginContext): Promise<HandlerResponse> {
         ctx.waitUntil((async () => {

@@ -266,7 +266,7 @@ async function insertInbound(db: D1Database, message: IncomingMessage): Promise<
         message.platform,
         session.sessionId,
         session.sessionType,
-        message.from.trim() || 'unknown',
+        message.senderId.trim() || 'unknown',
         message.senderName?.trim() ?? '',
         message.type,
         contentText,

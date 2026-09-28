@@ -2,9 +2,9 @@ import type {IncomingMessage} from '../message.js';
 import type {ChatSessionRef} from './types.js';
 
 export function resolveChatSession(message: IncomingMessage): ChatSessionRef {
-    const roomId = message.room?.id?.trim();
-    if (roomId) {
-        return {sessionId: roomId, sessionType: 'group'};
+    const chatId = message.chatId.trim();
+    if (message.source === 'group') {
+        return {sessionId: chatId, sessionType: 'group'};
     }
-    return {sessionId: `private:${message.from.trim()}`, sessionType: 'private'};
+    return {sessionId: `private:${chatId}`, sessionType: 'private'};
 }

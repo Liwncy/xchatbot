@@ -114,7 +114,7 @@ export const emojiStashPlugin: Plugin = {
         const ban = parseBan(command);
         if (ban.hit) {
             const ownerId = resolveOwnerId(ctx.env, message.platform);
-            if (!ownerId || message.from.trim() !== ownerId) {
+            if (!ownerId || message.senderId.trim() !== ownerId) {
                 return textReply('这事只有主人能定');
             }
             const md5 = await resolveQuotedMd5(ctx.env, message) || ban.md5;

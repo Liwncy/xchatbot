@@ -60,7 +60,7 @@ export const revokePlugin: Plugin = {
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         try {
-            const ownerErr = ensureOwner(message.from, resolveOwnerId(ctx.env, message.platform));
+            const ownerErr = ensureOwner(message.senderId, resolveOwnerId(ctx.env, message.platform));
             if (ownerErr) return textReply(ownerErr);
 
             const text = revokeCommand(message, ctx) ?? '';

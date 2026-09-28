@@ -80,20 +80,20 @@ function msg(partial: Partial<IncomingMessage> = {}): IncomingMessage {
         platform: 'golem',
         type: 'text',
         source: 'group',
-        from: 'wxid_owner',
+        chatId: '123@chatroom',
+        senderId: 'wxid_owner',
         senderName: '李芈仙',
         to: '123@chatroom',
         timestamp: 1,
         messageId: 'm1',
         content: '你好',
-        room: {id: '123@chatroom'},
         raw: {},
         ...partial,
     };
 }
 
 async function main() {
-    assert.equal(await tryHandleRoleplay(env, msg({from: 'wxid_other'}), '加角色 猫娘 你是猫娘'), '这个我加不了');
+    assert.equal(await tryHandleRoleplay(env, msg({senderId: 'wxid_other'}), '加角色 猫娘 你是猫娘'), '这个我加不了');
     assert.equal(await tryHandleRoleplay(env, msg(), '加角色'), '名字和演法写一起，换行也行');
     assert.equal(await tryHandleRoleplay(env, msg(), '加角色 猫娘 你是猫娘，短句。'), '好，记下了。说 #扮演 猫娘 就行');
     assert.equal(await tryHandleRoleplay(env, msg(), '加角色 猫娘 再写一遍'), '已经有这个了');
@@ -108,7 +108,9 @@ async function main() {
         assert.match(inbound, /role=猫娘/);
         assert.match(inbound, /scope=group:123@chatroom/);
         const wrapped = wrapUserContent(inbound, {id: '猫娘', name: '猫娘', triggers: [], instruction: '你是猫娘，短句。', ack: '好，猫娘。'});
-        assert.equal(wrapped, `你是猫娘，短句。\n\n${inbound}`);
+        assert.match(wrapped, /^你是猫娘，短句。/u);
+        assert.match(wrapped, new RegExp(inbound.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
+        assert.match(wrapped, /\[演法\]/u);
     }
 
     assert.equal(await tryHandleRoleplay(env, msg(), '不当了'), '好，不当了。');

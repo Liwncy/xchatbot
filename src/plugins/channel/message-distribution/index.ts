@@ -43,8 +43,7 @@ async function distribute(
             ...message,
             platform: target.platform,
             source: target.kind === 'group' ? 'group' as const : 'private' as const,
-            from: target.kind === 'user' ? target.id : message.from,
-            room: target.kind === 'group' ? {id: target.id} : undefined,
+            chatId: target.id,
         };
         await adapter.send(targetMessage, targeted, ctx.env);
     }

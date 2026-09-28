@@ -1,6 +1,6 @@
 import {resolveOwnerId} from '../../../core/bot.js';
 import {markedCommand} from '../../../core/command-mark.js';
-import type {IncomingMessage, MessageSource, MessageType} from '../../../core/message.js';
+import type {IncomingMessage, MessageType} from '../../../core/message.js';
 import {
     deleteDistributionRule,
     getDistributionRule,
@@ -14,7 +14,6 @@ import {
     type DistributionContentPolicy,
     type DistributionRule,
     type DistributionRuleInput,
-    type DistributionSource,
     type DistributionTarget,
 } from '../../../core/message-distribution/types.js';
 import {textReply, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
@@ -24,7 +23,7 @@ import {parseDistributionCommand, type DistributionCommand} from './parse.js';
 
 const HELP = [
     '分发规则这样配：',
-    '#分发规则 新增 名称=科技资讯 来源=公众号:gh_xxx 类型=文章 关键词=AI 内容=自动 目标=群:xxx',
+    '#分发规则 新增 名称=科技资讯 会话=gh_xxx 类型=文章 关键词=AI 内容=自动 目标=群:xxx',
     '#分发规则 内容 科技资讯 模式=AI 要求="压缩成100字" 输出=图文 失败=重建',
     '#分发规则 列表',
     '#分发规则 查看 科技资讯',
@@ -46,35 +45,15 @@ function splitList(value?: string): string[] {
     return (value ?? '').split(/[,，]/u).map((item) => item.trim()).filter(Boolean);
 }
 
-function currentSource(message: IncomingMessage): DistributionSource {
-    const id = message.source === 'group' ? message.room?.id ?? '' : message.from;
-    return {kind: message.source, ids: id ? [id] : []};
+function currentChatIds(message: IncomingMessage): string[] {
+    return message.chatId ? [message.chatId] : [];
 }
 
-function parseSource(value: string | undefined, message: IncomingMessage): DistributionSource {
+function parseChatIds(value: string | undefined, message: IncomingMessage): string[] {
     const entries = splitList(value);
-    if (entries.length === 0 || entries.includes('当前')) return currentSource(message);
-    if (entries.includes('全部')) return {kind: 'any', ids: []};
-    let kind: MessageSource | undefined;
-    const ids: string[] = [];
-    for (const entry of entries) {
-        const match = entry.match(/^(公众号|群|私聊):(.+)$/u);
-        const nextKind: MessageSource = match?.[1] === '公众号'
-            ? 'official'
-            : match?.[1] === '群'
-                ? 'group'
-                : match?.[1] === '私聊'
-                    ? 'private'
-                    : entry.startsWith('gh_')
-                        ? 'official'
-                        : entry.endsWith('@chatroom')
-                            ? 'group'
-                            : 'private';
-        if (kind && kind !== nextKind) throw new Error('一条规则的来源类型要一致');
-        kind = nextKind;
-        ids.push((match?.[2] ?? entry).trim());
-    }
-    return {kind: kind ?? 'any', ids};
+    if (entries.length === 0 || entries.includes('当前')) return currentChatIds(message);
+    if (entries.includes('全部')) return [];
+    return [...new Set(entries.map((entry) => entry.replace(/^(?:公众号|群|私聊):/u, '').trim()).filter(Boolean))];
 }
 
 function parseTargets(value: string | undefined, message: IncomingMessage): DistributionTarget[] {
@@ -82,7 +61,7 @@ function parseTargets(value: string | undefined, message: IncomingMessage): Dist
     if (entries.length === 0) throw new Error('还没写目标');
     return entries.map((entry) => {
         if (entry === '当前') {
-            const id = message.source === 'group' ? message.room?.id ?? '' : message.from;
+            const id = message.chatId;
             if (!id) throw new Error('当前目标认不出来');
             return {platform: message.platform, kind: message.source === 'group' ? 'group' : 'user', id};
         }
@@ -182,7 +161,7 @@ function ruleInput(rule: DistributionRule): DistributionRuleInput {
         name: rule.name,
         status: rule.status,
         priority: rule.priority,
-        source: rule.source,
+        chatIds: rule.chatIds,
         messageTypes: rule.messageTypes,
         keywords: rule.keywords,
         pattern: rule.pattern,
@@ -193,9 +172,7 @@ function ruleInput(rule: DistributionRule): DistributionRuleInput {
 }
 
 function ruleSummary(rule: DistributionRule): string {
-    const source = rule.source.kind === 'any'
-        ? '全部'
-        : `${rule.source.kind}:${rule.source.ids.join(',') || '*'}`;
+    const chats = rule.chatIds.length ? rule.chatIds.join(',') : '全部';
     const targets = rule.targets.map((item) => `${item.platform}/${item.kind}:${item.id}`).join(',');
     const filters = [
         rule.messageTypes.length ? `类型=${rule.messageTypes.join(',')}` : '',
@@ -204,7 +181,7 @@ function ruleSummary(rule: DistributionRule): string {
     ].filter(Boolean).join(' ');
     return [
         `${rule.status === 'active' ? '开着' : '停着'}｜${rule.name}`,
-        `来源=${source}${filters ? ` ${filters}` : ''}`,
+        `会话=${chats}${filters ? ` ${filters}` : ''}`,
         `内容=${rule.contentPolicy.mode} 输出=${rule.contentPolicy.output} 失败=${rule.contentPolicy.fallback}`,
         `目标=${targets}`,
     ].join('\n');
@@ -277,7 +254,7 @@ async function applyCommand(
         const rule = await saveDistributionRule(ctx.env, {
             name,
             priority: Number.isFinite(priority) ? priority : 100,
-            source: parseSource(command.values.来源, message),
+            chatIds: parseChatIds(command.values.会话 ?? command.values.来源, message),
             messageTypes: parseMessageTypes(command.values.类型),
             keywords: splitList(command.values.关键词),
             pattern: command.values.正则,
@@ -321,7 +298,7 @@ export const messageDistributionCommandPlugin: Plugin = {
         const command = parseDistributionCommand(markedCommand(message, ctx.env) ?? '');
         if (!command) return null;
         const ownerId = resolveOwnerId(ctx.env, message.platform);
-        if (!ownerId || message.from.trim() !== ownerId) return textReply('这事只有主人能改');
+        if (!ownerId || message.senderId.trim() !== ownerId) return textReply('这事只有主人能改');
         try {
             return textReply(await applyCommand(command, message, ctx));
         } catch (error) {

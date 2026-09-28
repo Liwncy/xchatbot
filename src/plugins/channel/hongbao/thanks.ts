@@ -40,7 +40,7 @@ export function pickThanksLine(random = Math.random): string {
 }
 
 export function thanksReply(message: IncomingMessage, random = Math.random): TextReply {
-    const from = message.from.trim();
+    const from = message.senderId.trim();
     const name = displayName(message.senderName);
     const line = pickThanksLine(random);
     return {

@@ -94,12 +94,12 @@ function buildInboundStub(body: Record<string, unknown>): IncomingMessage {
         platform,
         type: 'text',
         source,
-        from,
+        chatId: roomId || from,
+        senderId: from,
         senderName: asString(body.senderName) || undefined,
         to: from,
         timestamp: Date.now(),
         messageId: asString(body.messageId) || `openclaw:${crypto.randomUUID()}`,
-        room: roomId ? {id: roomId} : undefined,
         raw: body,
     };
 }

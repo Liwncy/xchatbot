@@ -1,4 +1,3 @@
-import {resolveChatId} from '../../core/context.js';
 import type {ChatRecordReply, ReplyMessage} from '../../core/reply.js';
 import type {Env} from '../../types/env.js';
 import type {ChannelAdapter, DirectoryPerson, HongbaoClaimResult, RevokeResult, RoomMember} from '../types.js';
@@ -34,7 +33,7 @@ export const golemAdapter: ChannelAdapter = {
         if (!apiBaseUrl) return {ok: false, reason: 'unavailable'};
 
         const param = buildRevokeParam(
-            resolveChatId(message),
+            message.chatId,
             referMessageId.clientIdText ?? referMessageId.clientId,
             referMessageId.newIdText ?? referMessageId.newId,
             referMessageId.createTime,

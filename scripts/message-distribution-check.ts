@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import assert from 'node:assert/strict';
 import {parseWechatAppMessage} from '../src/adapter/golem/parse-appmsg.ts';
 import type {Env} from '../src/types/env.ts';
@@ -76,7 +77,8 @@ const message: IncomingMessage = {
     platform: 'golem',
     type: 'link',
     source: 'official',
-    from: 'gh_news',
+    chatId: 'gh_news',
+    senderId: 'gh_news',
     to: 'bot',
     timestamp: 1,
     messageId: 'message-1',
@@ -91,7 +93,7 @@ const rule: DistributionRule = {
     name: '科技资讯',
     status: 'active',
     priority: 100,
-    source: {kind: 'official', ids: ['gh_news']},
+    chatIds: ['gh_news'],
     messageTypes: ['link'],
     keywords: ['文章'],
     targets: [{platform: 'web', kind: 'user', id: 'reader'}],

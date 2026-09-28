@@ -29,8 +29,8 @@ function commandOf(message: IncomingMessage, ctx: PluginContext): string | null 
 
 function scopeOf(message: IncomingMessage): string {
     return message.source === 'group'
-        ? `group:${message.room?.id ?? ''}`
-        : `user:${message.from}`;
+        ? `group:${message.chatId}`
+        : `user:${message.chatId}`;
 }
 
 function clipText(text: string): string {
@@ -42,7 +42,7 @@ function clipText(text: string): string {
 function ownerError(message: IncomingMessage, ctx: PluginContext): string | null {
     const ownerId = resolveOwnerId(ctx.env, message.platform);
     if (!ownerId) return '这个我还不能听你的';
-    if (message.from.trim() !== ownerId) return '这事只有主人能看';
+    if (message.senderId.trim() !== ownerId) return '这事只有主人能看';
     return null;
 }
 

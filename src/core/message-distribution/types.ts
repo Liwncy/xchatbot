@@ -1,14 +1,9 @@
-import type {MessageSource, MessageType} from '../message.js';
+import type {MessageType} from '../message.js';
 
 export type DistributionStatus = 'active' | 'disabled';
 export type DistributionContentMode = 'auto' | 'original' | 'rebuild' | 'ai';
 export type DistributionOutput = 'auto' | 'text' | 'link' | 'media';
 export type DistributionFallback = 'rebuild' | 'text' | 'skip';
-
-export interface DistributionSource {
-    kind: MessageSource | 'any';
-    ids: string[];
-}
 
 export interface DistributionTarget {
     platform: string;
@@ -36,7 +31,7 @@ export interface DistributionRule {
     name: string;
     status: DistributionStatus;
     priority: number;
-    source: DistributionSource;
+    chatIds: string[];
     messageTypes: MessageType[];
     keywords: string[];
     pattern?: string;
@@ -51,7 +46,7 @@ export interface DistributionRuleInput {
     name: string;
     status?: DistributionStatus;
     priority?: number;
-    source?: Partial<DistributionSource>;
+    chatIds?: string[];
     messageTypes?: MessageType[];
     keywords?: string[];
     pattern?: string;

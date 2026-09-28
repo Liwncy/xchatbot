@@ -80,11 +80,15 @@ async function processGolemInbound(
     const ownerId = resolveOwnerId(env, 'golem');
 
     for (const message of messages) {
-        if (botId && message.from.trim() === botId) {
+        if (botId && message.senderId.trim() === botId) {
             continue;
         }
-        if (message.source === 'private' && (!ownerId || message.from.trim() !== ownerId)) {
-            logger.info('入站已跳过', {reason: 'dm-allowlist', from: message.from, messageId: message.messageId});
+        if (message.source === 'private' && (!ownerId || message.senderId.trim() !== ownerId)) {
+            logger.info('入站已跳过', {
+                reason: 'dm-allowlist',
+                senderId: message.senderId,
+                messageId: message.messageId,
+            });
             continue;
         }
         try {

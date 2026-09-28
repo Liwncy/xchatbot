@@ -87,12 +87,12 @@ const message: IncomingMessage = {
     platform: 'golem',
     type: 'text',
     source: 'group',
-    from: 'wxid_a',
+    chatId: '123@chatroom',
+    senderId: 'wxid_a',
     to: '123@chatroom',
     timestamp: 1,
     messageId: 'm1',
     content: '你好',
-    room: {id: '123@chatroom'},
     raw: {},
 };
 assert.equal(isBotMentioned(message, '小聪明儿', 'bot'), false);

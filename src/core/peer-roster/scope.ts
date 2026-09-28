@@ -10,7 +10,7 @@ export function normalizeRosterScope(scope: string): string {
 
 export function scopeFromMessage(message: IncomingMessage): string {
     if (message.source === 'group') {
-        return normalizeRosterScope(`group:${message.room?.id ?? ''}`);
+        return normalizeRosterScope(`group:${message.chatId}`);
     }
-    return normalizeRosterScope(`user:${message.from}`);
+    return normalizeRosterScope(`user:${message.chatId}`);
 }

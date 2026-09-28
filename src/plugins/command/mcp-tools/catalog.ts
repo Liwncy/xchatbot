@@ -107,13 +107,13 @@ function gamePlatform(env: Env): string {
 
 export function isOwner(message: IncomingMessage, env: Env): boolean {
     const ownerId = resolveOwnerId(env, message.platform);
-    return Boolean(ownerId && message.from.trim() === ownerId);
+    return Boolean(ownerId && message.senderId.trim() === ownerId);
 }
 
 export function identityArgs(ctx: CallCtx): Record<string, string> {
     return {
         platform: gamePlatform(ctx.env),
-        userId: ctx.message.from,
+        userId: ctx.message.senderId,
         userName: ctx.message.senderName ?? '',
         requestId: `${ctx.message.platform}:${ctx.message.messageId}`,
     };
@@ -176,15 +176,15 @@ function verifyTarget(message: IncomingMessage, env: Env): {id: string; name: st
     const botId = resolveBotId(env, message.platform);
     const other = (message.mentions ?? []).find((item) => item.id.trim() && item.id.trim() !== botId);
     if (other) return {id: other.id.trim(), name: other.name?.trim() || other.id.trim()};
-    return {id: message.from.trim(), name: message.senderName?.trim() || message.from.trim()};
+    return {id: message.senderId.trim(), name: message.senderName?.trim() || message.senderId.trim()};
 }
 
 function ruleContext(message: IncomingMessage): Record<string, string> {
     return {
-        from: message.from,
+        from: message.senderId,
         senderName: message.senderName ?? '',
         messageId: message.messageId,
-        roomId: message.room?.id ?? '',
+        roomId: message.source === 'group' ? message.chatId : '',
     };
 }
 
@@ -303,7 +303,7 @@ function ticketArgs(ctx: CallCtx): ArgsResult {
 
 function humanStartArgs(ctx: CallCtx): ArgsResult {
     const target = verifyTarget(ctx.message, ctx.env);
-    const groupId = ctx.message.room?.id?.trim() ?? '';
+    const groupId = ctx.message.source === 'group' ? ctx.message.chatId.trim() : '';
     const vars: Record<string, string> = {
         name: target.name,
         receiver: groupId || target.id,
@@ -379,8 +379,8 @@ function xuanxueArgs(ctx: CallCtx): ArgsResult {
 
 function peerScopeOf(message: IncomingMessage): string {
     return message.source === 'group'
-        ? `group:${message.room?.id ?? ''}`
-        : `user:${message.from}`;
+        ? `group:${message.chatId}`
+        : `user:${message.chatId}`;
 }
 
 function peerPersonOf(ctx: CallCtx): {wxid: string; name: string} | null {

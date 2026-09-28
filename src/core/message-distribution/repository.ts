@@ -8,7 +8,6 @@ import {
     type DistributionOutput,
     type DistributionRule,
     type DistributionRuleInput,
-    type DistributionSource,
     type DistributionStatus,
     type DistributionTarget,
 } from './types.js';
@@ -114,12 +113,16 @@ function normalizePolicy(input?: Partial<DistributionContentPolicy>): Distributi
     };
 }
 
-function normalizeSource(source?: Partial<DistributionSource>): DistributionSource {
-    const kind = source?.kind === 'group' || source?.kind === 'private' || source?.kind === 'official'
-        ? source.kind
-        : 'any';
-    const ids = [...new Set((source?.ids ?? []).map((item) => item.trim()).filter(Boolean))];
-    return {kind, ids};
+function normalizeChatIds(value: unknown): string[] {
+    const raw = Array.isArray(value)
+        ? value
+        : value && typeof value === 'object' && !Array.isArray(value)
+            ? (value as {ids?: unknown}).ids
+            : [];
+    if (!Array.isArray(raw)) return [];
+    return [...new Set(raw.filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean))];
 }
 
 function normalizeTargets(targets: DistributionTarget[]): DistributionTarget[] {
@@ -143,7 +146,8 @@ function mapRow(row: RuleRow): DistributionRule {
         name: row.name,
         status: asStatus(row.status),
         priority: row.priority,
-        source: normalizeSource(json<DistributionSource>(row.source_json, {kind: 'any', ids: []})),
+        // source_json 兼容首版的 {kind, ids}；新数据只存 chatId 数组。
+        chatIds: normalizeChatIds(json<unknown>(row.source_json, [])),
         messageTypes: json<MessageType[]>(row.message_types_json, []),
         keywords: json<string[]>(row.keywords_json, []),
         pattern: row.pattern?.trim() || undefined,
@@ -197,7 +201,7 @@ export async function saveDistributionRule(env: Env, input: DistributionRuleInpu
     }
     const now = Date.now();
     const id = existing?.id ?? crypto.randomUUID();
-    const source = normalizeSource(input.source);
+    const chatIds = normalizeChatIds(input.chatIds);
     const targets = normalizeTargets(input.targets);
     const policy = normalizePolicy(input.contentPolicy);
     const messageTypes = [...new Set(input.messageTypes ?? [])];
@@ -223,7 +227,7 @@ export async function saveDistributionRule(env: Env, input: DistributionRuleInpu
         name,
         input.status ?? existing?.status ?? 'active',
         input.priority ?? existing?.priority ?? 100,
-        JSON.stringify(source),
+        JSON.stringify(chatIds),
         JSON.stringify(messageTypes),
         JSON.stringify(keywords),
         pattern ?? null,

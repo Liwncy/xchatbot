@@ -117,12 +117,12 @@ function appendMediaTokens(text: string, md5?: string, url?: string): string {
 
 export async function buildSpeakerPrefix(message: IncomingMessage, env: Env): Promise<string> {
     const ownerId = resolveOwnerId(env, message.platform);
-    const isOwner = Boolean(ownerId && message.from.trim() === ownerId);
-    const speaker = speakerLabel(message.from, message.senderName);
+    const isOwner = Boolean(ownerId && message.senderId.trim() === ownerId);
+    const speaker = speakerLabel(message.senderId, message.senderName);
     const role = (await currentCharacter(env, message))?.name?.trim();
     const scope = message.source === 'group'
-        ? `group:${message.room?.id ?? ''}`
-        : `user:${message.from}`;
+        ? `group:${message.chatId}`
+        : `user:${message.chatId}`;
     return `[${speaker}${isOwner ? ' owner' : ''}${role ? ` role=${role}` : ''} scope=${scope}]`;
 }
 

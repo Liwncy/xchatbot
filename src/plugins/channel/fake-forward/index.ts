@@ -72,7 +72,7 @@ export const fakeForwardPlugin: Plugin = {
             return await buildFakeForwardCard(ctx.adapter, ctx.env, {
                 script: parsed.script,
                 title: parsed.title,
-                group: message.room?.id,
+                group: message.source === 'group' ? message.chatId : undefined,
             });
         } catch (error) {
             if (error instanceof FakeForwardAskError) {

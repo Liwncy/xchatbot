@@ -2,7 +2,6 @@ import type {Env} from '../../types/env.js';
 import type {IncomingMessage} from '../../core/message.js';
 import {linkReply, textReply, type ReplyMessage} from '../../core/reply.js';
 import {recordOutboundChatMessage} from '../../core/chat-log/index.js';
-import {resolveChatId} from '../../core/context.js';
 import {logger} from '../../utils/logger.js';
 import type {ApiResponse} from './types.js';
 import type {SendReceipt} from '../types.js';
@@ -262,7 +261,7 @@ export async function sendGolemReplies(
     env: Env,
 ): Promise<SendReceipt[]> {
     const api = new GolemApi(apiBaseUrl);
-    const receiver = resolveChatId(message);
+    const receiver = message.chatId;
     const receipts: SendReceipt[] = [];
     let replyIndex = 0;
 

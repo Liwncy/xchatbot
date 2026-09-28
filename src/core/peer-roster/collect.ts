@@ -67,7 +67,7 @@ function pickTarget(message: IncomingMessage, env: Env): {wxid: string; name: st
 
 export async function offerPeerPending(env: Env, message: IncomingMessage): Promise<boolean> {
     if (message.source !== 'group') return false;
-    const roomId = message.room?.id?.trim() ?? '';
+    const roomId = message.chatId.trim();
     if (!roomId) return false;
     const target = pickTarget(message, env);
     if (!target) return false;
@@ -92,8 +92,8 @@ export async function offerPeerPending(env: Env, message: IncomingMessage): Prom
 
 export async function confirmPeerPending(env: Env, message: IncomingMessage): Promise<boolean> {
     if (message.source !== 'group') return false;
-    const roomId = message.room?.id?.trim() ?? '';
-    const from = message.from.trim();
+    const roomId = message.chatId.trim();
+    const from = message.senderId.trim();
     if (!roomId || !from) return false;
     const key = pendingKvKey(message.platform, roomId, from);
     const raw = await env.XBOT_KV.get(key);

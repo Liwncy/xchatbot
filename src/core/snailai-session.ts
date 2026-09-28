@@ -13,22 +13,22 @@ export function snailaiSessionKey(message: IncomingMessage): string {
     const session = resolveChatSession(message);
     const peer = session.sessionType === 'group'
         ? `group:${session.sessionId}`
-        : `user:${message.from.trim()}`;
+        : `user:${message.chatId.trim()}`;
     return `${message.platform}:${ACCOUNT}:${peer}`;
 }
 
 export function snailaiExternalId(message: IncomingMessage): string {
     if (message.source === 'group') {
-        return `${message.platform}:${ACCOUNT}:group:${message.room?.id?.trim() ?? ''}`;
+        return `${message.platform}:${ACCOUNT}:group:${message.chatId.trim()}`;
     }
-    return `${message.platform}:${ACCOUNT}:${message.from.trim()}`;
+    return `${message.platform}:${ACCOUNT}:${message.chatId.trim()}`;
 }
 
 export function snailaiNickname(message: IncomingMessage): string {
     if (message.source === 'group') {
-        return message.room?.id?.trim() || message.senderName?.trim() || snailaiExternalId(message);
+        return message.chatId.trim() || message.senderName?.trim() || snailaiExternalId(message);
     }
-    return message.senderName?.trim() || message.from.trim();
+    return message.senderName?.trim() || message.senderId.trim();
 }
 
 function convKey(sessionKey: string): string {

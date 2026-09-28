@@ -58,13 +58,15 @@ export interface IncomingMessage {
     platform: string;
     type: MessageType;
     source: MessageSource;
-    from: string;
+    /** 当前会话：群 ID、私聊用户 ID 或公众号 ID。 */
+    chatId: string;
+    /** 实际发送人；群聊里是成员 ID，私聊/公众号里通常与 chatId 相同。 */
+    senderId: string;
     senderName?: string;
     to: string;
     timestamp: number;
     messageId: string;
     content?: string;
-    room?: {id: string};
     quote?: QuoteRef;
     media?: InboundMedia;
     mentions?: MentionRef[];

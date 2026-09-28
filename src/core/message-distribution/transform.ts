@@ -10,12 +10,12 @@ import {
     voiceReply,
     type ReplyMessage,
 } from '../reply.js';
-import {distributionSearchText, distributionSourceId} from './matcher.js';
+import {distributionSearchText} from './matcher.js';
 import type {DistributionContentPolicy, DistributionRule} from './types.js';
 
 function sourceLine(message: IncomingMessage, policy: DistributionContentPolicy): string {
     const parts: string[] = [];
-    if (policy.includeSource) parts.push(`来源：${message.senderName?.trim() || distributionSourceId(message)}`);
+    if (policy.includeSource) parts.push(`来源：${message.senderName?.trim() || message.chatId}`);
     if (policy.includeSender && message.senderName?.trim()) parts.push(`发送人：${message.senderName.trim()}`);
     return parts.join('\n');
 }

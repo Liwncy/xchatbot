@@ -49,7 +49,8 @@ const privateMsg: IncomingMessage = {
     platform: 'golem',
     type: 'text',
     source: 'private',
-    from: 'wxid_a',
+    chatId: 'wxid_a',
+    senderId: 'wxid_a',
     senderName: '张三',
     to: 'wxid_bot',
     timestamp: 1,
@@ -61,8 +62,8 @@ const privateMsg: IncomingMessage = {
 const groupMsg: IncomingMessage = {
     ...privateMsg,
     source: 'group',
+    chatId: '123@chatroom',
     to: '123@chatroom',
-    room: {id: '123@chatroom'},
 };
 
 assert.equal(snailaiSessionKey(privateMsg), 'golem:default:user:wxid_a');

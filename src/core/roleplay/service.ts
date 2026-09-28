@@ -71,7 +71,7 @@ export async function tryHandleRoleplay(
     const add = tryParseAdd(stripped);
     if (add) {
         const ownerId = resolveOwnerId(env, message.platform);
-        if (!ownerId || message.from.trim() !== ownerId) return '这个我加不了';
+        if (!ownerId || message.senderId.trim() !== ownerId) return '这个我加不了';
         if (!add.name && !add.instruction) return '名字和演法写一起，换行也行';
         const error = await createCharacter(env, add.name, add.instruction);
         return error ?? `好，记下了。说 #扮演 ${add.name.trim()} 就行`;
@@ -88,7 +88,7 @@ export async function tryHandleRoleplay(
     if (targetId === NORMAL_ID) {
         await clearBoundRoleKey(env, message);
         if (previous) await resetSnailaiConversation(env, message);
-        logger.info('演法已退', {platform: message.platform, from: message.from});
+        logger.info('演法已退', {platform: message.platform, senderId: message.senderId});
         return '好，不当了。';
     }
     const character = await getCharacter(env, targetId);

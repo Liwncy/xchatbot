@@ -100,17 +100,14 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
         platform: GOLEM_PLATFORM,
         type: msgType,
         source,
-        from: source === 'group' ? resolveGroupFrom(item, groupMeta) : (item.sender?.value ?? ''),
+        chatId: source === 'group' ? resolveRoomId(item) : (item.sender?.value ?? ''),
+        senderId: source === 'group' ? resolveGroupFrom(item, groupMeta) : (item.sender?.value ?? ''),
         senderName: pushPreview.senderName,
         to: item.receiver?.value ?? '',
         timestamp: toUnixSeconds(item.create_time),
         messageId: String(item.id ?? item.msg_id ?? item.new_id ?? item.new_msg_id ?? item.create_time),
         raw,
     };
-
-    if (source === 'group') {
-        message.room = {id: resolveRoomId(item)};
-    }
     if (rawContent.includes('<')) {
         message.rawXml = rawContent;
     }

@@ -26,8 +26,8 @@ export const emojiCollectPlugin: Plugin = {
         if (!md5) return null;
         const imgUrl = message.media?.publicUrl || message.media?.url;
         const source = message.source === 'group'
-            ? `group:${message.room?.id ?? ''}`
-            : `user:${message.from}`;
+            ? `group:${message.chatId}`
+            : `user:${message.chatId}`;
         ctx.waitUntil((async () => {
             try {
                 await emojiCollectInbound(ctx.env, {md5, imgUrl, source});
