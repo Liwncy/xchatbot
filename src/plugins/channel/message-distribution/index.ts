@@ -21,7 +21,16 @@ export const messageDistributionPlugin: Plugin = {
         if (markedCommand(message, ctx.env) != null) {
             return message.source === 'official' ? handledReply() : null;
         }
-        const rules = await listDistributionRules(ctx.env, true);
+        let rules: Awaited<ReturnType<typeof listDistributionRules>>;
+        try {
+            rules = await listDistributionRules(ctx.env, true);
+        } catch (error) {
+            logger.warn('分发规则暂时读不了，已跳过自动分发', {
+                messageId: message.messageId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return message.source === 'official' ? handledReply() : null;
+        }
         const matched = rules.filter((rule) => matchesDistributionRule(rule, message));
         for (const rule of matched) {
             ctx.waitUntil(dispatchDistribution(message, ctx, rule.targets, [message], rule.contentPolicy, {

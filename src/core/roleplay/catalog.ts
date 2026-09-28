@@ -7,6 +7,7 @@ const RESERVED = [
     '正常', '角色', '扮演', '当', '换成', '加角色', '增加角色', '新增角色',
     '退出角色', '取消扮演', '不当了', '别演了', '当前角色', '小聪明儿', 'normal',
 ];
+const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
 
 type CatalogRow = {
     role_key: string;
@@ -19,6 +20,8 @@ type CatalogRow = {
 };
 
 let schemaReady: Promise<void> | null = null;
+let catalogCache: {expiresAt: number; rows: RoleplayCharacter[]} | null = null;
+let catalogLoading: Promise<RoleplayCharacter[]> | null = null;
 
 function normalize(raw: string): string {
     return raw.trim().toLowerCase().replace(/\s+/gu, '');
@@ -46,7 +49,10 @@ async function ensureSchema(db: D1Database): Promise<void> {
             await db.prepare(
                 'CREATE INDEX IF NOT EXISTS idx_roleplay_character_status ON roleplay_character(status, sort_no)',
             ).run();
-        })();
+        })().catch((error) => {
+            schemaReady = null;
+            throw error;
+        });
     }
     await schemaReady;
 }
@@ -62,14 +68,24 @@ function mapRow(row: CatalogRow): RoleplayCharacter {
 }
 
 async function loadAll(env: Env): Promise<RoleplayCharacter[]> {
-    await ensureSchema(env.XBOT_DB);
-    const result = await env.XBOT_DB.prepare(
-        `SELECT role_key, name, triggers, instruction, ack, status, sort_no
-         FROM roleplay_character
-         WHERE status = 'active'
-         ORDER BY sort_no ASC, role_key ASC`,
-    ).all<CatalogRow>();
-    return (result.results ?? []).map(mapRow);
+    if (catalogCache && catalogCache.expiresAt > Date.now()) return catalogCache.rows;
+    if (!catalogLoading) {
+        catalogLoading = (async () => {
+            await ensureSchema(env.XBOT_DB);
+            const result = await env.XBOT_DB.prepare(
+                `SELECT role_key, name, triggers, instruction, ack, status, sort_no
+                 FROM roleplay_character
+                 WHERE status = 'active'
+                 ORDER BY sort_no ASC, role_key ASC`,
+            ).all<CatalogRow>();
+            const rows = (result.results ?? []).map(mapRow);
+            catalogCache = {expiresAt: Date.now() + CATALOG_CACHE_TTL_MS, rows};
+            return rows;
+        })().finally(() => {
+            catalogLoading = null;
+        });
+    }
+    return catalogLoading;
 }
 
 async function loadNameTokens(env: Env): Promise<Array<{id: string; name: string; triggers: string[]}>> {
@@ -145,5 +161,6 @@ export async function createCharacter(
     } catch {
         return '已经有这个了';
     }
+    catalogCache = null;
     return null;
 }

@@ -210,7 +210,10 @@ async function ensureSchema(db: D1Database): Promise<void> {
             await db.prepare(
                 'CREATE INDEX IF NOT EXISTS idx_chat_message_caused_by ON chat_message(caused_by_message_id)',
             ).run();
-        })();
+        })().catch((error) => {
+            schemaReady = null;
+            throw error;
+        });
     }
     await schemaReady;
 }

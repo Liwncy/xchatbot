@@ -4,7 +4,7 @@ import {getRecentChatMessages} from './chat-log/index.js';
 import {resolveChatSession} from './chat-log/session.js';
 import type {ChatMessageRecord} from './chat-log/types.js';
 import type {IncomingMessage, MentionRef, QuoteRef} from './message.js';
-import {currentCharacter, wrapUserContent} from './roleplay/index.js';
+import {currentCharacter, wrapUserContent, type RoleplayCharacter} from './roleplay/index.js';
 
 /** 任何大脑入站前共用：身份前缀、近窗上下文、演法垫。 */
 export type InboundMediaKind = 'image' | 'video' | 'emoji';
@@ -19,6 +19,14 @@ const CONTEXT_WINDOW_MINUTES = 10;
 const CONTEXT_MAX_MESSAGES = 15;
 const QUOTE_CLIP = 500;
 const CONTEXT_LINE_CLIP = 300;
+
+async function safeCurrentCharacter(env: Env, message: IncomingMessage) {
+    try {
+        return await currentCharacter(env, message);
+    } catch {
+        return null;
+    }
+}
 
 function isHttpUrl(value: string | undefined): value is string {
     return Boolean(value?.trim() && /^https?:\/\//iu.test(value.trim()));
@@ -115,11 +123,18 @@ function appendMediaTokens(text: string, md5?: string, url?: string): string {
     return next.trim();
 }
 
-export async function buildSpeakerPrefix(message: IncomingMessage, env: Env): Promise<string> {
+export async function buildSpeakerPrefix(
+    message: IncomingMessage,
+    env: Env,
+    character?: RoleplayCharacter | null,
+): Promise<string> {
     const ownerId = resolveOwnerId(env, message.platform);
     const isOwner = Boolean(ownerId && message.senderId.trim() === ownerId);
     const speaker = speakerLabel(message.senderId, message.senderName);
-    const role = (await currentCharacter(env, message))?.name?.trim();
+    const resolvedCharacter = character === undefined
+        ? await safeCurrentCharacter(env, message)
+        : character;
+    const role = resolvedCharacter?.name?.trim();
     const scope = message.source === 'group'
         ? `group:${message.chatId}`
         : `user:${message.chatId}`;
@@ -157,6 +172,7 @@ export async function formatCurrentInbound(
     message: IncomingMessage,
     env: Env,
     media?: InboundMediaHint,
+    character?: RoleplayCharacter | null,
 ): Promise<string> {
     const kind = media?.kind ?? inferMediaKind(message);
     const mediaRef = message.media ?? message.quote?.media;
@@ -189,7 +205,7 @@ export async function formatCurrentInbound(
 
     parts.push(...formatMentions(message.mentions));
     const body = parts.join('\n').trim();
-    const prefix = await buildSpeakerPrefix(message, env);
+    const prefix = await buildSpeakerPrefix(message, env, character);
     return body ? `${prefix} ${body}` : prefix;
 }
 
@@ -251,7 +267,8 @@ export async function buildInboundContent(
     env: Env,
     media?: InboundMediaHint,
 ): Promise<string> {
-    const current = await formatCurrentInbound(message, env, media);
+    const character = await safeCurrentCharacter(env, message);
+    const current = await formatCurrentInbound(message, env, media, character);
     let assembled = current;
     try {
         const sessionId = resolveChatSession(message).sessionId;
@@ -265,5 +282,5 @@ export async function buildInboundContent(
     } catch {
         assembled = current;
     }
-    return wrapUserContent(assembled, await currentCharacter(env, message));
+    return wrapUserContent(assembled, character);
 }

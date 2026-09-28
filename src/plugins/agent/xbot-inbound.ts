@@ -25,23 +25,40 @@ export async function forwardXbotInbound(args: {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const conversationId = message.chatId;
-    let resolved = await resolveOpenClawMedia(message, env);
-    if (resolved) {
-        await patchInboundMediaPublicUrl(env, message.messageId, {
-            publicUrl: resolved.url,
-            videoPublicUrl: resolved.videoUrl,
+    let resolved: Awaited<ReturnType<typeof resolveOpenClawMedia>> = null;
+    try {
+        resolved = await resolveOpenClawMedia(message, env);
+        if (resolved) {
+            await patchInboundMediaPublicUrl(env, message.messageId, {
+                publicUrl: resolved.url,
+                videoPublicUrl: resolved.videoUrl,
+            });
+        } else if (!message.media && !message.quote?.media) {
+            resolved = await findRecentPublicMedia(env, message);
+        }
+    } catch (error) {
+        logger.warn('媒体历史暂时读不了，已跳过', {
+            messageId: message.messageId,
+            error: error instanceof Error ? error.message : String(error),
         });
-    } else if (!message.media && !message.quote?.media) {
-        resolved = await findRecentPublicMedia(env, message);
     }
     const mediaUrl = resolved?.url;
     const mediaKind = resolved?.kind;
     const videoUrl = resolved?.videoUrl;
-    const content = await buildInboundContent(message, env, {
-        url: mediaUrl,
-        videoUrl,
-        kind: mediaKind,
-    });
+    let content: string;
+    try {
+        content = await buildInboundContent(message, env, {
+            url: mediaUrl,
+            videoUrl,
+            kind: mediaKind,
+        });
+    } catch (error) {
+        logger.warn('入站历史增强暂时不可用，已发送当前消息', {
+            messageId: message.messageId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        content = message.content?.trim() || message.quote?.title?.trim() || `[${message.type}]`;
+    }
 
     try {
         const response = await fetch(`${gatewayBaseUrl}/api/channels/xbot/inbound`, {
