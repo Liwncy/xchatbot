@@ -41,6 +41,12 @@ const DEFAULT_THUMB_JPEG = Uint8Array.from([
     0x7F, 0xFF, 0xD9,
 ]);
 
+const SAME_TARGET_SEND_INTERVAL_MS = 1100;
+
+function wait(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
     return value && typeof value === 'object' && !Array.isArray(value)
         ? value as Record<string, unknown>
@@ -264,9 +270,14 @@ export async function sendGolemReplies(
     const receiver = message.chatId;
     const receipts: SendReceipt[] = [];
     let replyIndex = 0;
+    let previousTarget: string | undefined;
 
     for (const reply of replies) {
         const target = reply.to ?? receiver;
+        if (target === previousTarget) {
+            // Golem 的 client_id 按秒生成；同一会话同秒连发会被微信当成重复消息。
+            await wait(SAME_TARGET_SEND_INTERVAL_MS);
+        }
         let receipt: SendReceipt;
         try {
             const result = await sendOne(api, target, reply, env);
@@ -290,6 +301,7 @@ export async function sendGolemReplies(
 
         await recordOne(env, message, reply, receipt, replyIndex, target);
         receipts.push(receipt);
+        previousTarget = target;
         replyIndex += 1;
 
         if (receipt.ok || reply.type === 'text' || reply.type === 'emoji') continue;
