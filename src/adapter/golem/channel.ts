@@ -16,6 +16,7 @@ function golemApi(env: Env): GolemApi | null {
 
 export const golemAdapter: ChannelAdapter = {
     platform: GOLEM_PLATFORM,
+    supportsProactiveSend: true,
 
     async send(message, replies, env) {
         const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';

@@ -82,6 +82,7 @@ export async function handleWebAdapter(
         requestId: message.messageId,
         waitUntil: (promise) => ctx.waitUntil(promise),
         adapter: getAdapter(message.platform),
+        resolveAdapter: getAdapter,
     });
 
     const replies = presentForWebList(toReplyArray(response));

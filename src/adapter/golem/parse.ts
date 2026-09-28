@@ -1,4 +1,5 @@
 import type {IncomingMessage, MessageSource} from '../../core/message.js';
+import {parseWechatAppMessage} from './parse-appmsg.js';
 import {parseHongbaoMessage} from './parse-hongbao.js';
 import {parseInboundMedia, wechatTypeToMessageType} from './parse-media.js';
 import {resolveMentions} from './parse-mentions.js';
@@ -131,6 +132,12 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
             message.content = parsedRefer.title.trim() || undefined;
             message.quote = parsedRefer;
             message.media = parsedRefer.media;
+            return message;
+        }
+        const app = parseWechatAppMessage(body);
+        if (app) {
+            message.app = app;
+            message.content = app.title ?? app.articles?.[0]?.title;
             return message;
         }
     }

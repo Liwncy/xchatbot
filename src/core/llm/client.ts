@@ -9,6 +9,7 @@ export interface LlmChatOptions {
     model?: string;
     name?: string;
     type?: LlmType;
+    timeoutMs?: number;
 }
 
 export async function resolveLlmConfig(
@@ -81,18 +82,27 @@ export async function requestLlmText(env: Env, options: LlmChatOptions): Promise
         messages.push({role: 'user', content: user});
     }
 
-    const response = await fetch(config.apiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${config.apiKey}`,
-        },
-        body: JSON.stringify({
-            model: options.model?.trim() || config.model,
-            stream: false,
-            messages,
-        }),
-    });
+    const timeoutMs = Math.min(180_000, Math.max(1_000, options.timeoutMs ?? 60_000));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response: Response;
+    try {
+        response = await fetch(config.apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${config.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: options.model?.trim() || config.model,
+                stream: false,
+                messages,
+            }),
+            signal: controller.signal,
+        });
+    } finally {
+        clearTimeout(timeout);
+    }
     if (!response.ok) {
         throw new Error(`小模型请求失败 ${response.status}`);
     }

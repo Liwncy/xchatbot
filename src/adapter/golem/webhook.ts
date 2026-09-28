@@ -83,10 +83,6 @@ async function processGolemInbound(
         if (botId && message.from.trim() === botId) {
             continue;
         }
-        if (message.source === 'official') {
-            logger.info('入站已跳过', {reason: 'official', from: message.from, messageId: message.messageId});
-            continue;
-        }
         if (message.source === 'private' && (!ownerId || message.from.trim() !== ownerId)) {
             logger.info('入站已跳过', {reason: 'dm-allowlist', from: message.from, messageId: message.messageId});
             continue;
@@ -98,6 +94,7 @@ async function processGolemInbound(
                 requestId: message.messageId,
                 waitUntil: (promise) => ctx.waitUntil(promise),
                 adapter,
+                resolveAdapter: getAdapter,
             });
             const replies = toReplyArray(response);
             if (replies.length > 0) {

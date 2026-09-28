@@ -49,6 +49,8 @@ export interface HongbaoClaimResult {
 
 export interface ChannelAdapter {
     readonly platform: string;
+    /** 是否能脱离当前请求，主动发到任意群或用户。 */
+    readonly supportsProactiveSend?: boolean;
     send(message: IncomingMessage, replies: ReplyMessage[], env: Env): Promise<SendReceipt[]>;
     revoke(message: IncomingMessage, env: Env): Promise<RevokeResult>;
     searchDirectory?(query: string, env: Env): Promise<DirectoryPerson[]>;

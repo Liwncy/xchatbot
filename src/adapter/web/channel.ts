@@ -41,6 +41,7 @@ export function presentForWeb(reply: ReplyMessage): ReplyMessage {
 
 export const webAdapter: ChannelAdapter = {
     platform: WEB_PLATFORM,
+    supportsProactiveSend: false,
 
     async send(_message, replies) {
         return presentForWebList(replies).map(() => ({ok: true}));

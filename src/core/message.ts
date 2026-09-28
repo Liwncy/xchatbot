@@ -23,6 +23,22 @@ export interface InboundMedia {
     videoPublicUrl?: string;
 }
 
+export interface InboundArticle {
+    title: string;
+    url: string;
+    desc?: string;
+    thumbUrl?: string;
+}
+
+export interface InboundAppMessage {
+    appType?: number;
+    title?: string;
+    url?: string;
+    desc?: string;
+    thumbUrl?: string;
+    articles?: InboundArticle[];
+}
+
 export interface QuoteRef {
     title: string;
     referType: number;
@@ -53,6 +69,8 @@ export interface IncomingMessage {
     media?: InboundMedia;
     mentions?: MentionRef[];
     hongbao?: {nativeUrl: string};
+    /** 已从 appmsg / 订阅号 XML 规范化的跨适配器内容。 */
+    app?: InboundAppMessage;
     /** Golem 推过来的原文，一般是 type=49 的 XML。 */
     rawXml?: string;
     raw: unknown;
