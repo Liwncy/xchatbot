@@ -109,6 +109,10 @@ XIUXIAN_PLATFORM = "agbot"
 WEB_ADAPTER_ENABLED = "true"
 # WEB_ADAPTER_TOKEN（secret，可选）
 
+# ── 调试转发 ──────────────────────────────────────────────────────────────────
+# 生产把 webhook / outbound / mcp 转到本地隧道。开关在 /admin/debug，默认 8 小时过期。
+# ADMIN_TOKEN（secret，可选。设置后 /admin/debug 需要 Bearer）
+
 # silk-wasm：部署时预编译，Worker 运行时不能从字节再编译 wasm
 [[rules]]
 globs = ["**/*.wasm"]

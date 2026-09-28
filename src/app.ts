@@ -2,6 +2,8 @@ import type {Env} from './types/env.js';
 import {runWithLogContext} from './core/app-log/context.js';
 import {handleGolemWebhook} from './adapter/golem/webhook.js';
 import {handleWebAdapter} from './adapter/web/webhook.js';
+import {handleAdminDebug} from './debug/admin.js';
+import {maybeForwardDebug} from './debug/forward.js';
 import {handleChannelMcp} from './mcp/handle-mcp.js';
 import {handleOpenclawOutbound} from './plugins/agent/openclaw/outbound.js';
 import {ensurePluginsRegistered} from './plugins/register.js';
@@ -19,14 +21,21 @@ export async function handleFetch(
     ctx: ExecutionContext,
 ): Promise<Response> {
     return runWithLogContext({env, waitUntil: (promise) => ctx.waitUntil(promise)}, async () => {
-        ensurePluginsRegistered();
-
         const url = new URL(request.url);
         const pathname = url.pathname;
 
         if (pathname === '/' || pathname === '/health') {
             return json({status: 'ok', service: 'xchatbot'});
         }
+
+        if (pathname === '/admin/debug' || pathname.startsWith('/admin/debug/')) {
+            return handleAdminDebug(request, env);
+        }
+
+        const forwarded = await maybeForwardDebug(request, env);
+        if (forwarded) return forwarded;
+
+        ensurePluginsRegistered();
 
         if (
             pathname === '/webhook/wechat'

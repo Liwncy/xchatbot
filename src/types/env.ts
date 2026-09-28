@@ -54,6 +54,12 @@ export interface Env {
     /** QwenPaw inbound 超时，默认同 XBOT_CHANNEL_TIMEOUT_MS / 120000。 */
     QWENPAW_TIMEOUT_MS?: string;
 
+    /**
+     * /admin/debug 的 Bearer。设置后开关接口要带这个 token。
+     * 未设置时接口不鉴权。
+     */
+    ADMIN_TOKEN?: string;
+
     /** 浏览器调试适配器。未开时 /adapter/web 返回 404。上线前关掉。 */
     WEB_ADAPTER_ENABLED?: string;
     /** 可选。设置后 POST /adapter/web/message 需要 Bearer。 */
