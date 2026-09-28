@@ -41,7 +41,7 @@ const DEFAULT_THUMB_JPEG = Uint8Array.from([
     0x7F, 0xFF, 0xD9,
 ]);
 
-const SAME_TARGET_SEND_INTERVAL_MS = 1100;
+const SAME_TARGET_SEND_INTERVAL_MS = 350;
 
 function wait(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
