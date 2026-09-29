@@ -35,7 +35,7 @@ function articleOf(xml: string): InboundArticle | null {
     const title = pickTag(xml, ['title']);
     const url = httpUrl(pickTag(xml, ['url', 'lowurl']));
     if (!title || !url) return null;
-    const desc = pickTag(xml, ['digest', 'des', 'description']);
+    const desc = pickTag(xml, ['summary', 'digest', 'des', 'description']);
     const thumbUrl = httpUrl(pickTag(xml, ['cover', 'thumburl', 'thumb_url']));
     return {
         title,
@@ -66,6 +66,9 @@ export function parseWechatAppMessage(rawContent: string): InboundAppMessage | n
     const url = httpUrl(pickTag(appmsg, ['url', 'lowurl'])) ?? articles[0]?.url;
     const desc = pickTag(appmsg, ['des', 'digest', 'description']) ?? articles[0]?.desc;
     const thumbUrl = httpUrl(pickTag(appmsg, ['thumburl', 'thumb_url', 'cover'])) ?? articles[0]?.thumbUrl;
+    const publisherXml = appmsg.match(/<publisher(?:\s[^>]*)?>([\s\S]*?)<\/publisher>/iu)?.[1] ?? '';
+    const sourceXml = appmsg.match(/<sources(?:\s[^>]*)?>([\s\S]*?)<\/sources>/iu)?.[1] ?? '';
+    const publisherName = pickTag(publisherXml, ['nickname', 'name']) ?? pickTag(sourceXml, ['name']);
 
     if (!title && !url && articles.length === 0) return null;
     return {
@@ -74,6 +77,7 @@ export function parseWechatAppMessage(rawContent: string): InboundAppMessage | n
         ...(url ? {url} : {}),
         ...(desc ? {desc} : {}),
         ...(thumbUrl ? {thumbUrl} : {}),
+        ...(publisherName ? {publisherName} : {}),
         ...(articles.length ? {articles} : {}),
     };
 }

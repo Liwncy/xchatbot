@@ -13,7 +13,9 @@ import type {Env} from '../../types/env.js';
 import {FileUploader} from '../../utils/file-uploader.js';
 import {logger} from '../../utils/logger.js';
 import {GolemApi} from './api.js';
+import {fetchWechatArticlePage} from './article-content.js';
 import {parseWechatAppMessage} from './parse-appmsg.js';
+import type {PrepareDistributionOptions} from '../types.js';
 
 function httpUrl(value?: string): string | undefined {
     const url = value?.trim() ?? '';
@@ -88,6 +90,7 @@ function normalizedXml(rawXml: string): string {
 export async function prepareGolemDistributionMessage(
     message: IncomingMessage,
     env: Env,
+    options?: PrepareDistributionOptions,
 ): Promise<IncomingMessage> {
     const apiBaseUrl = env.WECHAT_API_BASE_URL?.trim() ?? '';
     const api = apiBaseUrl ? new GolemApi(apiBaseUrl) : null;
@@ -111,9 +114,23 @@ export async function prepareGolemDistributionMessage(
                 }
                 : message;
         }
-        if (message.type === 'link' && !message.app && message.rawXml) {
-            const app = parseWechatAppMessage(normalizedXml(message.rawXml)) ?? undefined;
-            return app ? {...message, app} : message;
+        if (message.type === 'link') {
+            const app = message.app
+                ?? (message.rawXml ? parseWechatAppMessage(normalizedXml(message.rawXml)) ?? undefined : undefined);
+            if (!app) return message;
+            if (!options?.expandArticle) return message.app ? message : {...message, app};
+
+            const articles = app.articles?.length
+                ? app.articles
+                : app.title && app.url
+                    ? [{title: app.title, url: app.url, desc: app.desc, thumbUrl: app.thumbUrl}]
+                    : [];
+            const expanded = await Promise.all(articles.map(async (article) => {
+                if (article.contentItems?.length) return article;
+                const page = await fetchWechatArticlePage(article.url);
+                return {...article, ...page};
+            }));
+            return {...message, app: {...app, articles: expanded}};
         }
         return message;
     } catch (error) {

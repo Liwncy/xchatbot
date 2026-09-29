@@ -2,7 +2,7 @@ import type {MessageType} from '../message.js';
 
 export type DistributionStatus = 'active' | 'disabled';
 export type DistributionContentMode = 'auto' | 'original' | 'rebuild' | 'ai';
-export type DistributionOutput = 'auto' | 'text' | 'link' | 'media';
+export type DistributionOutput = 'auto' | 'text' | 'link' | 'media' | 'collection';
 export type DistributionFallback = 'rebuild' | 'text' | 'skip';
 
 export interface DistributionTarget {

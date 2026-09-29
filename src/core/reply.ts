@@ -85,12 +85,24 @@ export interface ForwardReply {
     to?: string;
 }
 
-export interface ChatRecordItem {
+export interface ChatRecordTextItem {
+    type?: 'text';
     nickname: string;
     content: string;
     avatarUrl?: string;
     timestampMs: number;
 }
+
+export interface ChatRecordImageItem {
+    type: 'image';
+    nickname: string;
+    url: string;
+    alt?: string;
+    avatarUrl?: string;
+    timestampMs: number;
+}
+
+export type ChatRecordItem = ChatRecordTextItem | ChatRecordImageItem;
 
 export interface ChatRecordReply {
     type: 'chat-record';

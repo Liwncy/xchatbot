@@ -71,6 +71,23 @@ assert.throws(() => parseFakeForwardScript('只有名字'), FakeForwardAskError)
 }
 
 {
+    const line = emitChatRecordLine([
+        {nickname: '科技号', content: '第一段', timestampMs: now},
+        {
+            type: 'image',
+            nickname: '科技号',
+            url: 'https://mmbiz.qpic.cn/a.jpg?x=1&y=2',
+            alt: '文章配图',
+            timestampMs: now + 1,
+        },
+    ], '文章合集');
+    assert.match(line, /datatype="1"/u);
+    assert.match(line, /datatype="2"/u);
+    assert.match(line, /<cdndataurl>https:\/\/mmbiz\.qpic\.cn\/a\.jpg\?x=1&amp;y=2<\/cdndataurl>/u);
+    assert.match(line, /<cdnencryver>0<\/cdnencryver>/u);
+}
+
+{
     const lines = parseFakeForwardScript('张三|09:12|你到了吗\n李四|09:13|快了', now);
     const reply = chatRecordReply(
         lines.map((line) => ({

@@ -25,6 +25,11 @@ export interface SendOptions {
     failureNotice?: boolean;
 }
 
+export interface PrepareDistributionOptions {
+    /** 按正文顺序展开文章，供消息合集等重建方式使用。 */
+    expandArticle?: boolean;
+}
+
 export interface DirectoryPerson {
     id: string;
     nickname: string;
@@ -59,7 +64,11 @@ export interface ChannelAdapter {
     send(message: IncomingMessage, replies: ReplyMessage[], env: Env, options?: SendOptions): Promise<SendReceipt[]>;
     revoke(message: IncomingMessage, env: Env): Promise<RevokeResult>;
     /** 将来源平台的私有媒体信息补全为可跨适配器使用的标准消息。 */
-    prepareForDistribution?(message: IncomingMessage, env: Env): Promise<IncomingMessage>;
+    prepareForDistribution?(
+        message: IncomingMessage,
+        env: Env,
+        options?: PrepareDistributionOptions,
+    ): Promise<IncomingMessage>;
     /** 将标准入站消息转换为当前适配器可原样发送的回复。 */
     toOutboundReplies?(message: IncomingMessage, env: Env): Promise<ReplyMessage[] | null>;
     searchDirectory?(query: string, env: Env): Promise<DirectoryPerson[]>;

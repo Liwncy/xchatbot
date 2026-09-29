@@ -20,10 +20,13 @@ function resolveAdapter(ctx: PluginContext, platform: string): ChannelAdapter | 
 async function preparePayloads(
     messages: IncomingMessage[],
     ctx: PluginContext,
+    policy: DistributionContentPolicy,
 ): Promise<IncomingMessage[]> {
     return Promise.all(messages.map(async (message) => {
         const sourceAdapter = resolveAdapter(ctx, message.platform);
-        return await sourceAdapter?.prepareForDistribution?.(message, ctx.env) ?? message;
+        return await sourceAdapter?.prepareForDistribution?.(message, ctx.env, {
+            expandArticle: policy.output === 'collection',
+        }) ?? message;
     }));
 }
 
@@ -36,7 +39,7 @@ async function buildPreparedReplies(
     const targetAdapter = resolveAdapter(ctx, targetPlatform);
     const replies: ReplyMessage[] = [];
     for (const message of messages) {
-        if (policy.mode === 'original' || policy.mode === 'auto') {
+        if (policy.output !== 'collection' && (policy.mode === 'original' || policy.mode === 'auto')) {
             const nativeReplies = await targetAdapter?.toOutboundReplies?.(message, ctx.env);
             if (nativeReplies?.length) {
                 replies.push(...nativeReplies);
@@ -54,7 +57,7 @@ export async function buildDistributionTargetReplies(
     policy: DistributionContentPolicy,
     targetPlatform: string,
 ): Promise<ReplyMessage[]> {
-    return buildPreparedReplies(await preparePayloads(messages, ctx), ctx, policy, targetPlatform);
+    return buildPreparedReplies(await preparePayloads(messages, ctx, policy), ctx, policy, targetPlatform);
 }
 
 export async function dispatchDistribution(
@@ -70,7 +73,7 @@ export async function dispatchDistribution(
         result.skipped = targets.length;
         return result;
     }
-    const prepared = await preparePayloads(payloads, ctx);
+    const prepared = await preparePayloads(payloads, ctx, policy);
     const repliesByPlatform = new Map<string, Promise<ReplyMessage[]>>();
 
     for (const target of targets) {

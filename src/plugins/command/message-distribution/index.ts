@@ -32,7 +32,7 @@ import {
 const HELP = [
     '分发规则这样配：',
     '#分发规则 新增 名称=科技资讯 会话=gh_xxx 类型=文章 关键词=AI 内容=自动 目标=123@chatroom',
-    '#分发规则 内容 科技资讯 模式=AI 要求="压缩成100字" 输出=图文 失败=重建',
+    '#分发规则 内容 科技资讯 模式=重建 输出=消息合集 失败=重建',
     '#分发规则 列表',
     '#分发规则 查看 科技资讯',
     '#分发规则 启用/停用/删除/测试 科技资讯',
@@ -138,12 +138,14 @@ function policyFrom(
             ? 'link'
             : outputText === '媒体'
                 ? 'media'
+                : outputText === '消息合集' || outputText === '合集'
+                    ? 'collection'
                 : outputText === '自动'
                     ? 'auto'
                     : !outputText
                         ? current.output
                     : null;
-    if (!output) throw new Error('输出用自动、纯文本、图文或媒体');
+    if (!output) throw new Error('输出用自动、纯文本、图文、媒体或消息合集');
     const fallbackText = values.失败;
     const fallback = fallbackText === '纯文本' || fallbackText === '文本'
         ? 'text'
@@ -204,6 +206,7 @@ function previewText(replies: ReplyMessage[]): string {
         if (reply.type === 'text') return `文字：${reply.content}`;
         if (reply.type === 'link') return `图文：${reply.title}\n${reply.desc ?? ''}\n${reply.url}`.trim();
         if (reply.type === 'forward') return '会按原样发';
+        if (reply.type === 'chat-record') return `消息合集：${reply.title ?? `${reply.items.length} 条`}`;
         return `会发一条${reply.type}`;
     }).join('\n---\n');
 }

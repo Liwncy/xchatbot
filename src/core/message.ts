@@ -28,7 +28,25 @@ export interface InboundArticle {
     url: string;
     desc?: string;
     thumbUrl?: string;
+    authorName?: string;
+    authorAvatarUrl?: string;
+    /** 从文章正文按原始顺序提取的标准内容，不包含平台协议字段。 */
+    contentItems?: ArticleContentItem[];
 }
+
+export interface ArticleTextItem {
+    type: 'text';
+    content: string;
+    style?: 'paragraph' | 'heading' | 'list' | 'quote' | 'code';
+}
+
+export interface ArticleImageItem {
+    type: 'image';
+    url: string;
+    alt?: string;
+}
+
+export type ArticleContentItem = ArticleTextItem | ArticleImageItem;
 
 export interface InboundAppMessage {
     appType?: number;
@@ -36,6 +54,7 @@ export interface InboundAppMessage {
     url?: string;
     desc?: string;
     thumbUrl?: string;
+    publisherName?: string;
     articles?: InboundArticle[];
 }
 

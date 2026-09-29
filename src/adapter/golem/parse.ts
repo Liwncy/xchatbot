@@ -134,6 +134,7 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
         const app = parseWechatAppMessage(body);
         if (app) {
             message.app = app;
+            if (!message.senderName && app.publisherName) message.senderName = app.publisherName;
             message.content = app.title ?? app.articles?.[0]?.title;
             return message;
         }

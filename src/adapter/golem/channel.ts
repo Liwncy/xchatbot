@@ -50,8 +50,8 @@ export const golemAdapter: ChannelAdapter = {
         return toGolemOutboundReplies(message, env);
     },
 
-    prepareForDistribution(message, env) {
-        return prepareGolemDistributionMessage(message, env);
+    prepareForDistribution(message, env, options) {
+        return prepareGolemDistributionMessage(message, env, options);
     },
 
     async searchDirectory(query, env): Promise<DirectoryPerson[]> {

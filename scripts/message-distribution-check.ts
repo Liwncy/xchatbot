@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
+import {parseWechatArticleContent, parseWechatArticlePage} from '../src/adapter/golem/article-content.ts';
 import {parseWechatAppMessage} from '../src/adapter/golem/parse-appmsg.ts';
 import {toGolemOutboundReplies} from '../src/adapter/golem/outbound.ts';
 import type {PluginContext} from '../src/core/context.ts';
@@ -62,6 +63,22 @@ assert.deepEqual(digest?.articles?.[1], {
     url: 'https://example.com/2',
 });
 
+const official = parseWechatAppMessage(`
+<appmsg>
+  <type>5</type>
+  <mmreader>
+    <category><item>
+      <title><![CDATA[公众号文章]]></title>
+      <url><![CDATA[http://mp.weixin.qq.com/s?__biz=test&amp;idx=1]]></url>
+      <summary><![CDATA[文章摘要]]></summary>
+      <sources><source><name><![CDATA[同城微管家]]></name></source></sources>
+    </item></category>
+  </mmreader>
+</appmsg>`);
+assert.equal(official?.articles?.[0]?.desc, '文章摘要');
+assert.equal(official?.publisherName, '同城微管家');
+assert.equal(official?.articles?.[0]?.url, 'http://mp.weixin.qq.com/s?__biz=test&idx=1');
+
 assert.deepEqual(parseKeyValues('名称=科技资讯 要求="压缩成 100 字" 输出=图文'), {
     名称: '科技资讯',
     要求: '压缩成 100 字',
@@ -91,6 +108,40 @@ assert.deepEqual(parseOneShotDistributionCommand('分发 wxid_a,wxid_b 今晚八
 });
 assert.deepEqual(parseOneShotDistributionCommand('分发 wxid_a,wxid_b'), {
     values: {目标: 'wxid_a,wxid_b'},
+});
+
+assert.deepEqual(parseWechatArticleContent(`
+<article id="js_article">
+  <div id="js_content">
+    <p>以下文章来源于Java资料站，作者小锋</p>
+    <p>第一段<span>接着写</span></p>
+    <p><img src="data:image/gif;base64,x" data-src="https://mmbiz.qpic.cn/a.jpg?x=1&amp;y=2" alt="配图"></p>
+    <img data-src="https://wx.qlogo.cn/mmhead/account/0" width="132">
+    <img data-src="https://mmbiz.qpic.cn/icon.png" class="article_icon" data-w="32" data-ratio="1">
+    <h2>小标题</h2>
+    <ul><li>列表项</li></ul>
+    <section>第二段</section>
+    <script>不该出现</script>
+  </div>
+  <p>留言区</p>
+</article>`, 'https://mp.weixin.qq.com/s/test'), [
+    {type: 'text', content: '第一段接着写'},
+    {type: 'image', url: 'https://mmbiz.qpic.cn/a.jpg?x=1&y=2', alt: '配图'},
+    {type: 'text', content: '小标题', style: 'heading'},
+    {type: 'text', content: '列表项', style: 'list'},
+    {type: 'text', content: '第二段'},
+]);
+assert.deepEqual(parseWechatArticlePage(`
+<span id="js_author_name">文章作者</span>
+<a id="js_name">公众号名称</a>
+<div id="js_content"><p>正文</p></div>
+<script>
+var nickname = "备用名称";
+var round_head_img = "https:\\/\\/wx.qlogo.cn\\/mmhead\\/author\\/0";
+</script>`, 'https://mp.weixin.qq.com/s/test'), {
+    contentItems: [{type: 'text', content: '正文'}],
+    authorName: '文章作者',
+    authorAvatarUrl: 'https://wx.qlogo.cn/mmhead/author/0',
 });
 
 const message: IncomingMessage = {
@@ -148,6 +199,39 @@ async function main(): Promise<void> {
 
     const nativeArticle = await toGolemOutboundReplies(message, {} as Env);
     assert.deepEqual(nativeArticle, [{type: 'app', appType: 5, xml: articleXml.trim()}]);
+
+    const collection = await buildDistributionReplies({} as Env, {
+        ...message,
+        senderName: '科技号',
+        app: {
+            ...message.app!,
+            articles: [{
+                title: '一篇文章',
+                url: 'https://mp.weixin.qq.com/s/test',
+                contentItems: [
+                    {type: 'text', content: '第一段'},
+                    {type: 'image', url: 'https://mmbiz.qpic.cn/a.jpg'},
+                ],
+            }],
+        },
+    }, {
+        ...rule,
+        contentPolicy: {
+            ...DEFAULT_CONTENT_POLICY,
+            mode: 'rebuild',
+            output: 'collection',
+            includeOriginalUrl: false,
+        },
+    });
+    assert.equal(collection[0]?.type, 'chat-record');
+    if (collection[0]?.type === 'chat-record') {
+        assert.equal(collection[0].title, '一篇文章');
+        assert.equal(collection[0].items[0]?.type, 'text');
+        assert.equal(collection[0].items[0]?.type === 'text' ? collection[0].items[0].content : '', '《一篇文章》');
+        assert.equal(collection[0].items[2]?.type, 'image');
+        assert.equal(collection[0].items[0]?.nickname, '小聪明儿');
+        assert.match(collection[0].items[0]?.avatarUrl ?? '', /^https:\/\/wx\.qlogo\.cn\//u);
+    }
 
     const emojiReplies = await toGolemOutboundReplies({
         ...message,

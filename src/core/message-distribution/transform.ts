@@ -3,15 +3,21 @@ import {requestLlmText} from '../llm/client.js';
 import type {IncomingMessage} from '../message.js';
 import {
     emojiReply,
+    chatRecordReply,
     imageReply,
     linkReply,
     textReply,
     videoReply,
     voiceReply,
+    type ChatRecordItem,
     type ReplyMessage,
 } from '../reply.js';
 import {distributionSearchText} from './matcher.js';
 import type {DistributionContentPolicy, DistributionRule} from './types.js';
+
+const COLLECTION_NICKNAME = '小聪明儿';
+const COLLECTION_AVATAR_URL =
+    'https://wx.qlogo.cn/mmhead/ver_1/t4vmY8hTfx0rJnTygqKyIIX9PicUDwaEhib5Ex843gTJk7UVSKTcic4mlPt9rq2U7vMOJdXdHpdOSXoL0Ez8CicxWB3ojMh107wzggmTmKQn4bnxcL6lDVKx0mX91koST8x2/132';
 
 function sourceLine(message: IncomingMessage, policy: DistributionContentPolicy): string {
     const parts: string[] = [];
@@ -46,6 +52,84 @@ function articleReplies(message: IncomingMessage, policy: DistributionContentPol
         article.desc,
         article.thumbUrl,
     ));
+}
+
+function timestampMsOf(message: IncomingMessage): number {
+    return message.timestamp > 10_000_000_000 ? message.timestamp : message.timestamp * 1_000;
+}
+
+function formatArticleText(content: string, style?: 'paragraph' | 'heading' | 'list' | 'quote' | 'code'): string {
+    const text = content.trim();
+    if (style === 'heading') return `▌${text}`;
+    if (style === 'list') return `• ${text}`;
+    if (style === 'quote') return `“${text}”`;
+    if (style === 'code') return `代码\n${text}`;
+    return text;
+}
+
+function articleCollections(message: IncomingMessage, policy: DistributionContentPolicy): ReplyMessage[] {
+    const articles = message.app?.articles ?? [];
+    const baseTime = timestampMsOf(message);
+    return articles.flatMap((article) => {
+        if (!article.contentItems?.length) return [];
+        const nickname = article.authorName?.trim() || COLLECTION_NICKNAME;
+        const avatarUrl = article.authorAvatarUrl?.trim() || COLLECTION_AVATAR_URL;
+        const items: ChatRecordItem[] = [
+            {
+                type: 'text',
+                nickname,
+                content: `《${article.title.trim()}》`,
+                avatarUrl,
+                timestampMs: baseTime,
+            },
+            ...article.contentItems.map((item, index): ChatRecordItem => item.type === 'image'
+                ? {
+                    type: 'image',
+                    nickname,
+                    url: item.url,
+                    alt: item.alt,
+                    avatarUrl,
+                    timestampMs: baseTime + index + 1,
+                }
+                : {
+                    type: 'text',
+                    nickname,
+                    content: formatArticleText(item.content, item.style),
+                    avatarUrl,
+                    timestampMs: baseTime + index + 1,
+                }),
+        ];
+        const leading = policy.prefix?.trim();
+        if (leading) {
+            items.unshift({
+                type: 'text',
+                nickname,
+                content: leading,
+                avatarUrl,
+                timestampMs: baseTime - 1,
+            });
+        }
+        const trailing = [
+            sourceLine(message, policy),
+            policy.includeOriginalUrl ? `阅读原文：${article.url}` : '',
+            policy.suffix,
+        ].filter((value): value is string => Boolean(value?.trim())).join('\n');
+        if (trailing) {
+            items.push({
+                type: 'text',
+                nickname,
+                content: trailing,
+                avatarUrl,
+                timestampMs: baseTime + items.length + 1,
+            });
+        }
+        const firstText = article.contentItems.find((item) => item.type === 'text');
+        return [chatRecordReply(items, {
+            title: article.title,
+            summary: firstText?.type === 'text' ? firstText.content.slice(0, 120) : article.desc,
+            desc: article.desc,
+        })];
+    });
 }
 
 function mediaReply(message: IncomingMessage): ReplyMessage | null {
@@ -85,6 +169,10 @@ function textVersion(message: IncomingMessage, policy: DistributionContentPolicy
 
 function rebuild(message: IncomingMessage, policy: DistributionContentPolicy): ReplyMessage[] {
     if (policy.output === 'text') return textVersion(message, policy);
+    if (policy.output === 'collection') {
+        const collections = articleCollections(message, policy);
+        return collections.length ? collections : articleReplies(message, policy);
+    }
     const links = articleReplies(message, policy);
     if ((policy.output === 'link' || policy.output === 'auto') && links.length) return links;
     const media = mediaReply(message);

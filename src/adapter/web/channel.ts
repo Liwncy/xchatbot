@@ -22,8 +22,12 @@ export function presentForWeb(reply: ReplyMessage): ReplyMessage {
         case 'chat-record': {
             const title = reply.title?.trim() || '聊天记录';
             const lines = reply.items
-                .filter((item) => item.nickname.trim() && item.content.trim())
-                .map((item) => `${item.nickname.trim()}：${item.content.trim()}`);
+                .filter((item) => item.nickname.trim() && (
+                    item.type === 'image' ? looksLikeHttp(item.url) : item.content.trim()
+                ))
+                .map((item) => item.type === 'image'
+                    ? `${item.nickname.trim()}：[图片] ${item.url}`
+                    : `${item.nickname.trim()}：${item.content.trim()}`);
             return textReply(lines.length ? `${title}\n${lines.join('\n')}` : title);
         }
         case 'card':

@@ -19,9 +19,11 @@ export function buildChatRecordXml(
     summary?: string,
     desc?: string,
 ): string {
-    const kept = items.filter((item) => item.nickname.trim() && item.content.trim());
+    const kept = items.filter((item) => item.nickname.trim() && (
+        item.type === 'image' ? /^https?:\/\//iu.test(item.url.trim()) : item.content.trim()
+    ));
     if (kept.length === 0) {
-        throw new Error('chat record needs at least one text item');
+        throw new Error('chat record needs at least one item');
     }
     const summaryText = firstNonBlank(summary, defaultSummary(kept));
     const descText = firstNonBlank(desc, summaryText);
@@ -77,15 +79,40 @@ ${dataItems}
 }
 
 function buildDataItem(item: ChatRecordItem, index: number): string {
+    return item.type === 'image'
+        ? buildImageDataItem(item, index)
+        : buildTextDataItem(item, index);
+}
+
+function itemIdentity(item: ChatRecordItem): string {
+    return item.type === 'image' ? item.url : item.content;
+}
+
+function itemBase(item: ChatRecordItem, index: number): {
+    timestampMs: number;
+    nickname: string;
+    avatarUrl: string;
+    sourceTime: string;
+    sourceMsgId: string;
+    localId: string;
+    dataId: string;
+    hashUsername: string;
+} {
     const timestampMs = item.timestampMs > 0 ? item.timestampMs : Date.now();
     const nickname = escapeXml(item.nickname.trim());
-    const content = escapeXml(item.content);
     const avatarUrl = escapeXml(item.avatarUrl?.trim() ?? '');
     const sourceTime = formatShanghaiTime(timestampMs);
     const sourceMsgId = String(timestampMs);
     const localId = String(index + 1);
-    const dataId = escapeXml(pseudoHex(`${nickname}|${content}|${sourceTime}|${sourceMsgId}|${localId}`, 32));
+    const dataId = escapeXml(pseudoHex(`${nickname}|${itemIdentity(item)}|${sourceTime}|${sourceMsgId}|${localId}`, 32));
     const hashUsername = escapeXml(pseudoHex(`${nickname}|${avatarUrl}|${sourceMsgId}`, 64));
+    return {timestampMs, nickname, avatarUrl, sourceTime, sourceMsgId, localId, dataId, hashUsername};
+}
+
+function buildTextDataItem(item: Extract<ChatRecordItem, {type?: 'text'}>, index: number): string {
+    const {timestampMs, nickname, avatarUrl, sourceTime, sourceMsgId, localId, dataId, hashUsername} =
+        itemBase(item, index);
+    const content = escapeXml(item.content);
     return `<dataitem datatype="1" dataid="${dataId}" htmlid="${dataId}">
 <sourcename>${nickname}</sourcename>
 <sourceheadurl>${avatarUrl}</sourceheadurl>
@@ -100,10 +127,46 @@ function buildDataItem(item: ChatRecordItem, index: number): string {
 </dataitem>`;
 }
 
+function buildImageDataItem(item: Extract<ChatRecordItem, {type: 'image'}>, index: number): string {
+    const {timestampMs, nickname, avatarUrl, sourceTime, sourceMsgId, localId, dataId, hashUsername} =
+        itemBase(item, index);
+    const url = escapeXml(item.url.trim());
+    const description = escapeXml(item.alt?.trim() || '图片');
+    const format = imageFormat(item.url);
+    return `<dataitem datatype="2" dataid="${dataId}" htmlid="${dataId}">
+<datafmt>${format}</datafmt>
+<sourcename>${nickname}</sourcename>
+<sourceheadurl>${avatarUrl}</sourceheadurl>
+<sourcetime>${sourceTime}</sourcetime>
+<datadesc>${description}</datadesc>
+<cdndataurl>${url}</cdndataurl>
+<cdndatakey></cdndatakey>
+<cdnthumburl>${url}</cdnthumburl>
+<cdnthumbkey></cdnthumbkey>
+<cdnencryver>0</cdnencryver>
+<srcMsgLocalid>${localId}</srcMsgLocalid>
+<srcMsgCreateTime>${Math.floor(timestampMs / 1000)}</srcMsgCreateTime>
+<fromnewmsgid>${sourceMsgId}</fromnewmsgid>
+<dataitemsource>
+<hashusername>${hashUsername}</hashusername>
+</dataitemsource>
+</dataitem>`;
+}
+
+function imageFormat(url: string): string {
+    try {
+        const extension = new URL(url).pathname.match(/\.([a-z0-9]{2,5})$/iu)?.[1]?.toLowerCase();
+        if (extension === 'png' || extension === 'gif' || extension === 'webp') return extension;
+    } catch {
+        // 公网 URL 已在上层校验，格式识别失败时按 jpg 处理。
+    }
+    return 'jpg';
+}
+
 function defaultSummary(items: ChatRecordItem[]): string {
     return items
         .slice(0, 4)
-        .map((item) => `${item.nickname.trim()}: ${item.content.trim()}`)
+        .map((item) => `${item.nickname.trim()}: ${item.type === 'image' ? '[图片]' : item.content.trim()}`)
         .join('\n');
 }
 
