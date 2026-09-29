@@ -29,6 +29,15 @@ interface RuleRow {
 }
 
 let schemaReady: Promise<void> | undefined;
+const ACTIVE_RULE_CACHE_TTL_MS = 5 * 60 * 1000;
+let activeRuleCache: {rules: DistributionRule[]; expiresAt: number} | undefined;
+let activeRuleCacheGeneration = 0;
+let activeRuleLoading: {generation: number; promise: Promise<DistributionRule[]>} | undefined;
+
+function invalidateActiveRuleCache(): void {
+    activeRuleCache = undefined;
+    activeRuleCacheGeneration += 1;
+}
 
 function requireDb(env: Env): D1Database {
     if (!env.XBOT_DB) throw new Error('XBOT_DB 未绑定');
@@ -167,9 +176,30 @@ const COLUMNS = [
 export async function listDistributionRules(env: Env, activeOnly = false): Promise<DistributionRule[]> {
     const db = requireDb(env);
     await ensureDistributionSchema(db);
-    const where = activeOnly ? " WHERE status = 'active'" : '';
+    if (activeOnly) {
+        const now = Date.now();
+        if (activeRuleCache && activeRuleCache.expiresAt > now) return activeRuleCache.rules;
+        const generation = activeRuleCacheGeneration;
+        if (activeRuleLoading?.generation === generation) return activeRuleLoading.promise;
+        const promise = db.prepare(
+            `SELECT ${COLUMNS} FROM message_distribution_rule`
+            + " WHERE status = 'active' ORDER BY priority ASC, name ASC",
+        ).all<RuleRow>().then((result) => {
+            const rules = (result.results ?? []).map(mapRow);
+            if (activeRuleCacheGeneration === generation) {
+                activeRuleCache = {rules, expiresAt: Date.now() + ACTIVE_RULE_CACHE_TTL_MS};
+            }
+            return rules;
+        });
+        activeRuleLoading = {generation, promise};
+        try {
+            return await promise;
+        } finally {
+            if (activeRuleLoading?.promise === promise) activeRuleLoading = undefined;
+        }
+    }
     const result = await db.prepare(
-        `SELECT ${COLUMNS} FROM message_distribution_rule${where} ORDER BY priority ASC, name ASC`,
+        `SELECT ${COLUMNS} FROM message_distribution_rule ORDER BY priority ASC, name ASC`,
     ).all<RuleRow>();
     return (result.results ?? []).map(mapRow);
 }
@@ -236,6 +266,7 @@ export async function saveDistributionRule(env: Env, input: DistributionRuleInpu
         existing?.createdAt ?? now,
         now,
     ).run();
+    invalidateActiveRuleCache();
     const saved = await getDistributionRule(env, id);
     if (!saved) throw new Error('规则没记下');
     return saved;
@@ -252,6 +283,7 @@ export async function setDistributionRuleStatus(
     await db.prepare(
         'UPDATE message_distribution_rule SET status = ?, updated_at = ? WHERE id = ?',
     ).bind(status, Date.now(), existing.id).run();
+    invalidateActiveRuleCache();
     return getDistributionRule(env, existing.id);
 }
 
@@ -260,6 +292,7 @@ export async function deleteDistributionRule(env: Env, nameOrId: string): Promis
     if (!existing) return false;
     const db = requireDb(env);
     await db.prepare('DELETE FROM message_distribution_rule WHERE id = ?').bind(existing.id).run();
+    invalidateActiveRuleCache();
     return true;
 }
 
