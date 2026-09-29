@@ -110,7 +110,7 @@ async function main() {
         const wrapped = wrapUserContent(inbound, {id: '猫娘', name: '猫娘', triggers: [], instruction: '你是猫娘，短句。', ack: '好，猫娘。'});
         assert.match(wrapped, /^你是猫娘，短句。/u);
         assert.match(wrapped, new RegExp(inbound.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
-        assert.match(wrapped, /\[演法\]/u);
+        assert.doesNotMatch(wrapped, /正事只调 peer_search/u);
     }
 
     assert.equal(await tryHandleRoleplay(env, msg(), '不当了'), '好，不当了。');
