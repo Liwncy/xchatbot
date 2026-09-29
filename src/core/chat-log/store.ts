@@ -12,6 +12,9 @@ import type {
 } from './types.js';
 
 const MAX_CONTENT = 4000;
+const RECENT_INBOUND_CACHE_TTL_MS = 60 * 1000;
+const RECENT_INBOUND_CACHE_MAX_MESSAGES = 50;
+const RECENT_INBOUND_CACHE_MAX_SESSIONS = 256;
 
 type ChatMessageRow = {
     id: number;
@@ -37,6 +40,11 @@ type ChatMessageRow = {
 };
 
 let schemaReady: Promise<void> | null = null;
+const recentInboundCache = new Map<string, {
+    rows: ChatMessageRecord[];
+    hydratedAt: number;
+    accessedAt: number;
+}>();
 
 export function isChatLogEnabled(env: Env): boolean {
     const raw = env.CHAT_LOG_ENABLE;
@@ -243,20 +251,73 @@ function mapRow(row: ChatMessageRow): ChatMessageRecord {
     };
 }
 
-async function insertInbound(db: D1Database, message: IncomingMessage): Promise<void> {
+function trimRecentInboundCache(): void {
+    if (recentInboundCache.size <= RECENT_INBOUND_CACHE_MAX_SESSIONS) return;
+    const oldest = [...recentInboundCache.entries()]
+        .sort((left, right) => left[1].accessedAt - right[1].accessedAt)
+        .slice(0, recentInboundCache.size - RECENT_INBOUND_CACHE_MAX_SESSIONS);
+    for (const [sessionId] of oldest) recentInboundCache.delete(sessionId);
+}
+
+function mergeRecentInboundRows(
+    sessionId: string,
+    rows: ChatMessageRecord[],
+    hydratedAt?: number,
+): ChatMessageRecord[] {
+    const now = Date.now();
+    const current = recentInboundCache.get(sessionId);
+    const unique = new Map<string, ChatMessageRecord>();
+    for (const row of [...(current?.rows ?? []), ...rows]) {
+        unique.set(`${row.platform}:${row.messageId}`, row);
+    }
+    const merged = [...unique.values()]
+        .sort((left, right) => left.id - right.id)
+        .slice(-RECENT_INBOUND_CACHE_MAX_MESSAGES);
+    recentInboundCache.delete(sessionId);
+    recentInboundCache.set(sessionId, {
+        rows: merged,
+        hydratedAt: hydratedAt ?? current?.hydratedAt ?? 0,
+        accessedAt: now,
+    });
+    trimRecentInboundCache();
+    return merged;
+}
+
+function cachedRecentInboundRows(
+    sessionId: string,
+    options: GetRecentMessagesOptions,
+): ChatMessageRecord[] | null {
+    if (options.direction !== 'inbound') return null;
+    const entry = recentInboundCache.get(sessionId);
+    if (!entry || Date.now() - entry.hydratedAt >= RECENT_INBOUND_CACHE_TTL_MS) return null;
+    entry.accessedAt = Date.now();
+    const exclude = options.excludeMessageId?.trim();
+    const sinceUnix = options.sinceUnix;
+    const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
+    return entry.rows
+        .filter((row) => (!exclude || row.messageId !== exclude)
+            && (typeof sinceUnix !== 'number' || !Number.isFinite(sinceUnix) || row.createdAt >= sinceUnix))
+        .slice(-limit);
+}
+
+async function insertInbound(db: D1Database, message: IncomingMessage): Promise<ChatMessageRecord | null> {
     const messageId = message.messageId.trim();
-    if (!messageId) return;
+    if (!messageId) return null;
 
     await ensureSchema(db);
     const session = resolveChatSession(message);
     const contentText = inboundContent(message);
+    const payloadJson = inboundPayload(message);
+    const senderId = message.senderId.trim() || 'unknown';
+    const senderName = message.senderName?.trim() ?? '';
     const now = Math.floor(Date.now() / 1000);
+    const createdAt = message.timestamp || now;
     const referId = message.quote?.referMessageId?.newIdText
         ?? (message.quote?.referMessageId?.newId != null
             ? String(message.quote.referMessageId.newId)
             : null);
 
-    await db.prepare(
+    const result = await db.prepare(
         `INSERT OR IGNORE INTO chat_message (
             message_id, platform, session_id, session_type,
             direction, actor_type, sender_id, sender_name,
@@ -269,16 +330,39 @@ async function insertInbound(db: D1Database, message: IncomingMessage): Promise<
         message.platform,
         session.sessionId,
         session.sessionType,
-        message.senderId.trim() || 'unknown',
-        message.senderName?.trim() ?? '',
+        senderId,
+        senderName,
         message.type,
         contentText,
-        inboundPayload(message),
+        payloadJson,
         [...contentText].length,
         referId,
-        message.timestamp || now,
+        createdAt,
         now,
     ).run();
+    if ((result.meta.changes ?? 0) === 0) return null;
+    return {
+        id: Number(result.meta.last_row_id) || Number.MAX_SAFE_INTEGER,
+        messageId,
+        platform: message.platform,
+        sessionId: session.sessionId,
+        sessionType: session.sessionType,
+        direction: 'inbound',
+        actorType: 'member',
+        senderId,
+        senderName,
+        msgType: message.type,
+        contentText,
+        payloadJson,
+        charCount: [...contentText].length,
+        referMessageId: referId,
+        causedByMessageId: null,
+        replyIndex: 0,
+        pluginName: null,
+        replyStatus: null,
+        createdAt,
+        ingestedAt: now,
+    };
 }
 
 async function insertOutbound(
@@ -324,7 +408,8 @@ async function insertOutbound(
 export async function recordInboundChatMessage(env: Env, message: IncomingMessage): Promise<void> {
     if (!isChatLogEnabled(env)) return;
     try {
-        await insertInbound(env.XBOT_DB, message);
+        const row = await insertInbound(env.XBOT_DB, message);
+        if (row) mergeRecentInboundRows(row.sessionId, [row]);
     } catch (error) {
         logger.warn('会话入站记录失败', {
             messageId: message.messageId,
@@ -357,6 +442,8 @@ export async function getRecentChatMessages(
     options: GetRecentMessagesOptions = {},
 ): Promise<ChatMessageRecord[]> {
     if (!isChatLogEnabled(env) || !sessionId.trim()) return [];
+    const cached = cachedRecentInboundRows(sessionId, options);
+    if (cached) return cached;
     await ensureSchema(env.XBOT_DB);
 
     const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
@@ -384,7 +471,10 @@ export async function getRecentChatMessages(
          ORDER BY id DESC LIMIT ?${binds.length}`,
     ).bind(...binds).all<ChatMessageRow>();
 
-    return (result.results ?? []).map(mapRow).reverse();
+    const rows = (result.results ?? []).map(mapRow).reverse();
+    if (direction !== 'inbound') return rows;
+    const merged = mergeRecentInboundRows(sessionId, rows, Date.now());
+    return cachedRecentInboundRows(sessionId, options) ?? merged.slice(-limit);
 }
 
 export async function queryChatMessages(
