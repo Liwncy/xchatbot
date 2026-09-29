@@ -84,7 +84,8 @@ async function resolveVideoUrls(
 
 function normalizedXml(rawXml: string): string {
     const separator = rawXml.indexOf(':\n');
-    return separator > 0 ? rawXml.slice(separator + 2).trim() : rawXml.trim();
+    const normalized = separator > 0 ? rawXml.slice(separator + 2).trim() : rawXml.trim();
+    return normalized.match(/<appmsg(?:\s[^>]*)?>[\s\S]*?<\/appmsg>/iu)?.[0] ?? normalized;
 }
 
 export async function prepareGolemDistributionMessage(

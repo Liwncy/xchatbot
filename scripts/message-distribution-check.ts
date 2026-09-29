@@ -198,7 +198,11 @@ async function main(): Promise<void> {
     assert.deepEqual(original, rebuilt);
 
     const nativeArticle = await toGolemOutboundReplies(message, {} as Env);
-    assert.deepEqual(nativeArticle, [{type: 'app', appType: 5, xml: articleXml.trim()}]);
+    assert.deepEqual(nativeArticle, [{
+        type: 'app',
+        appType: 5,
+        xml: articleXml.match(/<appmsg>[\s\S]*<\/appmsg>/u)?.[0],
+    }]);
 
     const collection = await buildDistributionReplies({} as Env, {
         ...message,
