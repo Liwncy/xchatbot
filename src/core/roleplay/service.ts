@@ -14,15 +14,18 @@ import {NORMAL_ID, type RoleplayCharacter} from './types.js';
 
 const ADD_CMD = /^(?:加角色|增加角色|新增角色)\s*[:：]?\s*(.*)$/su;
 
+const PLAY_MARK = '[演法]';
+const TURN_MARK = '[本条]';
+
 export function wrapUserContent(content: string, character: RoleplayCharacter | null): string {
     const instruction = character?.instruction?.trim() ?? '';
     if (!instruction) return content;
-    const marker = '[本条]';
-    const index = content.indexOf(marker);
-    if (index < 0) return `${instruction}\n\n${content}`;
-    const before = content.slice(0, index + marker.length);
-    const current = content.slice(index + marker.length).replace(/^\n/u, '');
-    return `${before}\n${instruction}\n${current}`;
+    const block = `${PLAY_MARK}\n${instruction}`;
+    const index = content.indexOf(TURN_MARK);
+    if (index < 0) return `${block}\n${TURN_MARK}\n${content}`;
+    const before = content.slice(0, index).replace(/\n$/u, '');
+    const current = content.slice(index + TURN_MARK.length).replace(/^\n/u, '');
+    return `${before}\n${block}\n${TURN_MARK}\n${current}`;
 }
 
 export async function currentCharacter(
