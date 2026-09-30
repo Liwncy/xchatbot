@@ -246,19 +246,30 @@ function historyLine(row: ChatMessageRecord): string {
     return `${speaker}: ${text}`;
 }
 
+function asTurn(current: string): string {
+    const trimmed = current.trim();
+    if (trimmed.startsWith('## 本条')) return trimmed;
+    const quoted = trimmed.split('\n').map((line) => `> ${line}`).join('\n');
+    return `## 本条\n\n${quoted}`;
+}
+
 export function prependRecentContext(
     current: string,
     rows: ChatMessageRecord[],
     windowMinutes = CONTEXT_WINDOW_MINUTES,
 ): string {
+    const turn = asTurn(current);
     const lines = rows.map(historyLine).filter(Boolean);
-    if (lines.length === 0) return current;
+    if (lines.length === 0) return turn;
+    const minutes = Math.max(windowMinutes, 0);
     return [
-        `[近${Math.max(windowMinutes, 0)}分钟上下文，不是本条指令]`,
-        ...lines,
-        '---',
-        '[本条]',
-        current,
+        '## 上下文',
+        '',
+        `近${minutes}分钟，不是这次要回的。`,
+        '',
+        ...lines.map((line) => `- ${line}`),
+        '',
+        turn,
     ].join('\n');
 }
 
@@ -280,16 +291,7 @@ export async function buildInboundContent(
         });
         assembled = prependRecentContext(current, rows);
     } catch {
-        assembled = current;
+        assembled = prependRecentContext(current, []);
     }
-    return finishInbound(wrapUserContent(assembled, character));
-}
-
-const TURN_END = '[本条完]';
-
-/** 本条到此为止。后面若被贴上看图结果，不算对方的话。 */
-export function finishInbound(content: string): string {
-    const trimmed = content.trimEnd();
-    if (trimmed.endsWith(TURN_END)) return trimmed;
-    return `${trimmed}\n${TURN_END}`;
+    return wrapUserContent(assembled, character);
 }

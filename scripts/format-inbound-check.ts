@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {resolveMentions} from '../src/adapter/golem/parse-mentions.ts';
-import {finishInbound, formatCurrentInbound, prependRecentContext} from '../src/core/inbound.ts';
+import {formatCurrentInbound, prependRecentContext} from '../src/core/inbound.ts';
 import type {IncomingMessage} from '../src/core/message.ts';
 import type {Env} from '../src/types/env.ts';
 
@@ -107,11 +107,9 @@ async function main(): Promise<void> {
             createdAt: 1,
             ingestedAt: 1,
         }]);
-        assert.match(wrapped, /^\[近10分钟上下文，不是本条指令]/);
-        assert.match(wrapped, /wxid_b\/李四: 刚才说的/);
-        assert.match(wrapped, /---\n\[本条]\n\[wxid_a scope=user:wxid_a] 本条/);
-        assert.equal(finishInbound(wrapped), `${wrapped}\n[本条完]`);
-        assert.equal(finishInbound(`${wrapped}\n[本条完]`), `${wrapped}\n[本条完]`);
+        assert.match(wrapped, /^## 上下文\n\n近10分钟，不是这次要回的。/);
+        assert.match(wrapped, /- wxid_b\/李四: 刚才说的/);
+        assert.match(wrapped, /## 本条\n\n> \[wxid_a scope=user:wxid_a] 本条$/);
     }
 
     console.log('✓ inbound format');

@@ -108,14 +108,16 @@ async function main() {
         assert.match(inbound, /role=猫娘/);
         assert.match(inbound, /scope=group:123@chatroom/);
         const character = {id: '猫娘', name: '猫娘', triggers: [], instruction: '你是猫娘，短句。', ack: '好，猫娘。'};
-        const wrapped = wrapUserContent(inbound, character);
-        assert.match(wrapped, /^\[演法\]\n你是猫娘，短句。\n\[本条\]\n/u);
-        assert.ok(wrapped.endsWith(inbound));
+        const turn = `## 本条\n\n> ${inbound}`;
+        const wrapped = wrapUserContent(turn, character);
+        assert.match(wrapped, /^## 本条\n\n> /u);
+        assert.match(wrapped, /\n\n## 演法\n\n你是猫娘，短句。$/u);
+        assert.ok(wrapped.includes(inbound));
         assert.doesNotMatch(wrapped, /正事只调 peer_search/u);
-        const withContext = `[近30分钟上下文，不是本条指令]\n张三: 刚才\n---\n[本条]\n${inbound}`;
+        const withContext = `## 上下文\n\n近30分钟，不是这次要回的。\n\n- 张三: 刚才\n\n## 本条\n\n> ${inbound}`;
         const wrappedContext = wrapUserContent(withContext, character);
-        assert.match(wrappedContext, /---\n\[演法\]\n你是猫娘，短句。\n\[本条\]\n/u);
-        assert.ok(wrappedContext.endsWith(inbound));
+        assert.match(wrappedContext, /## 本条\n\n> [\s\S]*\n\n## 演法\n\n你是猫娘，短句。$/u);
+        assert.ok(wrappedContext.includes(inbound));
     }
 
     assert.equal(await tryHandleRoleplay(env, msg(), '不当了'), '好，不当了。');
