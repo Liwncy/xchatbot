@@ -29,6 +29,7 @@ import {
 import {emojiGet, emojiRelabelPlaceholders, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
 import {formatPeerList, peerBan, peerMatch, peerSave, peerSearch} from '../../../core/peer-roster/index.js';
 import {runLlmConfig} from '../../../core/llm/index.js';
+import {commandPoster} from './poster.js';
 
 type MapFn = (result: McpToolResult, ctx: CallCtx) => HandlerResponse;
 
@@ -561,7 +562,13 @@ export async function dispatchMcpCommand(
         message,
         env,
     };
-    if (matched.kind === 'local') return catalogReply();
+    if (matched.kind === 'local') {
+        if (matched.route.local === 'poster') {
+            if (matched.tail) return null;
+            return commandPoster(env);
+        }
+        return catalogReply();
+    }
 
     const route = matched.route;
     if ('ownerOnly' in route && route.ownerOnly && !isOwner(message, env)) {

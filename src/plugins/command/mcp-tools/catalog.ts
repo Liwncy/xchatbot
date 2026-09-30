@@ -81,7 +81,7 @@ type RouteBase = {
 };
 
 export type VerbRoute = RouteBase & {verbs: string[]};
-export type LocalRoute = {verbs: string[]; local: 'catalog'; ownerOnly?: boolean};
+export type LocalRoute = {verbs: string[]; local: 'catalog' | 'poster'; ownerOnly?: boolean};
 export type PrefixRoute = RouteBase & {prefix: string; helpRewrite?: [string, string]};
 export type KeywordRoute = RouteBase & {match: (command: string) => boolean};
 export type FallbackRoute = RouteBase;
@@ -542,6 +542,7 @@ export const VERBS: VerbRoute[] = [
 /** 不调 MCP，只列出能敲的动词。 */
 export const LOCAL: LocalRoute[] = [
     {verbs: ['工具', '口令'], local: 'catalog'},
+    {verbs: ['指令图', '指令'], local: 'poster'},
 ];
 
 /** 整段玩法前缀。helpRewrite 只改帮助文案里的口令提示。 */

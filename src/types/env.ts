@@ -18,6 +18,10 @@ export interface Env {
     /** 自家 cf-mcp-tools。`#` 口令默认打这里。加别的 MCP 在 catalog.ts 的 MCP_SERVERS 登记后再加对应绑定。 */
     MCP_TOOLS_URL?: string;
     MCP_TOOLS_TOKEN?: string;
+    /** cf-worker 截图接口。默认 `https://lwcfworker.dpdns.org/screenshot`。 */
+    SCREENSHOT_URL?: string;
+    /** 同 cf-worker 的 GATEWAY_API_KEY。 */
+    SCREENSHOT_TOKEN?: string;
     XIUXIAN_PLATFORM?: string;
 
     AGENT_BRIDGE_BASE_URL?: string;

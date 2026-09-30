@@ -101,6 +101,8 @@ AGENT_BRAIN = "openclaw"
 
 # ── MCP ───────────────────────────────────────────────────────────────────────
 MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"
+# 指令图截图。SCREENSHOT_TOKEN（secret，同 cf-worker 的 GATEWAY_API_KEY）
+SCREENSHOT_URL = "https://lwcfworker.dpdns.org/screenshot"
 # 加别人的 MCP：catalog.ts 的 MCP_SERVERS 登记后，再在这里加 URL，token 用 secret。
 XIUXIAN_PLATFORM = "agbot"
 
