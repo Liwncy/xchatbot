@@ -7,7 +7,6 @@ export {
     queryChatMessages,
     getChatMessagesById,
     patchInboundMediaPublicUrl,
-    findRecentPublicMedia,
 } from './store.js';
 export {searchChatHistory, getChatHistoryByMessageId} from './search.js';
 export type {ChatHistoryArgs} from './search.js';

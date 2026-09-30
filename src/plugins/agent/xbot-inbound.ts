@@ -1,5 +1,5 @@
 import {handledReply, type HandlerResponse} from '../../core/reply.js';
-import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
+import {patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
 import {buildInboundContent} from '../../core/inbound.js';
 import type {IncomingMessage} from '../../core/message.js';
 import type {Env} from '../../types/env.js';
@@ -33,8 +33,6 @@ export async function forwardXbotInbound(args: {
                 publicUrl: resolved.url,
                 videoPublicUrl: resolved.videoUrl,
             });
-        } else if (!message.media && !message.quote?.media) {
-            resolved = await findRecentPublicMedia(env, message);
         }
     } catch (error) {
         logger.warn('媒体历史暂时读不了，已跳过', {

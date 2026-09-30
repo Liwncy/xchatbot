@@ -5,7 +5,7 @@
  * 切到这颗脑子：AGENT_BRAIN=snailai，并配 SNAIL_AI_BASE_URL / APP_ID / TOKEN。
  */
 import {resolveAgentBrain} from '../../../core/brain.js';
-import {findRecentPublicMedia, patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
+import {patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
 import {buildInboundContent} from '../../../core/inbound.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
 import {textReply, type HandlerResponse} from '../../../core/reply.js';
@@ -112,10 +112,7 @@ async function resolveInboundMedia(message: IncomingMessage, env: Env) {
         });
         return resolved;
     }
-    if (!message.media && !message.quote?.media) {
-        resolved = await findRecentPublicMedia(env, message);
-    }
-    return resolved;
+    return null;
 }
 
 export const snailaiAgentPlugin: Plugin = {
