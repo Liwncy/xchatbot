@@ -138,12 +138,17 @@ async function screenshot(env: Env, html: string): Promise<ArrayBuffer | null> {
         body: JSON.stringify({
             html,
             width: 780,
+            height: 1200,
             fullPage: true,
             waitUntil: 'networkidle0',
         }),
     });
     const type = response.headers.get('content-type') ?? '';
-    if (!response.ok || type.includes('json')) return null;
+    if (!response.ok || type.includes('json')) {
+        const detail = (await response.text()).slice(0, 200);
+        logger.warn('指令图没出成', {status: response.status, detail});
+        return null;
+    }
     const bytes = await response.arrayBuffer();
     return bytes.byteLength > 32 ? bytes : null;
 }
