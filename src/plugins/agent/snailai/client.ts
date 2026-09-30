@@ -167,7 +167,7 @@ export async function chatSync(
         agentId: config.agentId,
         openId,
         conversationId,
-        content: content.trim() || '请看这张图片',
+        content: content.trim() || '[图片]',
         ...(attachments.length ? {attachments} : {}),
     });
     const data = unwrap(body, '同步对话失败');

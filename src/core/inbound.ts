@@ -100,15 +100,15 @@ function captionForType(message: IncomingMessage): string {
     if (userText && !userText.startsWith('[')) return userText;
     switch (message.type) {
         case 'image':
-            return '请看这张图片';
+            return '[图片]';
         case 'video':
-            return '请看这段视频';
+            return '[视频]';
         case 'voice':
-            return '请听这段语音';
+            return '[语音]';
         case 'emoji':
-            return '请看这个表情';
+            return '[表情]';
         case 'link':
-            return firstNonBlank(message.quote?.title, userText, '请查看链接');
+            return firstNonBlank(message.quote?.title, userText, '[链接]');
         default:
             return userText || message.quote?.title?.trim() || '';
     }
@@ -178,9 +178,9 @@ export async function formatCurrentInbound(
     const mediaRef = message.media ?? message.quote?.media;
     const parts: string[] = [];
     let caption = captionForType(message);
-    if (message.type === 'emoji' || kind === 'emoji') {
+    if (message.type === 'emoji') {
         caption = appendMediaTokens(
-            caption || '请看这个表情',
+            caption || '[表情]',
             mediaRef?.md5,
             media?.url || mediaRef?.publicUrl || mediaRef?.url,
         );
@@ -282,5 +282,14 @@ export async function buildInboundContent(
     } catch {
         assembled = current;
     }
-    return wrapUserContent(assembled, character);
+    return finishInbound(wrapUserContent(assembled, character));
+}
+
+const TURN_END = '[本条完]';
+
+/** 本条到此为止。后面若被贴上看图结果，不算对方的话。 */
+export function finishInbound(content: string): string {
+    const trimmed = content.trimEnd();
+    if (trimmed.endsWith(TURN_END)) return trimmed;
+    return `${trimmed}\n${TURN_END}`;
 }

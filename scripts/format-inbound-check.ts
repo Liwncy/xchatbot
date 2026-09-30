@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {resolveMentions} from '../src/adapter/golem/parse-mentions.ts';
-import {formatCurrentInbound, prependRecentContext} from '../src/core/inbound.ts';
+import {finishInbound, formatCurrentInbound, prependRecentContext} from '../src/core/inbound.ts';
 import type {IncomingMessage} from '../src/core/message.ts';
 import type {Env} from '../src/types/env.ts';
 
@@ -57,6 +57,34 @@ async function main(): Promise<void> {
     }
 
     {
+        const image = await formatCurrentInbound({...base, type: 'image', content: ''}, env);
+        assert.match(image, /\[图片]$/);
+        const voice = await formatCurrentInbound({...base, type: 'voice', content: ''}, env);
+        assert.match(voice, /\[语音]$/);
+        const video = await formatCurrentInbound({...base, type: 'video', content: ''}, env);
+        assert.match(video, /\[视频]$/);
+        const emoji = await formatCurrentInbound({...base, type: 'emoji', content: ''}, env, {
+            url: 'https://file.example/sticker.jpg',
+            kind: 'emoji',
+        });
+        assert.match(emoji, /\[表情] url=https:\/\/file\.example\/sticker\.jpg$/);
+        const borrowed = await formatCurrentInbound({
+            ...base,
+            type: 'link',
+            content: '就等你这声才轮到我？',
+            quote: {
+                title: '嗯，睡了。',
+                referType: 1,
+                referContent: '嗯，睡了。',
+                referSenderName: '小聪明儿',
+            },
+        }, env, {url: 'https://file.example/old.jpg', kind: 'emoji'});
+        assert.match(borrowed, /就等你这声才轮到我？/);
+        assert.match(borrowed, /\[引用 小聪明儿] 嗯，睡了。/);
+        assert.doesNotMatch(borrowed, /url=/);
+    }
+
+    {
         const wrapped = prependRecentContext('[wxid_a scope=user:wxid_a] 本条', [{
             id: 1,
             messageId: 'old',
@@ -82,6 +110,8 @@ async function main(): Promise<void> {
         assert.match(wrapped, /^\[近10分钟上下文，不是本条指令]/);
         assert.match(wrapped, /wxid_b\/李四: 刚才说的/);
         assert.match(wrapped, /---\n\[本条]\n\[wxid_a scope=user:wxid_a] 本条/);
+        assert.equal(finishInbound(wrapped), `${wrapped}\n[本条完]`);
+        assert.equal(finishInbound(`${wrapped}\n[本条完]`), `${wrapped}\n[本条完]`);
     }
 
     console.log('✓ inbound format');
