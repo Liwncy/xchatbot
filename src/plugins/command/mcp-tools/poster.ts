@@ -123,9 +123,9 @@ async function readCache(env: Env, current: string): Promise<string | null> {
 }
 
 async function screenshot(env: Env, html: string): Promise<ArrayBuffer | null> {
-    const token = env.SCREENSHOT_TOKEN?.trim();
+    const token = env.GATEWAY_API_KEY?.trim();
     if (!token) {
-        logger.warn('指令图没出成', {error: '缺少 SCREENSHOT_TOKEN'});
+        logger.warn('指令图没出成', {error: '缺少 GATEWAY_API_KEY'});
         return null;
     }
     const endpoint = env.SCREENSHOT_URL?.trim() || DEFAULT_SCREENSHOT_URL;

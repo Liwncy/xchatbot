@@ -20,8 +20,8 @@ export interface Env {
     MCP_TOOLS_TOKEN?: string;
     /** cf-worker 截图接口。默认 `https://lwcfworker.dpdns.org/screenshot`。 */
     SCREENSHOT_URL?: string;
-    /** 同 cf-worker 的 GATEWAY_API_KEY。 */
-    SCREENSHOT_TOKEN?: string;
+    /** 调 cf-worker 的同一把钥匙，值与 cf-worker 的 GATEWAY_API_KEY 相同。 */
+    GATEWAY_API_KEY?: string;
     XIUXIAN_PLATFORM?: string;
 
     AGENT_BRIDGE_BASE_URL?: string;
