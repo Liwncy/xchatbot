@@ -1,5 +1,9 @@
+import {recordOutboundChatMessage} from '../../core/chat-log/index.js';
 import {linkReply, textReply, type ReplyMessage} from '../../core/reply.js';
+import type {Env} from '../../types/env.js';
+import type {IncomingMessage} from '../../core/message.js';
 import type {ChannelAdapter, RevokeResult} from '../types.js';
+import {pushWebInbox} from './inbox.js';
 import {WEB_PLATFORM} from './types.js';
 
 function looksLikeHttp(value?: string): boolean {
@@ -47,8 +51,10 @@ export const webAdapter: ChannelAdapter = {
     platform: WEB_PLATFORM,
     supportsProactiveSend: false,
 
-    async send(_message, replies) {
-        return presentForWebList(replies).map(() => ({ok: true}));
+    async send(message, replies, env) {
+        const shown = presentForWebList(replies);
+        await deliverWebReplies(env, message, shown);
+        return shown.map(() => ({ok: true}));
     },
 
     async revoke(): Promise<RevokeResult> {
@@ -64,4 +70,20 @@ export const webAdapter: ChannelAdapter = {
 
 export function presentForWebList(replies: ReplyMessage[]): ReplyMessage[] {
     return replies.map(presentForWeb);
+}
+
+async function deliverWebReplies(env: Env, message: IncomingMessage, replies: ReplyMessage[]): Promise<void> {
+    const userId = message.senderId || message.chatId;
+    try {
+        await pushWebInbox(env, userId, replies);
+    } catch {
+        // 收件箱写失败时，出站仍算发出。
+    }
+    for (const [index, reply] of replies.entries()) {
+        await recordOutboundChatMessage(env, message, reply, {
+            causedByMessageId: message.messageId,
+            replyIndex: index,
+            replyStatus: 'sent',
+        });
+    }
 }

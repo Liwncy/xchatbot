@@ -6,6 +6,7 @@ import {parseBool} from '../../utils/bool.js';
 import {recordInboundChatMessage, recordOutboundChatMessage} from '../../core/chat-log/index.js';
 import {getAdapter} from '../index.js';
 import {presentForWebList} from './channel.js';
+import {normalizeWebUserId, pullWebInbox, type WebInboxItem} from './inbox.js';
 import {parseWebMessage} from './parse.js';
 import {renderWebPage} from './page.js';
 import type {WebInboundBody} from './types.js';
@@ -15,6 +16,14 @@ function json(data: unknown, status = 200): Response {
         status,
         headers: {'Content-Type': 'application/json'},
     });
+}
+
+function cors(response: Response): Response {
+    const headers = new Headers(response.headers);
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Web-Token');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    return new Response(response.body, {status: response.status, headers});
 }
 
 function html(body: string, status = 200): Response {
@@ -41,22 +50,38 @@ export async function handleWebAdapter(
     env: Env,
     ctx: ExecutionContext,
 ): Promise<Response> {
+    if (request.method === 'OPTIONS') {
+        return cors(new Response(null, {status: 204}));
+    }
+
     if (!isEnabled(env)) {
-        return new Response('Not Found', {status: 404});
+        return cors(new Response('Not Found', {status: 404}));
     }
 
     const pathname = new URL(request.url).pathname.replace(/\/+$/, '') || '/';
 
     if (request.method === 'GET' && pathname === '/adapter/web') {
-        return html(renderWebPage({tokenRequired: Boolean(env.WEB_ADAPTER_TOKEN?.trim())}));
+        return cors(html(renderWebPage({tokenRequired: Boolean(env.WEB_ADAPTER_TOKEN?.trim())})));
+    }
+
+    if (request.method === 'GET' && pathname === '/adapter/web/replies') {
+        if (!authorize(request, env)) {
+            return cors(json({error: 'Unauthorized'}, 401));
+        }
+        const url = new URL(request.url);
+        const userId = normalizeWebUserId(url.searchParams.get('userId') ?? '');
+        if (!userId) return cors(json({error: 'userId is required'}, 400));
+        const after = Number(url.searchParams.get('after') ?? '0');
+        const inbox = await pullWebInbox(env, userId, Number.isFinite(after) ? after : 0);
+        return cors(json({ok: true, ...inbox}));
     }
 
     if (request.method !== 'POST' || pathname !== '/adapter/web/message') {
-        return new Response('Not Found', {status: 404});
+        return cors(new Response('Not Found', {status: 404}));
     }
 
     if (!authorize(request, env)) {
-        return json({error: 'Unauthorized'}, 401);
+        return cors(json({error: 'Unauthorized'}, 401));
     }
 
     ensurePluginsRegistered();
@@ -65,17 +90,22 @@ export async function handleWebAdapter(
     try {
         body = await request.json() as WebInboundBody;
     } catch {
-        return json({error: 'Invalid JSON'}, 400);
+        return cors(json({error: 'Invalid JSON'}, 400));
     }
 
     let message;
     try {
         message = parseWebMessage(body);
     } catch (error) {
-        return json({error: error instanceof Error ? error.message : 'invalid payload'}, 400);
+        return cors(json({error: error instanceof Error ? error.message : 'invalid payload'}, 400));
     }
 
     await recordInboundChatMessage(env, message);
+
+    const userId = normalizeWebUserId(message.senderId);
+    const before = userId
+        ? await pullWebInbox(env, userId, 0).catch(() => ({latest: 0, replies: [] as WebInboxItem[]}))
+        : {latest: 0, replies: [] as WebInboxItem[]};
 
     const response = await runPipeline(message, {
         env,
@@ -85,18 +115,26 @@ export async function handleWebAdapter(
         resolveAdapter: getAdapter,
     });
 
-    const replies = presentForWebList(toReplyArray(response));
-    for (const [index, reply] of replies.entries()) {
-        await recordOutboundChatMessage(env, message, reply, {
-            causedByMessageId: message.messageId,
-            replyIndex: index,
-            replyStatus: 'sent',
-        });
+    const pipelineReplies = presentForWebList(toReplyArray(response));
+    const caught = userId
+        ? await pullWebInbox(env, userId, before.latest).catch(() => ({latest: before.latest, replies: [] as WebInboxItem[]}))
+        : {latest: before.latest, replies: [] as WebInboxItem[]};
+    const replies = caught.replies.length
+        ? caught.replies.map((item) => item.reply)
+        : pipelineReplies;
+    if (!caught.replies.length) {
+        for (const [index, reply] of pipelineReplies.entries()) {
+            await recordOutboundChatMessage(env, message, reply, {
+                causedByMessageId: message.messageId,
+                replyIndex: index,
+                replyStatus: 'sent',
+            });
+        }
     }
 
-    return json({
+    return cors(json({
         ok: true,
         handled: isHandledReply(response),
         replies,
-    });
+    }));
 }
