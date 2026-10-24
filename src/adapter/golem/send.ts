@@ -24,23 +24,6 @@ const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
     'chat-record': '这张卡没发出去',
 };
 
-const DEFAULT_THUMB_JPEG = Uint8Array.from([
-    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
-    0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
-    0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
-    0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
-    0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
-    0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
-    0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
-    0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
-    0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x03, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00,
-    0x7F, 0xFF, 0xD9,
-]);
-
 const SAME_TARGET_SEND_INTERVAL_MS = 350;
 
 function wait(milliseconds: number): Promise<void> {
@@ -53,21 +36,29 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
         : undefined;
 }
 
+function scalarText(value: unknown): string | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return String(Math.trunc(value));
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    const wrapped = asRecord(value);
+    if (wrapped && 'value' in wrapped) return scalarText(wrapped.value);
+    return undefined;
+}
+
 export function extractGolemRevoke(data: unknown): SendReceipt['revoke'] {
     const root = asRecord(data);
     if (!root) return undefined;
-    const list = Array.isArray(root.list) ? root.list[0] : undefined;
-    const first = asRecord(list) ?? root;
-    const newId = first.new_id ?? first.newId ?? first.id;
-    if (newId == null || String(newId).trim() === '') return undefined;
-    const clientId = first.client_id ?? first.clientId;
-    const createTime = first.create_time ?? first.createTime;
+    const items = Array.isArray(root.list) ? root.list : Array.isArray(root.result) ? root.result : undefined;
+    const first = asRecord(items?.[0]) ?? root;
+    const newId = scalarText(first.new_id ?? first.newId ?? first.id);
+    if (!newId) return undefined;
+    const createTimeRaw = first.create_time ?? first.createTime;
+    const createTime = typeof createTimeRaw === 'number'
+        ? createTimeRaw
+        : Number(scalarText(createTimeRaw)) || undefined;
     return {
-        newId: String(newId),
-        clientId: clientId == null ? undefined : String(clientId),
-        createTime: typeof createTime === 'number'
-            ? createTime
-            : Number(createTime) || undefined,
+        newId,
+        clientId: scalarText(first.client_id ?? first.clientId),
+        createTime,
     };
 }
 
@@ -107,8 +98,7 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, 
                 receiver,
                 videoUrl: reply.url,
                 thumbUrl: reply.thumbUrl,
-                thumb: reply.thumbUrl ? undefined : new Blob([DEFAULT_THUMB_JPEG], {type: 'image/jpeg'}),
-                duration: reply.duration && reply.duration > 0 ? reply.duration : 10,
+                duration: reply.duration && reply.duration > 0 ? reply.duration : undefined,
             });
         case 'voice': {
             try {

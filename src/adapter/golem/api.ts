@@ -30,16 +30,50 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
         : undefined;
 }
 
+function messageText(value: unknown): string {
+    if (typeof value === 'string') return value;
+    const wrapped = asRecord(value);
+    return typeof wrapped?.value === 'string' ? wrapped.value : '';
+}
+
 function pickCode(value: unknown): number | undefined {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
     if (typeof value === 'string' && /^-?\d+$/u.test(value.trim())) return Number(value.trim());
     return undefined;
 }
 
+function deliveryItems(rec: Record<string, unknown>): unknown[] | undefined {
+    if (Array.isArray(rec.list)) return rec.list;
+    if (Array.isArray(rec.result)) return rec.result;
+    return undefined;
+}
+
 function looksDelivered(rec: Record<string, unknown>): boolean {
     if (rec.new_id != null || rec.size != null || rec.id != null || rec.end_flag != null) return true;
-    const list = Array.isArray(rec.list) ? asRecord(rec.list[0]) : undefined;
+    const list = asRecord(deliveryItems(rec)?.[0]);
     return Boolean(list && (pickCode(list.code) === 0 || list.new_id != null));
+}
+
+/** 顶层 code 为 0 时，仍可能在 list/result 里带回拒收（-22）或需好友验证（-44）。 */
+function normalizeApiResponse(raw: unknown): ApiResponse {
+    const parsed = asApiResponse(raw);
+    const data = asRecord(parsed.data);
+    const nested = data ? pickCode(asRecord(deliveryItems(data)?.[0])?.code) : undefined;
+    if (parsed.code === 0 && nested != null && nested !== 0) {
+        return {...parsed, code: nested};
+    }
+    return parsed;
+}
+
+function forwardXmlPath(forwardType?: string): string {
+    switch ((forwardType ?? '').trim().toLowerCase()) {
+        case 'video':
+            return '/api/message/forward/xml/video';
+        case 'file':
+            return '/api/message/forward/xml/file';
+        default:
+            return '/api/message/forward/xml/image';
+    }
 }
 
 /** 文件上传成功时 Golem 常把语音包直接摊在根上，没有顶层 code。 */
@@ -53,11 +87,7 @@ function asApiResponse(raw: unknown): ApiResponse {
     const nestedCode = pickCode(nested?.code);
     return {
         code: topCode ?? nestedCode ?? (looksDelivered(payload) || looksDelivered(rec) ? 0 : -1),
-        message: typeof rec.message === 'string'
-            ? rec.message
-            : typeof nested?.message === 'string'
-                ? nested.message
-                : '',
+        message: messageText(rec.message) || messageText(nested?.message),
         data: rec.data !== undefined ? rec.data : raw,
     };
 }
@@ -70,35 +100,22 @@ export class GolemApi {
     }
 
     async sendText(params: {receiver: string; content: string; remind?: string}): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/text`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(params),
-        });
-        return response.json() as Promise<ApiResponse>;
+        return this.postJson('/api/message/text', JSON.stringify(params));
     }
 
     async sendImage(params: {receiver: string; imageUrl: string}): Promise<ApiResponse> {
         const form = new FormData();
         form.append('receiver', params.receiver);
-        form.append('image_url', params.imageUrl);
-        const response = await fetch(`${this.baseUrl}/api/message/image`, {
-            method: 'POST',
-            body: form,
-        });
-        return response.json() as Promise<ApiResponse>;
+        form.append('url', params.imageUrl);
+        return this.postForm('/api/message/image', form);
     }
 
     async sendEmoji(params: {receiver: string; md5?: string; emojiUrl?: string}): Promise<ApiResponse> {
         const form = new FormData();
         form.append('receiver', params.receiver);
         if (params.md5) form.append('md5', params.md5);
-        if (params.emojiUrl) form.append('emoji_url', params.emojiUrl);
-        const response = await fetch(`${this.baseUrl}/api/message/emoji`, {
-            method: 'POST',
-            body: form,
-        });
-        return response.json() as Promise<ApiResponse>;
+        if (params.emojiUrl) form.append('url', params.emojiUrl);
+        return this.postForm('/api/message/emoji', form);
     }
 
     async sendLink(params: {
@@ -108,18 +125,13 @@ export class GolemApi {
         url: string;
         thumbUrl?: string;
     }): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/link`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                receiver: params.receiver,
-                title: params.title,
-                desc: params.desc ?? '',
-                url: params.url,
-                thumb_url: params.thumbUrl ?? '',
-            }),
-        });
-        return response.json() as Promise<ApiResponse>;
+        return this.postJson('/api/message/link', JSON.stringify({
+            receiver: params.receiver,
+            title: params.title,
+            desc: params.desc ?? '',
+            url: params.url,
+            thumb_url: params.thumbUrl ?? '',
+        }));
     }
 
     async sendVideo(params: {
@@ -127,19 +139,17 @@ export class GolemApi {
         videoUrl: string;
         thumbUrl?: string;
         thumb?: Blob;
-        duration: number;
+        duration?: number;
     }): Promise<ApiResponse> {
         const form = new FormData();
         form.append('receiver', params.receiver);
         form.append('video_url', params.videoUrl);
-        form.append('duration', String(params.duration));
+        if (params.duration != null && params.duration > 0) {
+            form.append('duration', String(params.duration));
+        }
         if (params.thumbUrl) form.append('thumb_url', params.thumbUrl);
-        if (params.thumb) form.append('thumb', params.thumb, 'thumb.jpg');
-        const response = await fetch(`${this.baseUrl}/api/message/video`, {
-            method: 'POST',
-            body: form,
-        });
-        return response.json() as Promise<ApiResponse>;
+        if (params.thumb) form.append('thumb_file', params.thumb, 'thumb.jpg');
+        return this.postForm('/api/message/video', form);
     }
 
     async sendVoice(params: {
@@ -154,28 +164,19 @@ export class GolemApi {
         form.append('duration', String(params.duration));
         form.append('format', String(params.format));
         if (params.voice) {
-            form.append('voice', params.voice, 'voice.silk');
+            form.append('file', params.voice, 'voice.silk');
         } else if (params.voiceUrl) {
-            form.append('voice_url', params.voiceUrl);
+            form.append('url', params.voiceUrl);
         }
-        const response = await fetch(`${this.baseUrl}/api/message/voice`, {
-            method: 'POST',
-            body: form,
-        });
-        return asApiResponse(await response.json());
+        return this.postForm('/api/message/voice', form);
     }
 
     async sendApp(params: {receiver: string; appType: number; xml: string}): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/app`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                receiver: params.receiver,
-                type: params.appType,
-                xml: params.xml,
-            }),
-        });
-        return response.json() as Promise<ApiResponse>;
+        return this.postJson('/api/message/app', JSON.stringify({
+            receiver: params.receiver,
+            type: params.appType,
+            xml: params.xml,
+        }));
     }
 
     async sendCard(params: {
@@ -184,17 +185,12 @@ export class GolemApi {
         nickname?: string;
         alias?: string;
     }): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/card`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                receiver: params.receiver,
-                card_username: params.username,
-                card_nickname: params.nickname ?? '',
-                card_alias: params.alias ?? '',
-            }),
-        });
-        return response.json() as Promise<ApiResponse>;
+        return this.postJson('/api/message/namecard', JSON.stringify({
+            receiver: params.receiver,
+            username: params.username,
+            nickname: params.nickname ?? '',
+            alias: params.alias ?? '',
+        }));
     }
 
     async sendPosition(params: {
@@ -205,19 +201,14 @@ export class GolemApi {
         poiName?: string;
         scale?: number;
     }): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/position`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                receiver: params.receiver,
-                lat: params.lat,
-                lon: params.lon,
-                label: params.label ?? '',
-                poi_name: params.poiName ?? '',
-                scale: params.scale ?? 15,
-            }),
-        });
-        return response.json() as Promise<ApiResponse>;
+        return this.postJson('/api/message/position', JSON.stringify({
+            receiver: params.receiver,
+            lat: params.lat,
+            lon: params.lon,
+            label: params.label ?? '',
+            name: params.poiName ?? '',
+            scale: params.scale ?? 15,
+        }));
     }
 
     async sendForward(params: {
@@ -225,16 +216,10 @@ export class GolemApi {
         xml: string;
         forwardType?: string;
     }): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/forward`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                receiver: params.receiver,
-                type: params.forwardType ?? 'image',
-                xml: params.xml,
-            }),
-        });
-        return response.json() as Promise<ApiResponse>;
+        return this.postJson(forwardXmlPath(params.forwardType), JSON.stringify({
+            receiver: params.receiver,
+            xml: params.xml,
+        }));
     }
 
     async cdnDownloadImageRaw(id: string, key: string): Promise<ArrayBuffer> {
@@ -246,7 +231,7 @@ export class GolemApi {
     }
 
     async cdnDownloadVideoCoverRaw(id: string, key: string): Promise<ArrayBuffer> {
-        return this.getBinary('/api/cdn/download/video/cover', {id, key});
+        return this.getBinary('/api/cdn/download/video_cover', {id, key});
     }
 
     private async getBinary(path: string, query: Record<string, string>): Promise<ArrayBuffer> {
@@ -277,37 +262,33 @@ export class GolemApi {
         fromScene?: number;
         searchScene?: number;
     }): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/contacts/search`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                keyword: params.keyword,
-                from_scene: params.fromScene ?? 1,
-                search_scene: params.searchScene ?? 2,
-            }),
-        });
-        return response.json() as Promise<ApiResponse>;
-    }
-
-    async grabHongbao(params: {nativeUrl: string; inWay: 0 | 1}): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/payment/hongbao/grab`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                native_url: params.nativeUrl,
-                in_way: params.inWay,
-            }),
-        });
-        return asApiResponse(await response.json());
+        const url = new URL(`${this.baseUrl}/api/contact/search`);
+        url.searchParams.set('keyword', params.keyword);
+        url.searchParams.set('from_scene', String(params.fromScene ?? 1));
+        url.searchParams.set('search_scene', String(params.searchScene ?? 2));
+        const response = await fetch(url, {method: 'GET'});
+        return normalizeApiResponse(await response.json());
     }
 
     async revokeMessage(params: RevokeParam): Promise<ApiResponse> {
-        const response = await fetch(`${this.baseUrl}/api/message/revoke`, {
+        return this.postJson('/api/message/revoke', serializeRevokeParam(params));
+    }
+
+    private async postJson(path: string, body: string): Promise<ApiResponse> {
+        const response = await fetch(`${this.baseUrl}${path}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: serializeRevokeParam(params),
+            body,
         });
-        return response.json() as Promise<ApiResponse>;
+        return normalizeApiResponse(await response.json());
+    }
+
+    private async postForm(path: string, form: FormData): Promise<ApiResponse> {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+            method: 'POST',
+            body: form,
+        });
+        return normalizeApiResponse(await response.json());
     }
 }
 
