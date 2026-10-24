@@ -4,9 +4,9 @@ import {getRecentChatMessages} from './chat-log/index.js';
 import {resolveChatSession} from './chat-log/session.js';
 import type {ChatMessageRecord} from './chat-log/types.js';
 import type {IncomingMessage, MentionRef, QuoteRef} from './message.js';
-import {currentCharacter, wrapUserContent, type RoleplayCharacter} from './roleplay/index.js';
+import {currentPersona, wrapUserContent, type Persona} from './persona/index.js';
 
-/** 任何大脑入站前共用：身份前缀、近窗上下文、演法垫。 */
+/** 任何大脑入站前共用：身份前缀、近窗上下文、人格垫。 */
 export type InboundMediaKind = 'image' | 'video' | 'emoji';
 
 export type InboundMediaHint = {
@@ -22,7 +22,7 @@ const CONTEXT_LINE_CLIP = 300;
 
 async function safeCurrentCharacter(env: Env, message: IncomingMessage) {
     try {
-        return await currentCharacter(env, message);
+        return await currentPersona(env, message);
     } catch {
         return null;
     }
@@ -126,7 +126,7 @@ function appendMediaTokens(text: string, md5?: string, url?: string): string {
 export async function buildSpeakerPrefix(
     message: IncomingMessage,
     env: Env,
-    character?: RoleplayCharacter | null,
+    character?: Persona | null,
 ): Promise<string> {
     const ownerId = resolveOwnerId(env, message.platform);
     const isOwner = Boolean(ownerId && message.senderId.trim() === ownerId);
@@ -134,11 +134,11 @@ export async function buildSpeakerPrefix(
     const resolvedCharacter = character === undefined
         ? await safeCurrentCharacter(env, message)
         : character;
-    const role = resolvedCharacter?.name?.trim();
+    const personaName = resolvedCharacter?.name?.trim();
     const scope = message.source === 'group'
         ? `group:${message.chatId}`
         : `user:${message.chatId}`;
-    return `[${speaker}${isOwner ? ' owner' : ''}${role ? ` role=${role}` : ''} scope=${scope}]`;
+    return `[${speaker}${isOwner ? ' owner' : ''}${personaName ? ` persona=${personaName}` : ''} scope=${scope}]`;
 }
 
 function formatQuote(quote: QuoteRef | undefined, mediaUrl?: string): string {
@@ -172,7 +172,7 @@ export async function formatCurrentInbound(
     message: IncomingMessage,
     env: Env,
     media?: InboundMediaHint,
-    character?: RoleplayCharacter | null,
+    character?: Persona | null,
 ): Promise<string> {
     const kind = media?.kind ?? inferMediaKind(message);
     const mediaRef = message.media ?? message.quote?.media;

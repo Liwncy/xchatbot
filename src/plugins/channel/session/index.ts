@@ -18,7 +18,7 @@ import {
     type GroupCommand,
     type GroupSettings,
 } from './policy.js';
-import {tryHandleRoleplay} from '../../../core/roleplay/index.js';
+import {tryHandlePersona} from '../../../core/persona/index.js';
 import {
     ensureGroupSettings,
     getGroupSettings,
@@ -162,10 +162,10 @@ export const groupSessionPlugin: Plugin = {
         const ownerId = resolveOwnerId(ctx.env, message.platform);
         const isOwner = Boolean(ownerId && message.senderId.trim() === ownerId);
         if (marked != null) {
-            const roleplayReply = await tryHandleRoleplay(ctx.env, message, marked);
-            if (roleplayReply) {
-                if (isOwner || allowed) return textReply(roleplayReply);
-                return textReply('这会儿先不演');
+            const personaReply = await tryHandlePersona(ctx.env, message, marked);
+            if (personaReply) {
+                if (isOwner || allowed) return textReply(personaReply);
+                return textReply('这会儿换不了');
             }
             return null;
         }

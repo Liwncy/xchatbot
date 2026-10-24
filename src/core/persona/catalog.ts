@@ -1,11 +1,13 @@
 import type {Env} from '../../types/env.js';
-import {NORMAL_ID, type RoleplayCharacter} from './types.js';
+import {logger} from '../../utils/logger.js';
+import {NORMAL_ID, type Persona} from './types.js';
 
-const EXIT_COMMANDS = ['退出角色', '取消扮演', '不当了', '别演了'];
-const NAME_PREFIXES = ['扮演', '当', '换成'];
+const RESTORE_COMMANDS = ['人格正常', '人格恢复'];
+const NAME_PREFIXES = ['人格'];
 const RESERVED = [
-    '正常', '角色', '扮演', '当', '换成', '加角色', '增加角色', '新增角色',
-    '退出角色', '取消扮演', '不当了', '别演了', '当前角色', '小聪明儿', 'normal',
+    '正常', '恢复', '人格',
+    '加人格', '增加人格', '新增人格',
+    '当前人格', '小聪明儿', 'normal',
 ];
 const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -20,8 +22,8 @@ type CatalogRow = {
 };
 
 let schemaReady: Promise<void> | null = null;
-let catalogCache: {expiresAt: number; rows: RoleplayCharacter[]} | null = null;
-let catalogLoading: Promise<RoleplayCharacter[]> | null = null;
+let catalogCache: {expiresAt: number; rows: Persona[]} | null = null;
+let catalogLoading: Promise<Persona[]> | null = null;
 
 function normalize(raw: string): string {
     return raw.trim().toLowerCase().replace(/\s+/gu, '');
@@ -32,11 +34,22 @@ function parseTriggers(raw: string | undefined): string[] {
     return raw.split(/[,，;；]/u).map((item) => item.trim()).filter(Boolean);
 }
 
+async function tableNames(db: D1Database): Promise<Set<string>> {
+    const found = await db.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('persona', 'roleplay_character')`,
+    ).all<{name: string}>();
+    return new Set((found.results ?? []).map((row) => row.name));
+}
+
 async function ensureSchema(db: D1Database): Promise<void> {
     if (!schemaReady) {
         schemaReady = (async () => {
+            const names = await tableNames(db);
+            if (names.has('roleplay_character') && !names.has('persona')) {
+                await db.prepare('ALTER TABLE roleplay_character RENAME TO persona').run();
+            }
             await db.prepare(
-                `CREATE TABLE IF NOT EXISTS roleplay_character (
+                `CREATE TABLE IF NOT EXISTS persona (
                     role_key TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
                     triggers TEXT NOT NULL DEFAULT '',
@@ -47,8 +60,20 @@ async function ensureSchema(db: D1Database): Promise<void> {
                 )`,
             ).run();
             await db.prepare(
-                'CREATE INDEX IF NOT EXISTS idx_roleplay_character_status ON roleplay_character(status, sort_no)',
+                'CREATE INDEX IF NOT EXISTS idx_persona_status ON persona(status, sort_no)',
             ).run();
+            const after = await tableNames(db);
+            if (after.has('roleplay_character') && after.has('persona')) {
+                await db.prepare(
+                    `INSERT OR IGNORE INTO persona
+                        (role_key, name, triggers, instruction, ack, status, sort_no)
+                     SELECT role_key, name, triggers, instruction, ack, status, sort_no
+                     FROM roleplay_character`,
+                ).run();
+                await db.prepare('DROP TABLE roleplay_character').run();
+                logger.info('人格表已接过旧目录');
+            }
+            await db.prepare('DROP INDEX IF EXISTS idx_roleplay_character_status').run();
         })().catch((error) => {
             schemaReady = null;
             throw error;
@@ -57,7 +82,7 @@ async function ensureSchema(db: D1Database): Promise<void> {
     await schemaReady;
 }
 
-function mapRow(row: CatalogRow): RoleplayCharacter {
+function mapRow(row: CatalogRow): Persona {
     return {
         id: row.role_key,
         name: row.name,
@@ -67,14 +92,14 @@ function mapRow(row: CatalogRow): RoleplayCharacter {
     };
 }
 
-async function loadAll(env: Env): Promise<RoleplayCharacter[]> {
+async function loadAll(env: Env): Promise<Persona[]> {
     if (catalogCache && catalogCache.expiresAt > Date.now()) return catalogCache.rows;
     if (!catalogLoading) {
         catalogLoading = (async () => {
             await ensureSchema(env.XBOT_DB);
             const result = await env.XBOT_DB.prepare(
                 `SELECT role_key, name, triggers, instruction, ack, status, sort_no
-                 FROM roleplay_character
+                 FROM persona
                  WHERE status = 'active'
                  ORDER BY sort_no ASC, role_key ASC`,
             ).all<CatalogRow>();
@@ -91,7 +116,7 @@ async function loadAll(env: Env): Promise<RoleplayCharacter[]> {
 async function loadNameTokens(env: Env): Promise<Array<{id: string; name: string; triggers: string[]}>> {
     await ensureSchema(env.XBOT_DB);
     const result = await env.XBOT_DB.prepare(
-        'SELECT role_key, name, triggers FROM roleplay_character',
+        'SELECT role_key, name, triggers FROM persona',
     ).all<Pick<CatalogRow, 'role_key' | 'name' | 'triggers'>>();
     return (result.results ?? []).map((row) => ({
         id: row.role_key,
@@ -102,10 +127,10 @@ async function loadNameTokens(env: Env): Promise<Array<{id: string; name: string
 
 export function isQueryCommand(command: string): boolean {
     const key = normalize(command);
-    return key === '当前角色' || key === '现在演谁' || key === '你在演谁' || key === '演的谁';
+    return key === '当前人格';
 }
 
-export async function getCharacter(env: Env, roleKey: string | undefined): Promise<RoleplayCharacter | null> {
+export async function getPersona(env: Env, roleKey: string | undefined): Promise<Persona | null> {
     if (!roleKey?.trim() || roleKey === NORMAL_ID) return null;
     const want = normalize(roleKey);
     const row = (await loadAll(env)).find((item) => normalize(item.id) === want);
@@ -115,24 +140,24 @@ export async function getCharacter(env: Env, roleKey: string | undefined): Promi
 export async function matchCommandId(env: Env, command: string): Promise<string | null> {
     const key = normalize(command);
     if (!key) return null;
-    if (EXIT_COMMANDS.some((item) => normalize(item) === key)) return NORMAL_ID;
+    if (RESTORE_COMMANDS.some((item) => normalize(item) === key)) return NORMAL_ID;
     const map = new Map<string, string>();
-    for (const character of await loadAll(env)) {
+    for (const persona of await loadAll(env)) {
         const register = (raw: string) => {
             const token = normalize(raw);
-            if (token && !map.has(token)) map.set(token, character.id);
+            if (token && !map.has(token)) map.set(token, persona.id);
         };
-        register(character.name);
-        for (const alias of character.triggers ?? []) register(alias);
+        register(persona.name);
+        for (const alias of persona.triggers ?? []) register(alias);
         for (const prefix of NAME_PREFIXES) {
-            register(prefix + character.name);
-            for (const alias of character.triggers ?? []) register(prefix + alias);
+            register(prefix + persona.name);
+            for (const alias of persona.triggers ?? []) register(prefix + alias);
         }
     }
     return map.get(key) ?? null;
 }
 
-export async function createCharacter(
+export async function createPersona(
     env: Env,
     nameRaw: string,
     instructionRaw: string,
@@ -141,8 +166,8 @@ export async function createCharacter(
     const instruction = instructionRaw.trim();
     if (!name) return '名字空了';
     if (name.length > 16) return '名字短一点';
-    if (!instruction) return '演法写在名字后面';
-    if (instruction.length > 4000) return '演法短一点';
+    if (!instruction) return '怎么说写在名字后面';
+    if (instruction.length > 4000) return '怎么说短一点';
     if (name.length > 32 || normalize(name) === NORMAL_ID || RESERVED.some((item) => normalize(item) === normalize(name))) {
         return '这名字不行';
     }
@@ -154,7 +179,7 @@ export async function createCharacter(
     await ensureSchema(env.XBOT_DB);
     try {
         await env.XBOT_DB.prepare(
-            `INSERT INTO roleplay_character
+            `INSERT INTO persona
                 (role_key, name, triggers, instruction, ack, status, sort_no)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
         ).bind(name, name, '', instruction, `好，${name}。`, 'active', 200).run();

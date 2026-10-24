@@ -6,7 +6,7 @@ const DEFAULT_SOURCES = [
     path.resolve(REPO_ROOT, '..', 'one-agbot', 'script', 'sql', 'agbot_roleplay_character.sql'),
     path.resolve(REPO_ROOT, '..', 'one-agbot', 'script', 'sql', 'agbot_roleplay_character_extra.sql'),
 ];
-const DEFAULT_OUT = path.join(REPO_ROOT, '.docs', 'sql', 'roleplay-character.sql');
+const DEFAULT_OUT = path.join(REPO_ROOT, '.docs', 'sql', 'persona.sql');
 const INSERT_BATCH = 8;
 
 function skipWs(text, index) {
@@ -108,7 +108,7 @@ function toCharacter(fields) {
     const status = String(fields[6] ?? 'active').trim() || 'active';
     const sortNo = Number(fields[7] ?? 100);
     if (!roleKey || !name || !instruction) {
-        throw new Error(`角色字段不完整: ${roleKey || '(no key)'}`);
+        throw new Error(`人格字段不完整: ${roleKey || '(no key)'}`);
     }
     return {roleKey, name, triggers, instruction, ack, status, sortNo};
 }
@@ -118,11 +118,12 @@ function valuesSql(row) {
 }
 
 function buildSql(rows) {
-    const header = `-- 演法角色目录（Cloudflare D1）
--- 由 scripts/sync/roleplay-from-mysql.cjs 从 one-agbot SQL 生成，勿手改。
--- 绑定仍在 KV：roleplay:bind:{platform}:{sessionId}
+    const header = `-- 人格目录（Cloudflare D1）
+-- 由 scripts/sync/persona-from-mysql.cjs 从 one-agbot SQL 生成，勿手改。
+-- 绑定在 KV：persona:bind:{platform}:{sessionId}
+-- 旧表 roleplay_character、旧键 roleplay:bind: 由 worker 第一次读到时迁过来。
 
-CREATE TABLE IF NOT EXISTS roleplay_character (
+CREATE TABLE IF NOT EXISTS persona (
   role_key     TEXT PRIMARY KEY,
   name         TEXT NOT NULL,
   triggers     TEXT NOT NULL DEFAULT '',
@@ -132,14 +133,14 @@ CREATE TABLE IF NOT EXISTS roleplay_character (
   sort_no      INTEGER NOT NULL DEFAULT 100
 );
 
-CREATE INDEX IF NOT EXISTS idx_roleplay_character_status
-  ON roleplay_character(status, sort_no);
+CREATE INDEX IF NOT EXISTS idx_persona_status
+  ON persona(status, sort_no);
 `;
     const chunks = [];
     for (let index = 0; index < rows.length; index += INSERT_BATCH) {
         const batch = rows.slice(index, index + INSERT_BATCH);
         chunks.push(
-            `INSERT OR REPLACE INTO roleplay_character
+            `INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
 ${batch.map((row) => `    ${valuesSql(row)}`).join(',\n')};`,

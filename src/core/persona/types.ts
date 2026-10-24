@@ -1,4 +1,4 @@
-export type RoleplayCharacter = {
+export type Persona = {
     id: string;
     name: string;
     triggers: string[];

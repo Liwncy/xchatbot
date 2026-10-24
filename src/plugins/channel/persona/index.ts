@@ -1,11 +1,11 @@
 import {markedCommand} from '../../../core/command-mark.js';
-import {tryHandleRoleplay} from '../../../core/roleplay/index.js';
+import {tryHandlePersona} from '../../../core/persona/index.js';
 import {textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {Plugin} from '../../runtime/types.js';
 
-export const roleplayPlugin: Plugin = {
+export const personaPlugin: Plugin = {
     manifest: {
-        name: 'roleplay',
+        name: 'persona',
         platforms: '*',
         kind: 'channel',
         priority: 6,
@@ -17,7 +17,7 @@ export const roleplayPlugin: Plugin = {
     async handle(message, ctx): Promise<HandlerResponse> {
         const command = markedCommand(message, ctx.env);
         if (command == null) return null;
-        const reply = await tryHandleRoleplay(ctx.env, message, command);
+        const reply = await tryHandlePersona(ctx.env, message, command);
         return reply ? textReply(reply) : null;
     },
 };

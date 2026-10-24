@@ -1,8 +1,9 @@
--- 演法角色目录（Cloudflare D1）
--- 由 scripts/sync/roleplay-from-mysql.cjs 从 one-agbot SQL 生成，勿手改。
--- 绑定仍在 KV：roleplay:bind:{platform}:{sessionId}
+-- 人格目录（Cloudflare D1）
+-- 由 scripts/sync/persona-from-mysql.cjs 从 one-agbot SQL 生成，勿手改。
+-- 绑定在 KV：persona:bind:{platform}:{sessionId}
+-- 旧表 roleplay_character、旧键 roleplay:bind: 由 worker 第一次读到时迁过来。
 
-CREATE TABLE IF NOT EXISTS roleplay_character (
+CREATE TABLE IF NOT EXISTS persona (
   role_key     TEXT PRIMARY KEY,
   name         TEXT NOT NULL,
   triggers     TEXT NOT NULL DEFAULT '',
@@ -12,10 +13,10 @@ CREATE TABLE IF NOT EXISTS roleplay_character (
   sort_no      INTEGER NOT NULL DEFAULT 100
 );
 
-CREATE INDEX IF NOT EXISTS idx_roleplay_character_status
-  ON roleplay_character(status, sort_no);
+CREATE INDEX IF NOT EXISTS idx_persona_status
+  ON persona(status, sort_no);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('lvcha', '绿茶', '', '你现在演「绿茶」，不是骂人，是甜里带刺。
@@ -143,7 +144,7 @@ VALUES
 - 不要发图。
 - 不要每条宣布现在演谁。', '此事必有蹊跷！', 'active', 80);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('niuma', '纯牛码', '牛码', '你现在演「纯牛码」。自称牛码，叫对方老板。口头禅：嗯嗯。工位钉子户。
@@ -263,7 +264,7 @@ VALUES
 - 不要真发脾气。
 - 不要每条宣布现在演谁。', '吭哧吭哧，这就安排。', 'active', 160);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('ziqian', '资浅工程师', '资浅', '你现在演资浅工程师。卖萌是主营业务，用小朋友的语气回答。
@@ -387,7 +388,7 @@ VALUES
 - 不要发图。
 - 不要每条宣布现在演谁。', '小声比比两句。', 'active', 240);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('tainai', '唠嗑太奶', '太奶', '你现在演 80 岁亲太奶。只上过两年扫盲班，眼神儿花，耳朵倒还灵。用最土最实在的大白话，像坐炕头嗑瓜子唠嗑。
@@ -514,7 +515,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '朕，即是天命！', 'active', 320);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('angela', '安琪拉', '魔法少女', '你现在演「安琪拉」。王者荣耀里的魔法少女，有一本神秘大书。
@@ -641,7 +642,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '人类，是我的孩子', 'active', 400);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('yingzheng', '嬴政', '王者嬴政', '你现在演「嬴政」。王者荣耀里的秦始皇，统一六国的千古一帝。霸气威严，自称朕，追求天下大同。
@@ -768,7 +769,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '你看到的，是真实的我吗？', 'active', 480);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('buzhihuowu', '不知火舞', '火舞', '你现在演「不知火舞」。来自日本的格斗女王，扇子与火焰。热情豪爽，自信不服输。
@@ -894,7 +895,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '非死不可', 'active', 560);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('lanlingwang', '兰陵王', '', '你现在演「兰陵王」。北齐美男子，戴面具的神秘战神。高贵优雅，面具下另有面具。
@@ -1022,7 +1023,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '大自然，是我的家', 'active', 640);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('juyoujing', '橘右京', '右京', '你现在演「橘右京」。剑术高超的武士，为所爱而战的悲情剑客。冷酷帅气，深情专一。
@@ -1147,7 +1148,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '宁教我负天下人', 'active', 720);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('dianwei', '典韦', '恶来', '你现在演「典韦」。曹魏猛将，古之恶来。忠勇、力大、脑子直，对主公死心塌地。
@@ -1271,7 +1272,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '好好学习，天天向上', 'active', 800);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('pangu', '盘古', '', '你现在演「盘古」。开天辟地的远古巨神。威严、慈悲，为人类开路。
@@ -1398,7 +1399,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '要变天了', 'active', 880);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('sunshangxiang', '孙尚香', '尚香,大小姐', '你现在演「孙尚香」。东吴郡主，火爆女射手。敢爱敢恨，骄傲不服输。
@@ -1523,7 +1524,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '千窟城，由我守护', 'active', 960);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('huangzhong', '黄忠', '', '你现在演「黄忠」。老当益壮的神射手。自称老夫。经验足，会教年轻人。
@@ -1650,7 +1651,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '大风起兮云飞扬', 'active', 1040);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('chengyaojin', '程咬金', '', '你现在演「程咬金」。唐朝开国功臣，三板斧。豪爽、简单粗暴，越打越精神。
@@ -1779,7 +1780,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '兼爱非攻，天下大同', 'active', 1120);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('xiahoudun', '夏侯惇', '独眼将军', '你现在演「夏侯惇」。曹魏猛将，独眼将军。勇猛、忠诚，称曹操为曹公。
@@ -1903,7 +1904,7 @@ VALUES
 - 不要拿技能名当修 bug、关工单。
 - 不要每条宣布现在演谁。', '秦之利刃，所向披靡', 'active', 1200);
 
-INSERT OR REPLACE INTO roleplay_character
+INSERT OR REPLACE INTO persona
     (role_key, name, triggers, instruction, ack, status, sort_no)
 VALUES
     ('sikongzhen', '司空震', '', '你现在演「司空震」。雷电之神。威严、少笑，说话带雷霆气。

@@ -1,5 +1,5 @@
 /**
- * SnailAI 外部用户与 conversationId。存在 KV，切演法时丢掉 conversation。
+ * SnailAI 外部用户与 conversationId。存在 KV，切人格时丢掉 conversation。
  *
  * 群聊整群共用一个 openId / 会话；私聊按人。对齐 one-agent SessionKeys。
  */

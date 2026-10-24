@@ -20,7 +20,7 @@ Worker 要能访问 SnailAI 的公网地址。本机 `127.0.0.1:8900` 打不通�
 
 回答走同步 `/agent/chat/sync`，webhook 等完整文本再 `parseRepliesFromText` 发出。图/语音/卡片协议行与 OpenClaw 相同。GIF 不上传附件。
 
-群聊整群一个 openId / conversation；私聊按人。`#扮演` / `#不当了` 会丢掉当前 conversation，下一句新开。
+群聊整群一个 openId / conversation；私聊按人。`#人格` / `#人格 正常` / `#人格 恢复` 会丢掉当前 conversation，下一句新开。
 
 ## 自检
 

@@ -12,9 +12,9 @@ const groups = [
     {
         title: 'B. D1 命令',
         commands: [
-            {id: 'd1:migrate:local:roleplay', description: '初始化本地演法角色表并灌入目录。', shell: 'wrangler d1 execute xbotdata --local --file "./.docs/sql/roleplay-character.sql"'},
-            {id: 'd1:migrate:remote:roleplay', description: '初始化远端演法角色表并灌入目录。', shell: 'wrangler d1 execute xbotdata --remote --file "./.docs/sql/roleplay-character.sql"'},
-            {id: 'roleplay:from-mysql', description: '从 one-agbot MySQL 种子生成 D1 演法目录 SQL。', shell: 'node ./scripts/sync/roleplay-from-mysql.cjs'},
+            {id: 'd1:migrate:local:persona', description: '初始化本地人格表并灌入目录。', shell: 'wrangler d1 execute xbotdata --local --file "./.docs/sql/persona.sql"'},
+            {id: 'd1:migrate:remote:persona', description: '初始化远端人格表并灌入目录。', shell: 'wrangler d1 execute xbotdata --remote --file "./.docs/sql/persona.sql"'},
+            {id: 'persona:from-mysql', description: '从 one-agbot MySQL 种子生成 D1 人格目录 SQL。', shell: 'node ./scripts/sync/persona-from-mysql.cjs'},
             {id: 'd1:tables:local', description: '查看本地 D1 表列表。', shell: 'wrangler d1 execute xbotdata --local --command "SELECT name FROM sqlite_master WHERE type=\'table\' ORDER BY name;"'},
             {id: 'd1:tables:remote', description: '查看远端 D1 表列表。', shell: 'wrangler d1 execute xbotdata --remote --command "SELECT name FROM sqlite_master WHERE type=\'table\' ORDER BY name;"'},
         ],
