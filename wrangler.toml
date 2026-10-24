@@ -83,8 +83,8 @@ XBOT_CHANNEL_AUTO_FORWARD = "true"
 # XBOT_CHANNEL_TIMEOUT_MS = "120000"
 
 # ── 大脑 ──────────────────────────────────────────────────────────────────────
-# 未设或 openclaw 走 OpenClaw；snailai 走 SnailAI；qwenpaw 走 QwenPaw 频道插件。
-# Worker 不能用 IP 直连（Cloudflare 1003），QwenPaw / SnailAI 都要域名。
+# 未设或 openclaw 走 OpenClaw；snailai 走 SnailAI；qwenpaw 走 QwenPaw；hermes 走 Hermes。
+# Worker 不能用 IP 直连（Cloudflare 1003），QwenPaw / SnailAI / Hermes 都要域名。
 AGENT_BRAIN = "openclaw"
 # SNAIL_AI_BASE_URL = "http://snailai.example.com:8900"
 # SNAIL_AI_APP_ID = "1"
@@ -98,6 +98,12 @@ AGENT_BRAIN = "openclaw"
 # AGENT_BRAIN = "qwenpaw"
 # QWENPAW_BASE_URL = "https://summary-stronger-usual-automotive.trycloudflare.com"
 # QWENPAW_TIMEOUT_MS = "120000"
+
+# ── Hermes 频道 ───────────────────────────────────────────────────────────────
+# HERMES_TOKEN（secret，未设则回退 AGENT_BRIDGE_TOKEN）
+# AGENT_BRAIN = "hermes"
+HERMES_BASE_URL = "https://hermes.lwcorspro.dpdns.org"
+# HERMES_TIMEOUT_MS = "120000"
 
 # ── MCP ───────────────────────────────────────────────────────────────────────
 MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"

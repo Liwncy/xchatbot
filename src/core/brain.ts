@@ -5,11 +5,12 @@
  */
 import type {Env} from '../types/env.js';
 
-export type AgentBrain = 'openclaw' | 'snailai' | 'qwenpaw';
+export type AgentBrain = 'openclaw' | 'snailai' | 'qwenpaw' | 'hermes';
 
 export function resolveAgentBrain(env: Env): AgentBrain {
     const raw = env.AGENT_BRAIN?.trim().toLowerCase() ?? '';
     if (raw === 'snailai' || raw === 'snail-ai' || raw === 'snail') return 'snailai';
     if (raw === 'qwenpaw' || raw === 'qwen-paw' || raw === 'agentscope') return 'qwenpaw';
+    if (raw === 'hermes') return 'hermes';
     return 'openclaw';
 }

@@ -14,12 +14,13 @@ import {mcpToolsCommandPlugin} from './command/mcp-tools/index.js';
 import {unknownCommandPlugin} from './command/unknown/index.js';
 import {openclawAgentPlugin} from './agent/openclaw/index.js';
 import {qwenpawAgentPlugin} from './agent/qwenpaw/index.js';
+import {hermesAgentPlugin} from './agent/hermes/index.js';
 import {snailaiAgentPlugin} from './agent/snailai/index.js';
 
 // channel：表情入库 / 表情口令 / 红包 / 群门禁 / #查记录 / #扮演 / #撤回 / 随机朋友 / 伪转发，不进大脑
 // 花名册先手记，不自动候审
 // command：# 快捷调用 MCP；未识别的 #口令在此拦下
-// agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI / QwenPaw）
+// agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI / QwenPaw / Hermes）
 
 let registered = false;
 
@@ -41,5 +42,6 @@ export function ensurePluginsRegistered(): void {
     registerPlugin(openclawAgentPlugin);
     registerPlugin(snailaiAgentPlugin);
     registerPlugin(qwenpawAgentPlugin);
+    registerPlugin(hermesAgentPlugin);
     registered = true;
 }

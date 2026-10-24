@@ -33,7 +33,7 @@ export interface Env {
     XBOT_CHANNEL_AUTO_FORWARD?: string;
 
     /**
-     * 自然语言交给哪颗大脑。`openclaw`（默认）、`snailai` 或 `qwenpaw`。
+     * 自然语言交给哪颗大脑。`openclaw`（默认）、`snailai`、`qwenpaw` 或 `hermes`。
      * 门禁 / `#` 口令 / 正文拼装不跟这个走。
      */
     AGENT_BRAIN?: string;
@@ -57,6 +57,16 @@ export interface Env {
     QWENPAW_TOKEN?: string;
     /** QwenPaw inbound 超时，默认同 XBOT_CHANNEL_TIMEOUT_MS / 120000。 */
     QWENPAW_TIMEOUT_MS?: string;
+
+    /**
+     * Hermes gateway 公网根。Worker 会 POST `{HERMES_BASE_URL}/api/channels/xbot/inbound`。
+     * 本机默认只听 127.0.0.1:8642，前面要有隧道。
+     */
+    HERMES_BASE_URL?: string;
+    /** 入站 Bearer；未设时回退 AGENT_BRIDGE_TOKEN。 */
+    HERMES_TOKEN?: string;
+    /** Hermes inbound 超时，默认同 XBOT_CHANNEL_TIMEOUT_MS / 120000。 */
+    HERMES_TIMEOUT_MS?: string;
 
     /**
      * /admin/debug 的 Bearer。设置后开关接口要带这个 token。
