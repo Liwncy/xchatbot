@@ -158,10 +158,23 @@ function parsePushItem(item: WechatPushItem, raw: unknown): IncomingMessage {
     return message;
 }
 
+function isPushItem(value: unknown): value is WechatPushItem {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const item = value as WechatPushItem;
+    return typeof item.type === 'number' && typeof item.create_time === 'number';
+}
+
+function pushItems(payload: WechatPushMessage): WechatPushItem[] {
+    if (payload.type !== 'sync::new_message' || !isPushItem(payload.data)) return [];
+    return [payload.data];
+}
+
 export function parseWechatMessages(payload: WechatPushMessage): IncomingMessage[] {
-    const items = Array.isArray(payload.new_message) ? payload.new_message : [];
+    const items = pushItems(payload);
     if (items.length === 0) {
-        throw new Error('No new_message in WeChat push payload');
+        throw new Error(payload.type
+            ? `unsupported push type ${payload.type}`
+            : 'missing sync::new_message');
     }
     return items.map((item) => parsePushItem(item, payload));
 }

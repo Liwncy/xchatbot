@@ -48,7 +48,8 @@ assert.equal(parseHongbaoMessage('你好'), null);
 
 {
     const [message] = parseWechatMessages({
-        new_message: [{
+        type: 'sync::new_message',
+        data: {
             type: 49,
             create_time: 1_779_000_000,
             sender: {value: 'wxid_a'},
@@ -56,7 +57,7 @@ assert.equal(parseHongbaoMessage('你好'), null);
             source: 'chatroom',
             push_content: '张三 : [微信红包] 恭喜发财，大吉大利',
             content: {value: `wxid_a:\n<msg><appmsg><type>2001</type><title>恭喜发财，大吉大利</title><nativeurl>${nativeUrl}</nativeurl></appmsg></msg>`},
-        }],
+        },
     });
     assert.equal(message?.type, 'hongbao');
     assert.equal(message?.source, 'group');

@@ -18,7 +18,8 @@ export interface WechatPushItem {
 }
 
 export interface WechatPushMessage {
-    new_message?: WechatPushItem[] | null;
+    type?: string;
+    data?: WechatPushItem | null;
 }
 
 export interface ApiResponse<T = unknown> {

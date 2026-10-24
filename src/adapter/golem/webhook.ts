@@ -13,6 +13,16 @@ import {filterExpiredMessages, parseWechatMessages} from './parse.js';
 import type {WechatPushMessage} from './types.js';
 import {verifyWechatSignature} from './verify.js';
 
+function logInbound(messages: IncomingMessage[]): void {
+    const now = Math.floor(Date.now() / 1000);
+    for (const message of messages) {
+        const age = now - message.timestamp;
+        console.info(
+            `[golem] ${message.source} ${message.type} ${message.senderName || message.senderId}: ${message.content ?? ''} (${age}s)`,
+        );
+    }
+}
+
 function json(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data), {
         status,
@@ -53,10 +63,12 @@ export async function handleGolemWebhook(
     let messages: IncomingMessage[];
     try {
         messages = parseWechatMessages(payload);
-    } catch {
+    } catch (error) {
+        console.info('[golem] 推送没解析出来', error instanceof Error ? error.message : String(error), body.slice(0, 800));
         return json({success: true, skipped: true});
     }
 
+    logInbound(messages);
     const activeMessages = filterExpiredMessages(messages);
     if (activeMessages.length === 0) {
         return json({success: true, skipped: true, reason: 'expired'});
