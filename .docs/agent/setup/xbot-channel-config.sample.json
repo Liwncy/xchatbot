@@ -1,0 +1,16 @@
+{
+  "channels": {
+    "xbot": {
+      "enabled": true,
+      "xchatbotApiBaseUrl": "https://xbot.lwcfworker.dpdns.org",
+      "xchatbotToken": "与 AGENT_BRIDGE_TOKEN 相同",
+      "botName": "小聪明儿",
+      "accounts": {
+        "Primary": {
+          "enabled": true,
+          "name": "小聪明儿"
+        }
+      }
+    }
+  }
+}

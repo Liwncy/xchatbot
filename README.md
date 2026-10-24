@@ -20,13 +20,13 @@ Cloudflare Worker 上的薄核：收协议、做门禁、拼给大脑的正文�
   → channel（门禁 / #口令）
   → command（# 快捷调用 MCP / 未识别 #口令）
   → core 拼正文
-  → agent（OpenClaw / SnailAI / QwenPaw，由 AGENT_BRAIN 切换）
+  → agent（OpenClaw / SnailAI / QwenPaw / Hermes，由 AGENT_BRAIN 切换）
   → 适配器 send
 ```
 
 停用某个插件：往 KV `plugins:runtime:disabled` 写 JSON 数组，例如 `["openclaw"]`。切大脑用 `AGENT_BRAIN`，不必停插件。
 
-SnailAI 联调见 [`_docs/wechat/snailai-brain-setup.md`](_docs/wechat/snailai-brain-setup.md)。QwenPaw 见 [`_docs/wechat/qwenpaw-brain-setup.md`](_docs/wechat/qwenpaw-brain-setup.md)。
+大脑安装在 [`.docs/agent/setup/`](.docs/agent/setup/openclaw.md)，共用的人设和技能在 [`.docs/agent/shared/`](.docs/agent/shared/README.md)。演法 SQL 在 [`.docs/sql/roleplay-character.sql`](.docs/sql/roleplay-character.sql)。
 
 ## 本地
 

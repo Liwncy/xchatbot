@@ -6,8 +6,9 @@ dist/
 .idea
 .vscode/
 .cursor/
-/_docs/vue-xiuxiangame-main/
+/.docs/vue-xiuxiangame-main/
 .tmp/
+tmp/
 .tmp-plugin-admin-smoke/
 .tmp-xz/
 .config/
