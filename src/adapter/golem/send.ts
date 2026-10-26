@@ -1,6 +1,6 @@
 import type {Env} from '../../types/env.js';
 import type {IncomingMessage} from '../../core/message.js';
-import {linkReply, textReply, type ReplyMessage} from '../../core/reply.js';
+import {linkReply, textReply, type ChatRecordItem, type ReplyMessage} from '../../core/reply.js';
 import {recordOutboundChatMessage} from '../../core/chat-log/index.js';
 import {logger} from '../../utils/logger.js';
 import type {ApiResponse} from './types.js';
@@ -71,6 +71,26 @@ function looksLikeHttp(value?: string): value is string {
 function withMentionSpacer(content: string, mentions?: string[]): string {
     if (!mentions?.length) return content;
     return content.replace(/^([@＠][^\s@＠\u2005]+)[ \t]+/u, '$1\u2005');
+}
+
+async function uploadRecordImages(api: GolemApi, items: ChatRecordItem[]): Promise<ChatRecordItem[]> {
+    const next: ChatRecordItem[] = [];
+    for (const item of items) {
+        if (item.type !== 'image' || !/^https?:\/\//iu.test(item.url.trim())) {
+            next.push(item);
+            continue;
+        }
+        try {
+            const uploaded = await api.uploadRecordImage(item.url.trim());
+            next.push(uploaded ? {...item, url: uploaded.fileId, aesKey: uploaded.aesKey} : item);
+        } catch (error) {
+            logger.warn('聊天记录图片上传失败', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            next.push(item);
+        }
+    }
+    return next;
 }
 
 async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, env: Env): Promise<ApiResponse> {
@@ -152,7 +172,12 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, 
             return api.sendApp({
                 receiver,
                 appType: CHAT_RECORD_APP_TYPE,
-                xml: buildChatRecordXml(reply.items, reply.title, reply.summary, reply.desc),
+                xml: buildChatRecordXml(
+                    await uploadRecordImages(api, reply.items),
+                    reply.title,
+                    reply.summary,
+                    reply.desc,
+                ),
             });
         case 'card':
             return api.sendCard({

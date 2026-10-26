@@ -222,6 +222,19 @@ export class GolemApi {
         }));
     }
 
+    async uploadRecordImage(url: string): Promise<{fileId: string; aesKey: string} | null> {
+        const form = new FormData();
+        form.append('url', url);
+        form.append('purpose', 'record');
+        const result = await this.postForm('/api/cdn/upload/image', form);
+        if (result.code !== 0) return null;
+        const data = asRecord(result.data);
+        const fileId = typeof data?.file_id === 'string' ? data.file_id.trim() : '';
+        const aesKey = typeof data?.aes_key === 'string' ? data.aes_key.trim() : '';
+        if (!fileId || !aesKey) return null;
+        return {fileId, aesKey};
+    }
+
     async cdnDownloadImageRaw(id: string, key: string): Promise<ArrayBuffer> {
         return this.getBinary('/api/cdn/download/image', {id, key});
     }
@@ -268,6 +281,30 @@ export class GolemApi {
         url.searchParams.set('search_scene', String(params.searchScene ?? 2));
         const response = await fetch(url, {method: 'GET'});
         return normalizeApiResponse(await response.json());
+    }
+
+    async grabHongbao(params: {
+        nativeUrl: string;
+        inWay: 0 | 1;
+        sessionUsername?: string;
+    }): Promise<ApiResponse> {
+        const body: Record<string, string | number> = {
+            native_url: params.nativeUrl,
+            in_way: params.inWay,
+        };
+        const session = params.sessionUsername?.trim();
+        if (session) body.session_username = session;
+        const result = await this.postJson('/api/payment/hongbao/grab', JSON.stringify(body));
+        const data = asRecord(result.data);
+        const platformCode = data ? pickCode(data.code) : undefined;
+        if (result.code === 0 && platformCode != null && platformCode !== 0) {
+            return {
+                ...result,
+                code: platformCode,
+                message: messageText(data?.error_message) || messageText(data?.message) || result.message,
+            };
+        }
+        return result;
     }
 
     async revokeMessage(params: RevokeParam): Promise<ApiResponse> {

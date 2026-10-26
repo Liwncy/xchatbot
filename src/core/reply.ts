@@ -100,6 +100,8 @@ export interface ChatRecordImageItem {
     alt?: string;
     avatarUrl?: string;
     timestampMs: number;
+    /** 聊天记录上传 CDN 后的密钥。有它时 url 是 file_id。 */
+    aesKey?: string;
 }
 
 export type ChatRecordItem = ChatRecordTextItem | ChatRecordImageItem;

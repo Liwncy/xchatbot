@@ -74,5 +74,10 @@ export interface ChannelAdapter {
     searchDirectory?(query: string, env: Env): Promise<DirectoryPerson[]>;
     findRoomMember?(roomId: string, name: string, env: Env): Promise<RoomMember | null>;
     toOutboundText?(reply: ReplyMessage): string | null;
-    claimHongbao?(nativeUrl: string, scene: HongbaoScene, env: Env): Promise<HongbaoClaimResult>;
+    claimHongbao?(
+        nativeUrl: string,
+        scene: HongbaoScene,
+        env: Env,
+        sessionUsername?: string,
+    ): Promise<HongbaoClaimResult>;
 }

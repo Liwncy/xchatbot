@@ -1,6 +1,6 @@
 import type {ChatRecordReply, ReplyMessage} from '../../core/reply.js';
 import type {Env} from '../../types/env.js';
-import type {ChannelAdapter, DirectoryPerson, RevokeResult, RoomMember} from '../types.js';
+import type {ChannelAdapter, DirectoryPerson, HongbaoClaimResult, RevokeResult, RoomMember} from '../types.js';
 import {buildRevokeParam, GolemApi} from './api.js';
 import {emitChatRecordLine} from './chat-record.js';
 import {isDirectoryMiss, mapDirectoryPeople} from './directory.js';
@@ -84,11 +84,53 @@ export const golemAdapter: ChannelAdapter = {
         return null;
     },
 
-    async claimHongbao() {
-        return {ok: false as const, reason: 'unavailable' as const};
+    async claimHongbao(nativeUrl, scene, env, sessionUsername): Promise<HongbaoClaimResult> {
+        const api = golemApi(env);
+        if (!api) return {ok: false, reason: 'unavailable'};
+        const result = await api.grabHongbao({
+            nativeUrl,
+            inWay: scene === 'group' ? 0 : 1,
+            sessionUsername: scene === 'group' ? sessionUsername : undefined,
+        });
+        if (result.code !== 0) return {ok: false, reason: 'failed'};
+        return {ok: true, amountFen: pickHongbaoAmount(result.data)};
     },
 };
 
 function emitChatRecord(reply: ChatRecordReply): string {
     return emitChatRecordLine(reply.items, reply.title, reply.summary, reply.desc);
+}
+
+function pickHongbaoAmount(data: unknown): number | undefined {
+    const rec = data && typeof data === 'object' && !Array.isArray(data)
+        ? data as Record<string, unknown>
+        : undefined;
+    if (!rec) return undefined;
+    const direct = amountOf(rec.amount ?? rec.rec_amount ?? rec.receive_amount ?? rec.recAmount);
+    if (direct != null) return direct;
+    const raw = hongbaoText(rec.text);
+    if (!raw) return undefined;
+    try {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        return amountOf(parsed.amount ?? parsed.rec_amount ?? parsed.receive_amount ?? parsed.recAmount);
+    } catch {
+        return undefined;
+    }
+}
+
+function hongbaoText(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+    const rec = value as Record<string, unknown>;
+    if (typeof rec.value === 'string') return rec.value;
+    if (typeof rec.buffer === 'string') return rec.buffer;
+    if (!Array.isArray(rec.data)) return '';
+    const bytes = rec.data.filter((item): item is number => typeof item === 'number' && item >= 0 && item <= 255);
+    return new TextDecoder().decode(Uint8Array.from(bytes));
+}
+
+function amountOf(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) return Math.floor(value);
+    if (typeof value === 'string' && /^\d+$/u.test(value.trim())) return Number(value.trim());
+    return undefined;
 }

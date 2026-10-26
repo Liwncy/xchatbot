@@ -19,9 +19,7 @@ export function buildChatRecordXml(
     summary?: string,
     desc?: string,
 ): string {
-    const kept = items.filter((item) => item.nickname.trim() && (
-        item.type === 'image' ? /^https?:\/\//iu.test(item.url.trim()) : item.content.trim()
-    ));
+    const kept = items.filter(keepRecordItem);
     if (kept.length === 0) {
         throw new Error('chat record needs at least one item');
     }
@@ -131,6 +129,8 @@ function buildImageDataItem(item: Extract<ChatRecordItem, {type: 'image'}>, inde
     const {timestampMs, nickname, avatarUrl, sourceTime, sourceMsgId, localId, dataId, hashUsername} =
         itemBase(item, index);
     const url = escapeXml(item.url.trim());
+    const key = escapeXml(item.aesKey?.trim() ?? '');
+    const encryptVersion = item.aesKey?.trim() ? '1' : '0';
     const description = escapeXml(item.alt?.trim() || '图片');
     const format = imageFormat(item.url);
     return `<dataitem datatype="2" dataid="${dataId}" htmlid="${dataId}">
@@ -140,10 +140,10 @@ function buildImageDataItem(item: Extract<ChatRecordItem, {type: 'image'}>, inde
 <sourcetime>${sourceTime}</sourcetime>
 <datadesc>${description}</datadesc>
 <cdndataurl>${url}</cdndataurl>
-<cdndatakey></cdndatakey>
+<cdndatakey>${key}</cdndatakey>
 <cdnthumburl>${url}</cdnthumburl>
-<cdnthumbkey></cdnthumbkey>
-<cdnencryver>0</cdnencryver>
+<cdnthumbkey>${key}</cdnthumbkey>
+<cdnencryver>${encryptVersion}</cdnencryver>
 <srcMsgLocalid>${localId}</srcMsgLocalid>
 <srcMsgCreateTime>${Math.floor(timestampMs / 1000)}</srcMsgCreateTime>
 <fromnewmsgid>${sourceMsgId}</fromnewmsgid>
@@ -151,6 +151,13 @@ function buildImageDataItem(item: Extract<ChatRecordItem, {type: 'image'}>, inde
 <hashusername>${hashUsername}</hashusername>
 </dataitemsource>
 </dataitem>`;
+}
+
+function keepRecordItem(item: ChatRecordItem): boolean {
+    if (!item.nickname.trim()) return false;
+    if (item.type !== 'image') return Boolean(item.content.trim());
+    if (item.aesKey?.trim() && item.url.trim()) return true;
+    return /^https?:\/\//iu.test(item.url.trim());
 }
 
 function imageFormat(url: string): string {

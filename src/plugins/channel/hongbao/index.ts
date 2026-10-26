@@ -30,7 +30,12 @@ async function grabInboundHongbao(message: IncomingMessage, ctx: PluginContext):
 
     const scene = message.source === 'group' ? 'group' : 'private';
     try {
-        const result = await claim(nativeUrl, scene, ctx.env);
+        const result = await claim(
+            nativeUrl,
+            scene,
+            ctx.env,
+            scene === 'group' ? message.chatId : undefined,
+        );
         if (result.ok) {
             logger.info('红包领到了', {
                 scene,
