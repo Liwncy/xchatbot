@@ -83,9 +83,9 @@ XBOT_CHANNEL_AUTO_FORWARD = "true"
 # XBOT_CHANNEL_TIMEOUT_MS = "120000"
 
 # ── 大脑 ──────────────────────────────────────────────────────────────────────
-# 未设或 openclaw 走 OpenClaw；snailai 走 SnailAI；qwenpaw 走 QwenPaw；hermes 走 Hermes。
+# 当前走哪颗不写在这里。会话和平台在 KV，默认是 D1 agent_brain.is_default。
+# 第一次用到会把下面的地址和 token 抄进表；之后以表为准，空字段才回退这些变量。
 # Worker 不能用 IP 直连（Cloudflare 1003），QwenPaw / SnailAI / Hermes 都要域名。
-AGENT_BRAIN = "hermes"
 # SNAIL_AI_BASE_URL = "http://snailai.example.com:8900"
 # SNAIL_AI_APP_ID = "1"
 # SNAIL_AI_PREFIX = "snail-ai"
@@ -95,7 +95,6 @@ AGENT_BRAIN = "hermes"
 
 # ── QwenPaw 频道 ──────────────────────────────────────────────────────────────
 # QWENPAW_TOKEN（secret，未设则回退 AGENT_BRIDGE_TOKEN）
-# AGENT_BRAIN = "qwenpaw"
 # QWENPAW_BASE_URL = "https://summary-stronger-usual-automotive.trycloudflare.com"
 # QWENPAW_TIMEOUT_MS = "120000"
 

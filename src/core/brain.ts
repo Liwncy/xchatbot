@@ -1,16 +1,7 @@
 /**
  * 当前这条消息交给哪颗大脑。门禁 / 口令 / 正文拼装不跟大脑走。
  *
- * 默认 openclaw，避免线上无配置时切到别的脑子。
+ * 会话和平台看 KV，没有再看 D1 里 is_default 那一行。
  */
-import type {Env} from '../types/env.js';
-
-export type AgentBrain = 'openclaw' | 'snailai' | 'qwenpaw' | 'hermes';
-
-export function resolveAgentBrain(env: Env): AgentBrain {
-    const raw = env.AGENT_BRAIN?.trim().toLowerCase() ?? '';
-    if (raw === 'snailai' || raw === 'snail-ai' || raw === 'snail') return 'snailai';
-    if (raw === 'qwenpaw' || raw === 'qwen-paw' || raw === 'agentscope') return 'qwenpaw';
-    if (raw === 'hermes') return 'hermes';
-    return 'openclaw';
-}
+export {brainDisplayName, parseBrainName, type AgentBrain} from './brain-name.js';
+export {resolveAgentBrain} from './brain-store.js';

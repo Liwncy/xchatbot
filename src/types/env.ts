@@ -32,11 +32,6 @@ export interface Env {
     XBOT_CHANNEL_TIMEOUT_MS?: string;
     XBOT_CHANNEL_AUTO_FORWARD?: string;
 
-    /**
-     * 自然语言交给哪颗大脑。`openclaw`（默认）、`snailai`、`qwenpaw` 或 `hermes`。
-     * 门禁 / `#` 口令 / 正文拼装不跟这个走。
-     */
-    AGENT_BRAIN?: string;
     /** SnailAI 服务根，例如 `https://host:8900`；若已是 `.../openapi/v1` 则原样用。 */
     SNAIL_AI_BASE_URL?: string;
     /** OpenAPI 路径前缀，默认 `snail-ai`。 */

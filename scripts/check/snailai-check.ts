@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {resolveAgentBrain} from '../../src/core/brain.ts';
+import {parseBrainName} from '../../src/core/brain.ts';
 import {
     resetSnailaiConversation,
     snailaiExternalId,
@@ -10,13 +10,16 @@ import type {IncomingMessage} from '../../src/core/message.ts';
 import type {Env} from '../../src/types/env.ts';
 import {readSnailAiConfig} from '../../src/plugins/agent/snailai/client.ts';
 
-assert.equal(resolveAgentBrain({} as Env), 'openclaw');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'OpenClaw'} as Env), 'openclaw');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'snailai'} as Env), 'snailai');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'snail-ai'} as Env), 'snailai');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'qwenpaw'} as Env), 'qwenpaw');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'qwen-paw'} as Env), 'qwenpaw');
-assert.equal(resolveAgentBrain({AGENT_BRAIN: 'agentscope'} as Env), 'qwenpaw');
+assert.equal(parseBrainName(undefined), null);
+assert.equal(parseBrainName('OpenClaw'), 'openclaw');
+assert.equal(parseBrainName('snailai'), 'snailai');
+assert.equal(parseBrainName('snail-ai'), 'snailai');
+assert.equal(parseBrainName('snail'), 'snailai');
+assert.equal(parseBrainName('qwenpaw'), 'qwenpaw');
+assert.equal(parseBrainName('qwen-paw'), 'qwenpaw');
+assert.equal(parseBrainName('agentscope'), 'qwenpaw');
+assert.equal(parseBrainName('hermes'), 'hermes');
+assert.equal(parseBrainName('没有'), null);
 
 assert.equal(readSnailAiConfig({} as Env), null);
 assert.equal(readSnailAiConfig({

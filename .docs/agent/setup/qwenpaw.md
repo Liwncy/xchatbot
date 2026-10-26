@@ -2,7 +2,7 @@
 
 自然语言仍走 xchatbot 门禁、`#` 口令和 `buildInboundContent`。只把拼好的正文 POST 到 QwenPaw 的 xbot 频道。
 
-默认大脑仍是 OpenClaw。当前 wrangler 若写成 `AGENT_BRAIN = "qwenpaw"` 才会切过去。
+当前走哪颗不看配置文件。会话和平台写在 KV，默认是 D1 `agent_brain.is_default`。第一次建表默认是 Hermes。主人说 `#脑子 全部 qwenpaw` 才把默认换成这颗；只换这个会话用 `#脑子 qwenpaw`（也认 `qwen-paw` / `agentscope`）。
 
 **不要开 QwenPaw 自带微信。**
 
@@ -22,12 +22,11 @@
 
 | 变量 | 说明 |
 |------|------|
-| `AGENT_BRAIN` | `qwenpaw`（也认 `qwen-paw` / `agentscope`） |
-| `QWENPAW_BASE_URL` | QwenPaw 公网根，例如 trycloudflare |
+| `QWENPAW_BASE_URL` | QwenPaw 公网根，例如 trycloudflare。第一次建表抄进 D1 |
 | `QWENPAW_TOKEN` | 入站 Bearer；未设则回退 `AGENT_BRIDGE_TOKEN` |
 | `XBOT_CHANNEL_ENABLED` | 仍须 `true` |
 
-trycloudflare 域名会变，变了改 `QWENPAW_BASE_URL` 再 deploy。正式用 named hostname。
+trycloudflare 域名会变。表还没有这一行时，改 `QWENPAW_BASE_URL` 再部署就会抄进去；行已经在了，要改 D1 里的 `base_url`。正式用 named hostname。
 
 ## 3. 自检
 

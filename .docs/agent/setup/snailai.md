@@ -2,17 +2,16 @@
 
 自然语言仍走 xchatbot 门禁、`#` 口令和 `buildInboundContent`。只把拼好的正文交给 SnailAI，不替换 OpenClaw。
 
-默认大脑仍是 OpenClaw。线上未配 `AGENT_BRAIN` 时行为不变。
+当前走哪颗不看配置文件。会话和平台写在 KV，默认是 D1 `agent_brain.is_default`。第一次建表默认是 Hermes。主人说 `#脑子 全部 snailai` 才把默认换成这颗（也认 `snail-ai` / `snail`）。
 
 ## 切换
 
 | 变量 | 说明 |
 |------|------|
-| `AGENT_BRAIN` | `openclaw`（默认）或 `snailai`（也认 `snail-ai` / `snail`） |
 | `XBOT_CHANNEL_ENABLED` | 仍须 `true`。不需要 `XBOT_CHANNEL_AUTO_FORWARD`（那是 OpenClaw POST） |
 | `SNAIL_AI_BASE_URL` | 服务根，例如 `https://host:8900`。已经是 `.../openapi/v1` 则原样用 |
 | `SNAIL_AI_PREFIX` | 默认 `snail-ai` |
-| `SNAIL_AI_APP_ID` / `SNAIL_AI_TOKEN` | 应用凭证，用 `wrangler secret` |
+| `SNAIL_AI_APP_ID` / `SNAIL_AI_TOKEN` | 应用凭证，用 `wrangler secret`。第一次建表抄进 `app_id` 和 `token` |
 | `SNAIL_AI_AGENT_ID` | 默认 `1` |
 | `SNAIL_AI_TIMEOUT_MS` | 同步对话超时，默认 `180000` |
 
