@@ -82,8 +82,8 @@ async function ensureSchema(env: Env): Promise<void> {
                 ? 1
                 : (parseBool(env.XBOT_CHANNEL_AUTO_FORWARD, false) ? 1 : 0);
             const seeds: Array<[string, string, string, string, number, number, string, number]> = [
-                ['hermes', 'Hermes', trimSlash(env.HERMES_BASE_URL), env.HERMES_TOKEN?.trim() ?? '', 120_000, 1, '', 1],
-                ['openclaw', 'OpenClaw', openclawBase(env), env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() ?? '', 120_000, 0, '', autoForward],
+                ['hermes', 'Hermes', trimSlash(env.HERMES_BASE_URL), env.HERMES_TOKEN?.trim() ?? '', 120_000, 0, '', 1],
+                ['openclaw', 'OpenClaw', openclawBase(env), env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() ?? '', 120_000, 1, '', autoForward],
                 ['qwenpaw', 'QwenPaw', trimSlash(env.QWENPAW_BASE_URL), env.QWENPAW_TOKEN?.trim() ?? '', 120_000, 0, '', 1],
                 ['snailai', 'SnailAI', trimSlash(env.SNAIL_AI_BASE_URL), env.SNAIL_AI_TOKEN?.trim() ?? '', 180_000, 0, env.SNAIL_AI_APP_ID?.trim() ?? '', 1],
             ];

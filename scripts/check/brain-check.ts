@@ -111,8 +111,8 @@ async function main() {
     const web = msg({platform: 'web', chatId: 'room-web', messageId: 'm3'});
 
     assert.equal(await tryHandleBrain(env, msg({senderId: 'wxid_other'}), '脑子'), '这事只有主人能定');
-    assert.equal(await tryHandleBrain(env, room, '脑子'), '默认是 Hermes');
-    assert.equal(await resolveAgentBrain(env, room), 'hermes');
+    assert.equal(await tryHandleBrain(env, room, '脑子'), '默认是 OpenClaw');
+    assert.equal(await resolveAgentBrain(env, room), 'openclaw');
 
     const hermes = await loadBrainConnection(env, 'hermes');
     assert.equal(hermes.baseUrl, 'https://hermes.example');
@@ -123,7 +123,7 @@ async function main() {
     assert.equal(await tryHandleBrain(env, room, '脑子 openclaw'), '好，这个会话换成 OpenClaw');
     assert.equal(kv.get('agent:brain:session:golem:123@chatroom'), 'openclaw');
     assert.equal(await tryHandleBrain(env, room, '脑子'), '这个会话是 OpenClaw');
-    assert.equal(await tryHandleBrain(env, other, '脑子'), '默认是 Hermes');
+    assert.equal(await tryHandleBrain(env, other, '脑子'), '默认是 OpenClaw');
 
     assert.equal(await tryHandleBrain(env, room, '脑子 平台 qwenpaw'), '好，这个平台换成 QwenPaw');
     assert.equal(kv.get('agent:brain:platform:golem'), 'qwenpaw');

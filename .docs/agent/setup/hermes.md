@@ -2,7 +2,7 @@
 
 自然语言仍走 xchatbot 门禁、`#` 口令和正文拼装。只把拼好的正文 POST 到 Hermes 的 xbot 频道。
 
-当前走哪颗不看配置文件。会话和平台写在 KV，默认是 D1 `agent_brain` 里 `is_default = 1` 的那一行。第一次建表会把 Hermes 标成默认。主人用 `#脑子 hermes` 只换这个会话，`#脑子 平台 hermes` 换这个平台，`#脑子 全部 hermes` 换默认。
+当前走哪颗不看配置文件。会话和平台写在 KV，默认是 D1 `agent_brain` 里 `is_default = 1` 的那一行。第一次建表会把 OpenClaw 标成默认。主人用 `#脑子 hermes` 只换这个会话，`#脑子 平台 hermes` 换这个平台，`#脑子 全部 hermes` 换默认。
 
 **不要开 Hermes 自带微信。**
 
