@@ -38,6 +38,10 @@ function trimSlash(value: string | undefined): string {
     return value?.trim().replace(/\/+$/u, '') ?? '';
 }
 
+function gatewayToken(env: Env, specific?: string): string {
+    return specific?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '';
+}
+
 function openclawBase(env: Env): string {
     const explicit = trimSlash(env.XBOT_CHANNEL_GATEWAY_URL);
     if (explicit) return explicit;
@@ -82,9 +86,9 @@ async function ensureSchema(env: Env): Promise<void> {
                 ? 1
                 : (parseBool(env.XBOT_CHANNEL_AUTO_FORWARD, false) ? 1 : 0);
             const seeds: Array<[string, string, string, string, number, number, string, number]> = [
-                ['hermes', 'Hermes', trimSlash(env.HERMES_BASE_URL), env.HERMES_TOKEN?.trim() ?? '', 120_000, 0, '', 1],
-                ['openclaw', 'OpenClaw', openclawBase(env), env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() ?? '', 120_000, 1, '', autoForward],
-                ['qwenpaw', 'QwenPaw', trimSlash(env.QWENPAW_BASE_URL), env.QWENPAW_TOKEN?.trim() ?? '', 120_000, 0, '', 1],
+                ['openclaw', 'OpenClaw', openclawBase(env), gatewayToken(env), 120_000, 1, '', autoForward],
+                ['hermes', 'Hermes', trimSlash(env.HERMES_BASE_URL), gatewayToken(env, env.HERMES_TOKEN), 120_000, 0, '', 1],
+                ['qwenpaw', 'QwenPaw', trimSlash(env.QWENPAW_BASE_URL), gatewayToken(env, env.QWENPAW_TOKEN), 120_000, 0, '', 1],
                 ['snailai', 'SnailAI', trimSlash(env.SNAIL_AI_BASE_URL), env.SNAIL_AI_TOKEN?.trim() ?? '', 180_000, 0, env.SNAIL_AI_APP_ID?.trim() ?? '', 1],
             ];
             for (const [key, name, baseUrl, token, timeoutMs, isDefault, appId, forward] of seeds) {
@@ -93,6 +97,10 @@ async function ensureSchema(env: Env): Promise<void> {
                         (brain_key, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, updated_at)
                      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
                 ).bind(key, name, baseUrl, token, timeoutMs, isDefault, appId, forward, now).run();
+                if (!token || key === 'snailai') continue;
+                await env.XBOT_DB.prepare(
+                    `UPDATE agent_brain SET token = ?, updated_at = ? WHERE brain_key = ? AND token = ''`,
+                ).bind(token, now, key).run();
             }
         })().catch((error) => {
             schemaReady = null;
@@ -100,6 +108,10 @@ async function ensureSchema(env: Env): Promise<void> {
         });
     }
     await schemaReady;
+}
+
+export function ensureBrainCatalog(env: Env): Promise<void> {
+    return ensureSchema(env);
 }
 
 async function rowByKey(env: Env, key: string): Promise<BrainRow | null> {

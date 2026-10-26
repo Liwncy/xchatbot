@@ -40,7 +40,14 @@ function mockD1() {
                     });
                 }
             }
-            if (/UPDATE agent_brain/iu.test(sql)) {
+            if (/SET token = \?/iu.test(sql)) {
+                const row = rows.get(String(args[2]));
+                if (row && row.token === '') {
+                    row.token = String(args[0]);
+                    row.updated_at = Number(args[1]);
+                }
+            }
+            if (/UPDATE agent_brain/iu.test(sql) && /is_default/iu.test(sql)) {
                 const key = String(args[0]);
                 const now = Number(args[1]);
                 for (const row of rows.values()) {
@@ -112,6 +119,10 @@ async function main() {
 
     assert.equal(await tryHandleBrain(env, msg({senderId: 'wxid_other'}), '脑子'), '这事只有主人能定');
     assert.equal(await tryHandleBrain(env, room, '脑子'), '默认是 OpenClaw');
+    assert.equal(rows.get('openclaw')?.token, 'bridge-token');
+    assert.equal(rows.get('hermes')?.token, 'bridge-token');
+    assert.equal(rows.get('qwenpaw')?.token, 'bridge-token');
+    assert.equal(rows.get('snailai')?.token, '');
     assert.equal(await resolveAgentBrain(env, room), 'openclaw');
 
     const hermes = await loadBrainConnection(env, 'hermes');

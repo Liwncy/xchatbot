@@ -6,6 +6,7 @@ import {handleAdminDebug} from './debug/admin.js';
 import {maybeForwardDebug} from './debug/forward.js';
 import {handleChannelMcp} from './mcp/handle-mcp.js';
 import {handleOpenclawOutbound} from './plugins/agent/openclaw/outbound.js';
+import {ensureBrainCatalog} from './core/brain-store.js';
 import {ensurePluginsRegistered} from './plugins/register.js';
 
 function json(data: unknown, status = 200): Response {
@@ -25,6 +26,7 @@ export async function handleFetch(
         const pathname = url.pathname;
 
         if (pathname === '/' || pathname === '/health') {
+            ctx.waitUntil(ensureBrainCatalog(env));
             return json({status: 'ok', service: 'xchatbot'});
         }
 
