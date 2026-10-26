@@ -73,35 +73,10 @@ WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
 CHAT_LOG_ENABLE = "true"
 APP_LOG_ENABLE = "true"
 
-# ── OpenClaw 频道 ─────────────────────────────────────────────────────────────
-# AGENT_BRIDGE_BASE_URL / AGENT_BRIDGE_TOKEN（secret）
-# 开启后 webhook 把已放行消息 POST 到 OpenClaw xbot inbound；回复走 /openclaw/outbound
-XBOT_CHANNEL_ENABLED = "true"
-XBOT_CHANNEL_AUTO_FORWARD = "true"
-# XBOT_CHANNEL_GATEWAY_URL = "https://openclaw.example.com"
-# XBOT_CHANNEL_GATEWAY_TOKEN（secret，默认同 AGENT_BRIDGE_TOKEN）
-# XBOT_CHANNEL_TIMEOUT_MS = "120000"
-
 # ── 大脑 ──────────────────────────────────────────────────────────────────────
-# 当前走哪颗不写在这里。会话和平台在 KV，默认是 D1 agent_brain.is_default。
-# 第一次用到会把下面的地址和 token 抄进表；之后以表为准，空字段才回退这些变量。
-# Worker 不能用 IP 直连（Cloudflare 1003），QwenPaw / SnailAI / Hermes 都要域名。
-# SNAIL_AI_BASE_URL = "http://snailai.example.com:8900"
-# SNAIL_AI_APP_ID = "1"
-# SNAIL_AI_PREFIX = "snail-ai"
-# SNAIL_AI_AGENT_ID = "1"
-# SNAIL_AI_TIMEOUT_MS = "180000"
-# SNAIL_AI_TOKEN（secret）
-
-# ── QwenPaw 频道 ──────────────────────────────────────────────────────────────
-# QWENPAW_TOKEN（secret，未设则回退 AGENT_BRIDGE_TOKEN）
-# QWENPAW_BASE_URL = "https://summary-stronger-usual-automotive.trycloudflare.com"
-# QWENPAW_TIMEOUT_MS = "120000"
-
-# ── Hermes 频道 ───────────────────────────────────────────────────────────────
-# HERMES_TOKEN（secret，未设则回退 AGENT_BRIDGE_TOKEN）
-HERMES_BASE_URL = "https://hermes.lwcorspro.dpdns.org"
-# HERMES_TIMEOUT_MS = "120000"
+# 地址、token、默认在 D1 agent_brain。当前走哪颗在 KV。
+# 这个开关管全部大脑，关掉就都不接。
+XBOT_CHANNEL_ENABLED = "true"
 
 # ── MCP ───────────────────────────────────────────────────────────────────────
 MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"
