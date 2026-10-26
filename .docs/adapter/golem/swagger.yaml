@@ -1,0 +1,7443 @@
+definitions:
+  basev3.BaseResponse:
+    properties:
+      code:
+        description: 返回码，0 表示成功
+        type: integer
+      message:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 错误信息
+    type: object
+  basev3.Buffer:
+    properties:
+      data:
+        description: 数据内容
+        items:
+          type: integer
+        type: array
+      size:
+        description: 数据长度
+        type: integer
+    type: object
+  basev3.Commands_Item:
+    properties:
+      buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 命令数据
+      id:
+        description: 命令 ID
+        type: integer
+    type: object
+  basev3.Gender:
+    enum:
+    - 0
+    - 1
+    - 2
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - Gender_UNKNOWN_GENDER
+    - Gender_MALE
+    - Gender_FEMALE
+  basev3.OperateResponse:
+    properties:
+      code:
+        description: 返回码
+        type: integer
+      result:
+        allOf:
+        - $ref: '#/definitions/basev3.OperateResponse_Result'
+        description: 操作返回结果
+    type: object
+  basev3.OperateResponse_Result:
+    properties:
+      codes:
+        description: 与命令顺序对应的返回码
+        items:
+          type: integer
+        type: array
+      count:
+        description: 操作结果数量
+        type: integer
+      messages:
+        description: 与命令顺序对应的错误信息
+        items:
+          $ref: '#/definitions/basev3.OperateResponse_Result_ErrorMessage'
+        type: array
+    type: object
+  basev3.OperateResponse_Result_ErrorMessage:
+    properties:
+      content:
+        description: 错误正文
+        type: string
+      title:
+        description: 错误标题
+        type: string
+    type: object
+  basev3.TextBuffer:
+    properties:
+      size:
+        description: UTF-8 字节长度
+        type: integer
+      value:
+        description: 文本内容
+        type: string
+    type: object
+  cdnv3.UploadFileResult:
+    properties:
+      aes_key:
+        description: 文件加密 AES 密钥（hex编码）
+        type: string
+      file_id:
+        description: CDN 文件ID
+        type: string
+      file_md5:
+        description: 文件MD5
+        type: string
+      file_size:
+        description: 文件大小
+        type: integer
+      hit_md5:
+        description: 通过 CDN 原文 MD5 检查复用资源
+        type: boolean
+    type: object
+  cdnv3.UploadImageResult:
+    properties:
+      aes_key:
+        description: 图片加密 AES 密钥（hex编码）
+        type: string
+      create_time:
+        description: 创建时间
+        type: integer
+      file_height:
+        description: 图片高度
+        type: integer
+      file_id:
+        description: CDN 文件ID
+        type: string
+      file_md5:
+        description: 文件MD5
+        type: string
+      file_size:
+        description: 文件大小
+        type: integer
+      file_width:
+        description: 图片宽度
+        type: integer
+      hit_md5:
+        description: 通过 CDN 原文 MD5 检查复用资源
+        type: boolean
+      new_msg_id:
+        description: 新消息ID
+        type: integer
+      thumb_height:
+        description: 缩略图高度
+        type: integer
+      thumb_md5:
+        description: 缩略图MD5
+        type: string
+      thumb_size:
+        description: 缩略图大小
+        type: integer
+      thumb_width:
+        description: 缩略图宽度
+        type: integer
+    type: object
+  cdnv3.UploadMomentsImageResult:
+    properties:
+      file_key:
+        description: 文件Key
+        type: string
+      file_md5:
+        description: 文件MD5
+        type: string
+      file_size:
+        description: 图片原文字节数
+        type: integer
+      file_url:
+        description: CDN 文件URL
+        type: string
+      image_height:
+        description: 图片高度
+        type: integer
+      image_width:
+        description: 图片宽度
+        type: integer
+      thumb_url:
+        description: CDN 缩略图URL
+        type: string
+    type: object
+  cdnv3.UploadMomentsVideoResult:
+    properties:
+      duration:
+        description: 视频时长，单位秒
+        type: number
+      file_id:
+        description: 文件ID
+        type: string
+      file_key:
+        description: 文件Key
+        type: string
+      file_md5:
+        description: 视频原文MD5
+        type: string
+      file_size:
+        description: 视频原文字节数
+        type: integer
+      file_url:
+        description: CDN 视频URL
+        type: string
+      thumb_url:
+        description: CDN 缩略图URL
+        type: string
+      video_height:
+        description: 视频显示高度
+        type: integer
+      video_width:
+        description: 视频显示宽度
+        type: integer
+    type: object
+  cdnv3.UploadVideoResult:
+    properties:
+      aes_key:
+        description: 视频加密 AES 密钥（hex编码）
+        type: string
+      duration:
+        description: 视频时长，单位秒
+        type: number
+      file_id:
+        description: CDN 文件ID
+        type: string
+      file_md5:
+        description: 视频MD5
+        type: string
+      file_size:
+        description: 视频文件大小
+        type: integer
+      hit_md5:
+        description: 通过 CDN 原文 MD5 检查复用资源
+        type: boolean
+      new_md5:
+        description: CDN 返回的 MP4 标识摘要
+        type: string
+      thumb_height:
+        description: 封面高度
+        type: integer
+      thumb_id:
+        description: 封面 CDN 标识，未独立返回时与 file_id 相同
+        type: string
+      thumb_size:
+        description: 缩略图大小
+        type: integer
+      thumb_width:
+        description: 封面宽度
+        type: integer
+      video_file_id:
+        description: CDN 返回的额外视频标识，保留用于协议核对
+        type: string
+      video_height:
+        description: 视频显示高度
+        type: integer
+      video_width:
+        description: 视频显示宽度
+        type: integer
+    type: object
+  contactv3.AddChatroomMemberResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      member_count:
+        description: 成员数量
+        type: integer
+      member_list:
+        description: 成员列表
+        items:
+          $ref: '#/definitions/contactv3.Member'
+        type: array
+    type: object
+  contactv3.ChatroomAdminResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  contactv3.CreateChatroomResponse:
+    properties:
+      avatar_buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 头像缓冲区
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      chatroom:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 群ID
+      member_count:
+        description: 成员数量
+        type: integer
+      member_list:
+        description: 成员列表
+        items:
+          $ref: '#/definitions/contactv3.Member'
+        type: array
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      topic:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 群名称
+      topic_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 拼音首字母
+      topic_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 全拼
+    type: object
+  contactv3.CustomizedInfo:
+    properties:
+      brand_flag:
+        description: 品牌标志
+        type: integer
+      brand_icon_url:
+        description: 品牌图标URL
+        type: string
+      brand_info:
+        description: 品牌信息
+        type: string
+      extend_info:
+        description: 外部信息
+        type: string
+    type: object
+  contactv3.DeleteChatroomMemberResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      member_count:
+        description: 成员数量
+        type: integer
+      member_list:
+        description: 成员列表
+        items:
+          $ref: '#/definitions/contactv3.Member'
+        type: array
+    type: object
+  contactv3.GetChatroomInfoDetailResponse:
+    properties:
+      announcement:
+        description: 群公告
+        type: string
+      announcement_editor:
+        description: 公告编辑者
+        type: string
+      announcement_publish_time:
+        description: 公告发布时间
+        type: integer
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      business_type:
+        description: 群业务类型
+        type: integer
+      info_version:
+        description: 群信息版本
+        type: integer
+      status:
+        description: 群状态
+        type: integer
+      tools:
+        allOf:
+        - $ref: '#/definitions/contactv3.GetChatroomInfoDetailResponse_Tools'
+        description: 群工具
+    type: object
+  contactv3.GetChatroomInfoDetailResponse_Tools:
+    properties:
+      app_count:
+        description: 群工具小程序数量
+        type: integer
+      app_list:
+        description: 群工具小程序列表
+        items:
+          $ref: '#/definitions/contactv3.GetChatroomInfoDetailResponse_Tools_Todo'
+        type: array
+    type: object
+  contactv3.GetChatroomInfoDetailResponse_Tools_Todo:
+    properties:
+      creator:
+        description: 创建者
+        type: string
+      custom_info:
+        description: 自定义信息
+        items:
+          type: integer
+        type: array
+      id:
+        description: 待办ID
+        type: string
+      manager:
+        description: 管理员
+        type: string
+      path:
+        description: 路径
+        type: string
+      related_msg_id:
+        description: 相关消息ID
+        type: integer
+      time:
+        description: 时间
+        type: integer
+      title:
+        description: 标题
+        type: string
+      username:
+        description: 用户名
+        type: string
+    type: object
+  contactv3.GetContactResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      code:
+        description: 返回码列表
+        items:
+          type: integer
+        type: array
+      contact_count:
+        description: 联系人数量
+        type: integer
+      contact_list:
+        description: 联系人列表
+        items:
+          $ref: '#/definitions/messagev3.ModifyContact'
+        type: array
+      send_message_ticket_list:
+        description: 发消息票据列表
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+      ticket:
+        description: 验证用户票据，正常好友为空
+        items:
+          $ref: '#/definitions/contactv3.GetContactResponse_VerifyUserValidTicket'
+        type: array
+    type: object
+  contactv3.GetContactResponse_VerifyUserValidTicket:
+    properties:
+      ticket:
+        description: 票据
+        type: string
+      username:
+        description: 用户名
+        type: string
+    type: object
+  contactv3.GetQRCodeResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      footer_wording:
+        description: 底部文字
+        type: string
+      qrcode_buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 二维码图片数据
+      revoke_qrcode_id:
+        description: 撤销二维码的标识
+        type: string
+      revoke_qrcode_wording:
+        description: 撤销后的提示文字
+        type: string
+      style:
+        description: 服务端下发的样式版本号
+        type: integer
+    type: object
+  contactv3.InviteChatroomMemberResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  contactv3.ListMembersResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      chatroom:
+        description: 群ID
+        type: string
+      result:
+        allOf:
+        - $ref: '#/definitions/contactv3.ListMembersResponse_Result'
+        description: 群成员数据
+      server_version:
+        description: 服务端版本
+        type: integer
+    type: object
+  contactv3.ListMembersResponse_Result:
+    properties:
+      count:
+        description: 成员数量
+        type: integer
+      info_mask:
+        description: 信息掩码
+        type: integer
+      list:
+        description: 群成员列表
+        items:
+          $ref: '#/definitions/contactv3.ListMembersResponse_Result_MemberInfo'
+        type: array
+    type: object
+  contactv3.ListMembersResponse_Result_MemberInfo:
+    properties:
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      display_name:
+        description: 显示名称
+        type: string
+      flag:
+        description: 群成员标志
+        type: integer
+      inviter_username:
+        description: 邀请者用户名
+        type: string
+      nickname:
+        description: 昵称
+        type: string
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      username:
+        description: 用户名
+        type: string
+    type: object
+  contactv3.Member:
+    properties:
+      city:
+        description: 城市
+        type: string
+      contact_type:
+        description: 联系人类型
+        type: integer
+      country:
+        description: 国家
+        type: string
+      gender:
+        allOf:
+        - $ref: '#/definitions/basev3.Gender'
+        description: 性别
+      nickname:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 昵称
+      nickname_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 拼音首字母
+      nickname_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 全拼
+      personal_card:
+        description: 个人名片
+        type: integer
+      province:
+        description: 省份
+        type: string
+      remark:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 备注
+      remark_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 备注拼音首字母
+      remark_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 备注全拼简拼
+      signature:
+        description: 签名
+        type: string
+      status:
+        description: 成员状态
+        type: integer
+      username:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 成员用户名
+      verify_flag:
+        description: 验证标志
+        type: integer
+      verify_info:
+        description: 验证信息
+        type: string
+    type: object
+  contactv3.OpenIMContact:
+    properties:
+      antispam_ticket:
+        description: 反垃圾票据
+        type: string
+      app_id:
+        description: App ID
+        type: string
+      big_avatar:
+        description: 大头像
+        type: string
+      custom_info:
+        allOf:
+        - $ref: '#/definitions/contactv3.OpenIMContact_CustomInfo'
+        description: 自定义信息
+      desc_wording_id:
+        description: 描述措辞ID
+        type: string
+      gender:
+        allOf:
+        - $ref: '#/definitions/basev3.Gender'
+        description: 性别
+      nickname:
+        description: 昵称
+        type: string
+      nickname_jianpin:
+        description: 昵称拼音首字母
+        type: string
+      nickname_quanpin:
+        description: 昵称全拼
+        type: string
+      remark:
+        description: 备注
+        type: string
+      remark_jianpin:
+        description: 备注拼音首字母
+        type: string
+      remark_quanpin:
+        description: 备注全拼
+        type: string
+      small_avatar:
+        description: 小头像
+        type: string
+      source:
+        description: 来源
+        type: integer
+      type:
+        description: 类型
+        type: integer
+      username:
+        description: TP用户名
+        type: string
+    type: object
+  contactv3.OpenIMContact_CustomInfo:
+    properties:
+      detail:
+        description: 详情
+        type: string
+      detail_visible:
+        description: 详情可见
+        type: integer
+    type: object
+  contactv3.SearchContactResponse:
+    properties:
+      album_bg_image_id:
+        description: 相册背景图ID
+        type: string
+      album_flag:
+        description: 相册标志
+        type: integer
+      album_style:
+        description: 相册样式
+        type: integer
+      alias:
+        description: 别名
+        type: string
+      antispam_ticket:
+        description: 反垃圾票据
+        type: string
+      avatar_buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 头像缓冲区
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      brand_list:
+        description: 我的品牌列表
+        type: string
+      city:
+        description: 城市
+        type: string
+      contact_count:
+        description: 联系人数量
+        type: integer
+      contact_list:
+        description: 联系人列表
+        items:
+          $ref: '#/definitions/contactv3.SearchContactResponse_SearchContactItem'
+        type: array
+      country:
+        description: 国家
+        type: string
+      customized_info:
+        allOf:
+        - $ref: '#/definitions/contactv3.CustomizedInfo'
+        description: 自定义信息
+      gender:
+        allOf:
+        - $ref: '#/definitions/basev3.Gender'
+        description: 性别
+      kf_worker_id:
+        description: 客服工作者ID
+        type: string
+      match_type:
+        description: 匹配类型
+        type: integer
+      nickname:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 昵称
+      nickname_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 拼音首字母
+      nickname_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 全拼
+      open_im_contact_count:
+        description: OpenIM联系人数量
+        type: integer
+      open_im_contact_list:
+        description: OpenIM联系人列表
+        items:
+          $ref: '#/definitions/contactv3.OpenIMContact'
+        type: array
+      personal_card:
+        description: 个人名片
+        type: integer
+      popup_info_msg:
+        description: 弹窗信息
+        type: string
+      province:
+        description: 省份
+        type: string
+      response_buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 响应缓冲区
+      signature:
+        description: 签名
+        type: string
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      sns_user_info:
+        allOf:
+        - $ref: '#/definitions/contactv3.SnsUserInfo'
+        description: 朋友圈用户信息
+      username:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 用户名
+      verify_flag:
+        description: 验证标志
+        type: integer
+      verify_info:
+        description: 验证信息
+        type: string
+      weibo:
+        description: 微博
+        type: string
+      weibo_flag:
+        description: 微博标志
+        type: integer
+      weibo_nickname:
+        description: 微博昵称
+        type: string
+    type: object
+  contactv3.SearchContactResponse_SearchContactItem:
+    properties:
+      album_bg_image_id:
+        description: 相册背景图ID
+        type: string
+      album_flag:
+        description: 相册标志
+        type: integer
+      album_style:
+        description: 相册样式
+        type: integer
+      alias:
+        description: 别名
+        type: string
+      antispam_ticket:
+        description: 反垃圾票据
+        type: string
+      avatar_buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 头像缓冲区
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      brand_list:
+        description: 我的品牌列表
+        type: string
+      city:
+        description: 城市
+        type: string
+      country:
+        description: 国家
+        type: string
+      customized_info:
+        allOf:
+        - $ref: '#/definitions/contactv3.CustomizedInfo'
+        description: 自定义信息
+      gender:
+        allOf:
+        - $ref: '#/definitions/basev3.Gender'
+        description: 性别
+      match_type:
+        description: 匹配类型
+        type: integer
+      nickname:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 昵称
+      nickname_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 拼音首字母
+      nickname_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 全拼
+      personal_card:
+        description: 个人名片
+        type: integer
+      province:
+        description: 省份
+        type: string
+      signature:
+        description: 签名
+        type: string
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      sns_user_info:
+        allOf:
+        - $ref: '#/definitions/contactv3.SnsUserInfo'
+        description: 朋友圈用户信息
+      username:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 用户名
+      verify_flag:
+        description: 验证标志
+        type: integer
+      verify_info:
+        description: 验证信息
+        type: string
+      weibo:
+        description: 微博
+        type: string
+      weibo_flag:
+        description: 微博标志
+        type: integer
+      weibo_nickname:
+        description: 微博昵称
+        type: string
+    type: object
+  contactv3.SetChatroomAnnouncementResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  contactv3.SnsUserInfo:
+    properties:
+      bg_image_id:
+        description: 朋友圈背景图ID
+        type: string
+      bg_object_id:
+        description: 朋友圈背景对象ID
+        type: integer
+      flag:
+        description: 朋友圈标志
+        type: integer
+      flag_extend:
+        description: 朋友圈扩展标志
+        type: integer
+    type: object
+  contactv3.VerifyUserResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      username:
+        description: 用户名
+        type: string
+    type: object
+  favorite.CDNItem:
+    properties:
+      head256_md5:
+        description: 文件头部 MD5
+        type: string
+      id:
+        description: 文件标识
+        type: string
+      is_thumb:
+        description: 0 为原文件，1 为缩略图
+        enum:
+        - 0
+        - 1
+        type: integer
+      md5:
+        description: 文件 MD5
+        type: string
+      size:
+        description: 文件大小
+        type: integer
+      source_id:
+        description: 来源标识
+        type: string
+      source_type:
+        description: 来源类型
+        type: integer
+    required:
+    - id
+    - md5
+    type: object
+  favorite.SyncResult:
+    properties:
+      has_more:
+        description: 是否需要继续使用新游标同步
+        type: boolean
+      items:
+        description: 收藏变更元数据，正文通过批量查询获取
+        items:
+          $ref: '#/definitions/messagev3.AddFavoriteItem'
+        type: array
+      key:
+        description: 下次同步游标
+        items:
+          type: integer
+        type: array
+    type: object
+  favoritev3.BatchDeleteItemResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 结果数量
+        type: integer
+      results:
+        description: 删除结果列表
+        items:
+          $ref: '#/definitions/favoritev3.BatchDeleteItemResponse_Result'
+        type: array
+    type: object
+  favoritev3.BatchDeleteItemResponse_Result:
+    properties:
+      code:
+        description: 返回码
+        type: integer
+      id:
+        description: 收藏ID
+        type: integer
+    type: object
+  favoritev3.BatchGetItemResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 收藏项数量
+        type: integer
+      objects:
+        description: 收藏对象列表
+        items:
+          $ref: '#/definitions/favoritev3.BatchGetItemResponse_Object'
+        type: array
+    type: object
+  favoritev3.BatchGetItemResponse_Object:
+    properties:
+      flag:
+        description: 标志
+        type: integer
+      id:
+        description: 收藏ID
+        type: integer
+      object:
+        description: 收藏对象
+        type: string
+      status:
+        description: 状态
+        type: integer
+      update_sequence:
+        description: 更新序列
+        type: integer
+      update_time:
+        description: 更新时间
+        type: integer
+    type: object
+  favoritev3.CheckCDNResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 结果数量
+        type: integer
+      result:
+        description: 检查结果列表
+        items:
+          $ref: '#/definitions/favoritev3.CheckCDNResponse_Result'
+        type: array
+    type: object
+  favoritev3.CheckCDNResponse_Result:
+    properties:
+      aes_key:
+        description: AES密钥
+        type: string
+      data_status:
+        description: 数据状态
+        type: integer
+      encrypt_version:
+        description: 加密版本
+        type: integer
+      head256_md5:
+        description: 头部256 MD5
+        type: string
+      id:
+        description: 文件ID
+        type: string
+      md5:
+        description: MD5
+        type: string
+      media_id:
+        description: 媒体ID
+        type: string
+      size:
+        description: 文件大小
+        type: integer
+      status:
+        description: 状态
+        type: integer
+      url:
+        description: 文件URL
+        type: string
+    type: object
+  favoritev3.GetInfoResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      max_auto_download_size:
+        description: 最大自动下载大小
+        type: integer
+      max_auto_upload_size:
+        description: 最大自动上传大小
+        type: integer
+      max_file_size:
+        description: 最大文件大小
+        type: integer
+      total_size:
+        description: 总容量
+        type: integer
+      used_size:
+        description: 已使用容量
+        type: integer
+    type: object
+  favoritev3.ShareResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      url_count:
+        description: URL数量
+        type: integer
+      url_list:
+        description: URL列表
+        items:
+          $ref: '#/definitions/wrapperspb.StringValue'
+        type: array
+    type: object
+  handler.ChatroomAnnouncementData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      content:
+        description: 公告内容。
+        type: string
+      info_version:
+        description: 群信息版本号。
+        maximum: 2147483647
+        type: integer
+    required:
+    - chatroom
+    - content
+    - info_version
+    type: object
+  handler.ChatroomDisplayNameData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      display_name:
+        description: 显式空值表示清除群昵称。
+        type: string
+    required:
+    - chatroom
+    - display_name
+    type: object
+  handler.ChatroomNameData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      name:
+        description: 新群名称，不能为空。
+        type: string
+    required:
+    - chatroom
+    - name
+    type: object
+  handler.ChatroomOperateMemberData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      usernames:
+        description: 成员用户名数组。
+        items:
+          type: string
+        type: array
+    required:
+    - chatroom
+    - usernames
+    type: object
+  handler.ChatroomOwnerData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      username:
+        description: 接收群主身份的成员微信用户名。
+        type: string
+    required:
+    - chatroom
+    - username
+    type: object
+  handler.ChatroomRemarkData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      remark:
+        description: 显式空值表示清除备注。
+        type: string
+    required:
+    - chatroom
+    - remark
+    type: object
+  handler.ChatroomSavedData:
+    properties:
+      chatroom:
+        description: 群ID。
+        type: string
+      enabled:
+        description: 显式填写 true 保存或 false 取消保存。
+        type: boolean
+    required:
+    - chatroom
+    - enabled
+    type: object
+  handler.ContactRemarkData:
+    properties:
+      remark:
+        description: 备注，空字符串表示清除备注。
+        type: string
+      username:
+        description: 联系人用户名。
+        type: string
+    required:
+    - remark
+    - username
+    type: object
+  handler.ContactRequestData:
+    properties:
+      content:
+        type: string
+      scene:
+        maximum: 255
+        minimum: 1
+        type: integer
+      v1:
+        type: string
+      v2:
+        type: string
+    required:
+    - v1
+    - v2
+    type: object
+  handler.ContactVerifyData:
+    properties:
+      scene:
+        maximum: 255
+        minimum: 1
+        type: integer
+      v1:
+        type: string
+      v2:
+        type: string
+    required:
+    - v1
+    - v2
+    type: object
+  handler.FavoriteShareData:
+    properties:
+      ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+      receiver:
+        type: string
+      scene:
+        type: integer
+    required:
+    - ids
+    - receiver
+    type: object
+  handler.LabelAddData:
+    properties:
+      name:
+        description: 标签名称，不能为空。
+        type: string
+    required:
+    - name
+    type: object
+  handler.LabelModifyContactsData:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+      usernames:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - ids
+    - usernames
+    type: object
+  handler.MessageForwardCDNFileData:
+    properties:
+      aes_key:
+        type: string
+      app_id:
+        type: string
+      attach_id:
+        type: string
+      encrypt_version:
+        type: integer
+      file_ext:
+        type: string
+      file_id:
+        type: string
+      file_md5:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      is_large_file:
+        type: boolean
+      receiver:
+        description: 用户 wxid 或群聊 ID
+        type: string
+      sdk_version:
+        type: string
+    required:
+    - file_name
+    - receiver
+    type: object
+  handler.MessageForwardCDNImageData:
+    properties:
+      aes_key:
+        type: string
+      big_file_id:
+        type: string
+      big_file_size:
+        minimum: 0
+        type: integer
+      encrypt_version:
+        type: integer
+      file_id:
+        type: string
+      file_size:
+        type: integer
+      receiver:
+        description: 用户 wxid 或群聊 ID
+        type: string
+      thumb_aes_key:
+        type: string
+      thumb_height:
+        minimum: 0
+        type: integer
+      thumb_id:
+        type: string
+      thumb_size:
+        minimum: 0
+        type: integer
+      thumb_width:
+        minimum: 0
+        type: integer
+    required:
+    - aes_key
+    - receiver
+    type: object
+  handler.MessageForwardCDNVideoData:
+    properties:
+      aes_key:
+        type: string
+      duration:
+        type: integer
+      encrypt_version:
+        type: integer
+      file_id:
+        type: string
+      file_md5:
+        type: string
+      file_size:
+        type: integer
+      new_md5:
+        type: string
+      receiver:
+        description: 用户 wxid 或群聊 ID
+        type: string
+      thumb_aes_key:
+        type: string
+      thumb_height:
+        type: integer
+      thumb_id:
+        type: string
+      thumb_size:
+        type: integer
+      thumb_width:
+        type: integer
+    required:
+    - aes_key
+    - file_id
+    - receiver
+    type: object
+  handler.MessageForwardData:
+    properties:
+      receiver:
+        description: 新接收者
+        example: wxid_xxx
+        type: string
+      xml:
+        description: 原消息 XML
+        example: <msg>...</msg>
+        type: string
+    required:
+    - receiver
+    - xml
+    type: object
+  handler.MessageRevokeData:
+    properties:
+      client_id:
+        description: 客户端消息 ID
+        example: 87654321
+        type: integer
+      create_time:
+        description: 消息创建时间
+        example: 1700000000
+        type: integer
+      new_id:
+        description: 服务端消息 ID
+        example: 12345678
+        type: integer
+      receiver:
+        description: 消息接收者id
+        example: wxid_xxx
+        type: string
+    required:
+    - new_id
+    - receiver
+    type: object
+  handler.MessageSendAppData:
+    properties:
+      receiver:
+        description: 消息接收者id
+        example: wxid_xxx
+        type: string
+      type:
+        description: 应用消息类型
+        example: 1
+        type: integer
+      xml:
+        description: XML 内容
+        example: <appmsg>...</appmsg>
+        type: string
+    required:
+    - receiver
+    - type
+    - xml
+    type: object
+  handler.MessageSendLinkData:
+    properties:
+      desc:
+        description: 描述
+        example: 链接描述
+        type: string
+      receiver:
+        description: 消息接收者id
+        example: wxid_xxx
+        type: string
+      thumb_url:
+        description: 缩略图地址
+        example: https://example.com/thumb.jpg
+        type: string
+      title:
+        description: 标题
+        example: 链接标题
+        type: string
+      url:
+        description: 链接地址
+        example: https://example.com
+        type: string
+    required:
+    - desc
+    - receiver
+    - title
+    - url
+    type: object
+  handler.MessageSendNameCardData:
+    properties:
+      alias:
+        description: 名片所有者别名
+        example: 名片别名
+        type: string
+      nickname:
+        description: 名片所有者昵称
+        example: 名片昵称
+        type: string
+      receiver:
+        description: 消息接收者id
+        example: wxid_xxx
+        type: string
+      username:
+        description: 名片所有者id
+        example: wxid_xxx
+        type: string
+    required:
+    - alias
+    - nickname
+    - receiver
+    - username
+    type: object
+  handler.MessageSendPositionData:
+    properties:
+      label:
+        description: 标签
+        example: 广州市天河区
+        type: string
+      lat:
+        description: 纬度
+        example: 23.123456
+        type: number
+      lon:
+        description: 经度
+        example: 113.123456
+        type: number
+      name:
+        description: POI 名称
+        example: 天河城
+        type: string
+      receiver:
+        description: 消息接收者id
+        example: wxid_xxx
+        type: string
+      scale:
+        description: 缩放等级
+        example: 15
+        type: number
+    required:
+    - label
+    - lat
+    - lon
+    - name
+    - receiver
+    - scale
+    type: object
+  handler.MessageSendTextData:
+    properties:
+      content:
+        description: 消息正文
+        example: Hello, World!
+        type: string
+      receiver:
+        description: 消息接收者id
+        example: wxid_xxx
+        type: string
+      remind:
+        description: 群@成员id，多个使用逗号分隔
+        type: string
+    required:
+    - content
+    - receiver
+    type: object
+  handler.MiniappAddMobileData:
+    properties:
+      app_id:
+        type: string
+      code:
+        type: string
+      mobile:
+        type: string
+    required:
+    - app_id
+    - code
+    - mobile
+    type: object
+  handler.MiniappAppData:
+    properties:
+      app_id:
+        type: string
+    required:
+    - app_id
+    type: object
+  handler.MiniappAvatarData:
+    properties:
+      app_id:
+        type: string
+      file_key:
+        type: string
+      nickname:
+        type: string
+    required:
+    - app_id
+    - file_key
+    - nickname
+    type: object
+  handler.MiniappCheckCodeData:
+    properties:
+      app_id:
+        type: string
+      code:
+        type: string
+      mobile:
+        type: string
+      operate:
+        enum:
+        - 0
+        - 1
+        type: integer
+    required:
+    - app_id
+    - code
+    - mobile
+    type: object
+  handler.MiniappCloudData:
+    properties:
+      app_id:
+        type: string
+      data:
+        items:
+          type: integer
+        type: array
+    required:
+    - app_id
+    - data
+    type: object
+  handler.MiniappMobileData:
+    properties:
+      app_id:
+        type: string
+      mobile:
+        type: string
+    required:
+    - app_id
+    - mobile
+    type: object
+  handler.MiniappOpenIDData:
+    properties:
+      app_id:
+        type: string
+      username:
+        type: string
+    required:
+    - app_id
+    - username
+    type: object
+  handler.MiniappOperateData:
+    properties:
+      app_id:
+        type: string
+      data:
+        items:
+          type: integer
+        type: array
+      operate:
+        minimum: 0
+        type: integer
+    required:
+    - app_id
+    - data
+    type: object
+  handler.MiniappQrcodeData:
+    properties:
+      uuid:
+        type: string
+    required:
+    - uuid
+    type: object
+  handler.MiniappRecordData:
+    properties:
+      username:
+        type: string
+    required:
+    - username
+    type: object
+  handler.MiniappUploadAvatarData:
+    properties:
+      app_id:
+        type: string
+      image_url:
+        type: string
+    required:
+    - app_id
+    - image_url
+    type: object
+  handler.MiniappVerifyCodeData:
+    properties:
+      app_id:
+        type: string
+      mobile:
+        type: string
+      operate:
+        enum:
+        - 0
+        - 1
+        type: integer
+    required:
+    - app_id
+    - mobile
+    type: object
+  handler.MomentsPrivacyData:
+    properties:
+      id:
+        description: 朋友圈 ID
+        type: integer
+      privacy:
+        description: true:公开 false:私密
+        type: boolean
+    required:
+    - privacy
+    type: object
+  handler.OfficialURLData:
+    properties:
+      url:
+        type: string
+    required:
+    - url
+    type: object
+  handler.Response:
+    properties:
+      code:
+        description: 状态码，0表示成功
+        type: integer
+      data:
+        description: 响应数据
+      message:
+        description: 状态信息
+        type: string
+    type: object
+  handler.UserAliasData:
+    properties:
+      alias:
+        type: string
+    required:
+    - alias
+    type: object
+  handler.UserDeleteSafeDeviceData:
+    properties:
+      uuid:
+        type: string
+    required:
+    - uuid
+    type: object
+  handler.UserMotionData:
+    properties:
+      device_id:
+        type: string
+      device_type:
+        type: string
+      step_count:
+        minimum: 0
+        type: integer
+    required:
+    - device_id
+    - device_type
+    - step_count
+    type: object
+  handler.UserPrivacyData:
+    properties:
+      function:
+        type: integer
+      value:
+        minimum: 0
+        type: integer
+    required:
+    - value
+    type: object
+  labelv3.AddContactResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 标签数量
+        type: integer
+      list:
+        allOf:
+        - $ref: '#/definitions/labelv3.Pair'
+        description: 标签项
+    type: object
+  labelv3.DeleteContactResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  labelv3.GetContactListResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 标签数量
+        type: integer
+      list:
+        description: 标签列表
+        items:
+          $ref: '#/definitions/labelv3.Pair'
+        type: array
+    type: object
+  labelv3.ModifyContactListResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  labelv3.Pair:
+    properties:
+      id:
+        description: 标签ID
+        type: integer
+      name:
+        description: 标签名称
+        type: string
+    type: object
+  labelv3.UpdateContactResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  login.QRCodeResult:
+    properties:
+      check_time:
+        description: 检查间隔时间（秒）
+        example: 30
+        type: integer
+      data:
+        description: 二维码Base64数据
+        example: base64二维码数据
+        type: string
+      expired_time:
+        description: 过期时间（秒）
+        example: 240
+        type: integer
+      url:
+        description: 二维码URL
+        example: weixin://qr/xxx
+        type: string
+      uuid:
+        description: UUID
+        example: abc123def456
+        type: string
+    type: object
+  messagev3.AddFavoriteItem:
+    properties:
+      flag:
+        description: 标志
+        type: integer
+      id:
+        description: 收藏ID
+        type: integer
+      type:
+        description: 收藏类型
+        type: integer
+      update_sequence:
+        description: 更新序列
+        type: integer
+      update_time:
+        description: 更新时间
+        type: integer
+    type: object
+  messagev3.CustomizedInfo:
+    properties:
+      brand_flag:
+        description: 品牌标志
+        type: integer
+      brand_icon_url:
+        description: 品牌图标URL
+        type: string
+      brand_info:
+        description: 品牌信息
+        type: string
+      extend_info:
+        description: 外部信息
+        type: string
+    type: object
+  messagev3.DisturbSetting:
+    properties:
+      all_day_setting:
+        description: 全天设置
+        type: integer
+      all_day_time:
+        allOf:
+        - $ref: '#/definitions/messagev3.DisturbSetting_TimeSpan'
+        description: 全天时间
+      night_setting:
+        description: 夜间设置
+        type: integer
+      night_time:
+        allOf:
+        - $ref: '#/definitions/messagev3.DisturbSetting_TimeSpan'
+        description: 夜间时间
+    type: object
+  messagev3.DisturbSetting_TimeSpan:
+    properties:
+      begin_hour:
+        description: 开始小时
+        type: integer
+      begin_min:
+        description: 开始分钟
+        type: integer
+      end_hour:
+        description: 结束小时
+        type: integer
+      end_min:
+        description: 结束分钟
+        type: integer
+    type: object
+  messagev3.LinkedinContactItem:
+    properties:
+      linkedin_member_id:
+        description: LinkedIn成员ID
+        type: string
+      linkedin_name:
+        description: LinkedIn名称
+        type: string
+      linkedin_public_url:
+        description: LinkedIn公开URL
+        type: string
+    type: object
+  messagev3.ModifyContact:
+    properties:
+      add_contact_scene:
+        description: 添加联系人场景
+        type: integer
+      additional_contact_list:
+        allOf:
+        - $ref: '#/definitions/messagev3.ModifyContact_AdditionalContactList'
+        description: 附加联系人列表
+      album_bg_image_id:
+        description: 相册背景图ID
+        type: string
+      album_flag:
+        description: 相册标志
+        type: integer
+      album_style:
+        description: 相册样式
+        type: integer
+      alias:
+        description: 别名
+        type: string
+      avatar_buffer:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 头像缓冲区
+      avatar_md5:
+        description: 头像MD5
+        type: string
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      bit_mask:
+        description: 位掩码
+        type: integer
+      bit_value:
+        description: 位值
+        type: integer
+      brand_list:
+        description: 我的品牌列表
+        type: string
+      card_image_url:
+        description: 名片图片URL
+        type: string
+      chatroom_access_type:
+        description: 群聊访问类型
+        type: integer
+      chatroom_business_type:
+        description: 群聊业务类型
+        type: integer
+      chatroom_data:
+        description: 群聊数据
+        type: string
+      chatroom_info_count:
+        description: 群组信息数量
+        type: integer
+      chatroom_info_list:
+        description: 群组信息列表
+        items:
+          $ref: '#/definitions/messagev3.ModifyContact_ChatroomInfo'
+        type: array
+      chatroom_info_version:
+        description: 群聊信息版本
+        type: integer
+      chatroom_max_count:
+        description: 群聊最大人数
+        type: integer
+      chatroom_notify:
+        description: 群聊通知
+        type: integer
+      chatroom_owner:
+        description: 群主
+        type: string
+      chatroom_status:
+        description: 群聊状态
+        type: integer
+      chatroom_version:
+        description: 群聊版本
+        type: integer
+      city:
+        description: 城市
+        type: string
+      contact_type:
+        description: 联系人类型
+        type: integer
+      country:
+        description: 国家
+        type: string
+      customized_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.CustomizedInfo'
+        description: 自定义信息
+      delete_contact_scene:
+        description: 删除联系人场景
+        type: integer
+      delete_flag:
+        description: 删除标志
+        type: integer
+      description:
+        description: 描述
+        type: string
+      domain_list:
+        description: 域列表
+        items:
+          $ref: '#/definitions/wrapperspb.StringValue'
+        type: array
+      encrypt_username:
+        description: 加密用户名
+        type: string
+      extend_flag:
+        description: 扩展标志
+        type: integer
+      extend_info:
+        description: 扩展信息
+        type: string
+      gender:
+        allOf:
+        - $ref: '#/definitions/basev3.Gender'
+        description: 性别
+      has_hd_avatar:
+        description: 是否有微信高清头像
+        type: integer
+      id_card_num:
+        description: 身份证号
+        type: string
+      image_flag:
+        description: 头像标志
+        type: integer
+      label_id_list:
+        description: 标签ID列表
+        type: string
+      level:
+        description: 等级
+        type: integer
+      members:
+        allOf:
+        - $ref: '#/definitions/messagev3.ModifyContact_ChatroomMemberData'
+        description: 群成员数据
+      micro_store_info:
+        description: 微店信息
+        type: string
+      mobile_full_hash:
+        description: 手机完整哈希
+        type: string
+      mobile_hash:
+        description: 手机哈希
+        type: string
+      mobile_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.ModifyContact_MobileInfo'
+        description: 电话号码列表信息
+      nickname:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 昵称
+      nickname_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 拼音首字母
+      nickname_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 全拼
+      personal_card:
+        description: 个人名片
+        type: integer
+      province:
+        description: 省份
+        type: string
+      real_name:
+        description: 真实姓名
+        type: string
+      remark:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 备注
+      remark_jianpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 备注拼音首字母
+      remark_quanpin:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 备注全拼简拼
+      signature:
+        description: 签名
+        type: string
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      sns_user_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.SnsUserInfo'
+        description: 朋友圈用户信息
+      source:
+        description: 来源
+        type: integer
+      source_extend_info:
+        description: 来源扩展信息
+        type: string
+      username:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 用户名
+      verify_content:
+        description: 验证内容
+        type: string
+      verify_flag:
+        description: 验证标志
+        type: integer
+      verify_info:
+        description: 验证信息
+        type: string
+      weibo:
+        description: 微博
+        type: string
+      weibo_flag:
+        description: 微博标志
+        type: integer
+      weibo_nickname:
+        description: 微博昵称
+        type: string
+    type: object
+  messagev3.ModifyContact_AdditionalContactList:
+    properties:
+      item:
+        allOf:
+        - $ref: '#/definitions/messagev3.ModifyContact_AdditionalContactList_LinkedinItem'
+        description: LinkedIn联系人项
+    type: object
+  messagev3.ModifyContact_AdditionalContactList_LinkedinItem:
+    properties:
+      member_id:
+        description: LinkedIn成员ID
+        type: string
+      name:
+        description: LinkedIn名称
+        type: string
+      public_url:
+        description: LinkedIn公开URL
+        type: string
+    type: object
+  messagev3.ModifyContact_ChatroomInfo:
+    properties:
+      nickname:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 昵称
+      username:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 用户名
+    type: object
+  messagev3.ModifyContact_ChatroomMemberData:
+    properties:
+      count:
+        description: 成员数量
+        type: integer
+      info_mask:
+        description: 信息掩码
+        type: integer
+      list:
+        description: 群成员列表
+        items:
+          $ref: '#/definitions/messagev3.ModifyContact_ChatroomMemberData_MemberInfo'
+        type: array
+    type: object
+  messagev3.ModifyContact_ChatroomMemberData_MemberInfo:
+    properties:
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      chatroom_member_flag:
+        description: 群成员标志
+        type: integer
+      display_name:
+        description: 显示名称
+        type: string
+      extend_xml:
+        description: 入群追溯消息
+        type: string
+      inviter_username:
+        description: 邀请者用户名
+        type: string
+      nickname:
+        description: 昵称
+        type: string
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      username:
+        description: 用户名
+        type: string
+    type: object
+  messagev3.ModifyContact_MobileInfo:
+    properties:
+      count:
+        description: 数量
+        type: integer
+      list:
+        description: 电话号码列表
+        items:
+          type: string
+        type: array
+    type: object
+  messagev3.ModifyUserInfo:
+    properties:
+      album_bg_image_id:
+        description: 相册背景图ID
+        type: string
+      album_flag:
+        description: 相册标志
+        type: integer
+      album_style:
+        description: 相册样式
+        type: integer
+      alias:
+        description: 别名
+        type: string
+      avatar_buffer:
+        description: 头像缓冲区
+        items:
+          type: integer
+        type: array
+      avatar_len:
+        description: 头像长度
+        type: integer
+      bit_flag:
+        description: 位标志
+        type: integer
+      city:
+        description: 城市
+        type: string
+      country:
+        description: 国家
+        type: string
+      disturb_setting:
+        allOf:
+        - $ref: '#/definitions/messagev3.DisturbSetting'
+        description: 免打扰设置
+      email:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 绑定邮箱
+      experience:
+        description: 经验
+        type: integer
+      facebook_flag:
+        description: Facebook标志
+        type: integer
+      facebook_token:
+        description: Facebook令牌
+        type: string
+      facebook_userid:
+        description: Facebook用户ID
+        type: integer
+      facebook_username:
+        description: Facebook用户名
+        type: string
+      gender:
+        allOf:
+        - $ref: '#/definitions/basev3.Gender'
+        description: 性别
+      gmail_list:
+        allOf:
+        - $ref: '#/definitions/messagev3.ModifyUserInfo_GmailList'
+        description: Gmail列表
+      level:
+        description: 等级
+        type: integer
+      level_high_experience:
+        description: 等级高经验
+        type: integer
+      level_low_experience:
+        description: 等级低经验
+        type: integer
+      mobile:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 绑定手机
+      news_category:
+        description: 腾讯新闻分类
+        type: integer
+      nick_name:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 昵称
+      personal_card:
+        description: 个人名片
+        type: integer
+      plugin_flag:
+        description: 插件标志
+        type: integer
+      plugin_switch:
+        description: 插件开关
+        type: integer
+      point:
+        description: 积分
+        type: integer
+      province:
+        description: 省份
+        type: string
+      signature:
+        description: 签名
+        type: string
+      status:
+        description: 状态
+        type: integer
+      uin:
+        description: 绑定UIN
+        type: integer
+      user_name:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 用户名
+      verify_flag:
+        description: 验证标志
+        type: integer
+      verify_info:
+        description: 验证信息
+        type: string
+      weibo:
+        description: 微博
+        type: string
+      weibo_flag:
+        description: 微博标志
+        type: integer
+      weibo_nickname:
+        description: 微博昵称
+        type: string
+    type: object
+  messagev3.ModifyUserInfo_GmailList:
+    properties:
+      count:
+        description: 数量
+        type: integer
+      list:
+        description: 列表
+        items:
+          $ref: '#/definitions/messagev3.ModifyUserInfo_GmailList_Info'
+        type: array
+    type: object
+  messagev3.ModifyUserInfo_GmailList_Info:
+    properties:
+      account:
+        description: Gmail账号
+        type: string
+      err_code:
+        description: Gmail错误码
+        type: integer
+      switch:
+        description: Gmail开关
+        type: integer
+    type: object
+  messagev3.MomentsObject:
+    properties:
+      app_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject_AppInfo'
+        description: 应用信息
+      black_list:
+        description: 黑名单
+        items:
+          $ref: '#/definitions/basev3.Buffer'
+        type: array
+      black_list_count:
+        description: 黑名单数量
+        type: integer
+      chatroom_count:
+        description: 分组数量
+        type: integer
+      chatroom_list:
+        description: 分组ID列表
+        items:
+          $ref: '#/definitions/wrapperspb.UInt64Value'
+        type: array
+      chatroom_user:
+        description: 分组用户
+        items:
+          $ref: '#/definitions/basev3.Buffer'
+        type: array
+      chatroom_user_count:
+        description: 分组用户数量
+        type: integer
+      comment_count:
+        description: 评论数量
+        type: integer
+      comment_user_count:
+        description: 评论用户数量
+        type: integer
+      comment_user_list:
+        description: 评论用户列表
+        items:
+          $ref: '#/definitions/messagev3.MomentsObject_CommentInfo'
+        type: array
+      create_time:
+        description: 创建时间
+        type: integer
+      delete_flag:
+        description: 删除标志
+        type: integer
+      extend_flag:
+        description: 扩展标志
+        type: integer
+      id:
+        description: ID
+        type: integer
+      is_not_rich_text:
+        description: 是否非富文本
+        type: integer
+      like_count:
+        description: 点赞数量
+        type: integer
+      like_flag:
+        description: 点赞标志
+        type: integer
+      like_user_count:
+        description: 点赞用户数量
+        type: integer
+      like_user_list:
+        description: 点赞用户列表
+        items:
+          $ref: '#/definitions/messagev3.MomentsObject_CommentInfo'
+        type: array
+      nickname:
+        description: 昵称
+        type: string
+      no_change:
+        description: 无变化标志
+        type: integer
+      object_description:
+        allOf:
+        - $ref: '#/definitions/basev3.TextBuffer'
+        description: 对象 XML 描述，包含字节长度和正文
+      object_operation:
+        description: 对象操作数据
+        items:
+          $ref: '#/definitions/basev3.Buffer'
+        type: array
+      pre_download_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject_PreDownloadInfo'
+        description: 预下载信息
+      red_envelops:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject_RedEnvelops'
+        description: 红包信息
+      refer_id:
+        description: 引用ID
+        type: integer
+      refer_username:
+        description: 引用用户名
+        type: string
+      username:
+        description: 用户名
+        type: string
+      with_count:
+        description: 关联数量
+        type: integer
+      with_user_count:
+        description: 关联用户数量
+        type: integer
+      with_user_list:
+        description: 关联用户列表
+        items:
+          $ref: '#/definitions/messagev3.MomentsObject_CommentInfo'
+        type: array
+    type: object
+  messagev3.MomentsObject_AppInfo:
+    properties:
+      app_id:
+        description: App ID
+        type: integer
+      map_poi_id:
+        description: 地图POI ID
+        type: string
+      r_score:
+        description: R分数
+        type: integer
+      redirect_url:
+        description: 重定向URL
+        type: string
+      show_type:
+        description: 显示类型
+        type: integer
+      username:
+        description: 用户名
+        type: string
+    type: object
+  messagev3.MomentsObject_CommentInfo:
+    properties:
+      comment_flag:
+        description: 评论标志
+        type: integer
+      comment_id:
+        description: 评论ID
+        type: integer
+      comment_id2:
+        description: 评论ID2
+        type: integer
+      content:
+        description: 内容
+        type: string
+      create_time:
+        description: 创建时间
+        type: integer
+      delete_flag:
+        description: 删除标志
+        type: integer
+      is_not_rich_text:
+        description: 是否非富文本
+        type: integer
+      nickname:
+        description: 昵称
+        type: string
+      reply_comment_id:
+        description: 回复评论ID
+        type: integer
+      reply_comment_id2:
+        description: 回复评论ID2
+        type: integer
+      reply_username:
+        description: 回复用户名
+        type: string
+      source:
+        description: 来源
+        type: integer
+      type:
+        description: 类型
+        type: integer
+      username:
+        description: 用户名
+        type: string
+    type: object
+  messagev3.MomentsObject_PreDownloadInfo:
+    properties:
+      net_type:
+        description: 网络类型
+        type: integer
+      no_pre_download_range:
+        description: 不预下载范围
+        type: string
+      percent:
+        description: 百分比
+        type: integer
+    type: object
+  messagev3.MomentsObject_RedEnvelops:
+    properties:
+      report_id:
+        description: 上报ID
+        type: integer
+      report_key:
+        description: 上报密钥
+        type: integer
+      resource_id:
+        description: 资源ID
+        type: integer
+      reward_count:
+        description: 打赏数量
+        type: integer
+      reward_user_list:
+        description: 打赏用户列表
+        items:
+          type: integer
+        type: array
+    type: object
+  messagev3.MomentsOperate:
+    properties:
+      extend:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 扩展数据
+      id:
+        description: ID
+        type: integer
+      operate:
+        description: 操作类型
+        type: integer
+    type: object
+  messagev3.PatternLockInfo:
+    properties:
+      lock_status:
+        description: 锁定状态
+        type: integer
+      pattern_version:
+        description: 图案版本
+        type: integer
+      sign:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 签名
+    type: object
+  messagev3.RevokeMessageResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      introduction:
+        description: 介绍
+        type: string
+      sys_wording:
+        description: 系统提示语
+        type: string
+    type: object
+  messagev3.SafeDevice:
+    properties:
+      create_time:
+        description: 创建时间
+        type: integer
+      device_type:
+        description: 设备类型
+        type: string
+      name:
+        description: 名称
+        type: string
+      uuid:
+        description: UUID
+        type: string
+    type: object
+  messagev3.SafeDeviceList:
+    properties:
+      count:
+        description: 数量
+        type: integer
+      list:
+        description: 列表
+        items:
+          $ref: '#/definitions/messagev3.SafeDevice'
+        type: array
+    type: object
+  messagev3.SendAppMessageResponse:
+    properties:
+      action_flag:
+        description: 操作标志
+        type: integer
+      aes_key:
+        description: AES密钥
+        type: string
+      app_id:
+        description: App ID
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      client_id:
+        description: 客户端消息ID
+        type: string
+      create_time:
+        description: 创建时间
+        type: integer
+      extend_xml:
+        description: 扩展XML
+        type: string
+      id:
+        description: 消息ID
+        type: integer
+      new_id:
+        description: 新消息ID
+        type: integer
+      receiver:
+        description: 接收者用户名
+        type: string
+      sender:
+        description: 发送者用户名
+        type: string
+      type:
+        description: 消息类型
+        type: integer
+    type: object
+  messagev3.SendMessageResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 数量
+        type: integer
+      list:
+        description: 响应列表
+        items:
+          $ref: '#/definitions/messagev3.SendMessageResponse_Result'
+        type: array
+      unknown:
+        description: 未知字段
+        type: integer
+    type: object
+  messagev3.SendMessageResponse_Result:
+    properties:
+      client_id:
+        description: 客户端消息ID
+        type: integer
+      code:
+        description: 返回码，0-成功，-22-消息已发出但被对方拒收（被拉黑），-44-对方开启了朋友验证（被删除好友）
+        type: integer
+      create_time:
+        description: 创建时间
+        type: integer
+      id:
+        description: 消息ID
+        type: integer
+      new_id:
+        description: 新消息ID
+        type: integer
+      receiver:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 接收者用户名
+      server_time:
+        description: 服务器时间
+        type: integer
+      type:
+        description: 类型
+        type: integer
+    type: object
+  messagev3.SnsUserInfo:
+    properties:
+      bg_image_id:
+        description: 朋友圈背景图ID
+        type: string
+      bg_object_id:
+        description: 朋友圈背景对象ID
+        type: integer
+      flag:
+        description: 朋友圈标志
+        type: integer
+      flag_extend:
+        description: 朋友圈扩展标志
+        type: integer
+    type: object
+  messagev3.UploadEmojiResponse:
+    properties:
+      action_flag:
+        description: 操作标志
+        type: integer
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: emoji项目数量
+        type: integer
+      result:
+        description: emoji上传响应列表
+        items:
+          $ref: '#/definitions/messagev3.UploadEmojiResponse_Result'
+        type: array
+    type: object
+  messagev3.UploadEmojiResponse_Result:
+    properties:
+      code:
+        description: 返回码
+        type: integer
+      id:
+        description: 消息ID
+        type: integer
+      md5:
+        description: MD5值
+        type: string
+      new_id:
+        description: 新消息ID
+        type: integer
+      offset:
+        description: 起始位置
+        type: integer
+      size:
+        description: 总长度
+        type: integer
+    type: object
+  messagev3.UploadImageResponse:
+    properties:
+      aes_key:
+        description: AES密钥
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      chunk_size:
+        description: 数据长度
+        type: integer
+      client_id:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 客户端图片ID
+      create_time:
+        description: 创建时间
+        type: integer
+      extend_xml:
+        description: 扩展XML
+        type: string
+      file_id:
+        description: 文件ID
+        type: string
+      id:
+        description: 消息ID
+        type: integer
+      new_id:
+        description: 新消息ID
+        type: integer
+      offset:
+        description: 起始位置
+        type: integer
+      receiver:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 接收者用户名
+      sender:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 发送者用户名
+      size:
+        description: 总长度
+        type: integer
+    type: object
+  messagev3.UploadVideoResponse:
+    properties:
+      action_flag:
+        description: 操作标志
+        type: integer
+      aes_key:
+        description: AES密钥
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      client_id:
+        description: 客户端消息ID
+        type: string
+      extend_xml:
+        description: 扩展XML
+        type: string
+      id:
+        description: 消息ID
+        type: integer
+      new_id:
+        description: 新消息ID
+        type: integer
+      thumb_offset:
+        description: 缩略图偏移量
+        type: integer
+      video_offset:
+        description: 视频偏移量
+        type: integer
+    type: object
+  messagev3.UploadVoiceResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      cancel_flag:
+        description: 取消标志
+        type: integer
+      client_id:
+        description: 客户端消息ID
+        type: string
+      create_time:
+        description: 创建时间
+        type: integer
+      duration:
+        description: 语音时长（毫秒）
+        type: integer
+      end_flag:
+        description: 结束标志
+        type: integer
+      id:
+        description: 消息ID
+        type: integer
+      new_id:
+        description: 新消息ID
+        type: integer
+      offset:
+        description: 数据偏移量
+        type: integer
+      receiver:
+        description: 接收者用户名
+        type: string
+      sender:
+        description: 发送者用户名
+        type: string
+      size:
+        description: 数据长度
+        type: integer
+    type: object
+  messagev3.UserInfoExtend:
+    properties:
+      bbm_nick_name:
+        description: BBM昵称
+        type: string
+      bbp_in:
+        description: BBPIN
+        type: string
+      bbp_pid:
+        description: BBPPID
+        type: string
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      big_chatroom_invite:
+        description: 大群邀请
+        type: integer
+      big_chatroom_quota:
+        description: 大群配额
+        type: integer
+      big_chatroom_size:
+        description: 大群大小
+        type: integer
+      brand_list:
+        description: 我的品牌列表
+        type: string
+      extend_status:
+        description: 扩展状态
+        type: integer
+      extend_xml:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 扩展XML
+      f2f_push_sound:
+        description: 面对面推送声音
+        type: string
+      google_contact_name:
+        description: Google联系人名称
+        type: string
+      grayscale_flag:
+        description: 灰度标志
+        type: integer
+      id_card_num:
+        description: 身份证号
+        type: string
+      kf_info:
+        description: 客服信息
+        type: string
+      linkedin_contact_item:
+        allOf:
+        - $ref: '#/definitions/messagev3.LinkedinContactItem'
+        description: LinkedIn联系人项
+      main_account_type:
+        description: 主账号类型
+        type: integer
+      message_push_sound:
+        description: 消息推送声音
+        type: string
+      micro_store_info:
+        description: 微店信息
+        type: string
+      pattern_lock_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.PatternLockInfo'
+        description: 图案锁信息
+      pay_setting:
+        description: 支付设置
+        type: integer
+      pay_wallet_type:
+        description: 支付钱包类型
+        type: integer
+      real_name:
+        description: 真实姓名
+        type: string
+      registry_country:
+        description: 注册国家
+        type: string
+      safe_device:
+        description: 安全设备
+        type: integer
+      safe_device_list:
+        allOf:
+        - $ref: '#/definitions/messagev3.SafeDeviceList'
+        description: 安全设备列表
+      safe_mobile:
+        description: 安全手机
+        type: string
+      security_device_id:
+        description: 安全设备ID
+        type: string
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+      user_status:
+        description: 用户状态
+        type: integer
+      voip_push_sound:
+        description: VoIP推送声音
+        type: string
+      wallet_region:
+        description: 钱包地区
+        type: integer
+    type: object
+  miniapp.OauthSdkAppParams:
+    properties:
+      app_id:
+        type: string
+      avatar_id:
+        minimum: 0
+        type: integer
+      package_name:
+        type: string
+      state:
+        type: string
+    required:
+    - app_id
+    type: object
+  miniapp.PhoneItem:
+    properties:
+      allow_send_sms:
+        type: boolean
+      encryptedData:
+        type: string
+      is_check:
+        type: boolean
+      is_wechat:
+        type: boolean
+      iv:
+        type: string
+      mobile:
+        type: string
+      need_auth:
+        type: boolean
+      show_mobile:
+        type: string
+    type: object
+  miniapp.SessionQRCodeParams:
+    properties:
+      app_id:
+        type: string
+      nonce:
+        type: string
+      package:
+        type: string
+      pay_sign:
+        type: string
+      session_id:
+        type: string
+      timestamp:
+        type: string
+    required:
+    - app_id
+    - nonce
+    - package
+    - pay_sign
+    - session_id
+    - timestamp
+    type: object
+  miniapp.ThirdAppGrantParams:
+    properties:
+      app_id:
+        type: string
+      url:
+        type: string
+    required:
+    - app_id
+    - url
+    type: object
+  miniappv3.BizJsApiGetUserOpenIdResponse:
+    properties:
+      avatar_url:
+        description: 头像URL
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      friend_relation:
+        description: 好友关系
+        type: integer
+      nickname:
+        description: 昵称
+        type: string
+      open_id:
+        description: OpenID
+        type: string
+      signature:
+        description: 签名
+        type: string
+    type: object
+  miniappv3.CheckVerifyCodeResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      cloud_id:
+        description: 云端ID
+        type: string
+      encrypted_data:
+        description: 加密数据
+        type: string
+      iv:
+        description: 初始向量
+        type: string
+      show_mobile:
+        description: 展示手机号
+        type: string
+      status:
+        description: 状态
+        type: integer
+    type: object
+  miniappv3.GetRuntimeSessionResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      expire:
+        description: 过期时间
+        type: integer
+      session_id:
+        description: 会话ID
+        type: string
+    type: object
+  miniappv3.GetUsageRecordResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      history_list:
+        description: 历史列表
+        items:
+          $ref: '#/definitions/miniappv3.GetUsageRecordResponse_Item'
+        type: array
+      result:
+        allOf:
+        - $ref: '#/definitions/miniappv3.Result'
+        description: 业务结果
+      star_list:
+        description: 收藏列表
+        items:
+          $ref: '#/definitions/miniappv3.GetUsageRecordResponse_Item'
+        type: array
+      status:
+        description: 状态
+        type: integer
+    type: object
+  miniappv3.GetUsageRecordResponse_Item:
+    properties:
+      app_desc:
+        description: 小程序描述
+        type: string
+      is_from_outer:
+        description: 是否来自外部
+        type: boolean
+      order:
+        description: 排序值
+        type: integer
+      update_time:
+        description: 更新时间
+        type: integer
+      username:
+        description: 用户名
+        type: string
+      version_type:
+        description: 版本类型
+        type: integer
+    type: object
+  miniappv3.JSLoginResponse:
+    properties:
+      app_icon:
+        description: 应用图标
+        type: string
+      app_name:
+        description: 应用名称
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      code:
+        description: 授权码
+        type: string
+      jsapi_result:
+        allOf:
+        - $ref: '#/definitions/miniappv3.Result'
+        description: JSAPI结果
+      lifespan:
+        description: 有效期
+        type: integer
+      openid:
+        description: OpenID
+        type: string
+      scope_info:
+        allOf:
+        - $ref: '#/definitions/miniappv3.ScopeInfo'
+        description: 授权范围信息
+      session_key:
+        description: 会话密钥
+        type: string
+      session_ticket:
+        description: 会话票据
+        type: string
+      signature:
+        description: 签名
+        type: string
+      state:
+        description: 状态
+        type: string
+    type: object
+  miniappv3.JSOperateResponse:
+    properties:
+      allow_wording:
+        description: 允许文案
+        type: string
+      app_icon:
+        description: 应用图标
+        type: string
+      app_name:
+        description: 应用名称
+        type: string
+      apply_wording:
+        description: 申请文案
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      cancel_wording:
+        description: 取消文案
+        type: string
+      data:
+        description: 数据
+        items:
+          type: integer
+        type: array
+      jsapi_result:
+        allOf:
+        - $ref: '#/definitions/miniappv3.Result'
+        description: JSAPI结果
+      scope_info:
+        allOf:
+        - $ref: '#/definitions/miniappv3.ScopeInfo'
+        description: 授权范围信息
+    type: object
+  miniappv3.OAuthAddAvatarImageResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      cdn_url:
+        description: CDN URL
+        type: string
+      file_key:
+        description: 文件Key
+        type: string
+    type: object
+  miniappv3.OAuthGetRandomAvatarResponse:
+    properties:
+      avatar_url:
+        description: 头像URL
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      file_key:
+        description: 文件Key
+        type: string
+      nickname:
+        description: 昵称
+        type: string
+    type: object
+  miniappv3.PostVerifyCodeResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      status:
+        description: 状态
+        type: integer
+    type: object
+  miniappv3.Result:
+    properties:
+      code:
+        description: 结果码
+        type: integer
+      error:
+        description: 错误信息
+        type: string
+    type: object
+  miniappv3.SDKOAuthAuthorizeConfirmResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      redirect_url:
+        description: 重定向URL
+        type: string
+      token:
+        description: Token
+        type: string
+      user_confirm_redirect_url:
+        description: 用户确认重定向URL
+        type: string
+      user_confirm_wording:
+        description: 用户确认文案
+        type: string
+    type: object
+  miniappv3.ScopeInfo:
+    properties:
+      auth_description:
+        description: 授权描述
+        type: string
+      auth_state:
+        description: 授权状态
+        type: integer
+      description:
+        description: 描述
+        type: string
+      extend_desc:
+        description: 扩展描述
+        type: string
+      scope:
+        description: 授权范围
+        type: string
+    type: object
+  moments.CommentParams:
+    properties:
+      client_id:
+        description: 本次互动的客户端请求标识，留空自动生成，同一次请求重试时可复用。
+        type: string
+      content:
+        description: 评论正文，评论时必填，点赞时不能填写。
+        type: string
+      id:
+        description: 朋友圈 ID，必填。
+        type: integer
+      object_create_time:
+        description: 原朋友圈的创建时间，Unix 秒，可从朋友圈 create_time 获取；可省略。
+        minimum: 0
+        type: integer
+      receiver:
+        description: 写入 current_action.receiver，留空使用朋友圈作者；不等同于 refer_action 中的被回复者。
+        type: string
+      receiver_nickname:
+        description: 当前动作接收者的昵称，可省略，不用于确定用户身份。
+        type: string
+      reply_comment_id:
+        description: 被回复评论的 comment_id；普通评论、点赞时为 0。
+        minimum: 0
+        type: integer
+      reply_comment_id2:
+        description: 被回复评论的 comment_id2，独立的 64 位协议字段，按响应原值填写。
+        type: integer
+      type:
+        description: 互动类型：1 点赞，2 文字评论。
+        enum:
+        - 1
+        - 2
+        type: integer
+      username:
+        description: 朋友圈作者的微信用户名，必填，不是当前登录用户。
+        type: string
+    required:
+    - username
+    type: object
+  moments.Operation:
+    properties:
+      extend:
+        description: 协议扩展数据，JSON 使用 Base64，删除评论时必填。
+        items:
+          type: integer
+        type: array
+      id:
+        description: 被操作的朋友圈 ID，必填。
+        type: integer
+      type:
+        description: 1 删除、2 私密、3 公开、4 删除评论、5 取消当前用户的点赞。
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        type: integer
+    type: object
+  moments.SyncResult:
+    properties:
+      has_more:
+        description: 是否还有下一页，为 true 时继续携带 key 拉取。
+        type: boolean
+      key:
+        description: 下一次同步使用的游标，JSON 编码为 Base64。
+        items:
+          type: integer
+        type: array
+      objects:
+        description: 本页新增或更新的朋友圈对象。
+        items:
+          $ref: '#/definitions/messagev3.MomentsObject'
+        type: array
+      operations:
+        description: 本页朋友圈互动或操作事件。
+        items:
+          $ref: '#/definitions/messagev3.MomentsOperate'
+        type: array
+      unknown:
+        description: 未识别的同步命令，保留原始数据供排查。
+        items:
+          $ref: '#/definitions/basev3.Commands_Item'
+        type: array
+    type: object
+  momentsv3.ADObject:
+    properties:
+      ad_xml:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 广告XML
+      object:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject'
+        description: 朋友圈对象
+    type: object
+  momentsv3.CommentResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      object:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject'
+        description: 朋友圈对象
+    type: object
+  momentsv3.DetailResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      object:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject'
+        description: 朋友圈对象
+    type: object
+  momentsv3.OperateResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      count:
+        description: 操作数量
+        type: integer
+      list:
+        description: 操作结果列表
+        items:
+          type: integer
+        type: array
+    type: object
+  momentsv3.PostResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      object:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject'
+        description: 朋友圈对象
+      spam_tips:
+        description: 垃圾提示
+        type: string
+    type: object
+  momentsv3.RemindFriendsInfo:
+    properties:
+      adchatroom_id:
+        description: 广告组ID
+        type: integer
+      adchatroom_id64:
+        description: 广告组ID64
+        type: integer
+      extra_info:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 额外信息
+      paid_info:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 付费信息
+      self_info:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 自身信息
+      source_info:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 来源信息
+    type: object
+  momentsv3.ServerConfig:
+    properties:
+      copy_and_paste_word_limit:
+        description: 复制粘贴字数限制
+        type: integer
+      post_mention_limit:
+        description: 发布@限制
+        type: integer
+    type: object
+  momentsv3.TimelineResponse:
+    properties:
+      advertise_count:
+        description: 广告数量
+        type: integer
+      advertise_list:
+        description: 广告列表
+        items:
+          $ref: '#/definitions/momentsv3.TimelineResponse_Advertise'
+        type: array
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      control_flag:
+        description: 控制标志
+        type: integer
+      delete_advertise_count:
+        description: 删除广告数量
+        type: integer
+      delete_advertise_list:
+        description: 删除广告ID列表
+        items:
+          $ref: '#/definitions/wrapperspb.UInt64Value'
+        type: array
+      first_page_md5:
+        description: 首页MD5
+        type: string
+      new_request_time:
+        description: 新请求时间
+        type: integer
+      object_count:
+        description: 对象数量
+        type: integer
+      object_count_for_same_md5:
+        description: 相同MD5的对象数量
+        type: integer
+      object_list:
+        description: 对象列表
+        items:
+          $ref: '#/definitions/messagev3.MomentsObject'
+        type: array
+      recommend_count:
+        description: 推荐数量
+        type: integer
+      recommend_list:
+        description: 推荐列表
+        items:
+          $ref: '#/definitions/momentsv3.TimelineResponse_Recommend'
+        type: array
+      server_config:
+        allOf:
+        - $ref: '#/definitions/momentsv3.ServerConfig'
+        description: 服务器配置
+      session:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 会话
+      unread_count:
+        description: 未读数量
+        type: integer
+      unread_list:
+        description: 未读ID列表
+        items:
+          type: integer
+        type: array
+    type: object
+  momentsv3.TimelineResponse_Advertise:
+    properties:
+      info:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 广告信息
+      object:
+        allOf:
+        - $ref: '#/definitions/momentsv3.ADObject'
+        description: 广告对象
+      pos:
+        description: 位置
+        type: integer
+      remind_info:
+        allOf:
+        - $ref: '#/definitions/momentsv3.RemindFriendsInfo'
+        description: 提醒信息
+    type: object
+  momentsv3.TimelineResponse_Recommend:
+    properties:
+      info:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 推荐信息
+      object:
+        allOf:
+        - $ref: '#/definitions/momentsv3.TimelineResponse_Recommend_Object'
+        description: 推荐对象
+    type: object
+  momentsv3.TimelineResponse_Recommend_Object:
+    properties:
+      moments_object:
+        allOf:
+        - $ref: '#/definitions/messagev3.MomentsObject'
+        description: 朋友圈对象
+      recommend_xml:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.StringValue'
+        description: 推荐XML
+    type: object
+  momentsv3.UserPageResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      continue_id:
+        description: 继续ID
+        type: integer
+      first_page_md5:
+        description: 首页MD5
+        type: string
+      limited_id:
+        description: 限制ID
+        type: integer
+      new_request_time:
+        description: 新请求时间
+        type: integer
+      object_count:
+        description: 对象数量
+        type: integer
+      object_count_for_same_md5:
+        description: 相同MD5的对象数量
+        type: integer
+      object_list:
+        description: 对象列表
+        items:
+          $ref: '#/definitions/messagev3.MomentsObject'
+        type: array
+      object_total_count:
+        description: 对象总数
+        type: integer
+      return_tips:
+        description: 返回提示
+        type: string
+      server_config:
+        allOf:
+        - $ref: '#/definitions/momentsv3.ServerConfig'
+        description: 服务器配置
+    type: object
+  official.ArticleResult:
+    properties:
+      response_body:
+        description: 保留微信返回的全部字段
+        type: string
+    type: object
+  official.JSAPIPreVerifyParams:
+    properties:
+      appid:
+        type: string
+      jsapi_list:
+        items:
+          type: string
+        type: array
+      nonce_string:
+        type: string
+      scene:
+        type: integer
+      signature:
+        type: string
+      signature_method:
+        type: string
+      source_app_id:
+        type: string
+      tag_name_list:
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+      timestamp:
+        type: string
+      url:
+        type: string
+    required:
+    - appid
+    - url
+    type: object
+  official.OAuthParams:
+    properties:
+      appid:
+        type: string
+      biz_username:
+        type: string
+      scope:
+        type: string
+      state:
+        type: string
+      url:
+        type: string
+    required:
+    - appid
+    - url
+    type: object
+  officialv3.GetA8KeyResponse:
+    properties:
+      a8_key:
+        description: A8密钥
+        type: string
+      action_code:
+        description: 动作码
+        type: string
+      antispam_ticket:
+        description: 反垃圾票据
+        type: string
+      avatar:
+        description: 头像URL
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      content:
+        description: 内容
+        type: string
+      cookie:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: Cookie
+      deep_link:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.UInt64Value'
+        description: Deep Link
+      full_url:
+        description: 完整URL
+        type: string
+      general_control:
+        allOf:
+        - $ref: '#/definitions/wrapperspb.UInt32Value'
+        description: 通用控制值
+      http_header_count:
+        description: HTTP头数量
+        type: integer
+      http_header_list:
+        description: HTTP头列表
+        items:
+          $ref: '#/definitions/officialv3.GetA8KeyResponse_HttpHeader'
+        type: array
+      jsapi_control_bytes:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: JSAPI控制字节流
+      jsapi_permission:
+        allOf:
+        - $ref: '#/definitions/officialv3.GetA8KeyResponse_JSAPIPermissionBitSet'
+        description: JSAPI权限位集
+      menu_wording:
+        description: 菜单文案
+        type: string
+      mid:
+        description: MID
+        type: string
+      scope_count:
+        description: 授权范围数量
+        type: integer
+      scope_list:
+        description: 授权范围列表
+        items:
+          $ref: '#/definitions/officialv3.GetA8KeyResponse_BizScopeInfo'
+        type: array
+      share_url:
+        description: 分享URL
+        type: string
+      ssid:
+        description: SSID
+        type: string
+      title:
+        description: 标题
+        type: string
+      user_name:
+        description: 用户名
+        type: string
+      wording:
+        description: 文案
+        type: string
+    type: object
+  officialv3.GetA8KeyResponse_BizScopeInfo:
+    properties:
+      api_count:
+        description: API数量
+        type: integer
+      api_list:
+        description: API列表
+        items:
+          $ref: '#/definitions/wrapperspb.StringValue'
+        type: array
+      scope:
+        description: 授权范围
+        type: string
+      scope_description:
+        description: 授权范围说明
+        type: string
+      scope_status:
+        description: 授权范围状态
+        type: integer
+    type: object
+  officialv3.GetA8KeyResponse_HttpHeader:
+    properties:
+      key:
+        description: 键
+        type: string
+      value:
+        description: 值
+        type: string
+    type: object
+  officialv3.GetA8KeyResponse_JSAPIPermissionBitSet:
+    properties:
+      value1:
+        description: 权限值1
+        type: integer
+      value2:
+        description: 权限值2
+        type: integer
+      value3:
+        description: 权限值3
+        type: integer
+      value4:
+        description: 权限值4
+        type: integer
+    type: object
+  officialv3.JSAPIPreVerifyResponse:
+    properties:
+      app_avatar_url:
+        description: App头像URL
+        type: string
+      app_nickname:
+        description: App昵称
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      domain_path_list:
+        description: 域名路径列表
+        items:
+          type: string
+        type: array
+      jsapi_result:
+        allOf:
+        - $ref: '#/definitions/officialv3.JSAPIPreVerifyResponse_JSAPIResult'
+        description: JSAPI基础响应
+      verify_info_list:
+        description: 验证信息列表
+        items:
+          type: string
+        type: array
+    type: object
+  officialv3.JSAPIPreVerifyResponse_JSAPIResult:
+    properties:
+      code:
+        description: 返回码
+        type: integer
+      error:
+        description: 错误信息
+        type: string
+      json:
+        description: 微信响应JSON
+        type: string
+    type: object
+  officialv3.OauthAuthorizeResponse:
+    properties:
+      app_icon_url:
+        description: App图标URL
+        type: string
+      app_name:
+        description: App名称
+        type: string
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      is_call_server_when_confirm:
+        description: 确认时是否调用服务器
+        type: boolean
+      is_recent_has_auth:
+        description: 最近是否有授权
+        type: boolean
+      is_silent_auth:
+        description: 是否静默授权
+        type: boolean
+      redirect_url:
+        description: 重定向URL
+        type: string
+      scope_list:
+        description: 授权范围列表
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+    type: object
+  payment.CollectMoneyParams:
+    properties:
+      invalid_time:
+        description: 转账失效时间
+        type: string
+      to_username:
+        description: 付款方用户名
+        type: string
+      transaction_id:
+        description: 交易 ID
+        type: string
+      transfer_id:
+        description: 转账 ID
+        type: string
+    required:
+    - invalid_time
+    - to_username
+    - transaction_id
+    - transfer_id
+    type: object
+  payment.GrabHongBaoParams:
+    properties:
+      in_way:
+        description: 来源，0 为群红包，1 为个人红包
+        enum:
+        - 0
+        - 1
+        type: integer
+      native_url:
+        description: 红包消息中的原始地址
+        type: string
+      session_username:
+        description: 群红包必须传群 ID，个人红包省略时使用发送者用户名
+        type: string
+    required:
+    - native_url
+    type: object
+  payment.QueryHongBaoDetailParams:
+    properties:
+      native_url:
+        description: 红包消息中的原始地址
+        type: string
+      send_username:
+        description: 红包发送者用户名
+        type: string
+    required:
+    - native_url
+    - send_username
+    type: object
+  payment.QueryHongBaoListParams:
+    properties:
+      limit:
+        description: 每页记录数，0 时使用默认值 11
+        minimum: 0
+        type: integer
+      native_url:
+        description: 红包消息中的原始地址
+        type: string
+      offset:
+        description: 记录偏移量，从 0 开始
+        minimum: 0
+        type: integer
+    required:
+    - native_url
+    type: object
+  paymentv3.CGICommand:
+    enum:
+    - 0
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 34
+    - 55
+    - 56
+    format: int32
+    type: integer
+    x-enum-comments:
+      CGICommand_CGI_CMD_UNKNOWN: 未知
+      CGICommand_PLATFORM_NOTIFY_CHECK_RESULT: 平台通知检查结果
+      CGICommand_PLATFORM_QUERY_BZJ_INFO: 平台查询保证金信息
+      CGICommand_PLATFORM_QUERY_CHECK_RECORD: 平台查询检查记录
+      CGICommand_PLATFORM_QUERY_CHECK_RESULT: 平台查询检查结果
+      CGICommand_QUERY_BIZ_CHECK_RESULT: 查询业务检查结果
+      CGICommand_QUERY_NEW_PARTNER_ID: 查询新合作伙伴ID
+      CGICommand_WEB_NOTIFY_CHECK_RESULT: Web通知检查结果
+      CGICommand_WEB_QUERY_CHECK_RECORD: Web查询检查记录
+      CGICommand_WEB_QUERY_CHECK_RESULT: Web查询检查结果
+    x-enum-descriptions:
+    - 未知
+    - Web查询检查记录
+    - 平台查询检查记录
+    - Web查询检查结果
+    - 平台查询检查结果
+    - Web通知检查结果
+    - 平台通知检查结果
+    - 平台查询保证金信息
+    - 查询新合作伙伴ID
+    - 查询业务检查结果
+    x-enum-varnames:
+    - CGICommand_CGI_CMD_UNKNOWN
+    - CGICommand_WEB_QUERY_CHECK_RECORD
+    - CGICommand_PLATFORM_QUERY_CHECK_RECORD
+    - CGICommand_WEB_QUERY_CHECK_RESULT
+    - CGICommand_PLATFORM_QUERY_CHECK_RESULT
+    - CGICommand_WEB_NOTIFY_CHECK_RESULT
+    - CGICommand_PLATFORM_NOTIFY_CHECK_RESULT
+    - CGICommand_PLATFORM_QUERY_BZJ_INFO
+    - CGICommand_QUERY_NEW_PARTNER_ID
+    - CGICommand_QUERY_BIZ_CHECK_RESULT
+  paymentv3.F2FQrcodeResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      expire_time:
+        description: 过期时间
+        type: integer
+      qrcode_data:
+        description: 二维码数据
+        type: string
+      qrcode_url:
+        description: 二维码URL
+        type: string
+    type: object
+  paymentv3.HongBaoResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      cgi_command:
+        description: CGI命令ID
+        type: integer
+      code:
+        description: 平台返回码
+        type: integer
+      error_message:
+        description: 错误消息
+        type: string
+      error_type:
+        description: 错误类型
+        type: integer
+      message:
+        description: 平台消息
+        type: string
+      text:
+        allOf:
+        - $ref: '#/definitions/basev3.Buffer'
+        description: 返回文本（JSON字符串）
+    type: object
+  paymentv3.TenPayResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      cgi_cmd:
+        allOf:
+        - $ref: '#/definitions/paymentv3.CGICommand'
+        description: CGI命令ID
+      code:
+        description: 平台返回码
+        type: integer
+      error_message:
+        description: 支付错误消息
+        type: string
+      error_type:
+        description: 支付错误类型
+        type: integer
+      message:
+        description: 平台消息
+        type: string
+      text:
+        allOf:
+        - $ref: '#/definitions/basev3.TextBuffer'
+        description: 响应文本，长度为字段1，内容为字段2
+    type: object
+  user.UpdateProfileParam:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      gender:
+        enum:
+        - 0
+        - 1
+        - 2
+        type: integer
+      nickname:
+        type: string
+      province:
+        type: string
+      signature:
+        type: string
+    type: object
+  userv3.DeleteSafeDeviceResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      rest_count:
+        description: 剩余安全设备数
+        type: integer
+    type: object
+  userv3.GeneralSetResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+    type: object
+  userv3.GetProfileResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      user_info:
+        allOf:
+        - $ref: '#/definitions/messagev3.ModifyUserInfo'
+        description: 用户信息
+      user_info_ext:
+        allOf:
+        - $ref: '#/definitions/messagev3.UserInfoExtend'
+        description: 用户信息扩展
+    type: object
+  userv3.GetSafetyInfoResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      info:
+        allOf:
+        - $ref: '#/definitions/userv3.GetSafetyInfoResponse_SafetyInfo'
+        description: 安全信息
+    type: object
+  userv3.GetSafetyInfoResponse_SafetyDevice:
+    properties:
+      device_name:
+        description: 设备名称
+        type: string
+      device_type:
+        description: 设备类型
+        type: string
+      last_time:
+        description: 最后登录时间
+        type: integer
+      uuid:
+        description: 设备UUID
+        type: string
+    type: object
+  userv3.GetSafetyInfoResponse_SafetyInfo:
+    properties:
+      device_list:
+        description: 设备列表
+        items:
+          $ref: '#/definitions/userv3.GetSafetyInfoResponse_SafetyDevice'
+        type: array
+      has_face:
+        description: 是否有人脸
+        type: boolean
+      has_password:
+        description: 是否有微信密码
+        type: boolean
+      has_voice:
+        description: 是否有语音
+        type: boolean
+      switch_face:
+        description: 人脸开关
+        type: boolean
+      switch_voice:
+        description: 语音开关
+        type: boolean
+    type: object
+  userv3.SportDeviceInfo:
+    properties:
+      app_name:
+        description: 应用名称
+        type: string
+      bundle_id:
+        description: Bundle ID
+        type: string
+      is_apple_watch:
+        description: 是否为 Apple Watch
+        type: boolean
+      is_local_iphone:
+        description: 是否本地 iPhone
+        type: boolean
+      is_white_list:
+        description: 是否白名单
+        type: boolean
+      step_count:
+        description: 步数
+        type: integer
+    type: object
+  userv3.UploadAvatarResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      big_avatar_url:
+        description: 大头像URL
+        type: string
+      final_md5:
+        description: 最终图片MD5
+        type: string
+      offset:
+        description: 起始位置
+        type: integer
+      size:
+        description: 总长度
+        type: integer
+      small_avatar_url:
+        description: 小头像URL
+        type: string
+    type: object
+  userv3.UploadDeviceStepResponse:
+    properties:
+      base_response:
+        allOf:
+        - $ref: '#/definitions/basev3.BaseResponse'
+        description: 基础响应
+      device_info:
+        allOf:
+        - $ref: '#/definitions/userv3.SportDeviceInfo'
+        description: 设备信息
+    type: object
+  wrapperspb.StringValue:
+    properties:
+      value:
+        description: The string value.
+        type: string
+    type: object
+  wrapperspb.UInt32Value:
+    properties:
+      value:
+        description: The uint32 value.
+        type: integer
+    type: object
+  wrapperspb.UInt64Value:
+    properties:
+      value:
+        description: The uint64 value.
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /api/cdn/download/file:
+    get:
+      description: 根据 id、key 下载文件；size 可选，省略时自动识别大文件通道，由首片取得总长度。
+      parameters:
+      - description: CDN 文件 ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: AES 密钥
+        in: query
+        name: key
+        required: true
+        type: string
+      - description: 原文大小
+        format: int64
+        in: query
+        name: size
+        type: integer
+      - description: 下载文件名
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: CDN 下载聊天文件
+      tags:
+      - CDN
+  /api/cdn/download/image:
+    get:
+      description: 根据 id 和 key 从 CDN 下载图片，响应正文为图片二进制。
+      parameters:
+      - description: CDN 文件 ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: AES 密钥
+        in: query
+        name: key
+        required: true
+        type: string
+      - description: 原文大小
+        format: int64
+        in: query
+        name: size
+        type: integer
+      - description: 下载文件名
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: CDN 下载聊天图片
+      tags:
+      - CDN
+  /api/cdn/download/video:
+    get:
+      description: 根据 id、key 和可选 size 从 CDN 下载视频，响应正文为视频二进制。
+      parameters:
+      - description: CDN 文件 ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: AES 密钥
+        in: query
+        name: key
+        required: true
+        type: string
+      - description: 原文大小；达到 25MiB 时走大视频分片协议
+        format: int64
+        in: query
+        name: size
+        type: integer
+      - description: 下载文件名
+        in: query
+        name: name
+        type: string
+      produces:
+      - video/*
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: CDN 下载聊天视频
+      tags:
+      - CDN
+  /api/cdn/download/video_cover:
+    get:
+      description: 根据 id 和 key 从 CDN 下载视频封面，响应正文为图片二进制。
+      parameters:
+      - description: CDN 文件 ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: AES 密钥
+        in: query
+        name: key
+        required: true
+        type: string
+      - description: 原文大小
+        format: int64
+        in: query
+        name: size
+        type: integer
+      - description: 下载文件名
+        in: query
+        name: name
+        type: string
+      produces:
+      - image/*
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: CDN 下载视频封面
+      tags:
+      - CDN
+  /api/cdn/upload/file:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 仅上传并返回 CDN 信息，无需接收者；内部使用当前账号取得上传授权。不超过 25MiB 走普通 CDN，超过 25MiB 自动走
+        MPMC。文件名优先取 name，其次取上传文件名，最后取 URL 文件名。支持 multipart、表单或 JSON 请求体；JSON 示例：{"url":"https://example.com/file.zip"}。
+      parameters:
+      - description: 文件名（含扩展名），不传时自动识别
+        in: formData
+        name: name
+        type: string
+      - description: 文件 URL，与 file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 文件，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/cdnv3.UploadFileResult'
+              type: object
+      summary: CDN 上传文件
+      tags:
+      - CDN
+  /api/cdn/upload/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 仅上传并返回 CDN 信息，内部使用当前账号作为协议上下文。url、file 至少提供一项，优先使用上传文件，否则从 URL
+        下载。支持 multipart、表单或 JSON 请求体；JSON 示例：{"url":"https://example.com/image.jpg"}。
+      parameters:
+      - description: 图片 URL，与 file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 图片文件，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/cdnv3.UploadImageResult'
+              type: object
+      summary: CDN 上传聊天图片
+      tags:
+      - CDN
+  /api/cdn/upload/moments/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 纯上传返回 CDN URL，可用于发朋友圈等场景。url、file 至少提供一项，优先使用上传文件。支持 multipart、表单或
+        JSON 请求体；JSON 示例：{"url":"https://example.com/image.jpg"}。
+      parameters:
+      - description: 图片 URL，与 file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 图片文件，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/cdnv3.UploadMomentsImageResult'
+              type: object
+      summary: CDN 上传朋友圈图片
+      tags:
+      - CDN
+  /api/cdn/upload/moments/video:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 纯上传返回 CDN URL 和视频元数据，优先使用上传文件，未提供封面时自动提取。支持 multipart、表单或 JSON
+        请求体；JSON 示例：{"video_url":"https://example.com/video.mp4"}。
+      parameters:
+      - description: 视频 URL，与 video_file 至少提供一项
+        in: formData
+        name: video_url
+        type: string
+      - description: 视频文件，与 video_url 至少提供一项
+        in: formData
+        name: video_file
+        type: file
+      - description: 可选封面 URL，未提供封面时自动提取
+        in: formData
+        name: thumb_url
+        type: string
+      - description: 可选封面文件，优先于 thumb_url
+        in: formData
+        name: thumb_file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/cdnv3.UploadMomentsVideoResult'
+              type: object
+      summary: CDN 上传朋友圈视频
+      tags:
+      - CDN
+  /api/cdn/upload/video:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 仅上传并返回 CDN 信息及视频尺寸、时长；未提供封面时自动提取。视频达到 25MiB 时自动使用 HTTP 分片与动态并发。支持
+        multipart、表单或 JSON 请求体；JSON 示例：{"video_url":"https://example.com/video.mp4"}。
+      parameters:
+      - description: 视频 URL，与 video_file 至少提供一项
+        in: formData
+        name: video_url
+        type: string
+      - description: 视频文件，与 video_url 至少提供一项
+        in: formData
+        name: video_file
+        type: file
+      - description: 可选封面 URL，未提供封面时自动提取
+        in: formData
+        name: thumb_url
+        type: string
+      - description: 可选封面文件，优先于 thumb_url
+        in: formData
+        name: thumb_file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/cdnv3.UploadVideoResult'
+              type: object
+      summary: CDN 上传聊天视频
+      tags:
+      - CDN
+  /api/chatroom:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 初始成员用户名数组
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.CreateChatroomResponse'
+              type: object
+      summary: 创建群聊
+      tags:
+      - 群聊
+  /api/chatroom/{chatroom}:
+    delete:
+      parameters:
+      - description: 群 ID
+        in: path
+        name: chatroom
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 退出群聊
+      tags:
+      - 群聊
+    get:
+      parameters:
+      - description: 普通群 ID
+        in: path
+        name: chatroom
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.GetChatroomInfoDetailResponse'
+              type: object
+      summary: 获取群扩展信息
+      tags:
+      - 群聊
+  /api/chatroom/admins:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 群成员操作参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOperateMemberData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.ChatroomAdminResponse'
+              type: object
+      summary: 取消群管理员
+      tags:
+      - 群聊
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 群成员操作参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOperateMemberData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.ChatroomAdminResponse'
+              type: object
+      summary: 添加群管理员
+      tags:
+      - 群聊
+  /api/chatroom/announcement:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 公告内容与 info_version
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomAnnouncementData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.SetChatroomAnnouncementResponse'
+              type: object
+      summary: 修改群公告
+      tags:
+      - 群聊
+  /api/chatroom/display-name:
+    put:
+      parameters:
+      - description: 修改群昵称参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomDisplayNameData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 修改本人群昵称
+      tags:
+      - 群聊
+  /api/chatroom/members:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 群成员操作参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOperateMemberData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.DeleteChatroomMemberResponse'
+              type: object
+      summary: 移除群成员
+      tags:
+      - 群聊
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 群成员操作参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOperateMemberData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.AddChatroomMemberResponse'
+              type: object
+      summary: 添加群成员
+      tags:
+      - 群聊
+  /api/chatroom/members/{chatroom}:
+    get:
+      parameters:
+      - description: 普通群 ID
+        in: path
+        name: chatroom
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.ListMembersResponse'
+              type: object
+      summary: 获取群成员列表
+      tags:
+      - 群聊
+  /api/chatroom/members/detail:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 群成员操作参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOperateMemberData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.GetContactResponse'
+              type: object
+      summary: 批量获取群成员资料
+      tags:
+      - 群聊
+  /api/chatroom/members/invitations:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 群成员操作参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOperateMemberData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.InviteChatroomMemberResponse'
+              type: object
+      summary: 邀请群成员
+      tags:
+      - 群聊
+  /api/chatroom/name:
+    put:
+      parameters:
+      - description: 修改群名称参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomNameData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 修改群名称
+      tags:
+      - 群聊
+  /api/chatroom/owner:
+    put:
+      parameters:
+      - description: 转让群主参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomOwnerData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.ChatroomAdminResponse'
+              type: object
+      summary: 转让群主
+      tags:
+      - 群聊
+  /api/chatroom/qrcode/{chatroom}:
+    get:
+      parameters:
+      - description: 普通群 ID
+        in: path
+        name: chatroom
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.GetQRCodeResponse'
+              type: object
+      summary: 获取群二维码
+      tags:
+      - 群聊
+  /api/chatroom/remark:
+    put:
+      parameters:
+      - description: 群备注内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomRemarkData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 修改群备注
+      tags:
+      - 群聊
+  /api/chatroom/saved-to-contacts:
+    put:
+      parameters:
+      - description: 设置群聊是否保存到通讯录参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChatroomSavedData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 设置群聊是否保存到通讯录
+      tags:
+      - 群聊
+  /api/contact:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      summary: 获取全部联系人列表
+      tags:
+      - 联系人
+  /api/contact/{username}:
+    delete:
+      parameters:
+      - description: 联系人用户名
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 删除联系人
+      tags:
+      - 联系人
+  /api/contact/blacklist/{username}:
+    delete:
+      parameters:
+      - description: 联系人用户名
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 移出黑名单
+      tags:
+      - 联系人
+    post:
+      parameters:
+      - description: 联系人用户名
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 加入黑名单
+      tags:
+      - 联系人
+  /api/contact/detail:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 联系人用户名数组
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.GetContactResponse'
+              type: object
+      summary: 批量获取联系人详情
+      tags:
+      - 联系人
+  /api/contact/friend-requests:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 搜索结果票据、内容与场景
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ContactRequestData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.VerifyUserResponse'
+              type: object
+      summary: 发送好友申请
+      tags:
+      - 联系人
+  /api/contact/friend-verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 好友申请票据与场景
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ContactVerifyData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.VerifyUserResponse'
+              type: object
+      summary: 通过好友验证
+      tags:
+      - 联系人
+  /api/contact/remark/{username}:
+    put:
+      parameters:
+      - description: 联系人备注修改参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ContactRemarkData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 设置联系人备注
+      tags:
+      - 联系人
+  /api/contact/search:
+    get:
+      parameters:
+      - description: 微信号或手机号
+        in: query
+        name: keyword
+        required: true
+        type: string
+      - description: 协议来源场景
+        in: query
+        name: from_scene
+        type: integer
+      - description: 协议搜索场景
+        in: query
+        name: search_scene
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.SearchContactResponse'
+              type: object
+      summary: 搜索联系人
+      tags:
+      - 联系人
+  /api/favorite/check:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 非空的收藏文件信息数组
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/favorite.CDNItem'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/favoritev3.CheckCDNResponse'
+              type: object
+      summary: 检查收藏 CDN
+      tags:
+      - 收藏
+  /api/favorite/info:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/favoritev3.GetInfoResponse'
+              type: object
+      summary: 获取收藏容量信息
+      tags:
+      - 收藏
+  /api/favorite/items:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - collectionFormat: csv
+        description: 收藏 ID 列表，逗号分隔，也支持重复传入 ids 参数；单项操作只传一个 ID
+        in: query
+        items:
+          type: integer
+        name: ids
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/favoritev3.BatchDeleteItemResponse'
+              type: object
+      summary: 批量删除收藏
+      tags:
+      - 收藏
+    get:
+      parameters:
+      - collectionFormat: csv
+        description: 收藏 ID 列表，逗号分隔，也支持重复传入 ids 参数；单项操作只传一个 ID
+        in: query
+        items:
+          type: integer
+        name: ids
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/favoritev3.BatchGetItemResponse'
+              type: object
+      summary: 批量获取收藏详情
+      tags:
+      - 收藏
+  /api/favorite/share:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 接收者、收藏 ID 列表与场景
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.FavoriteShareData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/favoritev3.ShareResponse'
+              type: object
+      summary: 分享收藏
+      tags:
+      - 收藏
+  /api/favorite/sync:
+    get:
+      description: key 省略或为空时从头同步；has_more 为 true 时使用返回的 key 继续同步，正文通过详情接口获取。
+      parameters:
+      - description: 标准 Base64 编码的同步游标，首次省略
+        in: query
+        name: key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/favorite.SyncResult'
+              type: object
+      summary: 同步收藏列表
+      tags:
+      - 收藏
+  /api/label:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 待删除的标签 ID 数组，至少一项且各项大于 0
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/labelv3.DeleteContactResponse'
+              type: object
+      summary: 删除标签
+      tags:
+      - 标签
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/labelv3.GetContactListResponse'
+              type: object
+      summary: 获取标签列表
+      tags:
+      - 标签
+    post:
+      parameters:
+      - description: 创建标签参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LabelAddData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/labelv3.AddContactResponse'
+              type: object
+      summary: 创建标签
+      tags:
+      - 标签
+    put:
+      parameters:
+      - description: 修改标签参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LabelAddData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/labelv3.UpdateContactResponse'
+              type: object
+      summary: 修改标签名称
+      tags:
+      - 标签
+  /api/label/contacts:
+    put:
+      consumes:
+      - application/json
+      description: 为所有 usernames 设置相同的标签列表，覆盖原有标签；ids 传空数组时清空标签。
+      parameters:
+      - description: 联系人列表与完整标签 ID 列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LabelModifyContactsData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/labelv3.ModifyContactListResponse'
+              type: object
+      summary: 批量设置联系人标签
+      tags:
+      - 标签
+  /api/login:
+    delete:
+      consumes:
+      - application/json
+      description: 退出登录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 退出登录
+      tags:
+      - 登录
+    get:
+      consumes:
+      - application/json
+      description: 获取登陆二维码
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/login.QRCodeResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 获取登录二维码
+      tags:
+      - 登录
+  /api/login/status:
+    get:
+      consumes:
+      - application/json
+      description: 获取登陆状态
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 获取登录状态
+      tags:
+      - 登录
+  /api/message/app:
+    post:
+      consumes:
+      - application/json
+      description: 根据应用消息类型发送 XML 内容。
+      parameters:
+      - description: 应用消息参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageSendAppData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendAppMessageResponse'
+              type: object
+      summary: 发送应用消息
+      tags:
+      - 消息
+  /api/message/download/voice:
+    get:
+      description: 根据消息 ID 和正文大小通过 CGI 分片下载语音；size 为消息 XML 的 length 字节数，不能填写 voicelength
+        时长。返回原始编码正文，不进行 SILK、AMR 等格式的转码。失败时返回 JSON 错误。
+      parameters:
+      - description: 消息 ID，与 new_id 至少提供一个
+        format: int64
+        in: query
+        name: id
+        type: integer
+      - description: 服务端消息 ID，与 id 至少提供一个
+        format: int64
+        in: query
+        name: new_id
+        type: integer
+      - description: 语音正文大小（字节）
+        format: int32
+        in: query
+        name: size
+        required: true
+        type: integer
+      - description: 下载文件名，默认 voice.silk
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: 下载语音文件
+      tags:
+      - 消息
+  /api/message/emoji:
+    post:
+      consumes:
+      - multipart/form-data
+      description: md5、url、file 至少提供一项，优先使用 MD5，其次使用上传文件，最后从 URL 下载。文件和 URL 支持 PNG、GIF、JPEG，最大
+        10MiB；尺寸超限时等比缩小至 1024×1024 以内，GIF 保留动画，按最终数据计算 MD5 和长度。仅 MD5 发送时允许零长度的成功响应。
+      parameters:
+      - description: 消息接收者 ID
+        example: wxid_xxx
+        in: formData
+        name: receiver
+        required: true
+        type: string
+      - description: 表情 MD5 值，与 url、file 至少提供一项
+        in: formData
+        name: md5
+        type: string
+      - description: 表情 URL，与 md5、file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 表情文件，与 md5、url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadEmojiResponse'
+              type: object
+      summary: 发送表情消息
+      tags:
+      - 消息
+  /api/message/file:
+    post:
+      consumes:
+      - multipart/form-data
+      description: url、file 至少提供一项，优先使用上传文件，否则从 URL 下载。文件名优先取 name 参数，其次取上传文件名，最后取
+        URL 路径中的文件名。
+      parameters:
+      - description: 消息接收者 ID
+        example: wxid_xxx
+        in: formData
+        name: receiver
+        required: true
+        type: string
+      - description: 文件名（含扩展名），不传时自动识别
+        in: formData
+        name: name
+        type: string
+      - description: 文件 URL，与 file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 文件，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendAppMessageResponse'
+              type: object
+      summary: 发送文件消息
+      tags:
+      - 消息
+  /api/message/forward/cdn/file:
+    post:
+      consumes:
+      - application/json
+      description: 必填 receiver、file_name，以及 file_id、attach_id 中至少一个；使用 file_id 时必须提供
+        aes_key。file_size 应传真实字节数，超过 25MiB 或 is_large_file=true 时还必须提供 file_md5，每个接收者单独申请投递授权，不重新上传文件。兼容普通
+        CGI 附件 attach_id。
+      parameters:
+      - description: 接收者和文件 CDN 信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageForwardCDNFileData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendAppMessageResponse'
+              type: object
+      summary: 通过 CDN 信息转发文件
+      tags:
+      - 消息
+  /api/message/forward/cdn/image:
+    post:
+      consumes:
+      - application/json
+      description: 同一份 CDN 上传结果可向多个用户或群聊分别投递，不重新上传图片。必填 receiver、aes_key、file_size，以及
+        file_id、big_file_id 中至少一个。建议同时提供上传返回的 thumb_* 信息；不传 thumb_id、thumb_aes_key
+        时复用图片标识和密钥。
+      parameters:
+      - description: 接收者和图片 CDN 信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageForwardCDNImageData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadImageResponse'
+              type: object
+      summary: 通过 CDN 信息转发图片
+      tags:
+      - 消息
+  /api/message/forward/cdn/video:
+    post:
+      consumes:
+      - application/json
+      description: 必填 receiver、file_id、aes_key、file_size；建议保留上传返回的 thumb_*、file_md5、new_md5，并提供真实
+        duration 秒数。encrypt_version 省略时默认 1，可显式指定 0。不下载或重新上传视频及封面。
+      parameters:
+      - description: 接收者和视频 CDN 信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageForwardCDNVideoData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadVideoResponse'
+              type: object
+      summary: 通过 CDN 信息转发视频
+      tags:
+      - 消息
+  /api/message/forward/xml/file:
+    post:
+      consumes:
+      - application/json
+      description: 接收原文件 XML 与新接收者，复用原附件；大文件只重新取得投递签名，不上传文件。
+      parameters:
+      - description: 文件转发参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageForwardData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendAppMessageResponse'
+              type: object
+      summary: 转发文件消息
+      tags:
+      - 消息
+  /api/message/forward/xml/image:
+    post:
+      consumes:
+      - application/json
+      description: 接收原图片 XML 与新接收者，不下载或重新上传图片。
+      parameters:
+      - description: 图片转发参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageForwardData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadImageResponse'
+              type: object
+      summary: 转发图片消息
+      tags:
+      - 消息
+  /api/message/forward/xml/video:
+    post:
+      consumes:
+      - application/json
+      description: 接收原视频 XML 与新接收者，不下载或重新上传视频及封面。
+      parameters:
+      - description: 视频转发参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageForwardData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadVideoResponse'
+              type: object
+      summary: 转发视频消息
+      tags:
+      - 消息
+  /api/message/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: url、file 至少提供一项，优先使用上传文件，否则从 URL 下载。
+      parameters:
+      - description: 消息接收者 ID
+        example: wxid_xxx
+        in: formData
+        name: receiver
+        required: true
+        type: string
+      - description: 图片 URL，与 file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 图片文件，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadImageResponse'
+              type: object
+      summary: 发送图片消息
+      tags:
+      - 消息
+  /api/message/link:
+    post:
+      consumes:
+      - application/json
+      description: 发送包含标题、描述和链接地址的消息，可选提供缩略图地址。
+      parameters:
+      - description: 链接消息参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageSendLinkData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendAppMessageResponse'
+              type: object
+      summary: 发送链接消息
+      tags:
+      - 消息
+  /api/message/namecard:
+    post:
+      consumes:
+      - application/json
+      description: 向接收者发送指定用户的名片。
+      parameters:
+      - description: 名片消息参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageSendNameCardData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendMessageResponse'
+              type: object
+      summary: 发送名片消息
+      tags:
+      - 消息
+  /api/message/position:
+    post:
+      consumes:
+      - application/json
+      description: 发送包含经纬度、缩放等级、POI 名称和标签的位置消息。
+      parameters:
+      - description: 位置消息参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageSendPositionData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendMessageResponse'
+              type: object
+      summary: 发送位置消息
+      tags:
+      - 消息
+  /api/message/revoke:
+    post:
+      consumes:
+      - application/json
+      description: 根据接收者和服务端消息 ID 撤回消息，可选提供客户端消息 ID 和消息创建时间。
+      parameters:
+      - description: 消息撤回参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageRevokeData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.RevokeMessageResponse'
+              type: object
+      summary: 撤回消息
+      tags:
+      - 消息
+  /api/message/sync:
+    get:
+      description: 默认建立 SSE 连接；携带 WebSocket Upgrade 请求头时建立 WebSocket 连接。需启用对应推送渠道，收到
+        24 通知后的同步结果通过现有 push.Push 投递
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE 事件流，data 为包含 type 和 data 的 JSON
+          schema:
+            type: string
+      summary: 订阅消息同步推送
+      tags:
+      - 消息
+  /api/message/text:
+    post:
+      consumes:
+      - application/json
+      description: 支持普通文本和群 @ 消息，remind 中的成员 ID 使用逗号分隔。
+      parameters:
+      - description: 文本消息参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MessageSendTextData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.SendMessageResponse'
+              type: object
+      summary: 发送文本消息
+      tags:
+      - 消息
+  /api/message/transcribe/voice:
+    get:
+      description: id、new_id 至少提供一个；size 为消息 XML 的 length 字节数，format 为 voiceformat，省略时为
+        0（AMR）。自动查询已有结果，按需补传语音并等待识别完成，最长等待两分钟。成功返回 data，未识别出文字时为空字符串。
+      parameters:
+      - description: 消息 ID，与 new_id 至少提供一个
+        format: int32
+        in: query
+        name: id
+        type: integer
+      - description: 服务端消息 ID，与 id 至少提供一个
+        format: int64
+        in: query
+        name: new_id
+        type: integer
+      - description: 语音正文大小（字节），取 XML 的 length
+        format: int32
+        in: query
+        name: size
+        required: true
+        type: integer
+      - description: 语音格式：0=AMR、1=SPEEX、4=SILK，默认 0
+        enum:
+        - 0
+        - 1
+        - 4
+        format: int32
+        in: query
+        name: format
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: 语音转文字
+      tags:
+      - 消息
+  /api/message/video:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 支持上传文件或 URL，优先使用上传文件；未提供封面、时长时自动提取。视频达到 25MiB 时自动使用 CDN HTTP 分片与动态并发，上传后提交视频消息。
+      parameters:
+      - description: 消息接收者 ID
+        example: wxid_xxx
+        in: formData
+        name: receiver
+        required: true
+        type: string
+      - description: 播放时长（秒），省略时自动提取
+        example: 10
+        in: formData
+        name: duration
+        type: integer
+      - description: 缩略图 URL
+        in: formData
+        name: thumb_url
+        type: string
+      - description: 视频 URL
+        in: formData
+        name: video_url
+        type: string
+      - description: 可选封面文件，未提供封面时自动提取
+        in: formData
+        name: thumb_file
+        type: file
+      - description: 视频文件，与 video_url 至少提供一项
+        in: formData
+        name: video_file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadVideoResponse'
+              type: object
+      summary: 发送视频消息
+      tags:
+      - 消息
+  /api/message/voice:
+    post:
+      consumes:
+      - multipart/form-data
+      description: url、file 至少提供一项，优先使用上传文件，否则从 URL 下载。format 不传时默认为 0（AMR）。
+      parameters:
+      - description: 消息接收者 ID
+        example: wxid_xxx
+        in: formData
+        name: receiver
+        required: true
+        type: string
+      - description: 语音时长（毫秒）
+        example: 5000
+        in: formData
+        name: duration
+        required: true
+        type: integer
+      - description: 音频格式：0=AMR（默认），1=SPEEX，2=MP3，3=WAVE，4=SILK，不传默认为 AMR
+        in: formData
+        name: format
+        type: integer
+      - description: 语音 URL，与 file 至少提供一项
+        in: formData
+        name: url
+        type: string
+      - description: 语音文件，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/messagev3.UploadVoiceResponse'
+              type: object
+      summary: 发送语音消息
+      tags:
+      - 消息
+  /api/miniapp/avatar:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 昵称及头像文件标识
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappAvatarData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 设置小程序授权头像
+      tags:
+      - 小程序
+  /api/miniapp/avatar/random:
+    get:
+      parameters:
+      - description: 小程序 AppID
+        in: query
+        name: app_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.OAuthGetRandomAvatarResponse'
+              type: object
+      summary: 获取小程序随机头像
+      tags:
+      - 小程序
+  /api/miniapp/avatar/upload:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 头像图片 URL
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappUploadAvatarData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.OAuthAddAvatarImageResponse'
+              type: object
+      summary: 上传小程序头像
+      tags:
+      - 小程序
+  /api/miniapp/cloud/function:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: data 直接传 JSON
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappCloudData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.JSOperateResponse'
+              type: object
+      summary: 调用小程序云函数
+      tags:
+      - 小程序
+  /api/miniapp/login/js:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 小程序 AppID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappAppData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.JSLoginResponse'
+              type: object
+      summary: 小程序 JS 登录
+      tags:
+      - 小程序
+  /api/miniapp/login/qrcode:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 二维码 UUID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappQrcodeData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: 小程序二维码授权登录
+      tags:
+      - 小程序
+  /api/miniapp/mobile:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 待解绑手机号
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappMobileData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 解绑小程序手机号
+      tags:
+      - 小程序
+    get:
+      parameters:
+      - description: 小程序 AppID
+        in: query
+        name: app_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/miniapp.PhoneItem'
+                  type: array
+              type: object
+      summary: 获取小程序手机号列表
+      tags:
+      - 小程序
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 手机号及验证码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappAddMobileData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.CheckVerifyCodeResponse'
+              type: object
+      summary: 绑定小程序手机号
+      tags:
+      - 小程序
+  /api/miniapp/mobile/check-code:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 手机号、验证码及操作码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappCheckCodeData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.CheckVerifyCodeResponse'
+              type: object
+      summary: 校验小程序手机号验证码
+      tags:
+      - 小程序
+  /api/miniapp/mobile/send-code:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: operate 为 0 表示自定义手机号，1 表示普通手机号
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappVerifyCodeData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.PostVerifyCodeResponse'
+              type: object
+      summary: 发送小程序手机号验证码
+      tags:
+      - 小程序
+  /api/miniapp/oauth/sdk:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: SDK 授权参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/miniapp.OauthSdkAppParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.SDKOAuthAuthorizeConfirmResponse'
+              type: object
+      summary: SDK OAuth 确认授权
+      tags:
+      - 小程序
+  /api/miniapp/oauth/third:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: AppID 及授权地址
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/miniapp.ThirdAppGrantParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: 第三方应用 OAuth 授权
+      tags:
+      - 小程序
+  /api/miniapp/openid:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: AppID 及业务用户名
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappOpenIDData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.BizJsApiGetUserOpenIdResponse'
+              type: object
+      summary: 获取业务用户 OpenID
+      tags:
+      - 小程序
+  /api/miniapp/operate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: data 直接传 JSON，operate 默认为 0
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappOperateData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.JSOperateResponse'
+              type: object
+      summary: 操作小程序微信数据
+      tags:
+      - 小程序
+  /api/miniapp/record:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.GetUsageRecordResponse'
+              type: object
+      summary: 获取小程序使用记录
+      tags:
+      - 小程序
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 小程序原始用户名
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappRecordData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 添加小程序使用记录
+      tags:
+      - 小程序
+  /api/miniapp/session/qrcode:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 运行时会话及原始支付签名
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/miniapp.SessionQRCodeParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: 获取运行时支付二维码
+      tags:
+      - 小程序
+  /api/miniapp/session/runtime:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 小程序 AppID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MiniappAppData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/miniappv3.GetRuntimeSessionResponse'
+              type: object
+      summary: 获取小程序运行时会话
+      tags:
+      - 小程序
+  /api/moments:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 图片文件按请求顺序，随后按 images_url 顺序发布，合计最多 9 张；图片与视频互斥。视频和封面优先使用文件，否则下载对应
+        URL；缺少封面时通过 FFmpeg 或 sprocket 自动生成。
+      parameters:
+      - description: 文字；文字、图片、视频至少提供一项
+        in: formData
+        name: content
+        type: string
+      - description: 图片文件，重复同名字段上传多张，按请求顺序发布，最多 9 张
+        in: formData
+        name: images
+        type: file
+      - description: 图片 URL，半角逗号分隔，与图片文件合计最多 9 张
+        in: formData
+        name: images_url
+        type: string
+      - description: 视频文件，不能与图片同时上传
+        in: formData
+        name: video
+        type: file
+      - description: 视频 URL，video 文件优先
+        in: formData
+        name: video_url
+        type: string
+      - description: 视频封面文件，可选
+        in: formData
+        name: cover
+        type: file
+      - description: 视频封面 URL，cover 文件优先，均为空时自动提取
+        in: formData
+        name: cover_url
+        type: string
+      - description: 0 公开（默认）、1 私密、2 部分可见、3 不给谁看
+        in: formData
+        name: privacy
+        type: integer
+      - description: 部分可见的用户名列表，privacy=2 时必填
+        in: formData
+        name: visible_users
+        type: string
+      - description: 不可见的用户名列表，privacy=3 时必填
+        in: formData
+        name: blacklist
+        type: string
+      - description: 提醒谁看，必须在可见范围内
+        in: formData
+        name: with_users
+        type: string
+      - description: 来源应用名称；移动端通常按 app_id 查询应用资料名称
+        in: formData
+        name: app_name
+        type: string
+      - description: 微信开放平台应用 ID
+        in: formData
+        name: app_id
+        type: string
+      - description: 本次发布的客户端请求标识；省略时自动生成，同一次请求重试时可复用
+        in: formData
+        name: client_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.PostResponse'
+              type: object
+      summary: 发布朋友圈
+      tags:
+      - 朋友圈
+  /api/moments/{id}:
+    delete:
+      parameters:
+      - description: 朋友圈 ID，十进制 uint64
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.OperateResponse'
+              type: object
+      summary: 删除朋友圈
+      tags:
+      - 朋友圈
+    get:
+      parameters:
+      - description: 朋友圈 ID，十进制 uint64
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.DetailResponse'
+              type: object
+      summary: 获取朋友圈详情
+      tags:
+      - 朋友圈
+  /api/moments/comment:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 朋友圈 ID、作者用户名及互动内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/moments.CommentParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.CommentResponse'
+              type: object
+      summary: 点赞或评论朋友圈
+      tags:
+      - 朋友圈
+  /api/moments/operate:
+    post:
+      consumes:
+      - application/json
+      description: 请求体为非空操作数组。type：1 删除、2 私密、3 公开、4 删除评论、5 取消点赞；删除评论需提供协议扩展数据 extend（Base64）。响应保留逐项返回码。
+      parameters:
+      - description: 非空操作数组
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/moments.Operation'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.OperateResponse'
+              type: object
+      summary: 操作朋友圈
+      tags:
+      - 朋友圈
+  /api/moments/privacy:
+    put:
+      parameters:
+      - description: 可见性设置参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MomentsPrivacyData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.OperateResponse'
+              type: object
+      summary: 设置朋友圈可见性
+      tags:
+      - 朋友圈
+  /api/moments/sync:
+    get:
+      description: key 省略或为空时从头同步；has_more 为 true 时使用返回的 key 继续，未知命令保留原始数据。
+      parameters:
+      - description: 标准 Base64 编码的同步游标，首次省略
+        in: query
+        name: key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/moments.SyncResult'
+              type: object
+      summary: 同步朋友圈
+      tags:
+      - 朋友圈
+  /api/moments/timeline:
+    get:
+      description: 首次查询不传游标；后续传入响应的 first_page_md5、new_request_time、session 及分页 max_id。
+      parameters:
+      - description: 分页最大 ID，十进制 uint64
+        in: query
+        name: max_id
+        type: string
+      - description: 首页 MD5
+        in: query
+        name: first_page_md5
+        type: string
+      - description: 上次响应的 new_request_time
+        in: query
+        name: last_request_time
+        type: integer
+      - description: Base64 编码的分页会话
+        in: query
+        name: session
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.TimelineResponse'
+              type: object
+      summary: 获取朋友圈时间线
+      tags:
+      - 朋友圈
+  /api/moments/user:
+    get:
+      parameters:
+      - description: 用户名，省略时查询自己
+        in: query
+        name: username
+        type: string
+      - description: 分页最大 ID，十进制 uint64
+        in: query
+        name: max_id
+        type: string
+      - description: 首页 MD5
+        in: query
+        name: first_page_md5
+        type: string
+      - description: 上次响应的 new_request_time
+        in: query
+        name: last_request_time
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/momentsv3.UserPageResponse'
+              type: object
+      summary: 获取用户朋友圈
+      tags:
+      - 朋友圈
+  /api/official/{username}:
+    delete:
+      parameters:
+      - description: 公众号原始用户名，非开放平台 AppID
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 取关公众号
+      tags:
+      - 公众号
+    post:
+      parameters:
+      - description: 公众号原始用户名，非开放平台 AppID
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.VerifyUserResponse'
+              type: object
+      summary: 关注公众号
+      tags:
+      - 公众号
+  /api/official/a8key:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 网页地址
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.OfficialURLData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/officialv3.GetA8KeyResponse'
+              type: object
+      summary: 获取公众号 A8Key
+      tags:
+      - 公众号
+  /api/official/article/like:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 公众号文章地址
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.OfficialURLData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/official.ArticleResult'
+              type: object
+      summary: 点赞公众号文章
+      tags:
+      - 公众号
+  /api/official/article/read:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 公众号文章地址
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.OfficialURLData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/official.ArticleResult'
+              type: object
+      summary: 阅读公众号文章
+      tags:
+      - 公众号
+  /api/official/jsapi:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: JSAPI 配置及待验证列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/official.JSAPIPreVerifyParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/officialv3.JSAPIPreVerifyResponse'
+              type: object
+      summary: JSAPI 预验证
+      tags:
+      - 公众号
+  /api/official/oauth:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: AppID、回调地址及授权范围
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/official.OAuthParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/officialv3.OauthAuthorizeResponse'
+              type: object
+      summary: OAuth 授权
+      tags:
+      - 公众号
+  /api/payment/cards:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/paymentv3.TenPayResponse'
+              type: object
+      summary: 获取绑定银行卡及余额
+      tags:
+      - 支付
+  /api/payment/collect:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 转账消息字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/payment.CollectMoneyParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/paymentv3.TenPayResponse'
+              type: object
+      summary: 接收转账
+      tags:
+      - 支付
+  /api/payment/hongbao/detail:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 红包地址及发送者用户名
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/payment.QueryHongBaoDetailParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/paymentv3.HongBaoResponse'
+              type: object
+      summary: 查询红包领取详情
+      tags:
+      - 支付
+  /api/payment/hongbao/grab:
+    post:
+      consumes:
+      - application/json
+      description: in_way 为 0（群红包）或 1（个人红包），群红包需通过 session_username 传入群 ID
+      parameters:
+      - description: 红包地址、来源和所在会话
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/payment.GrabHongBaoParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/paymentv3.HongBaoResponse'
+              type: object
+      summary: 抢红包
+      tags:
+      - 支付
+  /api/payment/hongbao/list:
+    post:
+      consumes:
+      - application/json
+      description: offset 从 0 开始，limit 为 0 或省略时默认查询 11 条记录
+      parameters:
+      - description: 红包地址及分页参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/payment.QueryHongBaoListParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/paymentv3.HongBaoResponse'
+              type: object
+      summary: 查询红包领取列表
+      tags:
+      - 支付
+  /api/payment/qrcode:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/paymentv3.F2FQrcodeResponse'
+              type: object
+      summary: 生成收款二维码
+      tags:
+      - 支付
+  /api/user/alias:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 微信号
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UserAliasData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/userv3.GeneralSetResponse'
+              type: object
+      summary: 设置微信号
+      tags:
+      - 用户
+  /api/user/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: JPEG 或 PNG 图片，最大 10 MiB，与 url 至少提供一项
+        in: formData
+        name: file
+        type: file
+      - description: 头像 URL，上传文件优先
+        in: formData
+        name: url
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/userv3.UploadAvatarResponse'
+              type: object
+      summary: 上传个人头像
+      tags:
+      - 用户
+  /api/user/motion:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 设备信息及步数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UserMotionData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/userv3.UploadDeviceStepResponse'
+              type: object
+      summary: 上报运动步数
+      tags:
+      - 用户
+  /api/user/privacy:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 隐私功能编号及设置值
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UserPrivacyData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 设置隐私
+      tags:
+      - 用户
+  /api/user/profile:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/userv3.GetProfileResponse'
+              type: object
+      summary: 获取个人资料
+      tags:
+      - 用户
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 修改字段，gender 为 0、1、2，省略或 null 保留原值
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateProfileParam'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/basev3.OperateResponse'
+              type: object
+      summary: 修改个人资料
+      tags:
+      - 用户
+  /api/user/qrcode:
+    get:
+      parameters:
+      - description: 二维码样式，默认 0
+        in: query
+        name: style
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/contactv3.GetQRCodeResponse'
+              type: object
+      summary: 获取个人二维码
+      tags:
+      - 用户
+  /api/user/safety/devices:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 设备 UUID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UserDeleteSafeDeviceData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/userv3.DeleteSafeDeviceResponse'
+              type: object
+      summary: 删除安全设备
+      tags:
+      - 用户
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/userv3.GetSafetyInfoResponse'
+              type: object
+      summary: 获取安全设备列表
+      tags:
+      - 用户
+swagger: "2.0"
