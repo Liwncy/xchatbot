@@ -1,13 +1,11 @@
 import type {Env} from '../types/env.js';
 import {resolveOwnerId} from './bot.js';
 import type {IncomingMessage} from './message.js';
-import {parseBrainName} from './brain-name.js';
 import {
-    brainStatus,
     clearPlatformBrain,
     clearSessionBrain,
     currentBrain,
-    loadBrainConnection,
+    lookupBrain,
     setDefaultBrain,
     setPlatformBrain,
     setSessionBrain,
@@ -70,21 +68,19 @@ export async function tryHandleBrain(
         return command.scope === 'session' ? '好，这个会话不单独定了' : '好，这个平台不单独定了';
     }
 
-    const key = parseBrainName(command.name);
-    if (!key) return '没这颗';
-    const status = await brainStatus(env, key);
-    if (status === 'missing') return '没这颗';
-    if (status === 'off') return '这颗先不用';
+    const brain = await lookupBrain(env, command.name);
+    if (!brain) return '没这颗';
+    if (!brain.kind) return '这颗还没标类型';
+    if (!brain.enabled) return '这颗先不用';
 
-    const named = (await loadBrainConnection(env, key)).displayName;
     if (command.scope === 'session') {
-        await setSessionBrain(env, message, key);
-        return `好，这个会话换成 ${named}`;
+        await setSessionBrain(env, message, brain.key);
+        return `好，这个会话换成 ${brain.displayName}`;
     }
     if (command.scope === 'platform') {
-        await setPlatformBrain(env, message.platform, key);
-        return `好，这个平台换成 ${named}`;
+        await setPlatformBrain(env, message.platform, brain.key);
+        return `好，这个平台换成 ${brain.displayName}`;
     }
-    await setDefaultBrain(env, key);
-    return `好，默认换成 ${named}`;
+    await setDefaultBrain(env, brain.key);
+    return `好，默认换成 ${brain.displayName}`;
 }

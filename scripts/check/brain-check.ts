@@ -6,6 +6,7 @@ import type {Env} from '../../src/types/env.ts';
 
 type BrainRow = {
     brain_key: string;
+    agent_kind: string;
     display_name: string;
     base_url: string;
     token: string;
@@ -28,6 +29,7 @@ function mockD1() {
                 if (!rows.has(key)) {
                     rows.set(key, {
                         brain_key: key,
+                        agent_kind: String(args[8] ?? key),
                         display_name: String(args[1]),
                         base_url: String(args[2]),
                         token: String(args[3]),
@@ -36,8 +38,15 @@ function mockD1() {
                         is_default: Number(args[5]),
                         app_id: String(args[6]),
                         auto_forward: Number(args[7]),
-                        updated_at: Number(args[8]),
+                        updated_at: Number(args[9]),
                     });
+                }
+            }
+            if (/SET agent_kind = brain_key/iu.test(sql)) {
+                for (const row of rows.values()) {
+                    if (!row.agent_kind && ['openclaw', 'hermes', 'qwenpaw', 'snailai'].includes(row.brain_key)) {
+                        row.agent_kind = row.brain_key;
+                    }
                 }
             }
             if (/SET token = \?/iu.test(sql)) {
@@ -57,7 +66,21 @@ function mockD1() {
             }
             return {success: true};
         },
+        async all() {
+            if (/table_info\(agent_brain\)/iu.test(sql)) {
+                return {results: [{name: 'agent_kind'}]};
+            }
+            throw new Error(`unexpected sql: ${sql}`);
+        },
         async first() {
+            if (/lower\(brain_key\) = lower\(\?\)/iu.test(sql)) {
+                const name = String(args[0]).toLowerCase();
+                return [...rows.values()].find((row) => row.brain_key.toLowerCase() === name) ?? null;
+            }
+            if (/lower\(display_name\) = lower\(\?\)/iu.test(sql)) {
+                const name = String(args[0]).toLowerCase();
+                return [...rows.values()].find((row) => row.display_name.toLowerCase() === name) ?? null;
+            }
             if (/brain_key = \?/iu.test(sql)) {
                 return rows.get(String(args[0])) ?? null;
             }
@@ -160,6 +183,43 @@ async function main() {
     assert.ok(openclawRow);
     openclawRow.enabled = 0;
     assert.equal(await tryHandleBrain(env, room, '脑子 openclaw'), '这颗先不用');
+
+    rows.set('home', {
+        brain_key: 'home',
+        agent_kind: 'openclaw',
+        display_name: '家里',
+        base_url: 'https://home.example',
+        token: 'home-token',
+        timeout_ms: 120_000,
+        enabled: 1,
+        is_default: 0,
+        app_id: '',
+        auto_forward: 1,
+        updated_at: 1,
+    });
+    assert.equal(await tryHandleBrain(env, room, '脑子 家里'), '好，这个会话换成 家里');
+    assert.equal(kv.get('agent:brain:session:golem:123@chatroom'), 'home');
+    assert.equal(await resolveAgentBrain(env, room), 'openclaw');
+    const home = await loadBrainConnection(env, 'home');
+    assert.equal(home.kind, 'openclaw');
+    assert.equal(home.baseUrl, 'https://home.example');
+    assert.equal(await tryHandleBrain(env, room, '脑子 取消'), '好，这个会话不单独定了');
+
+    rows.set('blank', {
+        brain_key: 'blank',
+        agent_kind: '',
+        display_name: '空白',
+        base_url: '',
+        token: '',
+        timeout_ms: 120_000,
+        enabled: 1,
+        is_default: 0,
+        app_id: '',
+        auto_forward: 1,
+        updated_at: 1,
+    });
+    assert.equal(await tryHandleBrain(env, room, '脑子 空白'), '这颗还没标类型');
+    assert.equal(await tryHandleBrain(env, room, '脑子 snail'), '好，这个会话换成 SnailAI');
 
     assert.equal(await tryHandleBrain(env, room, '人格'), null);
     console.log('✓ brain');

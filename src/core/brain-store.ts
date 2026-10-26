@@ -7,7 +7,10 @@ import {brainDisplayName, parseBrainName, type AgentBrain} from './brain-name.js
 export type BrainLayer = 'session' | 'platform' | 'default';
 
 export type BrainConnection = {
-    key: AgentBrain;
+    /** 这一只的名字，写在 KV 里，用来切换。 */
+    key: string;
+    /** 走哪一种插件。同一类型可以有多只。 */
+    kind: AgentBrain | null;
     displayName: string;
     baseUrl: string;
     token: string;
@@ -17,8 +20,11 @@ export type BrainConnection = {
     autoForward: boolean;
 };
 
+export type ActiveBrain = BrainConnection & {layer: BrainLayer};
+
 type BrainRow = {
     brain_key: string;
+    agent_kind: string;
     display_name: string;
     base_url: string;
     token: string;
@@ -30,7 +36,7 @@ type BrainRow = {
     updated_at: number;
 };
 
-const COLUMNS = 'brain_key, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, updated_at';
+const COLUMNS = 'brain_key, agent_kind, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, updated_at';
 
 let schemaReady: Promise<void> | null = null;
 
@@ -70,6 +76,7 @@ async function ensureSchema(env: Env): Promise<void> {
             await env.XBOT_DB.prepare(
                 `CREATE TABLE IF NOT EXISTS agent_brain (
                     brain_key TEXT PRIMARY KEY,
+                    agent_kind TEXT NOT NULL DEFAULT '',
                     display_name TEXT NOT NULL,
                     base_url TEXT NOT NULL,
                     token TEXT NOT NULL DEFAULT '',
@@ -80,6 +87,19 @@ async function ensureSchema(env: Env): Promise<void> {
                     auto_forward INTEGER NOT NULL DEFAULT 1,
                     updated_at INTEGER NOT NULL
                 )`,
+            ).run();
+            const info = await env.XBOT_DB.prepare(`PRAGMA table_info(agent_brain)`).all<{name: string}>();
+            const hasKind = (info.results ?? []).some((column) => column.name === 'agent_kind');
+            if (!hasKind) {
+                await env.XBOT_DB.prepare(
+                    `ALTER TABLE agent_brain ADD COLUMN agent_kind TEXT NOT NULL DEFAULT ''`,
+                ).run();
+            }
+            await env.XBOT_DB.prepare(
+                `UPDATE agent_brain
+                 SET agent_kind = brain_key
+                 WHERE agent_kind = ''
+                   AND brain_key IN ('openclaw', 'hermes', 'qwenpaw', 'snailai')`,
             ).run();
             const now = Date.now();
             const autoForward = env.XBOT_CHANNEL_AUTO_FORWARD == null
@@ -94,9 +114,9 @@ async function ensureSchema(env: Env): Promise<void> {
             for (const [key, name, baseUrl, token, timeoutMs, isDefault, appId, forward] of seeds) {
                 await env.XBOT_DB.prepare(
                     `INSERT OR IGNORE INTO agent_brain
-                        (brain_key, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, updated_at)
-                     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
-                ).bind(key, name, baseUrl, token, timeoutMs, isDefault, appId, forward, now).run();
+                        (brain_key, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, agent_kind, updated_at)
+                     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+                ).bind(key, name, baseUrl, token, timeoutMs, isDefault, appId, forward, key, now).run();
                 if (!token || key === 'snailai') continue;
                 await env.XBOT_DB.prepare(
                     `UPDATE agent_brain SET token = ?, updated_at = ? WHERE brain_key = ? AND token = ''`,
@@ -112,6 +132,14 @@ async function ensureSchema(env: Env): Promise<void> {
 
 export function ensureBrainCatalog(env: Env): Promise<void> {
     return ensureSchema(env);
+}
+
+function rowKind(row: BrainRow): AgentBrain | null {
+    return parseBrainName(row.agent_kind) ?? parseBrainName(row.brain_key);
+}
+
+function ready(row: BrainRow | null): row is BrainRow {
+    return Boolean(row && row.enabled === 1 && rowKind(row));
 }
 
 async function rowByKey(env: Env, key: string): Promise<BrainRow | null> {
@@ -130,103 +158,144 @@ async function defaultRow(env: Env): Promise<BrainRow | null> {
     return row ?? null;
 }
 
-function usable(row: BrainRow | null): AgentBrain | null {
-    if (!row || row.enabled !== 1) return null;
-    return parseBrainName(row.brain_key);
-}
-
-async function readKvBrain(env: Env, key: string): Promise<AgentBrain | null> {
-    const parsed = parseBrainName(await env.XBOT_KV.get(key) ?? undefined);
-    if (!parsed) return null;
-    const row = await rowByKey(env, parsed);
-    return usable(row);
-}
-
-export async function currentBrain(
-    env: Env,
-    message: IncomingMessage,
-): Promise<{key: AgentBrain; layer: BrainLayer; displayName: string}> {
-    const session = await readKvBrain(env, sessionKey(message));
-    if (session) {
-        const row = await rowByKey(env, session);
-        return {key: session, layer: 'session', displayName: brainDisplayName(session, row?.display_name)};
+async function rowMatching(env: Env, name: string): Promise<BrainRow | null> {
+    await ensureSchema(env);
+    const byKey = await env.XBOT_DB.prepare(
+        `SELECT ${COLUMNS} FROM agent_brain WHERE lower(brain_key) = lower(?) LIMIT 1`,
+    ).bind(name).first<BrainRow>();
+    if (byKey) return byKey;
+    const alias = parseBrainName(name);
+    if (alias) {
+        const aliased = await rowByKey(env, alias);
+        if (aliased) return aliased;
     }
-    const platform = await readKvBrain(env, platformKey(message.platform));
-    if (platform) {
-        const row = await rowByKey(env, platform);
-        return {key: platform, layer: 'platform', displayName: brainDisplayName(platform, row?.display_name)};
-    }
-    const fallback = usable(await defaultRow(env)) ?? 'hermes';
-    const row = await rowByKey(env, fallback);
-    return {key: fallback, layer: 'default', displayName: brainDisplayName(fallback, row?.display_name)};
+    const byName = await env.XBOT_DB.prepare(
+        `SELECT ${COLUMNS} FROM agent_brain WHERE lower(display_name) = lower(?) LIMIT 1`,
+    ).bind(name).first<BrainRow>();
+    return byName ?? null;
 }
 
-export async function resolveAgentBrain(env: Env, message: IncomingMessage): Promise<AgentBrain> {
-    return (await currentBrain(env, message)).key;
-}
-
-export async function loadBrainConnection(env: Env, key: AgentBrain): Promise<BrainConnection> {
-    const row = await rowByKey(env, key);
-    const displayName = brainDisplayName(key, row?.display_name);
-    if (key === 'hermes') {
+function connectionFrom(env: Env, row: BrainRow): BrainConnection {
+    const kind = rowKind(row);
+    const displayName = row.display_name.trim() || (kind ? brainDisplayName(kind) : row.brain_key);
+    if (kind === 'hermes') {
         return {
-            key,
+            key: row.brain_key,
+            kind,
             displayName,
-            baseUrl: trimSlash(row?.base_url) || trimSlash(env.HERMES_BASE_URL),
-            token: row?.token?.trim() || env.HERMES_TOKEN?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
-            timeoutMs: row?.timeout_ms || timeoutOf(env.HERMES_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
-            enabled: row ? row.enabled === 1 : true,
+            baseUrl: trimSlash(row.base_url) || trimSlash(env.HERMES_BASE_URL),
+            token: row.token.trim() || env.HERMES_TOKEN?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
+            timeoutMs: row.timeout_ms || timeoutOf(env.HERMES_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
+            enabled: row.enabled === 1,
             appId: '',
             autoForward: true,
         };
     }
-    if (key === 'qwenpaw') {
+    if (kind === 'qwenpaw') {
         return {
-            key,
+            key: row.brain_key,
+            kind,
             displayName,
-            baseUrl: trimSlash(row?.base_url) || trimSlash(env.QWENPAW_BASE_URL),
-            token: row?.token?.trim() || env.QWENPAW_TOKEN?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
-            timeoutMs: row?.timeout_ms || timeoutOf(env.QWENPAW_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
-            enabled: row ? row.enabled === 1 : true,
+            baseUrl: trimSlash(row.base_url) || trimSlash(env.QWENPAW_BASE_URL),
+            token: row.token.trim() || env.QWENPAW_TOKEN?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
+            timeoutMs: row.timeout_ms || timeoutOf(env.QWENPAW_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
+            enabled: row.enabled === 1,
             appId: '',
             autoForward: true,
         };
     }
-    if (key === 'snailai') {
+    if (kind === 'snailai') {
         return {
-            key,
+            key: row.brain_key,
+            kind,
             displayName,
-            baseUrl: trimSlash(row?.base_url) || trimSlash(env.SNAIL_AI_BASE_URL),
-            token: row?.token?.trim() || env.SNAIL_AI_TOKEN?.trim() || '',
-            timeoutMs: row?.timeout_ms || timeoutOf(env.SNAIL_AI_TIMEOUT_MS, 180_000),
-            enabled: row ? row.enabled === 1 : true,
-            appId: row?.app_id?.trim() || env.SNAIL_AI_APP_ID?.trim() || '',
+            baseUrl: trimSlash(row.base_url) || trimSlash(env.SNAIL_AI_BASE_URL),
+            token: row.token.trim() || env.SNAIL_AI_TOKEN?.trim() || '',
+            timeoutMs: row.timeout_ms || timeoutOf(env.SNAIL_AI_TIMEOUT_MS, 180_000),
+            enabled: row.enabled === 1,
+            appId: row.app_id.trim() || env.SNAIL_AI_APP_ID?.trim() || '',
             autoForward: true,
+        };
+    }
+    if (kind === 'openclaw') {
+        return {
+            key: row.brain_key,
+            kind,
+            displayName,
+            baseUrl: trimSlash(row.base_url) || openclawBase(env),
+            token: row.token.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
+            timeoutMs: row.timeout_ms || timeoutOf(env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
+            enabled: row.enabled === 1,
+            appId: '',
+            autoForward: row.auto_forward === 1,
         };
     }
     return {
-        key,
+        key: row.brain_key,
+        kind: null,
         displayName,
-        baseUrl: trimSlash(row?.base_url) || openclawBase(env),
-        token: row?.token?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
-        timeoutMs: row?.timeout_ms || timeoutOf(env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
-        enabled: row ? row.enabled === 1 : true,
-        appId: '',
-        autoForward: row ? row.auto_forward === 1 : parseBool(env.XBOT_CHANNEL_AUTO_FORWARD, false),
+        baseUrl: trimSlash(row.base_url),
+        token: row.token.trim(),
+        timeoutMs: row.timeout_ms,
+        enabled: row.enabled === 1,
+        appId: row.app_id.trim(),
+        autoForward: row.auto_forward === 1,
     };
 }
 
-export async function brainStatus(env: Env, key: AgentBrain): Promise<'missing' | 'off' | 'ok'> {
-    const row = await rowByKey(env, key);
-    if (!row) return 'missing';
-    return row.enabled === 1 ? 'ok' : 'off';
+function hermesFallback(env: Env, layer: BrainLayer): ActiveBrain {
+    return {
+        key: 'hermes',
+        kind: 'hermes',
+        layer,
+        displayName: 'Hermes',
+        baseUrl: trimSlash(env.HERMES_BASE_URL),
+        token: gatewayToken(env, env.HERMES_TOKEN),
+        timeoutMs: timeoutOf(env.HERMES_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
+        enabled: true,
+        appId: '',
+        autoForward: true,
+    };
 }
 
-export async function setSessionBrain(env: Env, message: IncomingMessage, key: AgentBrain): Promise<void> {
+async function readKvRow(env: Env, key: string): Promise<BrainRow | null> {
+    const raw = (await env.XBOT_KV.get(key))?.trim() ?? '';
+    if (!raw) return null;
+    const row = await rowByKey(env, raw);
+    return ready(row) ? row : null;
+}
+
+export async function lookupBrain(env: Env, name: string): Promise<BrainConnection | null> {
+    const row = await rowMatching(env, name);
+    return row ? connectionFrom(env, row) : null;
+}
+
+export async function loadBrainConnection(env: Env, key: string): Promise<BrainConnection> {
+    const row = await rowByKey(env, key);
+    if (!row) return hermesFallback(env, 'default');
+    return connectionFrom(env, row);
+}
+
+export async function currentBrain(env: Env, message: IncomingMessage): Promise<ActiveBrain> {
+    const session = await readKvRow(env, sessionKey(message));
+    if (session) return {...connectionFrom(env, session), layer: 'session'};
+    const platform = await readKvRow(env, platformKey(message.platform));
+    if (platform) return {...connectionFrom(env, platform), layer: 'platform'};
+    const chosen = await defaultRow(env);
+    const fallback = ready(chosen) ? chosen : await rowByKey(env, 'hermes');
+    if (ready(fallback)) return {...connectionFrom(env, fallback), layer: 'default'};
+    return hermesFallback(env, 'default');
+}
+
+export async function resolveAgentBrain(env: Env, message: IncomingMessage): Promise<AgentBrain> {
+    return (await currentBrain(env, message)).kind ?? 'hermes';
+}
+
+export async function setSessionBrain(env: Env, message: IncomingMessage, key: string): Promise<void> {
     await env.XBOT_KV.put(sessionKey(message), key);
 }
 
-export async function setPlatformBrain(env: Env, platform: string, key: AgentBrain): Promise<void> {
+export async function setPlatformBrain(env: Env, platform: string, key: string): Promise<void> {
     await env.XBOT_KV.put(platformKey(platform), key);
 }
 
@@ -238,7 +307,7 @@ export async function clearPlatformBrain(env: Env, platform: string): Promise<vo
     await env.XBOT_KV.delete(platformKey(platform));
 }
 
-export async function setDefaultBrain(env: Env, key: AgentBrain): Promise<void> {
+export async function setDefaultBrain(env: Env, key: string): Promise<void> {
     await ensureSchema(env);
     await env.XBOT_DB.prepare(
         `UPDATE agent_brain

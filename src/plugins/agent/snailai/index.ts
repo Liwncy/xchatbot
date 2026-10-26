@@ -4,7 +4,7 @@
  * 同步 OpenAPI 对话，把回答收成 HandlerResponse，适配器发出去。
  * 切到这颗脑子用 `#脑子`。地址、token、app_id 在 D1，空则回退环境变量。
  */
-import {loadBrainConnection, resolveAgentBrain} from '../../../core/brain-store.js';
+import {currentBrain} from '../../../core/brain-store.js';
 import {patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
 import {buildInboundContent} from '../../../core/inbound.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
@@ -115,15 +115,15 @@ async function resolveInboundMedia(message: IncomingMessage, env: Env) {
     return null;
 }
 
-async function snailConfig(env: Env) {
-    const connection = await loadBrainConnection(env, 'snailai');
-    if (!connection.enabled) return null;
+async function snailConfig(env: Env, message: IncomingMessage) {
+    const current = await currentBrain(env, message);
+    if (current.kind !== 'snailai' || !current.enabled) return null;
     return readSnailAiConfig({
         ...env,
-        SNAIL_AI_BASE_URL: connection.baseUrl || env.SNAIL_AI_BASE_URL,
-        SNAIL_AI_APP_ID: connection.appId || env.SNAIL_AI_APP_ID,
-        SNAIL_AI_TOKEN: connection.token || env.SNAIL_AI_TOKEN,
-        SNAIL_AI_TIMEOUT_MS: String(connection.timeoutMs || env.SNAIL_AI_TIMEOUT_MS || ''),
+        SNAIL_AI_BASE_URL: current.baseUrl || env.SNAIL_AI_BASE_URL,
+        SNAIL_AI_APP_ID: current.appId || env.SNAIL_AI_APP_ID,
+        SNAIL_AI_TOKEN: current.token || env.SNAIL_AI_TOKEN,
+        SNAIL_AI_TIMEOUT_MS: String(current.timeoutMs || env.SNAIL_AI_TIMEOUT_MS || ''),
     });
 }
 
@@ -136,14 +136,13 @@ export const snailaiAgentPlugin: Plugin = {
         impl: 'local',
     },
     async match(message, ctx) {
-        if (await resolveAgentBrain(ctx.env, message) !== 'snailai') return false;
         if (!parseBool(ctx.env.XBOT_CHANNEL_ENABLED, false)) return false;
-        if (!await snailConfig(ctx.env)) return false;
+        if (!await snailConfig(ctx.env, message)) return false;
         if (!message.content?.trim() && !message.quote && !message.media) return false;
         return message.source === 'private' || message.source === 'group';
     },
     async handle(message, ctx): Promise<HandlerResponse> {
-        const config = await snailConfig(ctx.env);
+        const config = await snailConfig(ctx.env, message);
         if (!config) {
             logger.warn('SnailAI 未配齐，跳过');
             return null;
