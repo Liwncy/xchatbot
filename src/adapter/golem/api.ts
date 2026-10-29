@@ -65,6 +65,38 @@ function normalizeApiResponse(raw: unknown): ApiResponse {
     return parsed;
 }
 
+/** 按响应内容类型挑选图片扩展名，Golem 靠文件名识别格式。 */
+function imageFilename(contentType: string, url: string): string {
+    const fromType: Record<string, string> = {
+        'image/png': 'image.png',
+        'image/jpeg': 'image.jpg',
+        'image/gif': 'image.gif',
+        'image/webp': 'image.webp',
+        'image/bmp': 'image.bmp',
+    };
+    const byType = fromType[contentType.split(';')[0].trim().toLowerCase()];
+    if (byType) return byType;
+    const suffix = url.split('?')[0].match(/\.([a-z0-9]{2,5})$/iu);
+    return suffix ? `image.${suffix[1].toLowerCase()}` : 'image';
+}
+
+async function downloadImageBytes(
+    url: string,
+): Promise<{data: ArrayBuffer; contentType: string; filename: string} | null> {
+    if (!/^https?:\/\//iu.test(url)) return null;
+    try {
+        const response = await fetch(url, {signal: AbortSignal.timeout(20_000)});
+        if (!response.ok) return null;
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType && !contentType.startsWith('image/')) return null;
+        const data = await response.arrayBuffer();
+        if (!data.byteLength) return null;
+        return {data, contentType: contentType || 'image/png', filename: imageFilename(contentType, url)};
+    } catch {
+        return null;
+    }
+}
+
 function forwardXmlPath(forwardType?: string): string {
     switch ((forwardType ?? '').trim().toLowerCase()) {
         case 'video':
@@ -106,7 +138,14 @@ export class GolemApi {
     async sendImage(params: {receiver: string; imageUrl: string}): Promise<ApiResponse> {
         const form = new FormData();
         form.append('receiver', params.receiver);
-        form.append('url', params.imageUrl);
+        const bytes = await downloadImageBytes(params.imageUrl.trim());
+        if (bytes) {
+            // Golem 从 URL 下载需要它自己出网，部分图片域名它直连不通；
+            // worker 先把图拉下来，直接以 file 上传，URL 仅作回退。
+            form.append('file', new Blob([bytes.data], {type: bytes.contentType}), bytes.filename);
+        } else {
+            form.append('url', params.imageUrl.trim());
+        }
         return this.postForm('/api/message/image', form);
     }
 
@@ -317,7 +356,7 @@ export class GolemApi {
             headers: {'Content-Type': 'application/json'},
             body,
         });
-        return normalizeApiResponse(await response.json());
+        return this.parseResponse(path, response);
     }
 
     private async postForm(path: string, form: FormData): Promise<ApiResponse> {
@@ -325,7 +364,18 @@ export class GolemApi {
             method: 'POST',
             body: form,
         });
-        return normalizeApiResponse(await response.json());
+        return this.parseResponse(path, response);
+    }
+
+    /** Golem 套在 Cloudflare 后面，524 等网关错误的响应体不是 JSON，直接 json() 会掩盖真实原因。 */
+    private async parseResponse(path: string, response: Response): Promise<ApiResponse> {
+        const text = await response.text();
+        try {
+            return normalizeApiResponse(JSON.parse(text) as unknown);
+        } catch {
+            const raw = text.replace(/\s+/g, ' ').trim();
+            throw new Error(`Golem ${path} ${response.status}: ${raw.slice(0, 200) || 'empty response'}`);
+        }
     }
 }
 
