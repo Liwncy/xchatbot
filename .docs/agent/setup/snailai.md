@@ -2,7 +2,7 @@
 
 自然语言仍走 xchatbot 门禁、`#` 口令和 `buildInboundContent`。只把拼好的正文交给 SnailAI，不替换 OpenClaw。
 
-当前走哪颗不看配置文件。会话和平台写在 KV，默认是 D1 `agent_brain.is_default`。第一次建表默认是 OpenClaw。主人说 `#脑子 全部 snailai` 才把默认换成这颗（也认 `snail-ai` / `snail`）。
+当前走哪颗不看配置文件。会话和平台写在 KV，默认是 D1 `agent_brain.is_default`。第一次建表默认是 OpenClaw。主人说 `#脑子 全部 snailai` 才把默认换成这颗。名字认 `brain_key` 或 `display_name`，不分大小写。
 
 ## 切换
 

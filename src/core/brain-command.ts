@@ -4,6 +4,7 @@ import type {IncomingMessage} from './message.js';
 import {
     clearPlatformBrain,
     clearSessionBrain,
+    clearSessionBrainsOfPlatform,
     currentBrain,
     lookupBrain,
     setDefaultBrain,
@@ -15,7 +16,7 @@ const COMMAND = /^脑子(?:\s+([\s\S]+))?$/u;
 
 type BrainCommand =
     | {action: 'query'}
-    | {action: 'set'; scope: 'session' | 'platform' | 'default'; name: string}
+    | {action: 'set'; scope: 'session' | 'platform' | 'default'; name: string; force?: boolean}
     | {action: 'clear'; scope: 'session' | 'platform'}
     | {action: 'reject-default'}
     | {action: 'need-name'};
@@ -29,6 +30,9 @@ function parseBrainCommand(command: string): BrainCommand | null {
     if (parts[0] === '平台') {
         if (parts.length === 2 && parts[1] === '取消') return {action: 'clear', scope: 'platform'};
         if (parts.length === 2) return {action: 'set', scope: 'platform', name: parts[1]};
+        if (parts.length === 3 && parts[2] === '强制') {
+            return {action: 'set', scope: 'platform', name: parts[1], force: true};
+        }
         return {action: 'need-name'};
     }
     if (parts[0] === '全部') {
@@ -79,7 +83,11 @@ export async function tryHandleBrain(
     }
     if (command.scope === 'platform') {
         await setPlatformBrain(env, message.platform, brain.key);
-        return `好，这个平台换成 ${brain.displayName}`;
+        if (!command.force) return `好，这个平台换成 ${brain.displayName}`;
+        const cleared = await clearSessionBrainsOfPlatform(env, message.platform);
+        return cleared > 0
+            ? `好，这个平台换成 ${brain.displayName}，${cleared} 个单独定过的会话也跟上了`
+            : `好，这个平台换成 ${brain.displayName}`;
     }
     await setDefaultBrain(env, brain.key);
     return `好，默认换成 ${brain.displayName}`;

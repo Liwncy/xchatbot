@@ -164,11 +164,6 @@ async function rowMatching(env: Env, name: string): Promise<BrainRow | null> {
         `SELECT ${COLUMNS} FROM agent_brain WHERE lower(brain_key) = lower(?) LIMIT 1`,
     ).bind(name).first<BrainRow>();
     if (byKey) return byKey;
-    const alias = parseBrainName(name);
-    if (alias) {
-        const aliased = await rowByKey(env, alias);
-        if (aliased) return aliased;
-    }
     const byName = await env.XBOT_DB.prepare(
         `SELECT ${COLUMNS} FROM agent_brain WHERE lower(display_name) = lower(?) LIMIT 1`,
     ).bind(name).first<BrainRow>();
@@ -305,6 +300,22 @@ export async function clearSessionBrain(env: Env, message: IncomingMessage): Pro
 
 export async function clearPlatformBrain(env: Env, platform: string): Promise<void> {
     await env.XBOT_KV.delete(platformKey(platform));
+}
+
+/** 清掉这个平台下所有单独定过脑子的会话，返回清了几个。 */
+export async function clearSessionBrainsOfPlatform(env: Env, platform: string): Promise<number> {
+    const prefix = `agent:brain:session:${platform}:`;
+    let cleared = 0;
+    let cursor: string | undefined;
+    do {
+        const page = await env.XBOT_KV.list({prefix, cursor});
+        for (const item of page.keys) {
+            await env.XBOT_KV.delete(item.name);
+            cleared += 1;
+        }
+        cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    return cleared;
 }
 
 export async function setDefaultBrain(env: Env, key: string): Promise<void> {

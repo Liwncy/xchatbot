@@ -116,6 +116,10 @@ const env = {
         delete: async (key: string) => {
             kv.delete(key);
         },
+        list: async ({prefix = ''}: {prefix?: string; cursor?: string} = {}) => ({
+            keys: [...kv.keys()].filter((name) => name.startsWith(prefix)).map((name) => ({name})),
+            list_complete: true,
+        }),
     },
     XBOT_DB: mockD1(),
 } as unknown as Env;
@@ -175,6 +179,26 @@ async function main() {
     assert.equal(await tryHandleBrain(env, room, '脑子 平台 取消'), '好，这个平台不单独定了');
     assert.equal(await tryHandleBrain(env, room, '脑子'), '默认是 SnailAI');
 
+    // 平台强制：只清本平台的会话级设置，别的平台不动
+    assert.equal(await tryHandleBrain(env, room, '脑子 hermes'), '好，这个会话换成 Hermes');
+    assert.equal(await tryHandleBrain(env, other, '脑子 qwenpaw'), '好，这个会话换成 QwenPaw');
+    assert.equal(await tryHandleBrain(env, web, '脑子 hermes'), '好，这个会话换成 Hermes');
+    assert.equal(await tryHandleBrain(env, room, '脑子 平台 snailai'), '好，这个平台换成 SnailAI');
+    assert.equal(await tryHandleBrain(env, room, '脑子'), '这个会话是 Hermes');
+    assert.equal(
+        await tryHandleBrain(env, room, '脑子 平台 snailai 强制'),
+        '好，这个平台换成 SnailAI，2 个单独定过的会话也跟上了',
+    );
+    assert.equal(await tryHandleBrain(env, room, '脑子'), '这个平台是 SnailAI');
+    assert.equal(await tryHandleBrain(env, other, '脑子'), '这个平台是 SnailAI');
+    assert.equal(await tryHandleBrain(env, web, '脑子'), '这个会话是 Hermes');
+    assert.equal(
+        await tryHandleBrain(env, room, '脑子 平台 snailai 强制'),
+        '好，这个平台换成 SnailAI',
+    );
+    await tryHandleBrain(env, web, '脑子 取消');
+    await tryHandleBrain(env, room, '脑子 平台 取消');
+
     assert.equal(await tryHandleBrain(env, room, '脑子 没有'), '没这颗');
     assert.equal(await tryHandleBrain(env, room, '脑子 平台'), '说一颗，比如 Hermes');
     assert.equal(await tryHandleBrain(env, room, '脑子 全部 取消'), '默认得换成另一颗');
@@ -219,7 +243,9 @@ async function main() {
         updated_at: 1,
     });
     assert.equal(await tryHandleBrain(env, room, '脑子 空白'), '这颗还没标类型');
-    assert.equal(await tryHandleBrain(env, room, '脑子 snail'), '好，这个会话换成 SnailAI');
+    assert.equal(await tryHandleBrain(env, room, '脑子 snailai'), '好，这个会话换成 SnailAI');
+    assert.equal(await tryHandleBrain(env, room, '脑子 SnailAI'), '好，这个会话换成 SnailAI');
+    assert.equal(await tryHandleBrain(env, room, '脑子 snail'), '没这颗');
 
     assert.equal(await tryHandleBrain(env, room, '人格'), null);
     console.log('✓ brain');
