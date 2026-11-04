@@ -1,7 +1,11 @@
+import type {AgentMailbox} from '../core/agent-mailbox.js';
+
 /** Cloudflare Workers 环境绑定。第一刀只保留核、Golem 和 MCP 需要的项。 */
 export interface Env {
     XBOT_KV: KVNamespace;
     XBOT_DB: D1Database;
+    /** agent 入站邮箱（Durable Object）。没绑时 `transport = ws` 自动回退 HTTP。 */
+    AGENT_MAILBOX?: DurableObjectNamespace<AgentMailbox>;
 
     WECHAT_TOKEN?: string;
     WECHAT_API_BASE_URL?: string;
@@ -31,6 +35,10 @@ export interface Env {
     XBOT_CHANNEL_GATEWAY_TOKEN?: string;
     XBOT_CHANNEL_TIMEOUT_MS?: string;
     XBOT_CHANNEL_AUTO_FORWARD?: string;
+    /** WebSocket 邮箱里消息保留多久（毫秒），默认 1800000（30 分钟），每条固定不续期。 */
+    AGENT_WS_TTL_MS?: string;
+    /** agent 不在线时是否照样入队等补发。默认关。 */
+    AGENT_WS_QUEUE_OFFLINE?: string;
 
     /** SnailAI 服务根，例如 `https://host:8900`；若已是 `.../openapi/v1` 则原样用。 */
     SNAIL_AI_BASE_URL?: string;

@@ -23,7 +23,10 @@ export const openclawAgentPlugin: Plugin = {
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         const current = await currentBrain(ctx.env, message);
-        if (current.kind !== 'openclaw' || !current.baseUrl || !current.token) {
+        const viaMailbox = current.transport === 'ws';
+        const canDirect = Boolean(current.baseUrl && current.token);
+        // ws 模式下可以没有直推地址：agent 自己连上来就行
+        if (current.kind !== 'openclaw' || (!viaMailbox && !canDirect)) {
             logger.warn('OpenClaw 未配齐，跳过');
             return null;
         }
@@ -34,6 +37,7 @@ export const openclawAgentPlugin: Plugin = {
             token: current.token,
             timeoutMs: current.timeoutMs,
             logLabel: 'OpenClaw',
+            ...(viaMailbox ? {mailboxBrainKey: current.key} : {}),
         });
     },
 };

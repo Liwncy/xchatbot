@@ -1,6 +1,8 @@
 import {handleFetch} from './app.js';
 import type {Env} from './types/env.js';
 
+export {AgentMailbox} from './core/agent-mailbox.js';
+
 export default {
     fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         return handleFetch(request, env, ctx);

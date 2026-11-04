@@ -51,6 +51,18 @@ database_name = "xbotdata"
 database_id = "941571aa-a060-4d08-9cad-44b439b03c11"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Durable Object：agent 入站邮箱（免费档只能用 SQLite 后端）
+# agent_brain.transport = 'ws' 的大脑，入站先投这里；agent 主动连 /agent/ws。
+# ══════════════════════════════════════════════════════════════════════════════
+[[durable_objects.bindings]]
+name = "AGENT_MAILBOX"
+class_name = "AgentMailbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AgentMailbox"]
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 业务变量
 # 密钥放 .dev.vars（本地）或 wrangler secret（线上），不要写进本文件。
 # ══════════════════════════════════════════════════════════════════════════════
@@ -77,6 +89,9 @@ APP_LOG_ENABLE = "true"
 # 地址、token、默认在 D1 agent_brain。当前走哪颗在 KV。
 # 这个开关管全部大脑，关掉就都不接。
 XBOT_CHANNEL_ENABLED = "true"
+# WebSocket 邮箱（可选）。离线入队默认关：群里几分钟前的问题补发出去通常答非所问。
+# AGENT_WS_TTL_MS = "1800000"
+# AGENT_WS_QUEUE_OFFLINE = "false"
 
 # ── MCP ───────────────────────────────────────────────────────────────────────
 MCP_TOOLS_URL = "https://mcp.lwcfworker.dpdns.org/mcp"

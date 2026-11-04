@@ -6,6 +6,9 @@ import {brainDisplayName, parseBrainName, type AgentBrain} from './brain-name.js
 
 export type BrainLayer = 'session' | 'platform' | 'default';
 
+/** 入站怎么送到大脑。`ws` 先走邮箱（agent 主动连上来），连不上再回退 HTTP 直推。 */
+export type BrainTransport = 'http' | 'ws';
+
 export type BrainConnection = {
     /** 这一只的名字，写在 KV 里，用来切换。 */
     key: string;
@@ -18,6 +21,7 @@ export type BrainConnection = {
     enabled: boolean;
     appId: string;
     autoForward: boolean;
+    transport: BrainTransport;
 };
 
 export type ActiveBrain = BrainConnection & {layer: BrainLayer};
@@ -33,10 +37,11 @@ type BrainRow = {
     is_default: number;
     app_id: string;
     auto_forward: number;
+    transport: string;
     updated_at: number;
 };
 
-const COLUMNS = 'brain_key, agent_kind, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, updated_at';
+const COLUMNS = 'brain_key, agent_kind, display_name, base_url, token, timeout_ms, enabled, is_default, app_id, auto_forward, transport, updated_at';
 
 let schemaReady: Promise<void> | null = null;
 
@@ -85,14 +90,20 @@ async function ensureSchema(env: Env): Promise<void> {
                     is_default INTEGER NOT NULL DEFAULT 0,
                     app_id TEXT NOT NULL DEFAULT '',
                     auto_forward INTEGER NOT NULL DEFAULT 1,
+                    transport TEXT NOT NULL DEFAULT 'http',
                     updated_at INTEGER NOT NULL
                 )`,
             ).run();
             const info = await env.XBOT_DB.prepare(`PRAGMA table_info(agent_brain)`).all<{name: string}>();
-            const hasKind = (info.results ?? []).some((column) => column.name === 'agent_kind');
-            if (!hasKind) {
+            const columns = new Set((info.results ?? []).map((column) => column.name));
+            if (!columns.has('agent_kind')) {
                 await env.XBOT_DB.prepare(
                     `ALTER TABLE agent_brain ADD COLUMN agent_kind TEXT NOT NULL DEFAULT ''`,
+                ).run();
+            }
+            if (!columns.has('transport')) {
+                await env.XBOT_DB.prepare(
+                    `ALTER TABLE agent_brain ADD COLUMN transport TEXT NOT NULL DEFAULT 'http'`,
                 ).run();
             }
             await env.XBOT_DB.prepare(
@@ -170,7 +181,15 @@ async function rowMatching(env: Env, name: string): Promise<BrainRow | null> {
     return byName ?? null;
 }
 
+function rowTransport(row: BrainRow): BrainTransport {
+    return row.transport?.trim().toLowerCase() === 'ws' ? 'ws' : 'http';
+}
+
 function connectionFrom(env: Env, row: BrainRow): BrainConnection {
+    return {...baseConnection(env, row), transport: rowTransport(row)};
+}
+
+function baseConnection(env: Env, row: BrainRow): Omit<BrainConnection, 'transport'> {
     const kind = rowKind(row);
     const displayName = row.display_name.trim() || (kind ? brainDisplayName(kind) : row.brain_key);
     if (kind === 'hermes') {
@@ -250,6 +269,7 @@ function hermesFallback(env: Env, layer: BrainLayer): ActiveBrain {
         enabled: true,
         appId: '',
         autoForward: true,
+        transport: 'http',
     };
 }
 
@@ -263,6 +283,15 @@ async function readKvRow(env: Env, key: string): Promise<BrainRow | null> {
 export async function lookupBrain(env: Env, name: string): Promise<BrainConnection | null> {
     const row = await rowMatching(env, name);
     return row ? connectionFrom(env, row) : null;
+}
+
+/** 全部大脑。配置表只有几行，不会扫大表。 */
+export async function listBrains(env: Env): Promise<BrainConnection[]> {
+    await ensureSchema(env);
+    const rows = await env.XBOT_DB.prepare(
+        `SELECT ${COLUMNS} FROM agent_brain ORDER BY brain_key`,
+    ).all<BrainRow>();
+    return (rows.results ?? []).map((row) => connectionFrom(env, row));
 }
 
 export async function loadBrainConnection(env: Env, key: string): Promise<BrainConnection> {

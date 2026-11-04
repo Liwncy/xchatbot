@@ -13,7 +13,8 @@ function json(data: unknown, status = 200): Response {
     });
 }
 
-function authorize(request: Request, env: Env): Response | null {
+/** 设了 ADMIN_TOKEN 就要带 Bearer；没设不鉴权。返回 null 表示放行。 */
+export function authorizeAdmin(request: Request, env: Env): Response | null {
     const adminToken = env.ADMIN_TOKEN?.trim();
     if (!adminToken) return null;
 
@@ -31,7 +32,7 @@ function readTtl(value: unknown): number {
 }
 
 export async function handleAdminDebug(request: Request, env: Env): Promise<Response> {
-    const unauthorized = authorize(request, env);
+    const unauthorized = authorizeAdmin(request, env);
     if (unauthorized) return unauthorized;
 
     const pathname = new URL(request.url).pathname;

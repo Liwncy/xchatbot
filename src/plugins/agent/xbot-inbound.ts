@@ -1,3 +1,4 @@
+import {deliverToMailbox} from '../../core/agent-mailbox.js';
 import {resolveBotId, resolveBotName} from '../../core/bot.js';
 import {handledReply, type HandlerResponse} from '../../core/reply.js';
 import {patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
@@ -32,8 +33,13 @@ export async function forwardXbotInbound(args: {
     timeoutMs: number;
     extraHeaders?: Record<string, string>;
     logLabel: string;
+    /**
+     * 带上就先投 WebSocket 邮箱（agent 主动连上来的那条）。
+     * 邮箱收下就结束，不再走 HTTP，免得重复投递；邮箱不可用才回退 HTTP 直推。
+     */
+    mailboxBrainKey?: string;
 }): Promise<HandlerResponse> {
-    const {message, env, gatewayBaseUrl, token, timeoutMs, extraHeaders, logLabel} = args;
+    const {message, env, gatewayBaseUrl, token, timeoutMs, extraHeaders, logLabel, mailboxBrainKey} = args;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const conversationId = message.chatId;
@@ -71,7 +77,35 @@ export async function forwardXbotInbound(args: {
         content = message.content?.trim() || message.quote?.title?.trim() || `[${message.type}]`;
     }
 
+    const body = JSON.stringify({
+        accountId: 'Primary',
+        messageId: message.messageId,
+        source: message.source === 'group' ? 'group' : 'private',
+        from: message.senderId,
+        senderName: message.senderName,
+        conversationId,
+        roomId: message.source === 'group' ? message.chatId : undefined,
+        platform: message.platform,
+        type: message.type,
+        content,
+        ...(mediaUrl ? {mediaUrl} : {}),
+        ...(mediaKind ? {mediaKind} : {}),
+        ...(videoUrl ? {videoUrl} : {}),
+        ...(addressed === undefined ? {} : {addressed}),
+        timestamp: message.timestamp,
+    });
+
     try {
+        if (mailboxBrainKey) {
+            const delivered = await deliverToMailbox(env, mailboxBrainKey, message.messageId, body);
+            if (delivered === 'accepted') return handledReply();
+        }
+
+        if (!gatewayBaseUrl || !token) {
+            logger.warn(`${logLabel} 没有可用的投递方式`, {messageId: message.messageId});
+            return null;
+        }
+
         const response = await fetch(`${gatewayBaseUrl}/api/channels/xbot/inbound`, {
             method: 'POST',
             headers: {
@@ -79,23 +113,7 @@ export async function forwardXbotInbound(args: {
                 'Content-Type': 'application/json',
                 ...extraHeaders,
             },
-            body: JSON.stringify({
-                accountId: 'Primary',
-                messageId: message.messageId,
-                source: message.source === 'group' ? 'group' : 'private',
-                from: message.senderId,
-                senderName: message.senderName,
-                conversationId,
-                roomId: message.source === 'group' ? message.chatId : undefined,
-                platform: message.platform,
-                type: message.type,
-                content,
-                ...(mediaUrl ? {mediaUrl} : {}),
-                ...(mediaKind ? {mediaKind} : {}),
-                ...(videoUrl ? {videoUrl} : {}),
-                ...(addressed === undefined ? {} : {addressed}),
-                timestamp: message.timestamp,
-            }),
+            body,
             signal: controller.signal,
         });
 
