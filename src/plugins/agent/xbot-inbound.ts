@@ -1,10 +1,22 @@
+import {resolveBotId, resolveBotName} from '../../core/bot.js';
 import {handledReply, type HandlerResponse} from '../../core/reply.js';
 import {patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
 import {buildInboundContent} from '../../core/inbound.js';
 import type {IncomingMessage} from '../../core/message.js';
 import type {Env} from '../../types/env.js';
 import {logger} from '../../utils/logger.js';
+import {isBotMentioned} from '../channel/session/mention.js';
 import {resolveOpenClawMedia} from './openclaw/resolve-media.js';
+
+/**
+ * 群里这条是不是在叫它。私聊一律是在叫它，不带这个字段。
+ * 群会话在 full / random / smart 下会放行没点名的消息，大脑回静默标记才是对的；
+ * 把「没点名」告诉对面，对面才不会把静默当成出错。
+ */
+function addressedToBot(message: IncomingMessage, env: Env): boolean | undefined {
+    if (message.source !== 'group') return undefined;
+    return isBotMentioned(message, resolveBotName(env), resolveBotId(env, message.platform));
+}
 
 export function trimBaseUrl(url: string | undefined): string | undefined {
     const value = url?.trim();
@@ -43,6 +55,7 @@ export async function forwardXbotInbound(args: {
     const mediaUrl = resolved?.url;
     const mediaKind = resolved?.kind;
     const videoUrl = resolved?.videoUrl;
+    const addressed = addressedToBot(message, env);
     let content: string;
     try {
         content = await buildInboundContent(message, env, {
@@ -80,6 +93,7 @@ export async function forwardXbotInbound(args: {
                 ...(mediaUrl ? {mediaUrl} : {}),
                 ...(mediaKind ? {mediaKind} : {}),
                 ...(videoUrl ? {videoUrl} : {}),
+                ...(addressed === undefined ? {} : {addressed}),
                 timestamp: message.timestamp,
             }),
             signal: controller.signal,
