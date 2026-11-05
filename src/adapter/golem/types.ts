@@ -26,6 +26,8 @@ export interface ApiResponse<T = unknown> {
     code: number;
     message: string;
     data?: T;
+    /** 发送耗时等排障信息，只写进聊天记录，不参与业务判断。 */
+    timing?: Record<string, number | string>;
 }
 
 export interface RevokeParam {

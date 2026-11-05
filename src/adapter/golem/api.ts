@@ -138,7 +138,9 @@ export class GolemApi {
     async sendImage(params: {receiver: string; imageUrl: string}): Promise<ApiResponse> {
         const form = new FormData();
         form.append('receiver', params.receiver);
+        const downloadStart = Date.now();
         const bytes = await downloadImageBytes(params.imageUrl.trim());
+        const downloadMs = Date.now() - downloadStart;
         if (bytes) {
             // Golem 从 URL 下载需要它自己出网，部分图片域名它直连不通；
             // worker 先把图拉下来，直接以 file 上传，URL 仅作回退。
@@ -146,7 +148,17 @@ export class GolemApi {
         } else {
             form.append('url', params.imageUrl.trim());
         }
-        return this.postForm('/api/message/image', form);
+        const uploadStart = Date.now();
+        const result = await this.postForm('/api/message/image', form);
+        return {
+            ...result,
+            timing: {
+                mode: bytes ? 'file' : 'url',
+                bytes: bytes?.data.byteLength ?? 0,
+                downloadMs,
+                uploadMs: Date.now() - uploadStart,
+            },
+        };
     }
 
     async sendEmoji(params: {receiver: string; md5?: string; emojiUrl?: string}): Promise<ApiResponse> {

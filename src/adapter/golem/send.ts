@@ -226,9 +226,15 @@ function degrade(reply: ReplyMessage): ReplyMessage | null {
     }
 }
 
+function prefixTiming(prefix: string, timing?: ApiResponse['timing']): Record<string, number | string> {
+    return Object.fromEntries(Object.entries(timing ?? {}).map(([key, value]) => [`${prefix}${key}`, value]));
+}
+
 async function sendOne(api: GolemApi, receiver: string, reply: ReplyMessage, env: Env): Promise<ApiResponse> {
+    const startedAt = Date.now();
     const first = await sendNative(api, receiver, reply, env);
-    if (first.code === 0) return first;
+    const firstMs = Date.now() - startedAt;
+    if (first.code === 0) return {...first, timing: {...first.timing, totalMs: firstMs}};
     // 语音文件已经递进 Golem 后再补链接，会变成「气泡 + 卡片」两条。
     if (reply.type === 'voice' && first.message !== 'silk encode failed') return first;
     const next = degrade(reply);
@@ -239,7 +245,19 @@ async function sendOne(api: GolemApi, receiver: string, reply: ReplyMessage, env
         code: first.code,
         message: first.message,
     });
-    return sendNative(api, receiver, next, env);
+    const second = await sendNative(api, receiver, next, env);
+    return {
+        ...second,
+        timing: {
+            ...second.timing,
+            totalMs: Date.now() - startedAt,
+            degradedFrom: reply.type,
+            firstCode: first.code,
+            firstMessage: first.message.slice(0, 200),
+            firstMs,
+            ...prefixTiming('first_', first.timing),
+        },
+    };
 }
 
 function toReceipt(result: ApiResponse): SendReceipt {
@@ -249,6 +267,7 @@ function toReceipt(result: ApiResponse): SendReceipt {
         outboundId: revoke?.newId,
         revoke,
         data: result.data,
+        timing: result.timing,
     };
 }
 
@@ -266,6 +285,7 @@ async function recordOne(
         replyStatus: receipt.ok ? 'sent' : 'failed',
         payload: {
             ...(receipt.data != null ? {golem: receipt.data} : {}),
+            ...(receipt.timing ? {send_timing: receipt.timing} : {}),
             ...(receipt.revoke?.newId
                 ? {
                     wechat_revoke: {

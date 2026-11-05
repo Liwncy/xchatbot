@@ -18,6 +18,8 @@ export interface SendReceipt {
         createTime?: number;
     };
     data?: unknown;
+    /** 发送耗时、降级原因等排障信息，由适配器自行填写。 */
+    timing?: Record<string, number | string>;
 }
 
 export interface SendOptions {
