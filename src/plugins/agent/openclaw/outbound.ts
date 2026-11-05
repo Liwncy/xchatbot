@@ -5,6 +5,7 @@ import type {ReplyMessage} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
 import type {Env} from '../../../types/env.js';
 import {authorizeOpenClawRequest} from './auth.js';
+import {claimOutbound, finishOutbound, releaseOutbound} from './outbound-dedupe.js';
 
 function json(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data), {
@@ -143,14 +144,23 @@ export async function handleOpenclawOutbound(
         return json({ok: false, error: `unknown platform: ${message.platform}`}, 400);
     }
 
+    // 对端会重试：同一个 outboundId 只真正发一次，发送中回 409 让它稍后再来。
+    const outboundId = asString(body.outboundId);
+    const claim = await claimOutbound(outboundId);
+    if (claim.kind === 'busy') return json({ok: false, error: 'sending'}, 409);
+    if (claim.kind === 'duplicate') return json({ok: true, sentCount: claim.sentCount, duplicate: true});
+
     try {
         const receipts = await adapter.send(message, replies, env);
         const sentCount = receipts.filter((item) => item.ok).length;
         if (sentCount === 0) {
+            await releaseOutbound(outboundId);
             return json({ok: false, error: 'send failed', sentCount}, 502);
         }
+        await finishOutbound(outboundId, sentCount);
         return json({ok: true, sentCount});
     } catch (error) {
+        await releaseOutbound(outboundId);
         logger.warn('OpenClaw 出站失败', {
             platform: message.platform,
             error: error instanceof Error ? error.message : String(error),
