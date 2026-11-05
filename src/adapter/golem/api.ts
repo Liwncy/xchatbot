@@ -65,6 +65,9 @@ function normalizeApiResponse(raw: unknown): ApiResponse {
     return parsed;
 }
 
+/** 让 Golem 自己拉图的等待上限；实测约 10 秒，超过说明它拉不到。 */
+const IMAGE_URL_TIMEOUT_MS = 45_000;
+
 /** 按响应内容类型挑选图片扩展名，Golem 靠文件名识别格式。 */
 function imageFilename(contentType: string, url: string): string {
     const fromType: Record<string, string> = {
@@ -135,27 +138,64 @@ export class GolemApi {
         return this.postJson('/api/message/text', JSON.stringify(params));
     }
 
+    /**
+     * 先给 Golem 链接让它自己拉图（实测约 10 秒），失败再由 worker 下载后以文件上传（1.4MB 约 40 秒）。
+     * 客户端超时不回退：Golem 可能已经发出，再补一次会变成两张。
+     */
     async sendImage(params: {receiver: string; imageUrl: string}): Promise<ApiResponse> {
+        const imageUrl = params.imageUrl.trim();
+        const timing: Record<string, number | string> = {};
+        let urlFailure: ApiResponse | undefined;
+        let urlError: unknown;
+
+        if (/^https?:\/\//iu.test(imageUrl)) {
+            const form = new FormData();
+            form.append('receiver', params.receiver);
+            form.append('url', imageUrl);
+            const startedAt = Date.now();
+            try {
+                const result = await this.postForm(
+                    '/api/message/image',
+                    form,
+                    AbortSignal.timeout(IMAGE_URL_TIMEOUT_MS),
+                );
+                timing.urlMs = Date.now() - startedAt;
+                if (result.code === 0) return {...result, timing: {...timing, mode: 'url'}};
+                urlFailure = result;
+                timing.urlFailure = `code=${result.code} ${result.message}`.slice(0, 160);
+            } catch (error) {
+                timing.urlMs = Date.now() - startedAt;
+                const errorName = (error as {name?: string} | null)?.name;
+                if (errorName === 'TimeoutError' || errorName === 'AbortError') throw error;
+                urlError = error;
+                timing.urlFailure = (error instanceof Error ? error.message : String(error)).slice(0, 160);
+            }
+        }
+
+        const downloadStart = Date.now();
+        const bytes = await downloadImageBytes(imageUrl);
+        timing.downloadMs = Date.now() - downloadStart;
+        if (!bytes) {
+            // 下载不到就没有文件可传：保留链接方式的失败结果，让上层照常降级。
+            if (urlFailure) return {...urlFailure, timing: {...timing, mode: 'url'}};
+            if (urlError) throw urlError;
+        }
+
         const form = new FormData();
         form.append('receiver', params.receiver);
-        const downloadStart = Date.now();
-        const bytes = await downloadImageBytes(params.imageUrl.trim());
-        const downloadMs = Date.now() - downloadStart;
         if (bytes) {
-            // Golem 从 URL 下载需要它自己出网，部分图片域名它直连不通；
-            // worker 先把图拉下来，直接以 file 上传，URL 仅作回退。
             form.append('file', new Blob([bytes.data], {type: bytes.contentType}), bytes.filename);
         } else {
-            form.append('url', params.imageUrl.trim());
+            form.append('url', imageUrl);
         }
         const uploadStart = Date.now();
         const result = await this.postForm('/api/message/image', form);
         return {
             ...result,
             timing: {
+                ...timing,
                 mode: bytes ? 'file' : 'url',
                 bytes: bytes?.data.byteLength ?? 0,
-                downloadMs,
                 uploadMs: Date.now() - uploadStart,
             },
         };
@@ -371,10 +411,11 @@ export class GolemApi {
         return this.parseResponse(path, response);
     }
 
-    private async postForm(path: string, form: FormData): Promise<ApiResponse> {
+    private async postForm(path: string, form: FormData, signal?: AbortSignal): Promise<ApiResponse> {
         const response = await fetch(`${this.baseUrl}${path}`, {
             method: 'POST',
             body: form,
+            signal,
         });
         return this.parseResponse(path, response);
     }
