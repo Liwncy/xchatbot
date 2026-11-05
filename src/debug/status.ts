@@ -2,6 +2,7 @@ import {listBrains} from '../core/brain-store.js';
 import {mailboxOptionsFromEnv, mailboxStub, type MailboxStatus} from '../core/agent-mailbox.js';
 import type {Env} from '../types/env.js';
 import {authorizeAdmin} from './admin.js';
+import {summarizeBrainHealth, worstLevel} from './health.js';
 
 function json(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data, null, 2), {
@@ -14,6 +15,7 @@ function json(data: unknown, status = 200): Response {
  * `GET /admin/status[?brain=<brain_key>]`
  *
  * 看每个大脑的投递方式，以及 WebSocket 邮箱里 agent 连没连、队里压了几条。
+ * 每个大脑带 `health`（ok / warn / error + 问题清单），顶层 `level` / `summary` 是整体结论。
  * 只查 `transport = ws` 的大脑（或 `?brain=` 点名的那个）；其余不去碰 Durable Object，
  * 免得白白唤醒、白白计请求。不返回任何 token。
  */
@@ -26,6 +28,7 @@ export async function handleAdminStatus(request: Request, env: Env): Promise<Res
     const brains = (await listBrains(env)).filter((brain) => !only || brain.key.toLowerCase() === only);
     if (only && brains.length === 0) return json({error: 'unknown brain'}, 404);
 
+    const now = Date.now();
     const items = await Promise.all(brains.map(async (brain) => {
         let mailbox: MailboxStatus | {error: string} | null = null;
         if (brain.transport === 'ws' || only) {
@@ -47,12 +50,23 @@ export async function handleAdminStatus(request: Request, env: Env): Promise<Res
             transport: brain.transport,
             httpFallback: Boolean(brain.baseUrl && brain.token),
             mailbox,
+            health: summarizeBrainHealth({
+                enabled: brain.enabled,
+                transport: brain.transport,
+                mailbox,
+                now,
+            }),
         };
     }));
 
     const options = mailboxOptionsFromEnv(env);
     return json({
-        now: Date.now(),
+        now,
+        level: worstLevel(items.map((item) => item.health.level)),
+        summary: items
+            .filter((item) => item.health.level !== 'ok')
+            .map((item) => `${item.key}: ${item.health.summary}`)
+            .join('; ') || 'healthy',
         mailboxBound: Boolean(env.AGENT_MAILBOX),
         ttlMs: options.ttlMs,
         queueIfOffline: options.queueIfOffline,
