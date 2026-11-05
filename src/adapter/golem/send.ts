@@ -233,7 +233,12 @@ async function sendOne(api: GolemApi, receiver: string, reply: ReplyMessage, env
     if (reply.type === 'voice' && first.message !== 'silk encode failed') return first;
     const next = degrade(reply);
     if (!next) return first;
-    logger.warn('Golem 降级发送', {from: reply.type, to: next.type});
+    logger.warn('Golem 降级发送', {
+        from: reply.type,
+        to: next.type,
+        code: first.code,
+        message: first.message,
+    });
     return sendNative(api, receiver, next, env);
 }
 
