@@ -5,7 +5,9 @@ import type {IncomingMessage} from '../../src/core/message.ts';
 import type {Env} from '../../src/types/env.ts';
 
 type CatalogRow = {
+    id: number;
     role_key: string;
+    category: string;
     name: string;
     triggers: string;
     instruction: string;
@@ -28,25 +30,36 @@ function mockD1() {
             if (/CREATE TABLE IF NOT EXISTS persona/iu.test(sql)) tables.add('persona');
             if (/DROP TABLE roleplay_character/iu.test(sql)) tables.delete('roleplay_character');
             if (/INSERT INTO persona/iu.test(sql)) {
+                // 模拟 createPersona 的取号：整张表最大 id + 1
+                const next = (rows.length > 0 ? Math.max(...rows.map((row) => row.id)) : 0) + 1;
                 rows.push({
+                    id: next,
                     role_key: String(args[0]),
+                    category: '自定义',
                     name: String(args[1]),
-                    triggers: String(args[2] ?? ''),
-                    instruction: String(args[3]),
-                    ack: String(args[4]),
-                    status: String(args[5] ?? 'active'),
-                    sort_no: Number(args[6] ?? 200),
+                    triggers: '',
+                    instruction: String(args[2]),
+                    ack: String(args[3]),
+                    status: 'active',
+                    sort_no: 200,
                 });
+                return {success: true, meta: {changes: 1}};
             }
-            return {success: true};
+            return {success: true, meta: {changes: 0}};
         },
         async all() {
             if (/sqlite_master/iu.test(sql)) {
                 return {results: [...tables].map((name) => ({name}))};
             }
+            if (/PRAGMA table_info\(persona\)/iu.test(sql)) {
+                return {results: [{name: 'id'}, {name: 'category'}]};
+            }
             let list = rows.slice();
             if (/status = 'active'/iu.test(sql)) {
                 list = list.filter((row) => row.status === 'active');
+            }
+            if (/ORDER BY sort_no ASC, id ASC, role_key ASC/iu.test(sql)) {
+                list.sort((a, b) => a.sort_no - b.sort_no || a.id - b.id || a.role_key.localeCompare(b.role_key));
             }
             if (/role_key = \?/iu.test(sql)) {
                 list = list.filter((row) => row.role_key === args[0]);
@@ -107,8 +120,15 @@ async function main() {
     assert.equal(await tryHandlePersona(env, msg(), '加人格 猫娘 你是猫娘，短句。'), '好，记下了。说 #人格 猫娘 就行');
     assert.equal(tables.has('persona') && !tables.has('roleplay_character'), true);
     assert.equal(await tryHandlePersona(env, msg(), '加人格 猫娘 再写一遍'), '已经有这个了');
+
+    // 自定义人格的 id 接在整张表最大 id 后面
+    assert.equal(rows.find((row) => row.role_key === '猫娘')?.id, 1);
+    assert.equal(await tryHandlePersona(env, msg(), '加人格 狗娘 你是狗娘'), '好，记下了。说 #人格 狗娘 就行');
+    assert.equal(rows.find((row) => row.role_key === '狗娘')?.id, 2);
     rows.push({
+        id: 100,
         role_key: 'lvcha',
+        category: '性格',
         name: '绿茶',
         triggers: '',
         instruction: '演绿茶',
@@ -116,6 +136,11 @@ async function main() {
         status: 'active',
         sort_no: 10,
     });
+    // 列表：按目录顺序分组，性格（sort 10）在前，自定义（sort 200）在后
+    const expectedList = '性格：绿茶\n自定义：猫娘、狗娘\n说 #人格 名字 就换，#人格正常 切回来';
+    assert.equal(await tryHandlePersona(env, msg(), '人格列表'), expectedList);
+    assert.equal(await tryHandlePersona(env, msg(), '人格'), expectedList);
+    assert.equal(await tryHandlePersona(env, msg({senderId: 'wxid_other'}), '人格列表'), expectedList);
     assert.equal(await matchCommandId(env, '人格猫娘'), '猫娘');
     assert.equal(await matchCommandId(env, '扮演猫娘'), null);
     assert.equal(await matchCommandId(env, '当猫娘'), null);
@@ -134,7 +159,7 @@ async function main() {
         assert.match(inbound, /persona=猫娘/);
         assert.doesNotMatch(inbound, /role=/u);
         assert.match(inbound, /scope=group:123@chatroom/);
-        const persona = {id: '猫娘', name: '猫娘', triggers: [], instruction: '你是猫娘，短句。', ack: '好，猫娘。'};
+        const persona = {roleKey: '猫娘', category: '自定义', name: '猫娘', triggers: [], instruction: '你是猫娘，短句。', ack: '好，猫娘。'};
         const turn = `## 本条\n\n> ${inbound}`;
         const wrapped = wrapUserContent(turn, persona);
         assert.match(wrapped, /^## 本条\n\n> /u);

@@ -6,13 +6,13 @@ const RESTORE_COMMANDS = ['人格正常', '人格恢复'];
 const NAME_PREFIXES = ['人格'];
 const RESERVED = [
     '正常', '恢复', '人格',
-    '加人格', '增加人格', '新增人格',
+    '加人格', '增加人格', '新增人格', '人格列表',
     '当前人格', '小聪明儿', 'normal',
 ];
 const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
-
 type CatalogRow = {
     role_key: string;
+    category: string;
     name: string;
     triggers: string;
     instruction: string;
@@ -50,7 +50,9 @@ async function ensureSchema(db: D1Database): Promise<void> {
             }
             await db.prepare(
                 `CREATE TABLE IF NOT EXISTS persona (
-                    role_key TEXT PRIMARY KEY,
+                    id INTEGER PRIMARY KEY,
+                    role_key TEXT NOT NULL UNIQUE,
+                    category TEXT NOT NULL DEFAULT '',
                     name TEXT NOT NULL,
                     triggers TEXT NOT NULL DEFAULT '',
                     instruction TEXT NOT NULL,
@@ -59,8 +61,21 @@ async function ensureSchema(db: D1Database): Promise<void> {
                     sort_no INTEGER NOT NULL DEFAULT 100
                 )`,
             ).run();
+            // 旧表没跑 persona-columns.sql 时兜底补列，功能不坏；
+            // 补出来的 id 只是普通列，排在末尾，也不是主键，要按 id 排序得先重建表。
+            const info = await db.prepare('PRAGMA table_info(persona)').all<{name: string}>();
+            const columns = new Set((info.results ?? []).map((row) => row.name));
+            if (!columns.has('category')) {
+                await db.prepare(`ALTER TABLE persona ADD COLUMN category TEXT NOT NULL DEFAULT ''`).run();
+            }
+            if (!columns.has('id')) {
+                await db.prepare('ALTER TABLE persona ADD COLUMN id INTEGER NOT NULL DEFAULT 0').run();
+            }
             await db.prepare(
                 'CREATE INDEX IF NOT EXISTS idx_persona_status ON persona(status, sort_no)',
+            ).run();
+            await db.prepare(
+                'CREATE INDEX IF NOT EXISTS idx_persona_category ON persona(category, id)',
             ).run();
             const after = await tableNames(db);
             if (after.has('roleplay_character') && after.has('persona')) {
@@ -84,7 +99,8 @@ async function ensureSchema(db: D1Database): Promise<void> {
 
 function mapRow(row: CatalogRow): Persona {
     return {
-        id: row.role_key,
+        roleKey: row.role_key,
+        category: row.category ?? '',
         name: row.name,
         triggers: parseTriggers(row.triggers),
         instruction: row.instruction,
@@ -98,10 +114,10 @@ async function loadAll(env: Env): Promise<Persona[]> {
         catalogLoading = (async () => {
             await ensureSchema(env.XBOT_DB);
             const result = await env.XBOT_DB.prepare(
-                `SELECT role_key, name, triggers, instruction, ack, status, sort_no
+                `SELECT role_key, category, name, triggers, instruction, ack, status, sort_no
                  FROM persona
                  WHERE status = 'active'
-                 ORDER BY sort_no ASC, role_key ASC`,
+                 ORDER BY sort_no ASC, id ASC, role_key ASC`,
             ).all<CatalogRow>();
             const rows = (result.results ?? []).map(mapRow);
             catalogCache = {expiresAt: Date.now() + CATALOG_CACHE_TTL_MS, rows};
@@ -113,13 +129,13 @@ async function loadAll(env: Env): Promise<Persona[]> {
     return catalogLoading;
 }
 
-async function loadNameTokens(env: Env): Promise<Array<{id: string; name: string; triggers: string[]}>> {
+async function loadNameTokens(env: Env): Promise<Array<{roleKey: string; name: string; triggers: string[]}>> {
     await ensureSchema(env.XBOT_DB);
     const result = await env.XBOT_DB.prepare(
         'SELECT role_key, name, triggers FROM persona',
     ).all<Pick<CatalogRow, 'role_key' | 'name' | 'triggers'>>();
     return (result.results ?? []).map((row) => ({
-        id: row.role_key,
+        roleKey: row.role_key,
         name: row.name,
         triggers: parseTriggers(row.triggers),
     }));
@@ -130,10 +146,20 @@ export function isQueryCommand(command: string): boolean {
     return key === '当前人格';
 }
 
+export function isListCommand(command: string): boolean {
+    const key = normalize(command);
+    return key === '人格列表' || key === '人格';
+}
+
+/** 能换的人格，按目录顺序（sort_no，再 role_key）。 */
+export async function listPersonas(env: Env): Promise<Persona[]> {
+    return loadAll(env);
+}
+
 export async function getPersona(env: Env, roleKey: string | undefined): Promise<Persona | null> {
     if (!roleKey?.trim() || roleKey === NORMAL_ID) return null;
     const want = normalize(roleKey);
-    const row = (await loadAll(env)).find((item) => normalize(item.id) === want);
+    const row = (await loadAll(env)).find((item) => normalize(item.roleKey) === want);
     return row ?? null;
 }
 
@@ -145,7 +171,7 @@ export async function matchCommandId(env: Env, command: string): Promise<string 
     for (const persona of await loadAll(env)) {
         const register = (raw: string) => {
             const token = normalize(raw);
-            if (token && !map.has(token)) map.set(token, persona.id);
+            if (token && !map.has(token)) map.set(token, persona.roleKey);
         };
         register(persona.name);
         for (const alias of persona.triggers ?? []) register(alias);
@@ -173,18 +199,20 @@ export async function createPersona(
     }
     const want = normalize(name);
     for (const row of await loadNameTokens(env)) {
-        if (normalize(row.id) === want || normalize(row.name) === want) return '已经有这个了';
+        if (normalize(row.roleKey) === want || normalize(row.name) === want) return '已经有这个了';
         if (row.triggers.some((alias) => normalize(alias) === want)) return '已经有这个了';
     }
     await ensureSchema(env.XBOT_DB);
     try {
+        // 一条语句里取号并插入：整张表最大 id + 1
         await env.XBOT_DB.prepare(
             `INSERT INTO persona
-                (role_key, name, triggers, instruction, ack, status, sort_no)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(name, name, '', instruction, `好，${name}。`, 'active', 200).run();
-    } catch {
-        return '已经有这个了';
+                (id, role_key, category, name, triggers, instruction, ack, status, sort_no)
+             SELECT COALESCE(MAX(id), 0) + 1, ?, '自定义', ?, '', ?, ?, 'active', 200
+             FROM persona`,
+        ).bind(name, name, instruction, `好，${name}。`).run();
+    } catch (error) {
+        return String(error).includes('role_key') ? '已经有这个了' : '再试下';
     }
     catalogCache = null;
     return null;

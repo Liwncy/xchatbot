@@ -1,5 +1,6 @@
 export type Persona = {
-    id: string;
+    roleKey: string;
+    category: string;
     name: string;
     triggers: string[];
     instruction: string;

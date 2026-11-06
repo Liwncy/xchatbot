@@ -5,7 +5,9 @@ import type {IncomingMessage} from '../message.js';
 import {
     createPersona,
     getPersona,
+    isListCommand,
     isQueryCommand,
+    listPersonas,
     matchCommandId,
 } from './catalog.js';
 import {resetSnailaiConversation} from '../snailai-session.js';
@@ -52,6 +54,20 @@ function tryParseAdd(stripped: string): {name: string; instruction: string} | nu
     return {name, instruction};
 }
 
+function formatList(personas: Persona[]): string {
+    if (personas.length === 0) return '没有能换的 🤔';
+    // 分类按第一次出现的顺序排，没分类的归「其他」
+    const groups = new Map<string, string[]>();
+    for (const persona of personas) {
+        const key = persona.category || '其他';
+        const names = groups.get(key) ?? [];
+        names.push(persona.name);
+        groups.set(key, names);
+    }
+    const lines = [...groups].map(([category, names]) => `${category}：${names.join('、')}`);
+    return `${lines.join('\n')}\n说 #人格 名字 就换，#人格正常 切回来`;
+}
+
 export async function tryHandlePersona(
     env: Env,
     message: IncomingMessage,
@@ -70,6 +86,8 @@ export async function tryHandlePersona(
         return error ?? `好，记下了。说 #人格 ${add.name.trim()} 就行`;
     }
 
+    if (isListCommand(stripped)) return formatList(await listPersonas(env));
+
     if (isQueryCommand(stripped)) {
         const current = await currentPersona(env, message);
         return current ? `现在是${current.name}` : '现在没换';
@@ -86,8 +104,8 @@ export async function tryHandlePersona(
     }
     const persona = await getPersona(env, targetId);
     if (!persona) return null;
-    await setBoundRoleKey(env, message, persona.id);
-    if (previous !== persona.id) await resetSnailaiConversation(env, message);
-    logger.info('人格已切', {from: previous, to: persona.id});
+    await setBoundRoleKey(env, message, persona.roleKey);
+    if (previous !== persona.roleKey) await resetSnailaiConversation(env, message);
+    logger.info('人格已切', {from: previous, to: persona.roleKey});
     return persona.ack || `好，${persona.name}。`;
 }
