@@ -1,16 +1,16 @@
-import type {PluginContext} from '../../../../core/context.js';
-import type {IncomingMessage} from '../../../../core/message.js';
+import type {PluginContext} from '../../../core/context.js';
+import type {IncomingMessage} from '../../../core/message.js';
+import type {TextReply} from '../../../core/reply.js';
+import {logger} from '../../../utils/logger.js';
+import {callCfTool, rollPercent} from '../../channel/ambient/guard.js';
+import type {AmbientListener} from '../../channel/ambient/types.js';
 import {
     isChimeCooling,
     loadChimeConfig,
     nekoGamePlatform,
     readNekoGroup,
     startChimeCooldown,
-} from '../../../../core/neko/store.js';
-import type {TextReply} from '../../../../core/reply.js';
-import {logger} from '../../../../utils/logger.js';
-import {callCfTool, rollPercent} from '../guard.js';
-import type {AmbientListener} from '../types.js';
+} from './neko-store.js';
 
 /**
  * 猫娘附身后会自己开口：
@@ -36,7 +36,7 @@ function displayName(senderName?: string): string {
     return !name || /^wxid_/iu.test(name) ? '' : name;
 }
 
-export const nekoListener: AmbientListener = {
+export const nekoAmbientListener: AmbientListener = {
     name: 'neko',
 
     async match(message, ctx) {

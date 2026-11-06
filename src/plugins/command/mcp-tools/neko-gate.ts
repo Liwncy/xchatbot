@@ -5,7 +5,7 @@
  * - `#猫娘开` / `#猫娘关`  切换
  * - `#猫娘设置`            看这群的接话概率和冷却，后面跟 `出现 10 接话 5 冷却 3` 改，`默认` 恢复
  *
- * KV 怎么存见 core/neko/store.ts。
+ * KV 怎么存见 neko-store.ts。
  */
 import {resolveOwnerId} from '../../../core/bot.js';
 import type {IncomingMessage} from '../../../core/message.js';
@@ -18,7 +18,7 @@ import {
     saveChimeOverride,
     syncNekoOwner,
     type NekoChimeConfig,
-} from '../../../core/neko/store.js';
+} from './neko-store.js';
 import {textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {McpToolResult} from '../../../mcp/client.js';
 import type {Env} from '../../../types/env.js';

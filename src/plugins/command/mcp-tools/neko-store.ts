@@ -7,7 +7,7 @@
  *
  * 游戏数据本身在 cf-mcp-tools 的 D1，这里只是缓存和开关，丢了不影响存档。
  */
-import type {Env} from '../../types/env.js';
+import type {Env} from '../../../types/env.js';
 
 export interface NekoGroupFlag {
     /** 缓存的当前猫娘。还没刷新过时为空串。 */

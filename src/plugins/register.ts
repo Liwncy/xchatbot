@@ -1,5 +1,7 @@
 import {registerPlugin} from './runtime/index.js';
 import {ambientPlugin} from './channel/ambient/index.js';
+import {registerAmbientListener} from './channel/ambient/registry.js';
+import {nekoAmbientListener} from './command/mcp-tools/neko-ambient.js';
 import {emojiCollectPlugin} from './channel/emoji-collect/index.js';
 import {emojiStashPlugin} from './channel/emoji-stash/index.js';
 import {hongbaoPlugin} from './channel/hongbao/index.js';
@@ -47,5 +49,8 @@ export function ensurePluginsRegistered(): void {
     registerPlugin(snailaiAgentPlugin);
     registerPlugin(qwenpawAgentPlugin);
     registerPlugin(hermesAgentPlugin);
+
+    // 旁听监听器：普通群消息里想插话的玩法在这里登记
+    registerAmbientListener(nekoAmbientListener);
     registered = true;
 }

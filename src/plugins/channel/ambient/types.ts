@@ -8,7 +8,7 @@ import type {HandlerResponse} from '../../../core/reply.js';
  * 宿主（index.ts）已经替监听器挡掉了：不是群聊、不是文字、`#` 口令、@ 了机器人、机器人自己发的。
  * 监听器只管自己的判断，别再重复挡。
  *
- * 加新监听器：在 listeners/ 下新建一个文件，再到 listeners/index.ts 里加一行。
+ * 加新监听器：监听器放在自己玩法的目录里，再到 plugins/register.ts 里 registerAmbientListener 一行。
  * 每个监听器能在「插件停用清单」里用 `ambient:<name>` 单独关。
  */
 export interface AmbientListener {
