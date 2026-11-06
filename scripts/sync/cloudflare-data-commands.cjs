@@ -12,9 +12,10 @@ const groups = [
     {
         title: 'B. D1 命令',
         commands: [
-            {id: 'd1:migrate:local:persona', description: '初始化本地人格表并灌入目录。', shell: 'wrangler d1 execute xbotdata --local --file "./.docs/sql/persona.sql"'},
-            {id: 'd1:migrate:remote:persona', description: '初始化远端人格表并灌入目录。', shell: 'wrangler d1 execute xbotdata --remote --file "./.docs/sql/persona.sql"'},
-            {id: 'persona:from-mysql', description: '从 one-agbot MySQL 种子生成 D1 人格目录 SQL。', shell: 'node ./scripts/sync/persona-from-mysql.cjs'},
+            {id: 'persona:build', description: '把 .docs/persona/ 下的 md 生成 .docs/sql/persona.sql（删表重建版）。', shell: 'node ./scripts/sync/persona-build.cjs'},
+            {id: 'd1:migrate:local:persona', description: '本地人格表删掉重建并灌入目录（运行中 #加人格 加的会清掉）。', shell: 'wrangler d1 execute xbotdata --local --file "./.docs/sql/persona.sql"'},
+            {id: 'd1:migrate:remote:persona', description: '远端人格表删掉重建并灌入目录（运行中 #加人格 加的会清掉）。', shell: 'wrangler d1 execute xbotdata --remote --file "./.docs/sql/persona.sql"'},
+            {id: 'persona:from-mysql', description: '一次性：从 one-agbot 种子导入人格，只写 persona.baseline.sql（底），不覆盖正在用的 persona.sql。', shell: 'node ./scripts/sync/persona-from-mysql.cjs'},
             {id: 'd1:tables:local', description: '查看本地 D1 表列表。', shell: 'wrangler d1 execute xbotdata --local --command "SELECT name FROM sqlite_master WHERE type=\'table\' ORDER BY name;"'},
             {id: 'd1:tables:remote', description: '查看远端 D1 表列表。', shell: 'wrangler d1 execute xbotdata --remote --command "SELECT name FROM sqlite_master WHERE type=\'table\' ORDER BY name;"'},
         ],

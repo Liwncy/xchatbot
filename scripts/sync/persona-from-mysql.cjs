@@ -6,8 +6,27 @@ const DEFAULT_SOURCES = [
     path.resolve(REPO_ROOT, '..', 'one-agbot', 'script', 'sql', 'agbot_roleplay_character.sql'),
     path.resolve(REPO_ROOT, '..', 'one-agbot', 'script', 'sql', 'agbot_roleplay_character_extra.sql'),
 ];
-const DEFAULT_OUT = path.join(REPO_ROOT, '.docs', 'sql', 'persona.sql');
+// 只写「底」，不写 persona.sql：persona.sql 是正在用的、会被手改的版本，重跑本脚本不能把它盖掉。
+const DEFAULT_OUT = path.join(REPO_ROOT, '.docs', 'sql', 'persona.baseline.sql');
 const INSERT_BATCH = 8;
+
+// id 按号段分大类：同一类的 id 连在一起，类与类之间留空，后面加人格不会挤乱。
+//   1 ~  99  自定义：留给手动加的人格，源 SQL 里没有这类，生成时不写
+// 100 ~ 999  通用
+// 1000 ~ 1999 王者荣耀
+// 2000 起     预留，新增分类往这里排
+// 源 SQL 里没有分类，在这里维护。生成 SQL 时按这个顺序分段。
+const CATEGORIES = [
+    {name: '自定义', base: 1, end: 100},
+    {name: '通用', base: 100, end: 1000},
+    {name: '王者荣耀', base: 1000, end: 2000},
+];
+// sort_no 从这里起都是王者荣耀英雄，其余归通用
+const WZRY_FROM_SORT = 290;
+
+function categoryOf(row) {
+    return row.sortNo >= WZRY_FROM_SORT ? '王者荣耀' : '通用';
+}
 
 function skipWs(text, index) {
     while (index < text.length && /\s/u.test(text[index])) index += 1;
@@ -114,17 +133,25 @@ function toCharacter(fields) {
 }
 
 function valuesSql(row) {
-    return `(${sqliteString(row.roleKey)}, ${sqliteString(row.name)}, ${sqliteString(row.triggers)}, ${sqliteString(row.instruction)}, ${sqliteString(row.ack)}, ${sqliteString(row.status)}, ${row.sortNo})`;
+    return `(${row.id}, ${sqliteString(row.roleKey)}, ${sqliteString(row.category)}, ${sqliteString(row.name)}, ${sqliteString(row.triggers)}, ${sqliteString(row.instruction)}, ${sqliteString(row.ack)}, ${sqliteString(row.status)}, ${row.sortNo})`;
 }
 
 function buildSql(rows) {
-    const header = `-- 人格目录（Cloudflare D1）
--- 由 scripts/sync/persona-from-mysql.cjs 从 one-agbot SQL 生成，勿手改。
+    const header = `-- 人格目录的底（一次性从 one-agbot 导入的原始版本，只读，不用来灌库）。
+-- 由 scripts/sync/persona-from-mysql.cjs 生成，勿手改。正在用的是同目录的 persona.sql，以它为准。
+-- 只有要全量重做人格时，才重新导入这份底。
 -- 绑定在 KV：persona:bind:{platform}:{sessionId}
 -- 旧表 roleplay_character、旧键 roleplay:bind: 由 worker 第一次读到时迁过来。
+-- id 是主键（INTEGER PRIMARY KEY，即 rowid），不写 ORDER BY 时表默认就按 id 顺序；role_key 唯一，代码按它找人格。
+-- 注意：INSERT OR REPLACE 在 id 或 role_key 任一冲突时都会覆盖整行，所以各号段不能重叠。
+-- 已有的旧表要先跑 .docs/sql/persona-columns.sql 重建，再跑本文件。
+-- id 号段：1~99 自定义（留给手动加的，本文件不写）；100~999 通用；1000~1999 王者荣耀；2000 起预留。
+-- 下面按分类分段，每段内按 id 排。查某一类：SELECT id, role_key, name FROM persona WHERE category = '王者荣耀' ORDER BY id;
 
 CREATE TABLE IF NOT EXISTS persona (
-  role_key     TEXT PRIMARY KEY,
+  id           INTEGER PRIMARY KEY,
+  role_key     TEXT NOT NULL UNIQUE,
+  category     TEXT NOT NULL DEFAULT '',
   name         TEXT NOT NULL,
   triggers     TEXT NOT NULL DEFAULT '',
   instruction  TEXT NOT NULL,
@@ -135,18 +162,27 @@ CREATE TABLE IF NOT EXISTS persona (
 
 CREATE INDEX IF NOT EXISTS idx_persona_status
   ON persona(status, sort_no);
+
+CREATE INDEX IF NOT EXISTS idx_persona_category
+  ON persona(category, id);
 `;
-    const chunks = [];
-    for (let index = 0; index < rows.length; index += INSERT_BATCH) {
-        const batch = rows.slice(index, index + INSERT_BATCH);
-        chunks.push(
-            `INSERT OR REPLACE INTO persona
-    (role_key, name, triggers, instruction, ack, status, sort_no)
+    const sections = [];
+    for (const {name: category, base, end} of CATEGORIES) {
+        const group = rows.filter((row) => row.category === category);
+        if (group.length === 0) continue;
+        const chunks = [`-- ===== ${category || '未命名'}（${group.length}）id ${base}~${end - 1} =====`];
+        for (let index = 0; index < group.length; index += INSERT_BATCH) {
+            const batch = group.slice(index, index + INSERT_BATCH);
+            chunks.push(
+                `INSERT OR REPLACE INTO persona
+    (id, role_key, category, name, triggers, instruction, ack, status, sort_no)
 VALUES
 ${batch.map((row) => `    ${valuesSql(row)}`).join(',\n')};`,
-        );
+            );
+        }
+        sections.push(chunks.join('\n\n'));
     }
-    return `${header}\n${chunks.join('\n\n')}\n`;
+    return `${header}\n${sections.join('\n\n')}\n`;
 }
 
 function parseArgs(argv) {
@@ -183,6 +219,17 @@ function main() {
     const rows = [...seen.values()].sort((left, right) => left.sortNo - right.sortNo || left.roleKey.localeCompare(right.roleKey));
     if (rows.length !== 128) {
         throw new Error(`期望 128 个角色，实际 ${rows.length}`);
+    }
+    const used = new Map(CATEGORIES.map((item) => [item.name, 0]));
+    for (const row of rows) {
+        row.category = categoryOf(row);
+        const range = CATEGORIES.find((item) => item.name === row.category);
+        const offset = used.get(row.category);
+        row.id = range.base + offset;
+        if (row.id >= range.end) {
+            throw new Error(`${row.category || '未命名'} 的号段 ${range.base}~${range.end - 1} 放不下了：${row.roleKey}`);
+        }
+        used.set(row.category, offset + 1);
     }
     fs.mkdirSync(path.dirname(options.out), {recursive: true});
     fs.writeFileSync(options.out, buildSql(rows), 'utf8');
