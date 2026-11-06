@@ -15,6 +15,7 @@
  * 3. 口令上写 `server: '那个键'`
  * 返回形状和现有工具差太多时，再在 dispatch.ts 加 mapper。
  */
+import type {ChannelAdapter} from '../../../adapter/types.js';
 import {resolveBotId, resolveOwnerId} from '../../../core/bot.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {HandlerResponse} from '../../../core/reply.js';
@@ -29,6 +30,8 @@ export type CallCtx = {
     tail: string;
     message: IncomingMessage;
     env: Env;
+    /** 当前通道的适配器。口令要用平台能力（比如查群主）时从这里问，没有就当做不到。 */
+    adapter?: ChannelAdapter;
 };
 
 export type ArgsResult =

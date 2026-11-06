@@ -82,6 +82,13 @@ export async function syncNekoOwner(
     await env.XBOT_KV.put(groupKey('on', platform, chatId), JSON.stringify(next));
 }
 
+/** 游戏里确认没有猫娘了（比如全清），把缓存的猫娘去掉，开关保留。没开的群不动。 */
+export async function clearNekoOwner(env: Env, platform: string, chatId: string): Promise<void> {
+    const current = await readNekoGroup(env, platform, chatId);
+    if (!current?.ownerId) return;
+    await env.XBOT_KV.put(groupKey('on', platform, chatId), '1');
+}
+
 // ── 概率和冷却配置 ──────────────────────────────────────
 
 function clampNumber(value: unknown, min: number, max: number): number | null {

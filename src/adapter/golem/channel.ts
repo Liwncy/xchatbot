@@ -7,6 +7,7 @@ import {isDirectoryMiss, mapDirectoryPeople} from './directory.js';
 import {GOLEM_PLATFORM} from './parse.js';
 import {prepareGolemDistributionMessage, toGolemOutboundReplies} from './outbound.js';
 import {GolemChatroomRoster, isChatroom} from './roster.js';
+import {parseRoomOwner} from './room-owner.js';
 import {sendGolemReplies} from './send.js';
 
 function golemApi(env: Env): GolemApi | null {
@@ -76,6 +77,14 @@ export const golemAdapter: ChannelAdapter = {
             nickname: member.nickname || undefined,
             avatarUrl: member.avatar || undefined,
         };
+    },
+
+    async findRoomOwner(roomId, env): Promise<RoomMember | null> {
+        const api = golemApi(env);
+        if (!api || !isChatroom(roomId)) return null;
+        const result = await api.getContactDetail([roomId.trim()]);
+        if (result.code !== 0) return null;
+        return parseRoomOwner(result.data);
     },
 
     toOutboundText(reply: ReplyMessage): string | null {

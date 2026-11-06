@@ -361,6 +361,11 @@ export class GolemApi {
         return response.json();
     }
 
+    /** 批量取联系人详情，群 ID 也行；群的详情里带 `chatroom_owner`（群主）和成员昵称。 */
+    async getContactDetail(usernames: string[]): Promise<ApiResponse> {
+        return this.postJson('/api/contact/detail', JSON.stringify(usernames));
+    }
+
     async searchContacts(params: {
         keyword: string;
         fromScene?: number;

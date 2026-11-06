@@ -23,6 +23,6 @@ export const mcpToolsCommandPlugin: Plugin = {
     async handle(message, ctx): Promise<HandlerResponse> {
         const command = markedCommand(message, ctx.env)?.trim() ?? '';
         if (!command) return null;
-        return dispatchMcpCommand(command, message, ctx.env);
+        return dispatchMcpCommand(command, message, ctx.env, ctx.adapter);
     },
 };

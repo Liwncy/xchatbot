@@ -13,6 +13,7 @@ import {parseRepliesFromText} from '../../../core/outbound.js';
 import {isHandledReply, textReply, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {Env} from '../../../types/env.js';
+import type {ChannelAdapter} from '../../../adapter/types.js';
 import {
     FALLBACK,
     isOwner,
@@ -552,6 +553,7 @@ export async function dispatchMcpCommand(
     command: string,
     message: IncomingMessage,
     env: Env,
+    adapter?: ChannelAdapter,
 ): Promise<HandlerResponse> {
     const matched = resolveRoute(command);
     if (!matched) return null;
@@ -561,6 +563,7 @@ export async function dispatchMcpCommand(
         tail: matched.tail,
         message,
         env,
+        adapter,
     };
     if (matched.kind === 'local') {
         if (matched.route.local === 'poster') {

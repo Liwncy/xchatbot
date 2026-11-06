@@ -75,6 +75,8 @@ export interface ChannelAdapter {
     toOutboundReplies?(message: IncomingMessage, env: Env): Promise<ReplyMessage[] | null>;
     searchDirectory?(query: string, env: Env): Promise<DirectoryPerson[]>;
     findRoomMember?(roomId: string, name: string, env: Env): Promise<RoomMember | null>;
+    /** 查群主。平台没有群主概念、或者查不到，就不实现或返回 null，调用方按「没有群主」处理。 */
+    findRoomOwner?(roomId: string, env: Env): Promise<RoomMember | null>;
     toOutboundText?(reply: ReplyMessage): string | null;
     claimHongbao?(
         nativeUrl: string,
