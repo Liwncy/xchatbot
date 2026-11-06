@@ -58,7 +58,11 @@ export function posterSections(): Section[] {
 
     const play = sections.find((section) => section.title.startsWith('六、'));
     if (play) {
-        for (const route of PREFIX) play.items.push(`#${route.prefix}…`);
+        // 带开关的玩法（如猫娘）不上公共指令图，免得没开的群看到。
+        for (const route of PREFIX) {
+            if (route.gate) continue;
+            play.items.push(`#${route.prefix}…`);
+        }
         play.items.push('#八字测算', '#今日星座运势');
     }
     return sections.filter((section) => section.items.length > 0);

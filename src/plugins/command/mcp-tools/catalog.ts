@@ -4,7 +4,7 @@
  * 匹配顺序：
  * 1. 本地口令（#工具）
  * 2. 动词（#画图、#搜索…，更长的优先）
- * 3. 前缀玩法（#修仙*、#庄园*）
+ * 3. 前缀玩法（#修仙*、#庄园*、#猫娘*）
  * 4. 关键词表（#八字测算…，词在 keywords.ts）
  * 5. 其余交给规则库；对不上再由 unknown 插件回「没听懂」
  *
@@ -17,8 +17,10 @@
  */
 import {resolveBotId, resolveOwnerId} from '../../../core/bot.js';
 import type {IncomingMessage} from '../../../core/message.js';
+import type {HandlerResponse} from '../../../core/reply.js';
 import type {Env} from '../../../types/env.js';
 import {matchXuanxueCommand, xuanxueText} from './keywords.js';
+import {nekoGate} from './neko-gate.js';
 
 export type CallCtx = {
     command: string;
@@ -75,6 +77,11 @@ type RouteBase = {
     server?: RouteServer;
     tool: string;
     ownerOnly?: boolean;
+    /**
+     * 调工具前的前置关卡。返回 true 放行；返回回复就直接发这个；返回 null 当没这个口令。
+     * 用来做按群开关这类需要查 KV 的判断。
+     */
+    gate?: (ctx: CallCtx) => Promise<true | HandlerResponse>;
     fail: string;
     args: (ctx: CallCtx) => ArgsResult;
     map: MapperName;
@@ -368,6 +375,24 @@ function manorActionArgs(ctx: CallCtx): ArgsResult {
     });
 }
 
+/** 猫娘按群存档：带上群 ID、被 @ 的人（不含机器人自己），以及发言人是不是主人。 */
+function nekoActionArgs(ctx: CallCtx): ArgsResult {
+    const {message, env} = ctx;
+    if (message.source !== 'group') return need('这个得在群里玩');
+    const botId = resolveBotId(env, message.platform);
+    const mention = message.mentions?.find((item) => item.id && item.id !== botId);
+    const text = ctx.command.trim();
+    return ok({
+        ...identityArgs(ctx),
+        text,
+        chatId: message.chatId,
+        isAdmin: isOwner(message, env),
+        mentionId: mention?.id,
+        mentionName: mention?.name,
+        listHelp: text === '猫娘' || text === '猫娘帮助',
+    });
+}
+
 function xuanxueArgs(ctx: CallCtx): ArgsResult {
     const command = ctx.command.trim();
     const text = xuanxueText(command);
@@ -555,6 +580,14 @@ export const PREFIX: PrefixRoute[] = [
         args: manorActionArgs,
         map: 'text',
         helpRewrite: ['「庄园帮助」', '「#庄园帮助」'],
+    },
+    {
+        prefix: '猫娘',
+        tool: 'neko_action',
+        gate: nekoGate,
+        fail: '猫娘这边卡了一下，等下再试',
+        args: nekoActionArgs,
+        map: 'text',
     },
 ];
 

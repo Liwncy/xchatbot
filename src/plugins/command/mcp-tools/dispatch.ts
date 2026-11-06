@@ -575,6 +575,11 @@ export async function dispatchMcpCommand(
         return textReply('这事只有主人能定');
     }
 
+    if ('gate' in route && route.gate) {
+        const verdict = await route.gate(ctx);
+        if (verdict !== true) return verdict;
+    }
+
     const prepared = route.args(ctx);
     if (!prepared.ok) return textReply(prepared.hint);
 
