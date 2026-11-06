@@ -15,7 +15,7 @@ const SRC_DIR = path.join(ROOT, '.docs/persona');
 const OUT = path.join(ROOT, '.docs/sql/persona.sql');
 
 // 分类顺序就是排序，靠前的排前面。新分类加在这里，对应 .docs/persona/ 下同名文件夹。
-const CATEGORIES = ['性格', '角色', '成长', '通用'];
+const CATEGORIES = ['性格', '角色', '成长'];
 // 只有这里列的分类会写进 persona.sql，其余的 md 留着不灌。要灌哪类，往这里加。
 const ENABLED = ['性格', '角色', '成长'];
 const BATCH = 8;
