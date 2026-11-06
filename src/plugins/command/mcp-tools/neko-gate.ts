@@ -92,7 +92,7 @@ type AdoptResult =
 
 /**
  * 开机时给群里认一位猫娘：群主。
- * 群主靠适配器的 findRoomOwner 查，平台没这个能力或者查不到就不附身，让群里自己发 #猫娘附@某人。
+ * 群主靠适配器的 findRoomOwner 查，平台没这个能力或者查不到就不附身，让群里自己发 #猫娘附身@某人。
  * 群里已经有猫娘时工具什么都不做，所以重复开机、关了再开都不会换人。
  */
 async function adoptRoomOwner(ctx: CallCtx): Promise<AdoptResult> {
