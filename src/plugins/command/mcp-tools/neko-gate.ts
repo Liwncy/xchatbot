@@ -151,7 +151,7 @@ export async function nekoGate(ctx: CallCtx): Promise<true | HandlerResponse> {
                 return textReply(`开机啦，猫娘先附到群主「${adopted.name}」身上了 🐱 发 #猫娘帮助 看玩法`);
             }
             if (adopted.kind === 'existing') return textReply('开机啦，发 #猫娘帮助 看玩法 👌');
-            return textReply('开机啦，先发 #猫娘附@某人 定一位猫娘 👌');
+            return textReply('开机啦，发 #猫娘附我 就能让猫娘落到你身上 👌');
         }
         await disableNeko(env, message.platform, message.chatId);
         return textReply('关机了，数据都留着');
