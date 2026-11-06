@@ -591,6 +591,9 @@ export async function dispatchMcpCommand(
     let args = prepared.args;
     try {
         const result = await callServerMcp(env, server, route.tool, args);
+        if ('onResult' in route && route.onResult) {
+            await route.onResult(ctx, result).catch(() => undefined);
+        }
         const mapped = MAPPERS[route.map](result, ctx);
         if (matched.kind === 'prefix' && matched.route.helpRewrite) {
             const [from, to] = matched.route.helpRewrite;

@@ -28,6 +28,16 @@ export interface Env {
     GATEWAY_API_KEY?: string;
     XIUXIAN_PLATFORM?: string;
 
+    /**
+     * 猫娘主动开口的全局默认。每群可以用 `#猫娘设置` 单独改，改了就盖过这里。
+     * 有人 @ 猫娘本人时出现的概率（%），默认 5。
+     */
+    NEKO_CHIME_MENTION_PERCENT?: string;
+    /** 猫娘本人说话时接一句的概率（%），默认 3。 */
+    NEKO_CHIME_SPEAK_PERCENT?: string;
+    /** 两次接话至少隔几分钟，默认 10，0 表示不限。 */
+    NEKO_CHIME_COOLDOWN_MINUTES?: string;
+
     AGENT_BRIDGE_BASE_URL?: string;
     AGENT_BRIDGE_TOKEN?: string;
     XBOT_CHANNEL_ENABLED?: string;

@@ -20,7 +20,8 @@ import type {IncomingMessage} from '../../../core/message.js';
 import type {HandlerResponse} from '../../../core/reply.js';
 import type {Env} from '../../../types/env.js';
 import {matchXuanxueCommand, xuanxueText} from './keywords.js';
-import {nekoGate} from './neko-gate.js';
+import type {McpToolResult} from '../../../mcp/client.js';
+import {nekoGate, syncNekoOwnerFromResult} from './neko-gate.js';
 
 export type CallCtx = {
     command: string;
@@ -82,6 +83,11 @@ type RouteBase = {
      * 用来做按群开关这类需要查 KV 的判断。
      */
     gate?: (ctx: CallCtx) => Promise<true | HandlerResponse>;
+    /**
+     * 调用成功后、收成回复前的副作用，比如把回包里的状态记进缓存。
+     * 它出错不影响回复。
+     */
+    onResult?: (ctx: CallCtx, result: McpToolResult) => Promise<void>;
     fail: string;
     args: (ctx: CallCtx) => ArgsResult;
     map: MapperName;
@@ -585,6 +591,7 @@ export const PREFIX: PrefixRoute[] = [
         prefix: '猫娘',
         tool: 'neko_action',
         gate: nekoGate,
+        onResult: syncNekoOwnerFromResult,
         fail: '猫娘这边卡了一下，等下再试',
         args: nekoActionArgs,
         map: 'text',

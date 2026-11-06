@@ -100,6 +100,12 @@ SCREENSHOT_URL = "https://lwcfworker.dpdns.org/screenshot"
 # 加别人的 MCP：catalog.ts 的 MCP_SERVERS 登记后，再在这里加 URL，token 用 secret。
 XIUXIAN_PLATFORM = "agbot"
 
+# ── 猫娘主动开口（全局默认；每群可用 #猫娘设置 单独改）──────────────────────
+# 有人 @ 猫娘本人时出现的概率 %、猫娘本人说话时接一句的概率 %、两次接话至少隔几分钟（0 不限）
+NEKO_CHIME_MENTION_PERCENT = "5"
+NEKO_CHIME_SPEAK_PERCENT = "3"
+NEKO_CHIME_COOLDOWN_MINUTES = "10"
+
 # ── Web 调试适配器 ────────────────────────────────────────────────────────────
 # 上线前改成 false。
 WEB_ADAPTER_ENABLED = "true"
