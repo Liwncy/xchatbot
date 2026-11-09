@@ -592,7 +592,7 @@ export async function dispatchMcpCommand(
         if (verdict !== true) return verdict;
     }
 
-    const prepared = route.args(ctx);
+    const prepared = await route.args(ctx);
     if (!prepared.ok) return textReply(prepared.hint);
 
     const server = route.server ?? 'cf';

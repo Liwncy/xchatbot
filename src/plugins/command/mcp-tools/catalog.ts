@@ -23,6 +23,7 @@ import type {Env} from '../../../types/env.js';
 import {matchXuanxueCommand, xuanxueText} from './keywords.js';
 import type {McpToolResult} from '../../../mcp/client.js';
 import {nekoGate, syncNekoOwnerFromResult} from './neko-gate.js';
+import {boardPick, openBoardItem, openMatchQuery, rememberMatchBoard} from './match-board.js';
 
 export type CallCtx = {
     command: string;
@@ -93,7 +94,7 @@ type RouteBase = {
      */
     onResult?: (ctx: CallCtx, result: McpToolResult) => Promise<void>;
     fail: string;
-    args: (ctx: CallCtx) => ArgsResult;
+    args: (ctx: CallCtx) => ArgsResult | Promise<ArgsResult>;
     map: MapperName;
 };
 
@@ -525,8 +526,14 @@ function matchLeagueArgs(ctx: CallCtx): ArgsResult {
     return ok({sport});
 }
 
-function matchScheduleArgs(ctx: CallCtx): ArgsResult {
-    const tokens = ctx.tail.trim().split(/\s+/u).filter(Boolean);
+async function matchScheduleArgs(ctx: CallCtx): Promise<ArgsResult> {
+    const only = ctx.tail.trim();
+    if (/^\d+$/u.test(only)) {
+        const picked = await boardPick(ctx, Number(only));
+        if (picked?.league) return ok({league: picked.league});
+        return need(picked?.match ? '这是比赛，发 #赛事 1 就行' : '先发 #赛事联赛');
+    }
+    const tokens = only.split(/\s+/u).filter(Boolean);
     let date = '';
     let sport = '';
     let scope = '';
@@ -567,23 +574,49 @@ function matchScheduleArgs(ctx: CallCtx): ArgsResult {
     });
 }
 
-function matchLiveArgs(ctx: CallCtx): ArgsResult {
+async function matchLiveArgs(ctx: CallCtx): Promise<ArgsResult> {
     const text = argText(ctx);
-    return text ? ok({match: text}) : need('对阵写后面，比如 #赛事赛况 BLG T1');
+    if (!text) return need('对阵写后面，或发 #赛事 1');
+    if (/^\d+$/u.test(text)) {
+        const picked = await boardPick(ctx, Number(text));
+        if (picked?.match) return ok({match: picked.match});
+        return need(picked?.league ? '这是联赛，发 #赛事 1 看赛程' : '先发 #赛事 看今天的');
+    }
+    return ok({match: text});
 }
 
-function matchHubArgs(): ArgsResult {
+const SCHEDULE_WORDS = new Set([...MATCH_SPORTS, '全部', '热门', '上一天', '下一天', '之前', '之后', '今天']);
+
+function looksLikeDirectMatch(tail: string): boolean {
+    if (/^https?:\/\//iu.test(tail)) return true;
+    if (/[^\s#]+#\d{4}-\d{2}-\d{2}#[^\s]+/u.test(tail)) return true;
+    const words = tail.split(/\s+/u).filter((token) => !SCHEDULE_WORDS.has(token) && !matchDay(token));
+    return words.length >= 2;
+}
+
+async function matchHubGate(ctx: CallCtx): Promise<true | HandlerResponse> {
+    const tail = ctx.tail.trim();
+    if (/^\d+$/u.test(tail)) return openBoardItem(ctx, Number(tail));
+    if (looksLikeDirectMatch(tail)) return openMatchQuery(ctx, tail);
+    return true;
+}
+
+function matchHelp(): ArgsResult {
     return need([
+        '#赛事',
+        '今天的比赛',
+        '',
+        '#赛事 1',
+        '看刚列出的第 1 个。刚才是联赛就进赛程，刚才是赛程就看这场',
+        '',
         '#赛事联赛',
-        '看有哪些。#赛事联赛 电竞 只看这一类，足球、篮球、网球也行',
+        '今天有哪些联赛',
         '',
-        '#赛事赛程',
-        '不写就是今天的热门。#赛事赛程 s16 看这个联赛，#赛事赛程 11-10 网球 看某一天',
-        '翻页写成 #赛事赛程 s16 下一天，或上一天',
+        '#赛事 s16',
+        '这个联赛。#赛事 11-10 网球 看某一天',
         '',
-        '#赛事赛况',
-        '看一场。#赛事赛况 BLG T1 是今天，#赛事赛况 11-08 BLG T1 是指定那天',
-        '整段也能查：#赛事赛况 s16#2026-11-09#BLGvsT1',
+        '#赛事 BLG T1',
+        '直接看这场',
     ].join('\n'));
 }
 
@@ -610,10 +643,11 @@ export const VERBS: VerbRoute[] = [
     }, map: 'poem'},
     {verbs: ['搜诗'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，也可以先引用那条再发 #搜诗'), map: 'poem'},
     {verbs: ['车票'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},
-    {verbs: ['赛事联赛'], tool: 'match_leagues', fail: '联赛没查到', args: matchLeagueArgs, map: 'report'},
-    {verbs: ['赛事赛程'], tool: 'match_schedule', fail: '赛程没查到', args: matchScheduleArgs, map: 'report'},
+    {verbs: ['赛事联赛'], tool: 'match_leagues', fail: '联赛没查到', onResult: rememberMatchBoard, args: matchLeagueArgs, map: 'report'},
+    {verbs: ['赛事赛程'], tool: 'match_schedule', fail: '赛程没查到', onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
     {verbs: ['赛事赛况'], tool: 'match_live_report', fail: '这场没查到', args: matchLiveArgs, map: 'report'},
-    {verbs: ['赛事'], tool: 'match_leagues', fail: '没查到', args: matchHubArgs, map: 'report'},
+    {verbs: ['赛事帮助'], tool: 'match_schedule', fail: '没查到', args: matchHelp, map: 'report'},
+    {verbs: ['赛事'], tool: 'match_schedule', fail: '赛程没查到', gate: matchHubGate, onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
     {verbs: ['免费AI', '免费ai'], tool: 'free_ai_lookup', fail: '目录没查到', args: (ctx) => ok({query: ctx.tail || '免费 API'}), map: 'reply'},
     // 人机验证 / 好看 / 解析
     {verbs: ['人机验证', '是人吗'], tool: 'human_verify', fail: '没弄成，再试下', args: humanStartArgs, map: 'human-start'},
