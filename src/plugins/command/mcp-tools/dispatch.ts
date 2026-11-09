@@ -406,6 +406,14 @@ const adventure: MapFn = (result) => {
     return mapMcpResult(result, '这会儿没有在探的剧情');
 };
 
+const report: MapFn = (result) => {
+    const spoken = str(asRecord(result.raw)?.report);
+    if (result.ok && spoken) return textReply(clip(spoken, 3500));
+    const message = result.text?.trim() ?? '';
+    if (message && !message.startsWith('{') && !message.startsWith('[')) return textReply(clip(message));
+    return textReply('没查到，再试下');
+};
+
 const emoji: MapFn = (result) => {
     const raw = asRecord(result.raw);
     const items = raw?.items ?? raw?.results ?? (raw?.found === false ? [] : raw ? [raw] : []);
@@ -534,6 +542,7 @@ const MAPPERS: Record<MapperName, MapFn> = {
     'parse-video': parseVideo,
     emoji,
     voice,
+    report,
 };
 
 // ── 入口 ──────────────────────────────────────────────

@@ -74,7 +74,8 @@ export type MapperName =
     | 'video-job'
     | 'parse-video'
     | 'emoji'
-    | 'voice';
+    | 'voice'
+    | 'report';
 
 type RouteBase = {
     /** 不写则打 `cf`。`local` 走本 Worker，不经过公共 MCP。 */
@@ -491,6 +492,90 @@ function peerBanArgs(ctx: CallCtx): ArgsResult {
     });
 }
 
+const MATCH_SPORTS = ['足球', '篮球', '电竞', '网球', '乒乓球', '羽毛球', '斯诺克', '排球'];
+
+function shanghaiDay(offsetDays = 0): string {
+    const now = new Date(Date.now() + offsetDays * 86_400_000);
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(now);
+}
+
+function matchDay(token: string): string | null {
+    if (token === '明天') return shanghaiDay(1);
+    if (token === '昨天') return shanghaiDay(-1);
+    if (/^\d{4}-\d{2}-\d{2}$/u.test(token)) return token;
+    const short = /^(\d{1,2})-(\d{1,2})$/u.exec(token);
+    if (!short) return null;
+    const today = shanghaiDay();
+    const year = Number(today.slice(0, 4));
+    const month = short[1].padStart(2, '0');
+    const day = short[2].padStart(2, '0');
+    const iso = `${year}-${month}-${day}`;
+    return iso < shanghaiDay(-1) ? `${year + 1}-${month}-${day}` : iso;
+}
+
+function matchLeagueArgs(ctx: CallCtx): ArgsResult {
+    const sport = ctx.tail.trim();
+    if (!sport) return ok({});
+    if (/\s/u.test(sport)) return need('一次看一类，比如 #赛事联赛 电竞');
+    return ok({sport});
+}
+
+function matchScheduleArgs(ctx: CallCtx): ArgsResult {
+    const tokens = ctx.tail.trim().split(/\s+/u).filter(Boolean);
+    let date = '';
+    let sport = '';
+    let scope = '';
+    let direction = '';
+    const rest: string[] = [];
+    for (const token of tokens) {
+        if (token === '今天') continue;
+        if (!date) {
+            const day = matchDay(token);
+            if (day) {
+                date = day;
+                continue;
+            }
+        }
+        if (!sport && MATCH_SPORTS.includes(token)) {
+            sport = token;
+            continue;
+        }
+        if (!scope && (token === '全部' || token === '热门')) {
+            scope = token;
+            continue;
+        }
+        if (!direction && (token === '上一天' || token === '下一天' || token === '之前' || token === '之后')) {
+            direction = token === '之前' ? '上一天' : token === '之后' ? '下一天' : token;
+            continue;
+        }
+        rest.push(token);
+    }
+    if (rest.length > 1) return need('一次看一个联赛，比如 #赛事赛程 s16');
+    const league = rest[0] ?? '';
+    if (direction && !league) return need('翻页带上联赛，比如 #赛事赛程 s16 下一天');
+    return ok({
+        ...(date ? {date} : {}),
+        ...(sport ? {sport} : {}),
+        ...(scope ? {scope} : {}),
+        ...(league ? {league} : {}),
+        ...(direction ? {direction} : {}),
+    });
+}
+
+function matchLiveArgs(ctx: CallCtx): ArgsResult {
+    const text = argText(ctx);
+    return text ? ok({match: text}) : need('对阵写后面，比如 #赛事赛况 BLG T1');
+}
+
+function matchHubArgs(): ArgsResult {
+    return need('#赛事联赛\n#赛事赛程\n#赛事赛况');
+}
+
 /** 动词口令。更长的优先，所以「修仙游历」不会被前缀「修仙」吃掉。 */
 export const VERBS: VerbRoute[] = [
     // 图 / 语音 / 视频
@@ -514,6 +599,10 @@ export const VERBS: VerbRoute[] = [
     }, map: 'poem'},
     {verbs: ['搜诗'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，也可以先引用那条再发 #搜诗'), map: 'poem'},
     {verbs: ['车票'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},
+    {verbs: ['赛事联赛'], tool: 'match_leagues', fail: '联赛没查到', args: matchLeagueArgs, map: 'report'},
+    {verbs: ['赛事赛程'], tool: 'match_schedule', fail: '赛程没查到', args: matchScheduleArgs, map: 'report'},
+    {verbs: ['赛事赛况'], tool: 'match_live_report', fail: '这场没查到', args: matchLiveArgs, map: 'report'},
+    {verbs: ['赛事'], tool: 'match_leagues', fail: '没查到', args: matchHubArgs, map: 'report'},
     {verbs: ['免费AI', '免费ai'], tool: 'free_ai_lookup', fail: '目录没查到', args: (ctx) => ok({query: ctx.tail || '免费 API'}), map: 'reply'},
     // 人机验证 / 好看 / 解析
     {verbs: ['人机验证', '是人吗'], tool: 'human_verify', fail: '没弄成，再试下', args: humanStartArgs, map: 'human-start'},

@@ -20,7 +20,7 @@ const SECTION_DEFS: Array<{title: string; color: string; verbs: string[]}> = [
     {title: '一、看图', color: '#2f6bff', verbs: ['画图', '快画', '识图', '好看图', '随机图']},
     {title: '二、视频', color: '#12a36a', verbs: ['做视频', '查视频', '好看视频', '解析视频']},
     {title: '三、说话', color: '#7a5af8', verbs: ['朗读', '音色', '判断']},
-    {title: '四、找一找', color: '#0f9aa8', verbs: ['搜索', '热搜', '搜热点', '找话题', '诗词', '飞花令', '搜诗', '车票', '免费AI']},
+    {title: '四、找一找', color: '#0f9aa8', verbs: ['搜索', '热搜', '搜热点', '找话题', '诗词', '飞花令', '搜诗', '车票', '赛事', '赛事联赛', '赛事赛程', '赛事赛况', '免费AI']},
     {title: '五、表情和人', color: '#e06a2c', verbs: ['搜表情', '取表情', '搜能人', '转交']},
     {title: '六、玩法', color: '#f0a202', verbs: ['修仙游历', '游历选', '人机验证', '现在几点']},
 ];
