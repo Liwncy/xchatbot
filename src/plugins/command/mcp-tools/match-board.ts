@@ -79,13 +79,13 @@ async function callReport(ctx: BoardCtx, name: string, args: Record<string, unkn
 export async function openBoardItem(ctx: BoardCtx, index: number): Promise<HandlerResponse> {
     const board = await readBoard(ctx);
     const item = board?.items[index - 1];
-    if (!item) return textReply('先发 #赛事 看今天的');
+    if (!item) return textReply('先发 #赛事赛程 看今天的');
     if (item.league) {
         const result = await callReport(ctx, 'match_schedule', {league: item.league});
         await rememberMatchBoard(ctx, result).catch(() => undefined);
         return textReply(reportText(result));
     }
-    if (!item.match) return textReply('先发 #赛事 看今天的');
+    if (!item.match) return textReply('先发 #赛事赛程 看今天的');
     const result = await callReport(ctx, 'match_live_report', {match: item.match});
     return textReply(reportText(result));
 }

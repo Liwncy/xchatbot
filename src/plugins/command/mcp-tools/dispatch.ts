@@ -20,8 +20,12 @@ import {
     KEYWORDS,
     LOCAL,
     MCP_SERVERS,
+    MENUS,
     PREFIX,
+    SINGLES,
     VERBS,
+    isMenuCommand,
+    menuText,
     type CallCtx,
     type MapperName,
     type MatchedRoute,
@@ -548,13 +552,16 @@ const MAPPERS: Record<MapperName, MapFn> = {
 // ── 入口 ──────────────────────────────────────────────
 
 function catalogReply(): HandlerResponse {
-    const verbs = VERBS.flatMap((item) => item.verbs).join('、');
+    const groups = Object.keys(MENUS).map((prefix) => `#${prefix}`);
+    const singles = SINGLES.map((item) => `#${item.verb}`);
     return textReply([
-        '能直接敲的：',
-        verbs,
+        '分组看：',
+        groups.join('  '),
         '',
-        '玩法还是原来那样：#修仙状态 #庄园浇水 #八字测算 #今日老婆',
-        '主人改规则用 #规则搜索 / #规则启用 那些。',
+        '单个的：',
+        singles.join('  '),
+        '',
+        '发 #前缀 看这一组。玩法照旧：#修仙状态 #庄园浇水 #猫娘 #八字测算',
     ].join('\n'));
 }
 
@@ -564,6 +571,11 @@ export async function dispatchMcpCommand(
     env: Env,
     adapter?: ChannelAdapter,
 ): Promise<HandlerResponse> {
+    const menu = isMenuCommand(command);
+    if (menu) {
+        if (menu === '规则' && !isOwner(message, env)) return textReply('这事只有主人能定');
+        return textReply(menuText(menu));
+    }
     const matched = resolveRoute(command);
     if (!matched) return null;
     const ctx: CallCtx = {

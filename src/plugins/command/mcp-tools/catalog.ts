@@ -3,7 +3,7 @@
  *
  * 匹配顺序：
  * 1. 本地口令（#工具）
- * 2. 动词（#画图、#搜索…，更长的优先）
+ * 2. 动词（#图像画图、#搜索网页…，四个字，更长的优先）
  * 3. 前缀玩法（#修仙*、#庄园*、#猫娘*）
  * 4. 关键词表（#八字测算…，词在 keywords.ts）
  * 5. 其余交给规则库；对不上再由 unknown 插件回「没听懂」
@@ -300,14 +300,14 @@ function imageUrlArgs(ctx: CallCtx): ArgsResult {
 
 function videoPromptArgs(ctx: CallCtx): ArgsResult {
     const prompt = argText(ctx);
-    if (!prompt) return need('镜头怎么走写后面，也可以先引用那条再发 #做视频');
+    if (!prompt) return need('镜头怎么走写后面，也可以先引用那条再发 #视频制作');
     const imageUrl = mediaUrl(ctx.message, '');
     return ok(imageUrl ? {prompt, imageUrl} : {prompt});
 }
 
 function ticketArgs(ctx: CallCtx): ArgsResult {
     const parts = ctx.tail.split(/\s+/u).filter(Boolean);
-    if (parts.length < 2) return need('出发和到达写后面，比如 #车票 上海 北京 明天');
+    if (parts.length < 2) return need('出发和到达写后面，比如 #车票查询 上海 北京 明天');
     const [from, to, ...rest] = parts;
     const args: Record<string, unknown> = {from, to};
     for (const token of rest) {
@@ -333,7 +333,7 @@ function humanStartArgs(ctx: CallCtx): ArgsResult {
 
 function parseVideoArgs(ctx: CallCtx): ArgsResult {
     const text = argText(ctx);
-    if (!text) return need('把分享口令或链接写后面，也可以先引用那条再发 #解析视频');
+    if (!text) return need('把分享口令或链接写后面，也可以先引用那条再发 #视频解析');
     return ok({text});
 }
 
@@ -435,7 +435,7 @@ function peerTalkArgs(ctx: CallCtx): ArgsResult {
     const person = peerPersonOf(ctx);
     if (!person) return need('先点名或引用他');
     const topic = ctx.tail.replace(/^会/u, '').trim();
-    if (!topic) return need('他会啥写后面，比如 #记他 点歌');
+    if (!topic) return need('他会啥写后面，比如 #群友记录 点歌');
     return ok({
         scope: peerScopeOf(ctx.message),
         wxid: person.wxid,
@@ -450,7 +450,7 @@ function peerShoutArgs(ctx: CallCtx): ArgsResult {
     const person = peerPersonOf(ctx);
     if (!person) return need('先点名或引用他');
     const tail = ctx.tail.trim();
-    if (!tail) return need('口令写后面，比如 #记口令 点歌 music {问}');
+    if (!tail) return need('口令写后面，比如 #群友口令 点歌 music {问}');
     const parts = tail.split(/\s+/u).filter(Boolean);
     const topic = (parts[0] ?? '').replace(/^会/u, '');
     const template = parts.slice(1).join(' ') || topic;
@@ -531,7 +531,7 @@ async function matchScheduleArgs(ctx: CallCtx): Promise<ArgsResult> {
     if (/^\d+$/u.test(only)) {
         const picked = await boardPick(ctx, Number(only));
         if (picked?.league) return ok({league: picked.league});
-        return need(picked?.match ? '这是比赛，发 #赛事 1 就行' : '先发 #赛事联赛');
+        return need(picked?.match ? '这是比赛，发 #赛事赛程 1 就行' : '先发 #赛事联赛');
     }
     const tokens = only.split(/\s+/u).filter(Boolean);
     let date = '';
@@ -576,11 +576,11 @@ async function matchScheduleArgs(ctx: CallCtx): Promise<ArgsResult> {
 
 async function matchLiveArgs(ctx: CallCtx): Promise<ArgsResult> {
     const text = argText(ctx);
-    if (!text) return need('对阵写后面，或发 #赛事 1');
+    if (!text) return need('对阵写后面，或发 #赛事赛程 1');
     if (/^\d+$/u.test(text)) {
         const picked = await boardPick(ctx, Number(text));
         if (picked?.match) return ok({match: picked.match});
-        return need(picked?.league ? '这是联赛，发 #赛事 1 看赛程' : '先发 #赛事 看今天的');
+        return need(picked?.league ? '这是联赛，发 #赛事赛程 1 看赛程' : '先发 #赛事赛程 看今天的');
     }
     return ok({match: text});
 }
@@ -601,93 +601,173 @@ async function matchHubGate(ctx: CallCtx): Promise<true | HandlerResponse> {
     return true;
 }
 
-function matchHelp(): ArgsResult {
-    return need([
-        '#赛事',
-        '今天的比赛',
-        '',
-        '#赛事 1',
-        '看刚列出的第 1 个。刚才是联赛就进赛程，刚才是赛程就看这场',
-        '',
-        '#赛事联赛',
-        '今天有哪些联赛',
-        '',
-        '#赛事 s16',
-        '这个联赛。#赛事 11-10 网球 看某一天',
-        '',
-        '#赛事 BLG T1',
-        '直接看这场',
-    ].join('\n'));
+/**
+ * 口令菜单，按组列。发 `#前缀` 或 `#前缀帮助` 时列这一组。
+ * 每行是「四个字指令 + 参数形态」，方括号表示可省。
+ * 前缀只给真正成组的用；单独的能力各自一个指令，不硬归组。
+ */
+export const MENUS: Record<string, string[]> = {
+    图像: [
+        '#图像画图 提示词',
+        '#图像快画 提示词',
+        '#图像识图 [引用图] 或 图链',
+        '#图像好看 [关键词]',
+        '#图像随机 [原图]',
+    ],
+    视频: [
+        '#视频制作 提示词 [参考图]',
+        '#视频查询 视频id',
+        '#视频解析 分享链接',
+        '#视频好看 [关键词]',
+    ],
+    语音: [
+        '#语音朗读 [音色] 文字',
+        '#语音音色 [关键词] [页码]',
+        '#语音判断 句子 | 问题',
+    ],
+    搜索: [
+        '#搜索网页 关键词',
+        '#搜索热搜',
+        '#搜索热点 关键词',
+        '#搜索话题 [上下文]',
+    ],
+    诗词: [
+        '#诗词随机 [作者]',
+        '#诗词飞花 字',
+        '#诗词搜索 诗题 或 诗句 或 作者',
+    ],
+    赛事: [
+        '#赛事赛程 [联赛] [日期] [项目] [上一天/下一天]',
+        '#赛事赛程 编号',
+        '#赛事联赛 [项目]',
+        '#赛事赛况 队名1 队名2',
+    ],
+    表情: [
+        '#表情搜索 关键词',
+        '#表情取用 名字 或 md5',
+        '#表情收藏 [引用图] [说明]',
+        '#表情修改 名字 新说明',
+        '#表情重标',
+    ],
+    群友: [
+        '#群友花名',
+        '#群友转交 要做的事',
+        '#群友记录 他会啥',
+        '#群友口令 他会啥 口令模板',
+        '#群友禁言 [点名] [他会啥]',
+    ],
+    规则: [
+        '#规则搜索 [关键词]',
+        '#规则运行 规则id 城市=北京',
+        '#规则查询 规则id',
+        '#规则校验 规则JSON',
+        '#规则测试 规则JSON',
+        '#规则入库 规则JSON',
+        '#规则保存 规则JSON',
+        '#规则启用 规则id',
+        '#规则停用 规则id',
+        '#规则删除 规则id',
+    ],
+};
+
+/** 单独的能力：一个指令一件事，没有同类前缀。 */
+export const SINGLES: Array<{verb: string; what: string}> = [
+    {verb: '车票查询', what: '出发 到达 [日期] [车型] [页码]'},
+    {verb: '人机验证', what: '[点名]，不给就是自己'},
+    {verb: '验证结果', what: '查刚才那次'},
+    {verb: '现在几点', what: ''},
+    {verb: '回声复读', what: '要回的字'},
+    {verb: '模型设置', what: '改什么'},
+    {verb: '免费目录', what: '[需求]'},
+    {verb: '指令大全', what: ''},
+    {verb: '指令海报', what: ''},
+];
+
+export function menuText(prefix: string): string {
+    const items = MENUS[prefix];
+    if (!items) return `没有「${prefix}」这类口令`;
+    return items.join('\n');
 }
 
-/** 动词口令。更长的优先，所以「修仙游历」不会被前缀「修仙」吃掉。 */
+export function isMenuCommand(command: string): string | null {
+    const text = command.trim();
+    for (const prefix of Object.keys(MENUS)) {
+        if (text === prefix || text === `${prefix}帮助`) return prefix;
+    }
+    return null;
+}
+
+/** 动词口令。全部四个字；同组的前两字相同，单独的就是一个自然词组。更长的优先。 */
 export const VERBS: VerbRoute[] = [
-    // 图 / 语音 / 视频
-    {verbs: ['画图'], tool: 'draw_image', fail: '没画成，再试下', args: drawArgs, map: 'image'},
-    {verbs: ['快画'], tool: 'draw_image_fast', fail: '没画成，再试下', args: drawArgs, map: 'image'},
-    {verbs: ['朗读'], tool: 'synthesize_speech', fail: '没念出来，再试下', args: speechArgs, map: 'voice'},
-    {verbs: ['音色'], tool: 'list_speech_voices', fail: '音色没查到', args: voiceListArgs, map: 'reply'},
-    {verbs: ['识图'], tool: 'recognize_image', fail: '没认出来，再试下', args: imageUrlArgs, map: 'json'},
-    {verbs: ['做视频'], tool: 'submit_agnes_video', fail: '没交出去，再试下', args: videoPromptArgs, map: 'video-job'},
-    {verbs: ['查视频'], tool: 'query_agnes_video', fail: '还没做好', args: (ctx) => ctx.tail ? ok({videoId: ctx.tail.split(/\s+/u)[0]}) : need('把视频 id 写后面，比如 #查视频 abcd'), map: 'video'},
-    // 搜 / 热点
-    {verbs: ['搜索'], tool: 'web_search', fail: '没搜到', args: searchArgs, map: 'search'},
-    {verbs: ['热搜'], tool: 'trend_digest', fail: '热搜没查到', args: () => ok({}), map: 'json'},
-    {verbs: ['搜热点'], tool: 'trend_search', fail: '热点里没找着', args: searchArgs, map: 'json'},
-    {verbs: ['找话题'], tool: 'trend_chat_candidates', fail: '这会儿没合适话题', args: (ctx) => ok(ctx.tail ? {context: ctx.tail} : {}), map: 'json'},
-    // 诗词 / 车票 / 目录
-    {verbs: ['诗词'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => ok(ctx.tail ? {author: ctx.tail} : {}), map: 'poem'},
-    {verbs: ['飞花令'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => {
+    // 图像
+    {verbs: ['图像画图'], tool: 'draw_image', fail: '没画成，再试下', args: drawArgs, map: 'image'},
+    {verbs: ['图像快画'], tool: 'draw_image_fast', fail: '没画成，再试下', args: drawArgs, map: 'image'},
+    {verbs: ['图像识图'], tool: 'recognize_image', fail: '没认出来，再试下', args: imageUrlArgs, map: 'json'},
+    {verbs: ['图像好看'], tool: 'fetch_haokan_image', fail: '图没取到', args: (ctx) => ctx.tail ? ok({query: ctx.tail}) : ok({listCategories: true}), map: 'image'},
+    {verbs: ['图像随机'], tool: 'fetch_yinguo_image', fail: '图没取到', args: (ctx) => ok({allowRaw: ctx.tail === '原图'}), map: 'image'},
+    // 视频
+    {verbs: ['视频制作'], tool: 'submit_agnes_video', fail: '没交出去，再试下', args: videoPromptArgs, map: 'video-job'},
+    {verbs: ['视频查询'], tool: 'query_agnes_video', fail: '还没做好', args: (ctx) => ctx.tail ? ok({videoId: ctx.tail.split(/\s+/u)[0]}) : need('把视频 id 写后面，比如 #视频查询 abcd'), map: 'video'},
+    {verbs: ['视频解析'], tool: 'parse_short_video', fail: '这条解析不了', args: parseVideoArgs, map: 'parse-video'},
+    {verbs: ['视频好看'], tool: 'fetch_haokan_video', fail: '视频没取到', args: (ctx) => ctx.tail ? ok({query: ctx.tail}) : ok({listCategories: true}), map: 'video'},
+    // 语音
+    {verbs: ['语音朗读'], tool: 'synthesize_speech', fail: '没念出来，再试下', args: speechArgs, map: 'voice'},
+    {verbs: ['语音音色'], tool: 'list_speech_voices', fail: '音色没查到', args: voiceListArgs, map: 'reply'},
+    {verbs: ['语音判断'], tool: 'judge_speech', fail: '没判成，再试下', args: judgeArgs, map: 'reply'},
+    // 搜索
+    {verbs: ['搜索网页'], tool: 'web_search', fail: '没搜到', args: searchArgs, map: 'search'},
+    {verbs: ['搜索热搜'], tool: 'trend_digest', fail: '热搜没查到', args: () => ok({}), map: 'json'},
+    {verbs: ['搜索热点'], tool: 'trend_search', fail: '热点里没找着', args: searchArgs, map: 'json'},
+    {verbs: ['搜索话题'], tool: 'trend_chat_candidates', fail: '这会儿没合适话题', args: (ctx) => ok(ctx.tail ? {context: ctx.tail} : {}), map: 'json'},
+    // 诗词
+    {verbs: ['诗词随机'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => ok(ctx.tail ? {author: ctx.tail} : {}), map: 'poem'},
+    {verbs: ['诗词飞花'], tool: 'poetry_random', fail: '没抽到诗', args: (ctx) => {
         const text = argText(ctx);
-        return text ? ok({char: [...text][0] ?? text}) : need('字写后面，也可以先引用那条再发 #飞花令');
+        return text ? ok({char: [...text][0] ?? text}) : need('字写后面，也可以先引用那条再发 #诗词飞花');
     }, map: 'poem'},
-    {verbs: ['搜诗'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，也可以先引用那条再发 #搜诗'), map: 'poem'},
-    {verbs: ['车票'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},
+    {verbs: ['诗词搜索'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，也可以先引用那条再发 #诗词搜索'), map: 'poem'},
+    // 车票
+    {verbs: ['车票查询'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},    // 赛事
     {verbs: ['赛事联赛'], tool: 'match_leagues', fail: '联赛没查到', onResult: rememberMatchBoard, args: matchLeagueArgs, map: 'report'},
-    {verbs: ['赛事赛程'], tool: 'match_schedule', fail: '赛程没查到', onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
+    {verbs: ['赛事赛程'], tool: 'match_schedule', fail: '赛程没查到', gate: matchHubGate, onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
     {verbs: ['赛事赛况'], tool: 'match_live_report', fail: '这场没查到', args: matchLiveArgs, map: 'report'},
-    {verbs: ['赛事帮助'], tool: 'match_schedule', fail: '没查到', args: matchHelp, map: 'report'},
-    {verbs: ['赛事'], tool: 'match_schedule', fail: '赛程没查到', gate: matchHubGate, onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
-    {verbs: ['免费AI', '免费ai'], tool: 'free_ai_lookup', fail: '目录没查到', args: (ctx) => ok({query: ctx.tail || '免费 API'}), map: 'reply'},
-    // 人机验证 / 好看 / 解析
-    {verbs: ['人机验证', '是人吗'], tool: 'human_verify', fail: '没弄成，再试下', args: humanStartArgs, map: 'human-start'},
+    // 验证
+    {verbs: ['人机验证'], tool: 'human_verify', fail: '没弄成，再试下', args: humanStartArgs, map: 'human-start'},
     {verbs: ['验证结果'], tool: 'human_verify', fail: '还没结果', args: (ctx) => ok({action: 'status', clientKey: verifyTarget(ctx.message, ctx.env).id}), map: 'human-status'},
-    {verbs: ['好看图'], tool: 'fetch_haokan_image', fail: '图没取到', args: (ctx) => ctx.tail ? ok({query: ctx.tail}) : ok({listCategories: true}), map: 'image'},
-    {verbs: ['好看视频'], tool: 'fetch_haokan_video', fail: '视频没取到', args: (ctx) => ctx.tail ? ok({query: ctx.tail}) : ok({listCategories: true}), map: 'video'},
-    {verbs: ['随机图'], tool: 'fetch_yinguo_image', fail: '图没取到', args: (ctx) => ok({allowRaw: ctx.tail === '原图'}), map: 'image'},
-    {verbs: ['解析视频'], tool: 'parse_short_video', fail: '这条解析不了', args: parseVideoArgs, map: 'parse-video'},
-    // 表情 / 时间 / 回声
-    {verbs: ['模型'], server: 'local', tool: 'llm_config', ownerOnly: true, fail: '没配成', args: (ctx) => ok({tail: ctx.tail}), map: 'json'},
-    {verbs: ['搜表情'], server: 'local', tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #搜表情'), map: 'emoji'},
-    {verbs: ['收藏表情'], server: 'local', tool: 'emoji_save', ownerOnly: true, fail: '没存上', args: emojiSaveArgs, map: 'emoji'},
-    {verbs: ['取表情'], server: 'local', tool: 'emoji_get', fail: '没找着', args: (ctx) => {
+    // 表情
+    {verbs: ['表情搜索'], server: 'local', tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #表情搜索'), map: 'emoji'},
+    {verbs: ['表情取用'], server: 'local', tool: 'emoji_get', fail: '没找着', args: (ctx) => {
         if (!ctx.tail) return need('名字或 md5 写后面');
         const md5 = md5Of(ctx.tail);
         return ok(md5 ? {md5} : {name: ctx.tail});
     }, map: 'emoji'},
-    {verbs: ['改表情'], server: 'local', tool: 'emoji_update', ownerOnly: true, fail: '没改成', args: (ctx) => {
+    {verbs: ['表情收藏'], server: 'local', tool: 'emoji_save', ownerOnly: true, fail: '没存上', args: emojiSaveArgs, map: 'emoji'},
+    {verbs: ['表情修改'], server: 'local', tool: 'emoji_update', ownerOnly: true, fail: '没改成', args: (ctx) => {
         const parts = ctx.tail.split(/\s+/u).filter(Boolean);
-        if (parts.length < 2) return need('名字和新说明写后面，比如 #改表情 摊手 无奈');
+        if (parts.length < 2) return need('名字和新说明写后面，比如 #表情修改 摊手 无奈');
         return ok({name: parts[0], description: parts.slice(1).join(' ')});
     }, map: 'json'},
-    {verbs: ['重标表情', '补表情名'], server: 'local', tool: 'emoji_relabel', ownerOnly: true, fail: '没标成', args: () => ok({}), map: 'json'},
-    {verbs: ['记他'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerTalkArgs, map: 'json'},
-    {verbs: ['记口令'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerShoutArgs, map: 'json'},
-    {verbs: ['搜能人', '花名册'], server: 'local', tool: 'peer_search', fail: '这群还没记谁', args: peerSearchArgs, map: 'json'},
-    {verbs: ['转交', '甩活'], server: 'local', tool: 'peer_match', fail: '不会', args: peerMatchArgs, map: 'json'},
-    {verbs: ['禁口令', '禁他'], server: 'local', tool: 'peer_ban', ownerOnly: true, fail: '没禁成', args: peerBanArgs, map: 'json'},
-    {verbs: ['现在几点', '几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
-    {verbs: ['判断'], tool: 'judge_speech', fail: '没判成，再试下', args: judgeArgs, map: 'reply'},
-    {verbs: ['回声'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {
+    {verbs: ['表情重标'], server: 'local', tool: 'emoji_relabel', ownerOnly: true, fail: '没标成', args: () => ok({}), map: 'json'},
+    // 群友
+    {verbs: ['群友花名'], server: 'local', tool: 'peer_search', fail: '这群还没记谁', args: peerSearchArgs, map: 'json'},
+    {verbs: ['群友转交'], server: 'local', tool: 'peer_match', fail: '不会', args: peerMatchArgs, map: 'json'},
+    {verbs: ['群友记录'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerTalkArgs, map: 'json'},
+    {verbs: ['群友口令'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerShoutArgs, map: 'json'},
+    {verbs: ['群友禁言'], server: 'local', tool: 'peer_ban', ownerOnly: true, fail: '没禁成', args: peerBanArgs, map: 'json'},
+    // 系统
+    {verbs: ['现在几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
+    {verbs: ['回声复读'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {
         const text = argText(ctx);
-        return text ? ok({message: text}) : need('要原样回去的字写后面，也可以先引用那条再发 #回声');
+        return text ? ok({message: text}) : need('要原样回去的字写后面，也可以先引用那条再发 #回声复读');
     }, map: 'text'},
+    {verbs: ['模型设置'], server: 'local', tool: 'llm_config', ownerOnly: true, fail: '没配成', args: (ctx) => ok({tail: ctx.tail}), map: 'json'},
+    {verbs: ['免费目录'], tool: 'free_ai_lookup', fail: '目录没查到', args: (ctx) => ok({query: ctx.tail || '免费 API'}), map: 'reply'},
     // 修仙游历（须排在前缀「修仙」之前。修仙探索留给前缀，走一次性结算）
     {verbs: ['修仙生剧'], tool: 'xiuxian_adventure', ownerOnly: true, fail: '这回没写成，再试下', args: (ctx) => ok({action: 'generate', hint: ctx.tail || undefined, ...identityArgs(ctx)}), map: 'adventure'},
     {verbs: ['修仙游历', '继续游历'], tool: 'xiuxian_adventure', fail: '这会儿没游成，再试下', args: (ctx) => ok({action: 'play', ...identityArgs(ctx)}), map: 'adventure'},
-    {verbs: ['游历选'], tool: 'xiuxian_adventure', fail: '这会儿选不了', args: (ctx) => {
+    {verbs: ['修仙选项'], tool: 'xiuxian_adventure', fail: '这会儿选不了', args: (ctx) => {
         const index = Number.parseInt(ctx.tail.replace(/^[选]/u, ''), 10);
-        if (index < 1 || index > 4) return need('选项写成 #游历选1 到 #游历选4');
+        if (index < 1 || index > 4) return need('选项写成 #修仙选项1 到 #修仙选项4');
         return ok({action: 'choose', optionIndex: index, ...identityArgs(ctx)});
     }, map: 'adventure'},
     // 规则库维护（主人）
@@ -709,8 +789,8 @@ export const VERBS: VerbRoute[] = [
 
 /** 不调 MCP，只列出能敲的动词。 */
 export const LOCAL: LocalRoute[] = [
-    {verbs: ['工具', '口令'], local: 'catalog'},
-    {verbs: ['指令图', '指令'], local: 'poster'},
+    {verbs: ['指令大全'], local: 'catalog'},
+    {verbs: ['指令海报'], local: 'poster'},
 ];
 
 /** 整段玩法前缀。helpRewrite 只改帮助文案里的口令提示。 */

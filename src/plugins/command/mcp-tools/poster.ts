@@ -1,5 +1,5 @@
 /**
- * `#指令` / `#指令图`：把当前公开口令排成海报，截图后上传。
+ * `#指令大全` / `#指令海报`：把当前公开口令排成海报，截图后上传。
  * 公网文件大约一天失效，链接在 KV 里只留 23 小时。口令表变了就重新出图。
  */
 import {imageReply, textReply, type HandlerResponse} from '../../../core/reply.js';
@@ -17,12 +17,14 @@ type Section = {title: string; color: string; items: string[]};
 type CachedPoster = {url: string; fingerprint: string};
 
 const SECTION_DEFS: Array<{title: string; color: string; verbs: string[]}> = [
-    {title: '一、看图', color: '#2f6bff', verbs: ['画图', '快画', '识图', '好看图', '随机图']},
-    {title: '二、视频', color: '#12a36a', verbs: ['做视频', '查视频', '好看视频', '解析视频']},
-    {title: '三、说话', color: '#7a5af8', verbs: ['朗读', '音色', '判断']},
-    {title: '四、找一找', color: '#0f9aa8', verbs: ['搜索', '热搜', '搜热点', '找话题', '诗词', '飞花令', '搜诗', '车票', '赛事', '赛事联赛', '赛事赛程', '赛事赛况', '赛事帮助', '免费AI']},
-    {title: '五、表情和人', color: '#e06a2c', verbs: ['搜表情', '取表情', '搜能人', '转交']},
-    {title: '六、玩法', color: '#f0a202', verbs: ['修仙游历', '游历选', '人机验证', '现在几点']},
+    {title: '一、图像', color: '#2f6bff', verbs: ['图像画图', '图像快画', '图像识图', '图像好看', '图像随机']},
+    {title: '二、视频', color: '#12a36a', verbs: ['视频制作', '视频查询', '视频解析', '视频好看']},
+    {title: '三、语音', color: '#7a5af8', verbs: ['语音朗读', '语音音色', '语音判断']},
+    {title: '四、搜索和诗词', color: '#0f9aa8', verbs: ['搜索网页', '搜索热搜', '搜索热点', '搜索话题', '诗词随机', '诗词飞花', '诗词搜索']},
+    {title: '五、赛事', color: '#c0392b', verbs: ['赛事赛程', '赛事联赛', '赛事赛况', '车票查询']},
+    {title: '六、表情和群友', color: '#e06a2c', verbs: ['表情搜索', '表情取用', '群友花名', '群友转交']},
+    {title: '七、单独用', color: '#5b6b7c', verbs: ['现在几点', '人机验证', '验证结果', '免费目录', '指令大全', '指令海报']},
+    {title: '八、玩法', color: '#f0a202', verbs: ['修仙游历', '修仙选项', '修仙生剧']},
 ];
 
 function publicVerbs(): string[] {
@@ -56,14 +58,14 @@ export function posterSections(): Section[] {
         });
     }
 
-    const play = sections.find((section) => section.title.startsWith('六、'));
+    const play = sections.find((section) => section.title.startsWith('八、'));
     if (play) {
         // 带开关的玩法（如猫娘）不上公共指令图，免得没开的群看到。
         for (const route of PREFIX) {
             if (route.gate) continue;
             play.items.push(`#${route.prefix}…`);
         }
-        play.items.push('#八字测算', '#今日星座运势');
+        play.items.push('#玄学…');
     }
     return sections.filter((section) => section.items.length > 0);
 }
