@@ -10,7 +10,7 @@
 import {callMcpTool, type McpToolResult} from '../../../mcp/client.js';
 import {mapMcpResult} from '../../../mcp/map-result.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
-import {isHandledReply, textReply, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
+import {isHandledReply, textReply, chatRecordReply, type ChatRecordItem, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {Env} from '../../../types/env.js';
 import type {ChannelAdapter} from '../../../adapter/types.js';
@@ -411,12 +411,44 @@ const adventure: MapFn = (result) => {
 };
 
 const report: MapFn = (result) => {
-    const spoken = str(asRecord(result.raw)?.report);
-    if (result.ok && spoken) return textReply(clip(spoken, 3500));
+    const raw = asRecord(result.raw);
+    const spoken = str(raw?.report);
+    if (result.ok && spoken) {
+        const rawLines = Array.isArray(raw?.lines) ? raw.lines : [];
+        const lines = rawLines.map((line) => str(line)).filter((line) => line.length > 0);
+        if (spoken.length <= REPORT_TEXT_LIMIT) return textReply(spoken);
+        return matchCard(spoken, lines.length > 0 ? lines : spoken.split('\n'));
+    }
     const message = result.text?.trim() ?? '';
     if (message && !message.startsWith('{') && !message.startsWith('[')) return textReply(clip(message));
     return textReply('没查到，再试下');
 };
+
+/** 超过这个字数就不适合塞进一条微信文本，改用聊天记录卡片。 */
+const REPORT_TEXT_LIMIT = 1500;
+const CARD_NICKNAME = '赛事';
+
+function matchCard(report: string, lines: string[]): HandlerResponse {
+    const items: ChatRecordItem[] = [];
+    let stamp = Date.now() - lines.length * 1000;
+    let buffer: string[] = [];
+    const flush = () => {
+        if (buffer.length === 0) return;
+        const content = buffer.join('\n').trim();
+        buffer = [];
+        if (!content) return;
+        items.push({type: 'text', nickname: CARD_NICKNAME, content, timestampMs: stamp});
+        stamp += 1000;
+    };
+    for (const line of lines) {
+        // 长列表按 20 行一段，避免一条聊天气泡过长。
+        if (buffer.length >= 20) flush();
+        buffer.push(line);
+    }
+    flush();
+    const title = report.split('\n')[0]?.trim() || '赛事';
+    return [textReply(title), chatRecordReply(items, {title})];
+}
 
 const emoji: MapFn = (result) => {
     const raw = asRecord(result.raw);

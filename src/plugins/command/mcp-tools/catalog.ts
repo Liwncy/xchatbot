@@ -495,30 +495,6 @@ function peerBanArgs(ctx: CallCtx): ArgsResult {
 
 const MATCH_SPORTS = ['足球', '篮球', '电竞', '网球', '乒乓球', '羽毛球', '斯诺克', '排球'];
 
-function shanghaiDay(offsetDays = 0): string {
-    const now = new Date(Date.now() + offsetDays * 86_400_000);
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).format(now);
-}
-
-function matchDay(token: string): string | null {
-    if (token === '明天') return shanghaiDay(1);
-    if (token === '昨天') return shanghaiDay(-1);
-    if (/^\d{4}-\d{2}-\d{2}$/u.test(token)) return token;
-    const short = /^(\d{1,2})-(\d{1,2})$/u.exec(token);
-    if (!short) return null;
-    const today = shanghaiDay();
-    const year = Number(today.slice(0, 4));
-    const month = short[1].padStart(2, '0');
-    const day = short[2].padStart(2, '0');
-    const iso = `${year}-${month}-${day}`;
-    return iso < shanghaiDay(-1) ? `${year + 1}-${month}-${day}` : iso;
-}
-
 function matchLeagueArgs(ctx: CallCtx): ArgsResult {
     const sport = ctx.tail.trim();
     if (!sport) return ok({});
@@ -531,67 +507,58 @@ async function matchScheduleArgs(ctx: CallCtx): Promise<ArgsResult> {
     if (/^\d+$/u.test(only)) {
         const picked = await boardPick(ctx, Number(only));
         if (picked?.league) return ok({league: picked.league});
-        return need(picked?.match ? '这是比赛，发 #赛事赛程 1 就行' : '先发 #赛事联赛');
+        if (picked?.match) return ok({match: picked.match});
+        return need('先发 #赛事联赛 看有哪些');
     }
-    const tokens = only.split(/\s+/u).filter(Boolean);
-    let date = '';
-    let sport = '';
-    let scope = '';
-    let direction = '';
-    const rest: string[] = [];
-    for (const token of tokens) {
-        if (token === '今天') continue;
-        if (!date) {
-            const day = matchDay(token);
-            if (day) {
-                date = day;
-                continue;
-            }
-        }
-        if (!sport && MATCH_SPORTS.includes(token)) {
-            sport = token;
-            continue;
-        }
-        if (!scope && (token === '全部' || token === '热门')) {
-            scope = token;
-            continue;
-        }
-        if (!direction && (token === '上一天' || token === '下一天' || token === '之前' || token === '之后')) {
-            direction = token === '之前' ? '上一天' : token === '之后' ? '下一天' : token;
-            continue;
-        }
-        rest.push(token);
+    if (!only) return need('带上联赛，比如 #赛事赛程 s16');
+    return ok({league: only});
+}
+
+async function matchRankArgs(ctx: CallCtx): Promise<ArgsResult> {
+    const only = ctx.tail.trim();
+    if (/^\d+$/u.test(only)) {
+        const picked = await boardPick(ctx, Number(only));
+        if (picked?.league) return ok({league: picked.league});
+        return need('先发 #赛事联赛 看有哪些');
     }
-    if (rest.length > 1) return need('一次看一个联赛，比如 #赛事赛程 s16');
-    const league = rest[0] ?? '';
-    if (direction && !league) return need('翻页带上联赛，比如 #赛事赛程 s16 下一天');
-    return ok({
-        ...(date ? {date} : {}),
-        ...(sport ? {sport} : {}),
-        ...(scope ? {scope} : {}),
-        ...(league ? {league} : {}),
-        ...(direction ? {direction} : {}),
-    });
+    return only ? ok({league: only}) : need('带上联赛，比如 #赛事排名 s16');
+}
+
+async function matchBoardArgs(ctx: CallCtx): Promise<ArgsResult> {
+    const tokens = ctx.tail.trim().split(/\s+/u).filter(Boolean);
+    const [first, ...rest] = tokens;
+    if (first && /^\d+$/u.test(first) && rest.length === 0) {
+        return need('榜单要带上页签名，比如 #赛事榜单 s16 战队榜');
+    }
+    if (!first) return need('带上联赛和页签，比如 #赛事榜单 s16 战队榜');
+    if (rest.length === 0) return need('后面还要写页签名，比如 #赛事榜单 s16 战队榜');
+    return ok({league: first, tab: rest.join(' ')});
+}
+
+async function matchNewsArgs(ctx: CallCtx): Promise<ArgsResult> {
+    const tokens = ctx.tail.trim().split(/\s+/u).filter(Boolean);
+    const [first, second] = tokens;
+    if (!first) return need('带上联赛，比如 #赛事新闻 s16');
+    if (/^\d+$/u.test(first)) {
+        const picked = await boardPick(ctx, Number(first));
+        if (!picked?.league) return need('先发 #赛事联赛 看有哪些');
+        const page = second && /^\d+$/u.test(second) ? Number(second) : 1;
+        return ok({league: picked.league, ...(page > 1 ? {page} : {})});
+    }
+    const page = second && /^\d+$/u.test(second) ? Number(second) : 0;
+    return ok({league: first, ...(page > 1 ? {page} : {})});
 }
 
 async function matchLiveArgs(ctx: CallCtx): Promise<ArgsResult> {
     const text = argText(ctx);
-    if (!text) return need('对阵写后面，或发 #赛事赛程 1');
+    if (!text) return need('对阵写后面，比如 #赛事赛况 BLG T1');
     if (/^\d+$/u.test(text)) {
         const picked = await boardPick(ctx, Number(text));
         if (picked?.match) return ok({match: picked.match});
-        return need(picked?.league ? '这是联赛，发 #赛事赛程 1 看赛程' : '先发 #赛事赛程 看今天的');
+        if (picked?.league) return need(`这是联赛，发 #赛事赛程 ${picked.league}`);
+        return need('先发 #赛事赛程 看某一天的比赛');
     }
     return ok({match: text});
-}
-
-const SCHEDULE_WORDS = new Set([...MATCH_SPORTS, '全部', '热门', '上一天', '下一天', '之前', '之后', '今天']);
-
-function looksLikeDirectMatch(tail: string): boolean {
-    if (/^https?:\/\//iu.test(tail)) return true;
-    if (/[^\s#]+#\d{4}-\d{2}-\d{2}#[^\s]+/u.test(tail)) return true;
-    const words = tail.split(/\s+/u).filter((token) => !SCHEDULE_WORDS.has(token) && !matchDay(token));
-    return words.length >= 2;
 }
 
 async function matchHubGate(ctx: CallCtx): Promise<true | HandlerResponse> {
@@ -599,6 +566,16 @@ async function matchHubGate(ctx: CallCtx): Promise<true | HandlerResponse> {
     if (/^\d+$/u.test(tail)) return openBoardItem(ctx, Number(tail));
     if (looksLikeDirectMatch(tail)) return openMatchQuery(ctx, tail);
     return true;
+}
+
+const SCHEDULE_WORDS = new Set([...MATCH_SPORTS, '全部', '热门', '上一天', '下一天', '之前', '之后', '今天']);
+
+/** 只看队名对不上联赛时提示用。 */
+function looksLikeDirectMatch(tail: string): boolean {
+    if (/^https?:\/\//iu.test(tail)) return true;
+    if (/[^\s#]+#\d{4}-\d{2}-\d{2}#[^\s]+/u.test(tail)) return true;
+    const words = tail.split(/\s+/u).filter((token) => !SCHEDULE_WORDS.has(token));
+    return words.length >= 2;
 }
 
 /**
@@ -637,9 +614,11 @@ export const MENUS: Record<string, string[]> = {
         '#诗词搜索 诗题 或 诗句 或 作者',
     ],
     赛事: [
-        '#赛事赛程 [联赛] [日期] [项目] [上一天/下一天]',
-        '#赛事赛程 编号',
-        '#赛事联赛 [项目]',
+        '#赛事联赛 [分类]',
+        '#赛事赛程 联赛',
+        '#赛事排名 联赛',
+        '#赛事榜单 联赛 页签',
+        '#赛事新闻 联赛 [页码]',
         '#赛事赛况 队名1 队名2',
     ],
     表情: [
@@ -686,8 +665,24 @@ export const SINGLES: Array<{verb: string; what: string}> = [
 export function menuText(prefix: string): string {
     const items = MENUS[prefix];
     if (!items) return `没有「${prefix}」这类口令`;
-    return items.join('\n');
+    const intro = MENU_INTRO[prefix];
+    return intro ? [intro, '', ...items].join('\n') : items.join('\n');
 }
+
+/** 每组一句话说明，裸前缀和「前缀帮助」都从这来。 */
+const MENU_INTRO: Record<string, string> = {
+    赛事: [
+        '先看联赛，再进某个联赛看赛程、排名、榜单、新闻',
+        '联赛：今天有赛的联赛',
+        '赛程：该联赛最近三天的对阵，每场带明文 key',
+        '排名：积分表或淘汰树',
+        '榜单：战队榜、选手榜、球队榜、伤停、日榜这些',
+        '新闻：该联赛新闻，每页 10 条',
+        '赛况：单场比分和详情，队名或明文都能查',
+        '',
+        '榜单有哪些页签，看赛程末尾的提示',
+    ].join('\n'),
+};
 
 export function isMenuCommand(command: string): string | null {
     const text = command.trim();
@@ -727,9 +722,13 @@ export const VERBS: VerbRoute[] = [
     }, map: 'poem'},
     {verbs: ['诗词搜索'], tool: 'poetry_search', fail: '没找着诗', args: promptArg('q', '诗题、诗句或作者写后面，也可以先引用那条再发 #诗词搜索'), map: 'poem'},
     // 车票
-    {verbs: ['车票查询'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},    // 赛事
+    {verbs: ['车票查询'], tool: 'train_ticket_query', fail: '票没查成', args: ticketArgs, map: 'ticket'},
+    // 赛事
     {verbs: ['赛事联赛'], tool: 'match_leagues', fail: '联赛没查到', onResult: rememberMatchBoard, args: matchLeagueArgs, map: 'report'},
-    {verbs: ['赛事赛程'], tool: 'match_schedule', fail: '赛程没查到', gate: matchHubGate, onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
+    {verbs: ['赛事赛程'], tool: 'match_league_schedule', fail: '赛程没查到', gate: matchHubGate, onResult: rememberMatchBoard, args: matchScheduleArgs, map: 'report'},
+    {verbs: ['赛事排名'], tool: 'match_league_rank', fail: '排名没查到', onResult: rememberMatchBoard, args: matchRankArgs, map: 'report'},
+    {verbs: ['赛事榜单'], tool: 'match_league_board', fail: '榜单没查到', args: matchBoardArgs, map: 'report'},
+    {verbs: ['赛事新闻'], tool: 'match_league_news', fail: '新闻没查到', args: matchNewsArgs, map: 'report'},
     {verbs: ['赛事赛况'], tool: 'match_live_report', fail: '这场没查到', args: matchLiveArgs, map: 'report'},
     // 验证
     {verbs: ['人机验证'], tool: 'human_verify', fail: '没弄成，再试下', args: humanStartArgs, map: 'human-start'},
