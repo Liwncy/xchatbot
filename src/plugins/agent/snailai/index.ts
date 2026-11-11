@@ -7,8 +7,9 @@
 import {currentBrain} from '../../../core/brain-store.js';
 import {patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
 import {buildInboundContent} from '../../../core/inbound.js';
+import {applyEmojiSignal} from '../../../core/emoji-stash/index.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
-import {textReply, type HandlerResponse} from '../../../core/reply.js';
+import {handledReply, textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {Env} from '../../../types/env.js';
 import {parseBool} from '../../../utils/bool.js';
@@ -167,8 +168,12 @@ export const snailaiAgentPlugin: Plugin = {
                 logger.warn('SnailAI 回答不可发', {preview: answer.slice(0, 120)});
                 return textReply(friendlyFail());
             }
-            const replies = parseRepliesFromText(answer);
-            return replies.length ? replies : textReply(friendlyFail());
+            const parsed = parseRepliesFromText(answer);
+            if (!parsed.length) return textReply(friendlyFail());
+            const replies = await applyEmojiSignal(ctx.env, parsed, {
+                chatKey: `${message.platform}:${message.chatId}`,
+            });
+            return replies.length ? replies : handledReply();
         } catch (error) {
             logger.warn('SnailAI 对话失败', {
                 error: error instanceof Error ? error.message : String(error),

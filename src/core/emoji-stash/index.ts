@@ -12,4 +12,5 @@ export {
     emojiUpdate,
 } from './service.js';
 export type {EmojiPickResult} from './service.js';
+export {applyEmojiSignal} from './signal.js';
 export {extractEmojiBracketCommand, type EmojiBracketCommand} from './brackets.js';

@@ -1,5 +1,6 @@
 import {getAdapter} from '../../../adapter/index.js';
 import type {IncomingMessage, MessageSource} from '../../../core/message.js';
+import {applyEmojiSignal} from '../../../core/emoji-stash/index.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
 import type {ReplyMessage} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
@@ -134,8 +135,8 @@ export async function handleOpenclawOutbound(
         return json({ok: false, error: error instanceof Error ? error.message : String(error)}, 400);
     }
 
-    const replies = parseReplies(body.replies);
-    if (replies.length === 0) {
+    const parsedReplies = parseReplies(body.replies);
+    if (parsedReplies.length === 0) {
         return json({ok: false, error: 'replies is required'}, 400);
     }
 
@@ -143,6 +144,12 @@ export async function handleOpenclawOutbound(
     if (!adapter) {
         return json({ok: false, error: `unknown platform: ${message.platform}`}, 400);
     }
+
+    // 末尾的 [#标签] / [/分类] 换成一张表情图
+    const replies = await applyEmojiSignal(env, parsedReplies, {
+        chatKey: `${message.platform}:${message.chatId}`,
+    });
+    if (replies.length === 0) return json({ok: true, sentCount: 0});
 
     // 对端会重试：同一个 outboundId 只真正发一次，发送中回 409 让它稍后再来。
     const outboundId = asString(body.outboundId);
