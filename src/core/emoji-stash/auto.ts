@@ -234,17 +234,18 @@ function chatterText(replies: ReplyMessage[]): string | null {
 type Judged = {kind: 'tag'; mood: Mood} | {kind: 'none'} | {kind: 'failed'};
 
 /** 让小模型从候选里挑一个标签。挑「不配」也算成功；没接上、超时、答非所问算失败。 */
-async function judgeMood(env: Env, text: string, candidates: Mood[]): Promise<Judged> {
+async function judgeMood(env: Env, text: string, userText: string, candidates: Mood[]): Promise<Judged> {
     try {
         const raw = await requestLlmJson(env, {
             type: 'chat',
             system: [
-                '你在给聊天回复挑配图。看这句要发出去的话，判断带什么情绪，从候选标签里挑一个最贴的。',
-                '没有明显情绪、是在办事或讲道理，就不配。',
+                '你在给聊天回复挑表情包。会给你对方说的话和要发出去的回复，看整段对话的气氛和回复的语气，从候选标签里挑一个最贴的。',
+                '闲聊、玩笑、吐槽、安慰、夸奖、卖萌、随口一句，这些都可以配，情绪淡一点就挑最接近的。',
+                '只有这两种不配：在认真办事、查资料、讲道理；候选里没有一个对得上、硬配会很怪。',
                 '只输出一个 JSON 对象，不要解释，不要 markdown：{"tag":"标签"}，不配就写 {"tag":""}。',
                 `候选：${candidates.map((item) => item.tag).join('、')}`,
             ].join('\n'),
-            user: text,
+            user: userText ? `对方说：${userText}\n回复：${text}` : `回复：${text}`,
             timeoutMs: MOOD_TIMEOUT_MS,
         });
         if (!raw || typeof raw.tag !== 'string') return {kind: 'failed'};
@@ -296,7 +297,7 @@ export async function planEmojiAuto(
         if (random() * 100 >= config.chance) return null;
 
         let mood: Mood | null = null;
-        const judged = await judgeMood(env, text, candidates);
+        const judged = await judgeMood(env, text, (message.content ?? '').trim().slice(0, 200), candidates);
         if (judged.kind === 'none') return null;
         if (judged.kind === 'tag') {
             mood = judged.mood;
