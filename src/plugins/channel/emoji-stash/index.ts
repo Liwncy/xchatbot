@@ -3,9 +3,11 @@ import {getChatMessagesById} from '../../../core/chat-log/store.js';
 import {markedCommand} from '../../../core/command-mark.js';
 import {
     emojiBan,
-    emojiListAll,
+    emojiListActive,
+    emojiListBanned,
     emojiPickByName,
     emojiPickRandom,
+    emojiRestore,
     extractEmojiBracketCommand,
     type EmojiBracketCommand,
 } from '../../../core/emoji-stash/index.js';
@@ -63,11 +65,32 @@ async function resolveQuotedMd5(env: Env, message: IncomingMessage): Promise<str
 }
 
 function parseBan(text: string): {hit: boolean; name?: string; md5?: string} {
-    const matched = text.trim().match(/^禁表情(?:\s+(.+))?$/u);
+    const matched = text.trim().match(/^表情禁用(?:\s+(.+))?$/u);
     if (!matched) return {hit: false};
     const rest = matched[1]?.trim() ?? '';
     const md5 = md5Of(rest);
     return {hit: true, md5: md5 || undefined, name: md5 ? undefined : rest || undefined};
+}
+
+function parseRestore(text: string): {hit: boolean; name?: string; md5?: string} {
+    const matched = text.trim().match(/^表情恢复(?:\s+(.+))?$/u);
+    if (!matched) return {hit: false};
+    const rest = matched[1]?.trim() ?? '';
+    const md5 = md5Of(rest);
+    return {hit: true, md5: md5 || undefined, name: md5 ? undefined : rest || undefined};
+}
+
+const BANNED_SHOW_LIMIT = 30;
+
+async function bannedListReply(env: Env): Promise<HandlerResponse> {
+    const items = await emojiListBanned(env);
+    if (!items.length) return textReply('没禁过哪张');
+    const shown = items.slice(0, BANNED_SHOW_LIMIT).map((item, index) => {
+        const tags = item.tags.filter((tag) => tag !== '表情').slice(0, 3).map((tag) => `#${tag}`).join(' ');
+        return tags ? `${index + 1}. [${item.name}] ${tags}` : `${index + 1}. [${item.name}]`;
+    });
+    const more = items.length > shown.length ? `\n还有 ${items.length - shown.length} 张没列出来` : '';
+    return textReply(`禁了 ${items.length} 张：\n${shown.join('\n')}${more}\n放回去发 #表情恢复 名字`);
 }
 
 function sendable(item: {md5?: string | null; imgUrl?: string}): HandlerResponse {
@@ -98,19 +121,41 @@ export const emojiStashPlugin: Plugin = {
     match(message, ctx) {
         if (message.type !== 'text') return false;
         const command = commandText(message, ctx);
-        if (command === '表情列表' || parseBan(command).hit || isAutoCommand(command)) return true;
+        if (
+            command === '表情列表'
+            || command === '表情已禁'
+            || parseBan(command).hit
+            || parseRestore(command).hit
+            || isAutoCommand(command)
+        ) return true;
         return extractEmojiBracketCommand(message.content ?? '') != null;
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         const command = commandText(message, ctx);
         if (isAutoCommand(command)) return handleAutoCommand(command, message, ctx.env);
         if (command === '表情列表') {
-            const items = await emojiListAll(ctx.env);
+            const items = await emojiListActive(ctx.env);
             return buildEmojiListCard(
                 items,
                 resolveBotName(ctx.env),
                 Math.max(Date.now(), message.timestamp * 1000),
             );
+        }
+
+        if (command === '表情已禁') {
+            const ownerId = resolveOwnerId(ctx.env, message.platform);
+            if (!ownerId || message.senderId.trim() !== ownerId) return textReply('这事只有主人能定');
+            return bannedListReply(ctx.env);
+        }
+
+        const restore = parseRestore(command);
+        if (restore.hit) {
+            const ownerId = resolveOwnerId(ctx.env, message.platform);
+            if (!ownerId || message.senderId.trim() !== ownerId) return textReply('这事只有主人能定');
+            if (!restore.md5 && !restore.name) return textReply('把名字写后面，比如 #表情恢复 摊手猫，不记得先发 #表情已禁');
+            const result = await emojiRestore(ctx.env, {md5: restore.md5, name: restore.name});
+            if (!result) return textReply('没找着这张 🤔');
+            return textReply(result.already ? '这张本来就能发' : '好，放回去了');
         }
 
         const ban = parseBan(command);
@@ -121,7 +166,7 @@ export const emojiStashPlugin: Plugin = {
             }
             const md5 = await resolveQuotedMd5(ctx.env, message) || ban.md5;
             const name = md5 ? undefined : ban.name;
-            if (!md5 && !name) return textReply('引用那张，或把名字写后面');
+            if (!md5 && !name) return textReply('引用那张，或把名字写后面，比如 #表情禁用 摊手猫');
             const result = await emojiBan(ctx.env, {md5, name, imgUrl: quotedImgUrl(message)});
             if (!result) return textReply('没找着这张 🤔');
             return textReply(result.already ? '早就禁了' : `好，禁了，以后不收也不发`);

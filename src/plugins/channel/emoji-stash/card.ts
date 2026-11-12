@@ -20,8 +20,7 @@ const MARKS: Record<string, string> = {
 
 function lineOf(item: EmojiRecord, index: number): string {
     const tags = item.tags.filter((tag) => tag !== '表情').map((tag) => `#${tag}`).join(' ');
-    const mark = item.status === 'disabled' ? '🚫' : '✅';
-    return tags ? `${index}. ${mark} [${item.name}] ${tags}` : `${index}. ${mark} [${item.name}]`;
+    return tags ? `${index}. [${item.name}] ${tags}` : `${index}. [${item.name}]`;
 }
 
 export function buildEmojiListCard(
@@ -30,8 +29,7 @@ export function buildEmojiListCard(
     timestampMs: number,
 ): HandlerResponse {
     const active = items.filter((item) => item.status === 'active');
-    const banned = items.filter((item) => item.status === 'disabled');
-    if (!active.length && !banned.length) {
+    if (!active.length) {
         return textReply('库还是空的，群里丢表情会自己收');
     }
 
@@ -41,12 +39,12 @@ export function buildEmojiListCard(
             nickname: `🌟 ${nickname}表情`,
             avatarUrl: AVATAR,
             content: [
-                `一共 ${active.length} 张能发${banned.length ? `，禁了 ${banned.length} 张` : ''}`,
+                `一共 ${active.length} 张能发`,
                 '发 [名字] 指定一张',
                 '发 [/搞笑] 或 [/funny] 随机一类',
                 '发 [#无奈] 随机标签',
                 '夹在话里也行：哈哈哈哈[/funny]',
-                '看册 #表情列表，拿掉 #禁表情 名字',
+                '看册 #表情列表，拿掉 #表情禁用 名字',
             ].join('\n'),
             timestampMs,
         },
@@ -63,15 +61,6 @@ export function buildEmojiListCard(
             timestampMs: timestampMs + offset,
         });
         offset += 1000;
-    }
-
-    if (banned.length) {
-        cardItems.push({
-            nickname: `🚫已禁·${banned.length}`,
-            avatarUrl: AVATAR,
-            content: banned.map((item, index) => lineOf(item, index + 1)).join('\n'),
-            timestampMs: timestampMs + offset,
-        });
     }
 
     return chatRecordReply(cardItems, {

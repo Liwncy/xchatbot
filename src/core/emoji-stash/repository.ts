@@ -224,6 +224,15 @@ export async function listEmojis(
     return (result.results ?? []).map(mapRow);
 }
 
+/** 被禁用的表情，走 (status, category) 索引。 */
+export async function listDisabledEmojis(db: D1Database, limit = 200): Promise<EmojiRecord[]> {
+    await ensureEmojiSchema(db);
+    const result = await db.prepare(
+        "SELECT * FROM emoji_stash WHERE status = 'disabled' ORDER BY category ASC, name ASC LIMIT ?",
+    ).bind(Math.max(Math.floor(limit), 1)).all<EmojiRow>();
+    return (result.results ?? []).map(mapRow);
+}
+
 export async function pickRandomEmoji(
     db: D1Database,
     options?: {category?: string; tag?: string},

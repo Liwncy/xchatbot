@@ -17,6 +17,7 @@ import {
     getEmojiByName,
     insertEmojiIfNew,
     listEmojiNames,
+    listDisabledEmojis,
     listEmojis,
     listPlaceholderEmojis,
     normalizeEmojiStatus,
@@ -413,8 +414,49 @@ export async function emojiPickRandom(
     return {ok: true, item: toPublic(row)};
 }
 
-export async function emojiListAll(env: Env): Promise<EmojiRecord[]> {
-    return listEmojis(requireDb(env), {includeDisabled: true});
+/** 能发的表情。禁用的留在库里，但不出现在列表里。 */
+export async function emojiListActive(env: Env): Promise<EmojiRecord[]> {
+    return listEmojis(requireDb(env));
+}
+
+/** 被禁用的表情，库里都还在。 */
+export async function emojiListBanned(env: Env): Promise<EmojiRecord[]> {
+    return listDisabledEmojis(requireDb(env));
+}
+
+/** 把禁用的表情恢复成可用。找不到返回 null。 */
+export async function emojiRestore(
+    env: Env,
+    options: {md5?: string; name?: string},
+): Promise<{name: string; already: boolean} | null> {
+    const db = requireDb(env);
+    let md5: string | null = null;
+    try {
+        md5 = options.md5 ? normalizeMd5(options.md5) : null;
+    } catch {
+        md5 = null;
+    }
+    const name = options.name?.trim();
+    let existing = md5 ? await getEmojiByMd5(db, md5) : null;
+    if (!existing && name) existing = await getEmojiByName(db, name);
+    if (!existing) return null;
+    if (existing.status === 'active') return {name: existing.name, already: true};
+    await upsertEmoji(db, {
+        existingId: existing.id,
+        name: existing.name,
+        description: existing.description,
+        md5: existing.md5,
+        imgUrl: pickDurableImageUrl(existing.imgUrl),
+        mime: existing.mime,
+        category: existing.category,
+        tags: existing.tags,
+        status: 'active',
+        size: existing.size,
+        width: existing.width,
+        height: existing.height,
+        source: existing.source,
+    });
+    return {name: existing.name, already: false};
 }
 
 export async function emojiBan(
