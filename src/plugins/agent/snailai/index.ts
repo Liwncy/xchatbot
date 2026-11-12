@@ -7,9 +7,9 @@
 import {currentBrain} from '../../../core/brain-store.js';
 import {patchInboundMediaPublicUrl} from '../../../core/chat-log/index.js';
 import {buildInboundContent} from '../../../core/inbound.js';
-import {applyEmojiSignal} from '../../../core/emoji-stash/index.js';
+import {applyEmojiAuto} from '../../../core/emoji-stash/index.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
-import {handledReply, textReply, type HandlerResponse} from '../../../core/reply.js';
+import {textReply, type HandlerResponse} from '../../../core/reply.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {Env} from '../../../types/env.js';
 import {parseBool} from '../../../utils/bool.js';
@@ -170,10 +170,7 @@ export const snailaiAgentPlugin: Plugin = {
             }
             const parsed = parseRepliesFromText(answer);
             if (!parsed.length) return textReply(friendlyFail());
-            const replies = await applyEmojiSignal(ctx.env, parsed, {
-                chatKey: `${message.platform}:${message.chatId}`,
-            });
-            return replies.length ? replies : handledReply();
+            return applyEmojiAuto(ctx.env, message, parsed);
         } catch (error) {
             logger.warn('SnailAI 对话失败', {
                 error: error instanceof Error ? error.message : String(error),

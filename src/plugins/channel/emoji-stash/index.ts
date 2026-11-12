@@ -14,6 +14,7 @@ import {emojiReply, textReply, type HandlerResponse} from '../../../core/reply.j
 import type {PluginContext} from '../../../core/context.js';
 import type {Env} from '../../../types/env.js';
 import type {Plugin} from '../../runtime/types.js';
+import {handleAutoCommand, isAutoCommand} from './auto-command.js';
 import {buildEmojiListCard} from './card.js';
 
 function commandText(message: IncomingMessage, ctx: PluginContext): string {
@@ -97,11 +98,12 @@ export const emojiStashPlugin: Plugin = {
     match(message, ctx) {
         if (message.type !== 'text') return false;
         const command = commandText(message, ctx);
-        if (command === '表情列表' || parseBan(command).hit) return true;
+        if (command === '表情列表' || parseBan(command).hit || isAutoCommand(command)) return true;
         return extractEmojiBracketCommand(message.content ?? '') != null;
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         const command = commandText(message, ctx);
+        if (isAutoCommand(command)) return handleAutoCommand(command, message, ctx.env);
         if (command === '表情列表') {
             const items = await emojiListAll(ctx.env);
             return buildEmojiListCard(

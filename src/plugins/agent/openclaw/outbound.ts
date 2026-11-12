@@ -1,6 +1,6 @@
 import {getAdapter} from '../../../adapter/index.js';
 import type {IncomingMessage, MessageSource} from '../../../core/message.js';
-import {applyEmojiSignal} from '../../../core/emoji-stash/index.js';
+import {planEmojiAuto} from '../../../core/emoji-stash/index.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
 import type {ReplyMessage} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
@@ -145,11 +145,7 @@ export async function handleOpenclawOutbound(
         return json({ok: false, error: `unknown platform: ${message.platform}`}, 400);
     }
 
-    // 末尾的 [#标签] / [/分类] 换成一张表情图
-    const replies = await applyEmojiSignal(env, parsedReplies, {
-        chatKey: `${message.platform}:${message.chatId}`,
-    });
-    if (replies.length === 0) return json({ok: true, sentCount: 0});
+    const replies = parsedReplies;
 
     // 对端会重试：同一个 outboundId 只真正发一次，发送中回 409 让它稍后再来。
     const outboundId = asString(body.outboundId);
@@ -165,6 +161,16 @@ export async function handleOpenclawOutbound(
             return json({ok: false, error: 'send failed', sentCount}, 502);
         }
         await finishOutbound(outboundId, sentCount);
+        // 文字已经发出去了，再补一张配图；配图失败不影响这次结果
+        try {
+            const extra = await planEmojiAuto(env, message, replies);
+            if (extra) await adapter.send(message, [extra], env);
+        } catch (error) {
+            logger.warn('配图补发失败', {
+                platform: message.platform,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
         return json({ok: true, sentCount});
     } catch (error) {
         await releaseOutbound(outboundId);

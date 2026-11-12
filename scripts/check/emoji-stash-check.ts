@@ -1,4 +1,14 @@
 import assert from 'node:assert/strict';
+import {
+    clearAutoSetting,
+    clearPersonaOpen,
+    DEFAULT_AUTO_CHANCE,
+    matchEmojiRule,
+    readPersonaOpen,
+    resolveAutoConfig,
+    writeAutoSetting,
+    writePersonaOpen,
+} from '../../src/core/emoji-stash/auto.ts';
 import {extractEmojiBracketCommand} from '../../src/core/emoji-stash/brackets.ts';
 import {normalizeEmojiStashCategory, resolveEmojiStashCategoryToken} from '../../src/core/emoji-stash/categories.ts';
 import {
@@ -55,4 +65,49 @@ assert.equal(readImageMeta(Uint8Array.from([
     0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00, 0x03, 0x00,
 ]).buffer).width, 2);
 
-console.log('✓ emoji-stash');
+// 回复配图：关键词规则、三层开关、人格放行
+assert.deepEqual(matchEmojiRule('太惨了吧，抱抱'), {tag: '委屈', category: 'sad'});
+assert.deepEqual(matchEmojiRule('今天又加班'), {tag: '打工人', category: 'work'});
+assert.equal(matchEmojiRule('今天天气不错'), null);
+
+async function autoConfigChecks(): Promise<void> {
+    const kvData = new Map<string, string>();
+    const fakeEnv = {
+        XBOT_KV: {
+            get: async (key: string) => kvData.get(key) ?? null,
+            put: async (key: string, value: string) => {
+                kvData.set(key, value);
+            },
+            delete: async (key: string) => {
+                kvData.delete(key);
+            },
+        },
+    } as unknown as Parameters<typeof resolveAutoConfig>[0];
+
+    let resolved = await resolveAutoConfig(fakeEnv, 'golem', 'room1');
+    assert.equal(resolved.config.on, false);
+    assert.equal(resolved.config.chance, DEFAULT_AUTO_CHANCE);
+    await writeAutoSetting(fakeEnv, 'global', 'golem', 'room1', {on: true, chance: 50});
+    resolved = await resolveAutoConfig(fakeEnv, 'golem', 'room1');
+    assert.deepEqual([resolved.config.on, resolved.config.chance, resolved.config.onFrom], [true, 50, 'global']);
+    await writeAutoSetting(fakeEnv, 'platform', 'golem', 'room1', {chance: 20});
+    await writeAutoSetting(fakeEnv, 'session', 'golem', 'room1', {on: false});
+    resolved = await resolveAutoConfig(fakeEnv, 'golem', 'room1');
+    assert.deepEqual(
+        [resolved.config.on, resolved.config.onFrom, resolved.config.chance, resolved.config.chanceFrom],
+        [false, 'session', 20, 'platform'],
+    );
+    resolved = await resolveAutoConfig(fakeEnv, 'golem', 'room2');
+    assert.deepEqual([resolved.config.on, resolved.config.chance], [true, 20]);
+    await clearAutoSetting(fakeEnv, 'session', 'golem', 'room1');
+    resolved = await resolveAutoConfig(fakeEnv, 'golem', 'room1');
+    assert.equal(resolved.config.on, true);
+
+    assert.equal(await readPersonaOpen(fakeEnv, 'yinyang'), null);
+    await writePersonaOpen(fakeEnv, 'YinYang', {tags: ['无语'], categories: ['funny']});
+    assert.deepEqual(await readPersonaOpen(fakeEnv, 'yinyang'), {tags: ['无语'], categories: ['funny']});
+    await clearPersonaOpen(fakeEnv, 'yinyang');
+    assert.equal(await readPersonaOpen(fakeEnv, 'yinyang'), null);
+}
+
+autoConfigChecks().then(() => console.log('✓ emoji-stash'));
