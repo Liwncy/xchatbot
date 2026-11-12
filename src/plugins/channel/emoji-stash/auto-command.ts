@@ -75,6 +75,7 @@ async function handleAuto(rest: string, message: IncomingMessage, env: Env): Pro
     for (const token of tokens) {
         const lower = token.toLowerCase();
         const number = /^(\d{1,3})%?$/u.exec(lower);
+        if (lower === '概率') continue;
         if (ON_WORDS.has(lower)) patch.on = true;
         else if (OFF_WORDS.has(lower)) patch.on = false;
         else if (RESET_WORDS.has(lower)) reset = true;
