@@ -19,12 +19,13 @@ import {unknownCommandPlugin} from './command/unknown/index.js';
 import {openclawAgentPlugin} from './agent/openclaw/index.js';
 import {qwenpawAgentPlugin} from './agent/qwenpaw/index.js';
 import {hermesAgentPlugin} from './agent/hermes/index.js';
+import {harnessAgentPlugin} from './agent/harness/index.js';
 import {snailaiAgentPlugin} from './agent/snailai/index.js';
 
 // channel：表情入库 / 表情口令 / 红包 / 群旁听（猫娘等玩法在普通群消息里插话）/ 群门禁 / #查记录 / #人格 / #脑子 / #撤回 / 随机朋友 / 伪转发，不进大脑
 // 花名册先手记，不自动候审
 // command：# 快捷调用 MCP；未识别的 #口令在此拦下
-// agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI / QwenPaw / Hermes）
+// agent：只把 core 已拼好的正文交给当前大脑（OpenClaw / SnailAI / QwenPaw / Hermes / Harness）
 
 let registered = false;
 
@@ -49,6 +50,7 @@ export function ensurePluginsRegistered(): void {
     registerPlugin(snailaiAgentPlugin);
     registerPlugin(qwenpawAgentPlugin);
     registerPlugin(hermesAgentPlugin);
+    registerPlugin(harnessAgentPlugin);
 
     // 旁听监听器：普通群消息里想插话的玩法在这里登记
     registerAmbientListener(nekoAmbientListener);

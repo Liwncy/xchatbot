@@ -110,7 +110,7 @@ async function ensureSchema(env: Env): Promise<void> {
                 `UPDATE agent_brain
                  SET agent_kind = brain_key
                  WHERE agent_kind = ''
-                   AND brain_key IN ('openclaw', 'hermes', 'qwenpaw', 'snailai')`,
+                   AND brain_key IN ('openclaw', 'hermes', 'qwenpaw', 'snailai', 'harness')`,
             ).run();
             const now = Date.now();
             const autoForward = env.XBOT_CHANNEL_AUTO_FORWARD == null
@@ -120,6 +120,7 @@ async function ensureSchema(env: Env): Promise<void> {
                 ['openclaw', 'OpenClaw', openclawBase(env), gatewayToken(env), 120_000, 1, '', autoForward],
                 ['hermes', 'Hermes', trimSlash(env.HERMES_BASE_URL), gatewayToken(env, env.HERMES_TOKEN), 120_000, 0, '', 1],
                 ['qwenpaw', 'QwenPaw', trimSlash(env.QWENPAW_BASE_URL), gatewayToken(env, env.QWENPAW_TOKEN), 120_000, 0, '', 1],
+                ['harness', 'Harness', trimSlash(env.HARNESS_BASE_URL), gatewayToken(env, env.HARNESS_TOKEN), 120_000, 0, '', 1],
                 ['snailai', 'SnailAI', trimSlash(env.SNAIL_AI_BASE_URL), env.SNAIL_AI_TOKEN?.trim() ?? '', 180_000, 0, env.SNAIL_AI_APP_ID?.trim() ?? '', 1],
             ];
             for (const [key, name, baseUrl, token, timeoutMs, isDefault, appId, forward] of seeds) {
@@ -200,6 +201,19 @@ function baseConnection(env: Env, row: BrainRow): Omit<BrainConnection, 'transpo
             baseUrl: trimSlash(row.base_url) || trimSlash(env.HERMES_BASE_URL),
             token: row.token.trim() || env.HERMES_TOKEN?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
             timeoutMs: row.timeout_ms || timeoutOf(env.HERMES_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
+            enabled: row.enabled === 1,
+            appId: '',
+            autoForward: true,
+        };
+    }
+    if (kind === 'harness') {
+        return {
+            key: row.brain_key,
+            kind,
+            displayName,
+            baseUrl: trimSlash(row.base_url) || trimSlash(env.HARNESS_BASE_URL),
+            token: row.token.trim() || env.HARNESS_TOKEN?.trim() || env.XBOT_CHANNEL_GATEWAY_TOKEN?.trim() || env.AGENT_BRIDGE_TOKEN?.trim() || '',
+            timeoutMs: row.timeout_ms || timeoutOf(env.HARNESS_TIMEOUT_MS ?? env.XBOT_CHANNEL_TIMEOUT_MS, 120_000),
             enabled: row.enabled === 1,
             appId: '',
             autoForward: true,

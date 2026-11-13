@@ -82,6 +82,15 @@ export interface Env {
     HERMES_TIMEOUT_MS?: string;
 
     /**
+     * DeepSeek Harness 公网根。Worker 会 POST `{HARNESS_BASE_URL}/api/channels/xbot/inbound`。
+     */
+    HARNESS_BASE_URL?: string;
+    /** 入站 Bearer；未设时回退 AGENT_BRIDGE_TOKEN。 */
+    HARNESS_TOKEN?: string;
+    /** Harness inbound 超时，默认同 XBOT_CHANNEL_TIMEOUT_MS / 120000。 */
+    HARNESS_TIMEOUT_MS?: string;
+
+    /**
      * /admin/debug 的 Bearer。设置后开关接口要带这个 token。
      * 未设置时接口不鉴权。
      */

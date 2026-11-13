@@ -29,8 +29,8 @@ export async function handleAgentWs(request: Request, env: Env): Promise<Respons
 
     const name = new URL(request.url).searchParams.get('brain')?.trim() || 'openclaw';
     const brain = await lookupBrain(env, name);
-    // 第一版只有 openclaw 通道会连上来
-    if (!brain || !brain.enabled || brain.kind !== 'openclaw') {
+    // 会主动连上来的通道：openclaw、harness
+    if (!brain || !brain.enabled || (brain.kind !== 'openclaw' && brain.kind !== 'harness')) {
         return json({ok: false, error: 'unknown brain'}, 404);
     }
 
