@@ -19,21 +19,10 @@ function firstNonBlank(...values: Array<string | undefined>): string {
 /** 图片先落到 CDN，聊天记录只认已有资源；传不上去就返回 undefined，由调用方降级。 */
 async function resolveImageMedia(api: GolemApi, item: ChatRecordImageItem): Promise<RecordMedia | undefined> {
     const url = item.url.trim();
-    const aesKey = item.aesKey?.trim();
-    if (aesKey && url) {
-        return {
-            file_id: url,
-            aes_key: aesKey,
-            encrypt_version: 1,
-            format: imageFormat(url),
-            thumb_id: url,
-            thumb_aes_key: aesKey,
-        };
-    }
     if (!/^https?:\/\//iu.test(url)) return undefined;
     try {
         const uploaded = await api.uploadRecordImage(url);
-        return uploaded ? {...uploaded.media, format: imageFormat(url)} : undefined;
+        return uploaded ? {format: imageFormat(url), ...uploaded.media} : undefined;
     } catch (error) {
         logger.warn('聊天记录图片上传失败', {
             error: error instanceof Error ? error.message : String(error),

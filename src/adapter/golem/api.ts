@@ -342,25 +342,30 @@ export class GolemApi {
         const fileId = typeof data?.file_id === 'string' ? data.file_id.trim() : '';
         const aesKey = typeof data?.aes_key === 'string' ? data.aes_key.trim() : '';
         if (!fileId || !aesKey) return null;
+        // purpose=record 时 Golem 会带回独立的缩略图资源（thumb_id / thumb_aes_key，类型 1）；
+        // 记录接口不接受复用原图当缩略图，所以缺了就当没传上去。
+        const thumbId = pickString(data?.thumb_id);
+        const thumbAesKey = pickString(data?.thumb_aes_key);
+        if (!thumbId || !thumbAesKey) return null;
         const media: RecordMedia = {
             file_id: fileId,
             aes_key: aesKey,
             encrypt_version: 1,
-            thumb_id: fileId,
-            thumb_aes_key: aesKey,
+            thumb_id: thumbId,
+            thumb_aes_key: thumbAesKey,
         };
-        const md5 = pickString(data?.file_md5);
-        if (md5) media.file_md5 = md5;
-        const size = pickNumber(data?.file_size);
-        if (size != null) media.file_size = size;
-        const thumbMd5 = pickString(data?.thumb_md5);
-        if (thumbMd5) media.thumb_md5 = thumbMd5;
-        const thumbSize = pickNumber(data?.thumb_size);
-        if (thumbSize != null) media.thumb_size = thumbSize;
-        const thumbWidth = pickNumber(data?.thumb_width);
-        if (thumbWidth != null) media.thumb_width = thumbWidth;
-        const thumbHeight = pickNumber(data?.thumb_height);
-        if (thumbHeight != null) media.thumb_height = thumbHeight;
+        const strings = ['file_md5', 'format', 'head256_md5', 'thumb_md5', 'thumb_head256_md5'] as const;
+        for (const key of strings) {
+            const value = pickString(data?.[key]);
+            if (value) media[key] = value;
+        }
+        const numbers = [
+            'file_size', 'file_type', 'thumb_file_type', 'thumb_size', 'thumb_width', 'thumb_height',
+        ] as const;
+        for (const key of numbers) {
+            const value = pickNumber(data?.[key]);
+            if (value != null) media[key] = value;
+        }
         return {fileId, aesKey, media};
     }
 
