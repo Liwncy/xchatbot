@@ -160,7 +160,7 @@ function keepRecordItem(item: ChatRecordItem): boolean {
     return /^https?:\/\//iu.test(item.url.trim());
 }
 
-function imageFormat(url: string): string {
+export function imageFormat(url: string): string {
     try {
         const extension = new URL(url).pathname.match(/\.([a-z0-9]{2,5})$/iu)?.[1]?.toLowerCase();
         if (extension === 'png' || extension === 'gif' || extension === 'webp') return extension;
@@ -170,7 +170,7 @@ function imageFormat(url: string): string {
     return 'jpg';
 }
 
-function defaultSummary(items: ChatRecordItem[]): string {
+export function defaultSummary(items: ChatRecordItem[]): string {
     return items
         .slice(0, 4)
         .map((item) => `${item.nickname.trim()}: ${item.type === 'image' ? '[图片]' : item.content.trim()}`)
@@ -192,7 +192,7 @@ function minifyXml(xml: string): string {
     return xml.replace(/>\s+</gu, '><').trim();
 }
 
-function formatShanghaiTime(timestampMs: number): string {
+export function formatShanghaiTime(timestampMs: number): string {
     const shifted = new Date(timestampMs + SHANGHAI_OFFSET_MS);
     const year = shifted.getUTCFullYear();
     const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
@@ -207,7 +207,7 @@ function firstNonBlank(value: string | undefined, fallback: string): string {
     return text || fallback;
 }
 
-function pseudoHex(input: string, length: number): string {
+export function pseudoHex(input: string, length: number): string {
     let h1 = 0x811c9dc5;
     let h2 = 0x9e3779b9;
     for (let i = 0; i < input.length; i += 1) {

@@ -1,4 +1,4 @@
-import type {ApiResponse, RevokeParam} from './types.js';
+import type {ApiResponse, RecordMedia, RevokeParam, SendNoteParams, SendRecordParams} from './types.js';
 
 function serializeJsonNumber(value: number | string): string {
     if (typeof value === 'number') {
@@ -28,6 +28,14 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     return value && typeof value === 'object' && !Array.isArray(value)
         ? value as Record<string, unknown>
         : undefined;
+}
+
+function pickString(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function pickNumber(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function messageText(value: unknown): string {
@@ -302,6 +310,16 @@ export class GolemApi {
         }));
     }
 
+    /** 按条目构造聊天记录（type=19）。媒体须是已有记录资源，Golem 不下载不转存。 */
+    async sendRecord(params: SendRecordParams): Promise<ApiResponse> {
+        return this.postJson('/api/message/record', JSON.stringify(params));
+    }
+
+    /** 按条目构造笔记（type=24）。默认自动生成并上传 HTML。 */
+    async sendNote(params: SendNoteParams): Promise<ApiResponse> {
+        return this.postJson('/api/message/note', JSON.stringify(params));
+    }
+
     async sendForward(params: {
         receiver: string;
         xml: string;
@@ -313,7 +331,8 @@ export class GolemApi {
         }));
     }
 
-    async uploadRecordImage(url: string): Promise<{fileId: string; aesKey: string} | null> {
+    /** 把图片传到 CDN，供聊天记录引用；返回的 media 可直接放进记录条目。 */
+    async uploadRecordImage(url: string): Promise<{fileId: string; aesKey: string; media: RecordMedia} | null> {
         const form = new FormData();
         form.append('url', url);
         form.append('purpose', 'record');
@@ -323,7 +342,26 @@ export class GolemApi {
         const fileId = typeof data?.file_id === 'string' ? data.file_id.trim() : '';
         const aesKey = typeof data?.aes_key === 'string' ? data.aes_key.trim() : '';
         if (!fileId || !aesKey) return null;
-        return {fileId, aesKey};
+        const media: RecordMedia = {
+            file_id: fileId,
+            aes_key: aesKey,
+            encrypt_version: 1,
+            thumb_id: fileId,
+            thumb_aes_key: aesKey,
+        };
+        const md5 = pickString(data?.file_md5);
+        if (md5) media.file_md5 = md5;
+        const size = pickNumber(data?.file_size);
+        if (size != null) media.file_size = size;
+        const thumbMd5 = pickString(data?.thumb_md5);
+        if (thumbMd5) media.thumb_md5 = thumbMd5;
+        const thumbSize = pickNumber(data?.thumb_size);
+        if (thumbSize != null) media.thumb_size = thumbSize;
+        const thumbWidth = pickNumber(data?.thumb_width);
+        if (thumbWidth != null) media.thumb_width = thumbWidth;
+        const thumbHeight = pickNumber(data?.thumb_height);
+        if (thumbHeight != null) media.thumb_height = thumbHeight;
+        return {fileId, aesKey, media};
     }
 
     async cdnDownloadImageRaw(id: string, key: string): Promise<ArrayBuffer> {
