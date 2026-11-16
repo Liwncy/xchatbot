@@ -114,6 +114,8 @@ function outboundContent(reply: ReplyMessage): string {
             return '[转发]';
         case 'chat-record':
             return clip(reply.title?.trim() || '[聊天记录]');
+        case 'note':
+            return clip(reply.title?.trim() || '[笔记]');
     }
 }
 
@@ -172,6 +174,11 @@ function outboundPayload(reply: ReplyMessage, extra?: Record<string, unknown>): 
             break;
         case 'chat-record':
             if (reply.title) payload.title = reply.title;
+            payload.items = reply.items.length;
+            break;
+        case 'note':
+            if (reply.title) payload.title = reply.title;
+            if (reply.author) payload.author = reply.author;
             payload.items = reply.items.length;
             break;
     }

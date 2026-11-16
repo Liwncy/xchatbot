@@ -6,7 +6,7 @@ import {logger} from '../../utils/logger.js';
 import type {ApiResponse} from './types.js';
 import type {SendOptions, SendReceipt} from '../types.js';
 import {GolemApi} from './api.js';
-import {buildSendRecordParams} from './record-items.js';
+import {buildSendNoteParams, buildSendRecordParams} from './record-items.js';
 import {buildMusicAppXml} from './music-xml.js';
 import {encodeAudioUrlToSilk} from '../../utils/silk/index.js';
 
@@ -22,6 +22,7 @@ const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
     position: '位置没发出去',
     forward: '转发没发出去',
     'chat-record': '这张卡没发出去',
+    note: '这篇没发出去',
 };
 
 const SAME_TARGET_SEND_INTERVAL_MS = 350;
@@ -152,6 +153,11 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, 
             const params = await buildSendRecordParams(api, receiver, reply);
             if (!params) return {code: -1, message: 'chat record empty'};
             return api.sendRecord(params);
+        }
+        case 'note': {
+            const params = await buildSendNoteParams(api, receiver, reply);
+            if (!params) return {code: -1, message: 'note empty'};
+            return api.sendNote(params);
         }
         case 'card':
             return api.sendCard({

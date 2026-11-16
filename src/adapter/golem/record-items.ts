@@ -1,8 +1,15 @@
-import type {ChatRecordImageItem, ChatRecordItem} from '../../core/reply.js';
+import type {
+    ChatRecordImageItem,
+    ChatRecordItem,
+    NoteImageItem,
+    NoteItem,
+    NoteReply,
+    NoteTextItem,
+} from '../../core/reply.js';
 import {logger} from '../../utils/logger.js';
 import type {GolemApi} from './api.js';
 import {defaultSummary, formatShanghaiTime, imageFormat, pseudoHex} from './chat-record.js';
-import type {RecordItem, RecordMedia, SendRecordParams} from './types.js';
+import type {RecordItem, RecordMedia, SendNoteParams, SendRecordParams} from './types.js';
 
 const DATATYPE_TEXT = 1;
 const DATATYPE_IMAGE = 2;
@@ -17,7 +24,7 @@ function firstNonBlank(...values: Array<string | undefined>): string {
 }
 
 /** 图片先落到 CDN，聊天记录只认已有资源；传不上去就返回 undefined，由调用方降级。 */
-async function resolveImageMedia(api: GolemApi, item: ChatRecordImageItem): Promise<RecordMedia | undefined> {
+async function resolveImageMedia(api: GolemApi, item: ChatRecordImageItem | NoteImageItem): Promise<RecordMedia | undefined> {
     const url = item.url.trim();
     if (!/^https?:\/\//iu.test(url)) return undefined;
     try {
@@ -79,6 +86,68 @@ export async function buildRecordItems(api: GolemApi, items: ChatRecordItem[]): 
         });
     }
     return records;
+}
+
+/** 笔记条目没有发送人和时间，只要类型、正文和媒体。 */
+async function buildNoteItems(api: GolemApi, items: NoteItem[]): Promise<RecordItem[]> {
+    const records: RecordItem[] = [];
+    for (const item of items) {
+        const localId = records.length + 1;
+        if (item.type !== 'image') {
+            const content = item.content.trim();
+            if (!content) continue;
+            records.push({
+                data_id: pseudoHex(`note|${content}|${localId}`, 32),
+                local_id: localId,
+                datatype: DATATYPE_TEXT,
+                description: content,
+            });
+            continue;
+        }
+        const media = await resolveImageMedia(api, item);
+        if (!media) {
+            const fallback = item.alt?.trim() || '[图片]';
+            records.push({
+                data_id: pseudoHex(`note|${fallback}|${localId}`, 32),
+                local_id: localId,
+                datatype: DATATYPE_TEXT,
+                description: fallback,
+            });
+            continue;
+        }
+        records.push({
+            data_id: pseudoHex(`note|${item.url}|${localId}`, 32),
+            local_id: localId,
+            datatype: DATATYPE_IMAGE,
+            description: item.alt?.trim() || '图片',
+            media,
+        });
+    }
+    return records;
+}
+
+export async function buildSendNoteParams(
+    api: GolemApi,
+    receiver: string,
+    reply: NoteReply,
+): Promise<SendNoteParams | null> {
+    const items = await buildNoteItems(api, reply.items);
+    if (items.length === 0) return null;
+    const params: SendNoteParams = {receiver, items};
+    const title = reply.title?.trim();
+    if (title) params.title = title;
+    const description = firstNonBlank(
+        reply.desc,
+        reply.items.find((item): item is NoteTextItem => item.type !== 'image' && Boolean(item.content.trim()))
+            ?.content.slice(0, 120),
+    );
+    if (description) params.description = description;
+    const author = reply.author?.trim();
+    if (author) params.author = author;
+    const editor = reply.editor?.trim();
+    if (editor) params.editor = editor;
+    if (reply.editedAtMs && reply.editedAtMs > 0) params.edit_time = Math.floor(reply.editedAtMs / 1000);
+    return params;
 }
 
 export async function buildSendRecordParams(

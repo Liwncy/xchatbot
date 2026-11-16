@@ -34,6 +34,13 @@ export function presentForWeb(reply: ReplyMessage): ReplyMessage {
                     : `${item.nickname.trim()}：${item.content.trim()}`);
             return textReply(lines.length ? `${title}\n${lines.join('\n')}` : title);
         }
+        case 'note': {
+            const title = reply.title?.trim() || '笔记';
+            const lines = reply.items
+                .filter((item) => item.type === 'image' ? looksLikeHttp(item.url) : item.content.trim())
+                .map((item) => item.type === 'image' ? `[图片] ${item.url}` : item.content.trim());
+            return textReply(lines.length ? `${title}\n${lines.join('\n')}` : title);
+        }
         case 'card':
             return textReply(reply.nickname?.trim() || reply.username ? `名片：${reply.nickname || reply.username}` : '一张名片');
         case 'position': {
@@ -62,7 +69,7 @@ export const webAdapter: ChannelAdapter = {
     },
 
     toOutboundText(reply) {
-        if (reply.type !== 'chat-record') return null;
+        if (reply.type !== 'chat-record' && reply.type !== 'note') return null;
         const presented = presentForWeb(reply);
         return presented.type === 'text' ? presented.content : null;
     },

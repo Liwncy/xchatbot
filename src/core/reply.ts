@@ -115,6 +115,33 @@ export interface ChatRecordReply {
     to?: string;
 }
 
+export interface NoteTextItem {
+    type?: 'text';
+    content: string;
+}
+
+export interface NoteImageItem {
+    type: 'image';
+    /** 公网图片链接；适配器负责转存成平台资源。 */
+    url: string;
+    alt?: string;
+}
+
+export type NoteItem = NoteTextItem | NoteImageItem;
+
+/** 一篇笔记：有标题和作者的长文，条目按顺序排下来，不带发送人。 */
+export interface NoteReply {
+    type: 'note';
+    items: NoteItem[];
+    title?: string;
+    desc?: string;
+    author?: string;
+    editor?: string;
+    /** 最后编辑时间，毫秒。 */
+    editedAtMs?: number;
+    to?: string;
+}
+
 export interface HandledReply {
     kind: 'handled';
 }
@@ -131,7 +158,8 @@ export type ReplyMessage =
     | CardReply
     | PositionReply
     | ForwardReply
-    | ChatRecordReply;
+    | ChatRecordReply
+    | NoteReply;
 
 export type HandlerResponse = ReplyMessage | ReplyMessage[] | HandledReply | null;
 
@@ -178,6 +206,13 @@ export function chatRecordReply(
     extras?: Pick<ChatRecordReply, 'title' | 'summary' | 'desc' | 'to'>,
 ): ChatRecordReply {
     return {type: 'chat-record', items, ...extras};
+}
+
+export function noteReply(
+    items: NoteItem[],
+    extras?: Pick<NoteReply, 'title' | 'desc' | 'author' | 'editor' | 'editedAtMs' | 'to'>,
+): NoteReply {
+    return {type: 'note', items, ...extras};
 }
 
 export function handledReply(): HandledReply {
