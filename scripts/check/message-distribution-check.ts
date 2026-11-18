@@ -277,6 +277,23 @@ async function main(): Promise<void> {
         assert.equal(note[0].items[1]?.type === 'image' || note[0].items[2]?.type === 'image', true);
     }
 
+    for (const mode of ['auto', 'rebuild'] as const) {
+        const textNote = await buildDistributionReplies({} as Env, {
+            ...message,
+            type: 'text',
+            content: '第一行标题\n第二行正文',
+            app: undefined,
+        }, {
+            ...rule,
+            contentPolicy: {...DEFAULT_CONTENT_POLICY, mode, output: 'note', includeSource: false},
+        });
+        assert.equal(textNote[0]?.type, 'note');
+        if (textNote[0]?.type === 'note') {
+            assert.equal(textNote[0].title, '第一行标题');
+            assert.deepEqual(textNote[0].items, [{content: '第一行标题\n第二行正文'}]);
+        }
+    }
+
     const emojiReplies = await toGolemOutboundReplies({
         ...message,
         type: 'emoji',

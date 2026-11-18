@@ -163,6 +163,20 @@ function articleNotes(message: IncomingMessage, policy: DistributionContentPolic
     });
 }
 
+/** 纯文字发成笔记：整段作为一条文字，标题栏自然取第一行。 */
+function textNote(message: IncomingMessage, policy: DistributionContentPolicy, override?: string): ReplyMessage[] {
+    const body = override?.trim() || distributionSearchText(message).trim();
+    if (!body) return [];
+    const urls = policy.includeOriginalUrl ? originalUrls(message).filter((url) => !body.includes(url)) : [];
+    const content = decorate([body, ...urls].join('\n'), message, policy);
+    const firstLine = content.split('\n').map((line) => line.trim()).find(Boolean) ?? '';
+    return [noteReply([{content}], {
+        title: firstLine.slice(0, 40),
+        desc: content.slice(0, 120),
+        editedAtMs: timestampMsOf(message),
+    })];
+}
+
 function mediaReply(message: IncomingMessage): ReplyMessage | null {
     const media = message.media;
     if (!media) return null;
@@ -206,7 +220,9 @@ function rebuild(message: IncomingMessage, policy: DistributionContentPolicy): R
     }
     if (policy.output === 'note') {
         const notes = articleNotes(message, policy);
-        return notes.length ? notes : articleReplies(message, policy);
+        if (notes.length) return notes;
+        const links = articleReplies(message, policy);
+        return links.length ? links : textNote(message, policy);
     }
     const links = articleReplies(message, policy);
     if ((policy.output === 'link' || policy.output === 'auto') && links.length) return links;
@@ -253,7 +269,7 @@ async function aiTransform(
                 )];
             }
         }
-        return textVersion(message, policy, body);
+        return policy.output === 'note' ? textNote(message, policy, body) : textVersion(message, policy, body);
     } catch {
         return fallback(message, policy);
     }
@@ -268,7 +284,9 @@ export async function buildDistributionRepliesWithPolicy(
     if (policy.mode === 'rebuild') return rebuild(message, policy);
 
     if (message.type === 'text') {
-        return textVersion(message, {...policy, includeOriginalUrl: false});
+        return policy.output === 'note'
+            ? textNote(message, {...policy, includeOriginalUrl: false})
+            : textVersion(message, {...policy, includeOriginalUrl: false});
     }
     return policy.mode === 'original' ? fallback(message, policy) : rebuild(message, policy);
 }
