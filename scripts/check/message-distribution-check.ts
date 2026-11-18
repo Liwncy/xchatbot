@@ -13,6 +13,7 @@ import {
     type DistributionRule,
 } from '../../src/core/message-distribution/types.ts';
 import {
+    isDistributionMenuCommand,
     parseDistributionCommand,
     parseKeyValues,
     parseOneShotDistributionCommand,
@@ -94,19 +95,25 @@ assert.deepEqual(parseDistributionCommand('分发规则 内容 科技资讯 模�
     name: '科技资讯',
     values: {模式: 'AI', 输出: '图文'},
 });
-assert.deepEqual(parseOneShotDistributionCommand('分发 目标=wxid_a,123@chatroom 正文="今晚八点集合"'), {
+assert.equal(isDistributionMenuCommand('分发'), true);
+assert.equal(isDistributionMenuCommand('分发帮助'), true);
+assert.equal(isDistributionMenuCommand('分发消息'), false);
+assert.equal(isDistributionMenuCommand('分发规则'), false);
+assert.equal(parseOneShotDistributionCommand('分发 wxid_a 今晚八点集合'), null);
+assert.deepEqual(parseOneShotDistributionCommand('分发消息'), {values: {}});
+assert.deepEqual(parseOneShotDistributionCommand('分发消息 目标=wxid_a,123@chatroom 正文="今晚八点集合"'), {
     values: {
         目标: 'wxid_a,123@chatroom',
         正文: '今晚八点集合',
     },
 });
-assert.deepEqual(parseOneShotDistributionCommand('分发 wxid_a,wxid_b 今晚八点集合'), {
+assert.deepEqual(parseOneShotDistributionCommand('分发消息 wxid_a,wxid_b 今晚八点集合'), {
     values: {
         目标: 'wxid_a,wxid_b',
         正文: '今晚八点集合',
     },
 });
-assert.deepEqual(parseOneShotDistributionCommand('分发 wxid_a,wxid_b'), {
+assert.deepEqual(parseOneShotDistributionCommand('分发消息 wxid_a,wxid_b'), {
     values: {目标: 'wxid_a,wxid_b'},
 });
 
@@ -237,13 +244,6 @@ async function main(): Promise<void> {
         assert.match(collection[0].items[0]?.avatarUrl ?? '', /^https:\/\/wx\.qlogo\.cn\//u);
     }
 
-    const emojiReplies = await toGolemOutboundReplies({
-        ...message,
-        type: 'emoji',
-        content: undefined,
-        app: undefined,
-        rawXml: '<msg><emoji md5="emoji-md5"/></msg>',
-        media: {md5: 'emoji-md5'},
     const note = await buildDistributionReplies({} as Env, {
         ...message,
         senderName: '科技号',
@@ -277,6 +277,13 @@ async function main(): Promise<void> {
         assert.equal(note[0].items[1]?.type === 'image' || note[0].items[2]?.type === 'image', true);
     }
 
+    const emojiReplies = await toGolemOutboundReplies({
+        ...message,
+        type: 'emoji',
+        content: undefined,
+        app: undefined,
+        rawXml: '<msg><emoji md5="emoji-md5"/></msg>',
+        media: {md5: 'emoji-md5'},
     }, {} as Env);
     assert.deepEqual(emojiReplies, [{type: 'emoji', md5: 'emoji-md5'}]);
 
@@ -325,9 +332,9 @@ async function main(): Promise<void> {
         to: 'bot',
         timestamp: 1,
         messageId: 'one-shot-message',
-        content: '#分发 reader 开头说明',
+        content: '#分发消息 reader 开头说明',
         quote: {
-            title: '#分发 reader 开头说明',
+            title: '#分发消息 reader 开头说明',
             referType: 1,
             referContent: '引用正文',
         },

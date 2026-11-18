@@ -23,6 +23,7 @@ import {
 } from '../../channel/message-distribution/dispatch.js';
 import type {Plugin} from '../../runtime/types.js';
 import {
+    isDistributionMenuCommand,
     parseDistributionCommand,
     parseOneShotDistributionCommand,
     type DistributionCommand,
@@ -33,17 +34,23 @@ const HELP = [
     '分发规则这样配：',
     '#分发规则 新增 名称=科技资讯 会话=gh_xxx 类型=文章 关键词=AI 内容=自动 目标=123@chatroom',
     '#分发规则 内容 科技资讯 模式=重建 输出=消息合集 失败=重建',
-    '#分发规则 列表',
     '输出也可以写笔记，文章会整篇发成一张笔记',
+    '#分发规则 列表',
     '#分发规则 查看 科技资讯',
     '#分发规则 启用/停用/删除/测试 科技资讯',
 ].join('\n');
 
 const ONE_SHOT_HELP = [
     '一次发出去：',
-    '#分发 wxid_a,123@chatroom 今晚八点集合',
+    '#分发消息 wxid_a,123@chatroom 今晚八点集合',
     '也可以引用一条消息，再发：',
-    '#分发 wxid_a,123@chatroom',
+    '#分发消息 wxid_a,123@chatroom',
+].join('\n');
+
+const MENU = [
+    '分发这两样：',
+    '#分发消息 目标 [正文]',
+    '#分发规则 [操作 规则名]',
 ].join('\n');
 
 const TYPE_NAMES: Record<string, MessageType> = {
@@ -141,6 +148,8 @@ function policyFrom(
                 ? 'media'
                 : outputText === '消息合集' || outputText === '合集'
                     ? 'collection'
+                : outputText === '笔记'
+                    ? 'note'
                 : outputText === '自动'
                     ? 'auto'
                     : !outputText
@@ -148,8 +157,6 @@ function policyFrom(
                     : null;
     if (!output) throw new Error('输出用自动、纯文本、图文、媒体、消息合集或笔记');
     const fallbackText = values.失败;
-                : outputText === '笔记'
-                    ? 'note'
     const fallback = fallbackText === '纯文本' || fallbackText === '文本'
         ? 'text'
         : fallbackText === '跳过'
@@ -210,6 +217,7 @@ function previewText(replies: ReplyMessage[]): string {
         if (reply.type === 'link') return `图文：${reply.title}\n${reply.desc ?? ''}\n${reply.url}`.trim();
         if (reply.type === 'forward') return '会按原样发';
         if (reply.type === 'chat-record') return `消息合集：${reply.title ?? `${reply.items.length} 条`}`;
+        if (reply.type === 'note') return `笔记：${reply.title ?? `${reply.items.length} 条`}`;
         return `会发一条${reply.type}`;
     }).join('\n---\n');
 }
@@ -217,7 +225,6 @@ function previewText(replies: ReplyMessage[]): string {
 function quotedMessage(message: IncomingMessage): IncomingMessage | null {
     const quote = message.quote;
     if (!quote) return null;
-        if (reply.type === 'note') return `笔记：${reply.title ?? `${reply.items.length} 条`}`;
     const type: MessageType = quote.referType === 49
         ? 'link'
         : quote.referType === 3
@@ -354,17 +361,20 @@ export const messageDistributionCommandPlugin: Plugin = {
     match(message, ctx) {
         const command = markedCommand(message, ctx.env);
         return command != null && (
-            parseDistributionCommand(command) != null
+            isDistributionMenuCommand(command)
+            || parseDistributionCommand(command) != null
             || parseOneShotDistributionCommand(command) != null
         );
     },
     async handle(message, ctx): Promise<HandlerResponse> {
         const rawCommand = markedCommand(message, ctx.env) ?? '';
+        const menu = isDistributionMenuCommand(rawCommand);
         const oneShot = parseOneShotDistributionCommand(rawCommand);
         const command = parseDistributionCommand(rawCommand);
-        if (!command && !oneShot) return null;
+        if (!menu && !command && !oneShot) return null;
         const ownerId = resolveOwnerId(ctx.env, message.platform);
         if (!ownerId || message.senderId.trim() !== ownerId) return textReply('这事只有主人能改');
+        if (menu) return textReply(MENU);
         try {
             return textReply(oneShot
                 ? await applyOneShotCommand(oneShot, message, ctx)

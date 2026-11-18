@@ -76,8 +76,13 @@ export function parseDistributionCommand(command: string): DistributionCommand |
     return {kind: 'help'};
 }
 
+/** 裸前缀 `分发` 或 `分发帮助`：只列这一组的菜单，不做别的。 */
+export function isDistributionMenuCommand(command: string): boolean {
+    return /^分发(?:帮助)?$/u.test(command.trim());
+}
+
 export function parseOneShotDistributionCommand(command: string): OneShotDistributionCommand | null {
-    const match = command.trim().match(/^分发(?:\s+([\s\S]*))?$/u);
+    const match = command.trim().match(/^分发消息(?:\s+([\s\S]*))?$/u);
     if (!match) return null;
     const body = match[1]?.trim() ?? '';
     if (!body || body === '帮助') return {values: {}};
