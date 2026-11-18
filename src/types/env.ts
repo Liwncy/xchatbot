@@ -26,6 +26,10 @@ export interface Env {
     SCREENSHOT_URL?: string;
     /** 调 cf-worker 的同一把钥匙，值与 cf-worker 的 GATEWAY_API_KEY 相同。 */
     GATEWAY_API_KEY?: string;
+    /** cf-worker 的 Service Binding。小模型请求优先走它的 /v1/chat/completions。 */
+    CF_WORKER?: Fetcher;
+    /** 网关模型名，格式 `上游/模型`。默认 `cnb/deepseek-v4-flash`。 */
+    LLM_GATEWAY_MODEL?: string;
     XIUXIAN_PLATFORM?: string;
 
     /**

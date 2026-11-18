@@ -51,6 +51,14 @@ database_name = "xbotdata"
 database_id = "941571aa-a060-4d08-9cad-44b439b03c11"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 服务绑定：cf-worker 的 LLM 网关（/v1/chat/completions）
+# 钥匙用 GATEWAY_API_KEY（secret，与 cf-worker 的相同）。
+# ══════════════════════════════════════════════════════════════════════════════
+[[services]]
+binding = "CF_WORKER"
+service = "cf-worker"
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Durable Object：agent 入站邮箱（免费档只能用 SQLite 后端）
 # agent_brain.transport = 'ws' 的大脑，入站先投这里；agent 主动连 /agent/ws。
 # ══════════════════════════════════════════════════════════════════════════════
@@ -80,6 +88,10 @@ BOT_WECHAT_NAME = "小聪明儿"
 # WECHAT_TOKEN（secret）
 WECHAT_API_BASE_URL = "https://wxbot.lwcorspro.dpdns.org"
 # SILK_CONVERT_URL = "https://api.chrelyonly.cn/convert"  # 默认已用这个；设 off 则只用本地 wasm
+
+# ── 小模型 ────────────────────────────────────────────────────────────────────
+# 纯文字的小模型请求先走 cf-worker 网关，失败再用 D1 llm_config 里的默认配置。换模型只改这一行。
+LLM_GATEWAY_MODEL = "cnb/deepseek-v4-flash"
 
 # ── 日志 ──────────────────────────────────────────────────────────────────────
 CHAT_LOG_ENABLE = "true"
