@@ -28,7 +28,7 @@ export interface SendOptions {
 }
 
 export interface PrepareDistributionOptions {
-    /** 按正文顺序展开文章，供消息合集等重建方式使用。 */
+    /** 按正文顺序展开文章，供消息合集、笔记等重建方式使用。 */
     expandArticle?: boolean;
 }
 

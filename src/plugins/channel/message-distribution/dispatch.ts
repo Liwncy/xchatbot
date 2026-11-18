@@ -17,6 +17,11 @@ function resolveAdapter(ctx: PluginContext, platform: string): ChannelAdapter | 
     return platform === ctx.adapter?.platform ? ctx.adapter : ctx.resolveAdapter?.(platform);
 }
 
+/** 合集和笔记都要按正文重建文章，不能走原样转发。 */
+function rebuildsArticle(policy: DistributionContentPolicy): boolean {
+    return policy.output === 'collection' || policy.output === 'note';
+}
+
 async function preparePayloads(
     messages: IncomingMessage[],
     ctx: PluginContext,
@@ -25,7 +30,7 @@ async function preparePayloads(
     return Promise.all(messages.map(async (message) => {
         const sourceAdapter = resolveAdapter(ctx, message.platform);
         return await sourceAdapter?.prepareForDistribution?.(message, ctx.env, {
-            expandArticle: policy.output === 'collection',
+            expandArticle: rebuildsArticle(policy),
         }) ?? message;
     }));
 }
@@ -39,7 +44,7 @@ async function buildPreparedReplies(
     const targetAdapter = resolveAdapter(ctx, targetPlatform);
     const replies: ReplyMessage[] = [];
     for (const message of messages) {
-        if (policy.output !== 'collection' && (policy.mode === 'original' || policy.mode === 'auto')) {
+        if (!rebuildsArticle(policy) && (policy.mode === 'original' || policy.mode === 'auto')) {
             const nativeReplies = await targetAdapter?.toOutboundReplies?.(message, ctx.env);
             if (nativeReplies?.length) {
                 replies.push(...nativeReplies);

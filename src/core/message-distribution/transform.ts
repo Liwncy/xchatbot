@@ -6,10 +6,12 @@ import {
     chatRecordReply,
     imageReply,
     linkReply,
+    noteReply,
     textReply,
     videoReply,
     voiceReply,
     type ChatRecordItem,
+    type NoteItem,
     type ReplyMessage,
 } from '../reply.js';
 import {distributionSearchText} from './matcher.js';
@@ -132,6 +134,35 @@ function articleCollections(message: IncomingMessage, policy: DistributionConten
     });
 }
 
+/** 笔记不渲染 Markdown，标题取第一行，所以标题要自己放进第一条文字。 */
+function articleNotes(message: IncomingMessage, policy: DistributionContentPolicy): ReplyMessage[] {
+    const articles = message.app?.articles ?? [];
+    return articles.flatMap((article) => {
+        if (!article.contentItems?.length) return [];
+        const items: NoteItem[] = [{content: article.title.trim()}];
+        const leading = policy.prefix?.trim();
+        if (leading) items.push({content: leading});
+        for (const item of article.contentItems) {
+            items.push(item.type === 'image'
+                ? {type: 'image', url: item.url, alt: item.alt}
+                : {content: formatArticleText(item.content, item.style)});
+        }
+        const trailing = [
+            sourceLine(message, policy),
+            policy.includeOriginalUrl ? `阅读原文：${article.url}` : '',
+            policy.suffix,
+        ].filter((value): value is string => Boolean(value?.trim())).join('\n');
+        if (trailing) items.push({content: trailing});
+        const firstText = article.contentItems.find((item) => item.type === 'text');
+        return [noteReply(items, {
+            title: article.title,
+            desc: firstText?.type === 'text' ? firstText.content.slice(0, 120) : article.desc,
+            author: article.authorName?.trim() || undefined,
+            editedAtMs: timestampMsOf(message),
+        })];
+    });
+}
+
 function mediaReply(message: IncomingMessage): ReplyMessage | null {
     const media = message.media;
     if (!media) return null;
@@ -172,6 +203,10 @@ function rebuild(message: IncomingMessage, policy: DistributionContentPolicy): R
     if (policy.output === 'collection') {
         const collections = articleCollections(message, policy);
         return collections.length ? collections : articleReplies(message, policy);
+    }
+    if (policy.output === 'note') {
+        const notes = articleNotes(message, policy);
+        return notes.length ? notes : articleReplies(message, policy);
     }
     const links = articleReplies(message, policy);
     if ((policy.output === 'link' || policy.output === 'auto') && links.length) return links;

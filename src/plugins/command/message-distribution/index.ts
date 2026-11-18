@@ -34,6 +34,7 @@ const HELP = [
     '#分发规则 新增 名称=科技资讯 会话=gh_xxx 类型=文章 关键词=AI 内容=自动 目标=123@chatroom',
     '#分发规则 内容 科技资讯 模式=重建 输出=消息合集 失败=重建',
     '#分发规则 列表',
+    '输出也可以写笔记，文章会整篇发成一张笔记',
     '#分发规则 查看 科技资讯',
     '#分发规则 启用/停用/删除/测试 科技资讯',
 ].join('\n');
@@ -145,8 +146,10 @@ function policyFrom(
                     : !outputText
                         ? current.output
                     : null;
-    if (!output) throw new Error('输出用自动、纯文本、图文、媒体或消息合集');
+    if (!output) throw new Error('输出用自动、纯文本、图文、媒体、消息合集或笔记');
     const fallbackText = values.失败;
+                : outputText === '笔记'
+                    ? 'note'
     const fallback = fallbackText === '纯文本' || fallbackText === '文本'
         ? 'text'
         : fallbackText === '跳过'
@@ -214,6 +217,7 @@ function previewText(replies: ReplyMessage[]): string {
 function quotedMessage(message: IncomingMessage): IncomingMessage | null {
     const quote = message.quote;
     if (!quote) return null;
+        if (reply.type === 'note') return `笔记：${reply.title ?? `${reply.items.length} 条`}`;
     const type: MessageType = quote.referType === 49
         ? 'link'
         : quote.referType === 3

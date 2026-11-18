@@ -99,7 +99,9 @@ function asMode(value: unknown): DistributionContentMode {
 }
 
 function asOutput(value: unknown): DistributionOutput {
-    return value === 'text' || value === 'link' || value === 'media' || value === 'collection' ? value : 'auto';
+    return value === 'text' || value === 'link' || value === 'media' || value === 'collection' || value === 'note'
+        ? value
+        : 'auto';
 }
 
 function asFallback(value: unknown): DistributionFallback {

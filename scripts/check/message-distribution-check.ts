@@ -244,6 +244,39 @@ async function main(): Promise<void> {
         app: undefined,
         rawXml: '<msg><emoji md5="emoji-md5"/></msg>',
         media: {md5: 'emoji-md5'},
+    const note = await buildDistributionReplies({} as Env, {
+        ...message,
+        senderName: '科技号',
+        app: {
+            ...message.app!,
+            articles: [{
+                title: '一篇文章',
+                url: 'https://mp.weixin.qq.com/s/test',
+                authorName: '某作者',
+                contentItems: [
+                    {type: 'text', content: '第一段'},
+                    {type: 'image', url: 'https://mmbiz.qpic.cn/a.jpg'},
+                ],
+            }],
+        },
+    }, {
+        ...rule,
+        contentPolicy: {
+            ...DEFAULT_CONTENT_POLICY,
+            mode: 'rebuild',
+            output: 'note',
+            includeOriginalUrl: false,
+        },
+    });
+    assert.equal(note[0]?.type, 'note');
+    if (note[0]?.type === 'note') {
+        assert.equal(note[0].title, '一篇文章');
+        assert.equal(note[0].author, '某作者');
+        // 笔记标题栏取第一行，标题必须是第一条文字。
+        assert.deepEqual(note[0].items[0], {content: '一篇文章'});
+        assert.equal(note[0].items[1]?.type === 'image' || note[0].items[2]?.type === 'image', true);
+    }
+
     }, {} as Env);
     assert.deepEqual(emojiReplies, [{type: 'emoji', md5: 'emoji-md5'}]);
 
