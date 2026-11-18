@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
 import {stripBotPrefix} from '../../src/core/bot.ts';
-
-const MARKER = /^[#＃]\s*(.*)$/u;
-
-function extractMarkedCommand(stripped: string): string | null {
-    const match = MARKER.exec(stripped.trim());
-    if (!match) return null;
-    return match[1]?.trim() ?? '';
-}
+import {extractMarkedCommand} from '../../src/core/command-mark.ts';
 
 function marked(content: string, botName = '小聪明儿', botId = 'wxid_bot'): string | null {
     return extractMarkedCommand(stripBotPrefix(content, botName, botId));
 }
-
 assert.equal(marked('开机'), null);
 assert.equal(marked('人格绿茶'), null);
 assert.equal(marked('帮我查记录'), null);
@@ -29,5 +21,7 @@ assert.equal(marked('#人格 绿茶'), '人格 绿茶');
 assert.equal(marked('#'), '');
 assert.equal(marked('#   '), '');
 assert.equal(extractMarkedCommand('开机'), null);
+assert.equal(marked('#分发消息 a 输出=笔记 正文\n\n第二段'), '分发消息 a 输出=笔记 正文\n\n第二段');
+assert.equal(marked('@小聪明儿 #伪转发\n张三|09:12|你到了吗'), '伪转发\n张三|09:12|你到了吗');
 
 console.log('✓ command-mark');

@@ -2,7 +2,8 @@ import {resolveBotId, resolveBotName, stripBotPrefix} from './bot.js';
 import type {IncomingMessage} from './message.js';
 import type {Env} from '../types/env.js';
 
-const MARKER = /^[#＃]\s*(.*)$/u;
+/** 口令后面可以换行（多行正文、伪转发脚本），所以要匹配到换行之后。 */
+const MARKER = /^[#＃]\s*([\s\S]*)$/u;
 
 export function extractMarkedCommand(stripped: string): string | null {
     const match = MARKER.exec(stripped.trim());
