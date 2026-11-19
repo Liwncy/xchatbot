@@ -5,6 +5,7 @@ import {
     allowsGroupMessage,
     DEFAULT_GROUP_SETTINGS,
     DEFAULT_REPLY_CHANCE,
+    editRuleList,
     followUpApplies,
     matchesKeyword,
     matchesRuleUser,
@@ -39,14 +40,37 @@ assert.deepEqual(parseGroupCommand('跟聊 60'), {kind: 'set-follow', seconds: 6
 assert.deepEqual(parseGroupCommand('跟聊开'), {kind: 'set-follow', seconds: 60});
 assert.deepEqual(parseGroupCommand('跟聊关'), {kind: 'set-follow', seconds: 0});
 assert.deepEqual(parseGroupCommand('规则 用户 wxid_a，wxid_b'), {
-    kind: 'set-users',
-    userIds: ['wxid_a', 'wxid_b'],
+    kind: 'edit-list', field: 'userIds', op: 'set', values: ['wxid_a', 'wxid_b'],
 });
 assert.deepEqual(parseGroupCommand('规则 关键词 原神 崩铁'), {
-    kind: 'set-keywords',
-    keywords: ['原神', '崩铁'],
+    kind: 'edit-list', field: 'keywords', op: 'set', values: ['原神', '崩铁'],
 });
 assert.deepEqual(parseGroupCommand('规则 清空'), {kind: 'clear-rule'});
+
+assert.deepEqual(parseGroupCommand('放行'), {kind: 'rule-help'});
+assert.deepEqual(parseGroupCommand('放行帮助'), {kind: 'rule-help'});
+assert.deepEqual(parseGroupCommand('放行名单'), {kind: 'list-rule'});
+assert.deepEqual(parseGroupCommand('放行清空'), {kind: 'clear-rule'});
+assert.deepEqual(parseGroupCommand('放行用户'), {kind: 'rule-help'});
+assert.deepEqual(parseGroupCommand('放行词语 加'), {kind: 'rule-help'});
+assert.deepEqual(parseGroupCommand('放行用户 wxid_a wxid_b'), {
+    kind: 'edit-list', field: 'userIds', op: 'set', values: ['wxid_a', 'wxid_b'],
+});
+assert.deepEqual(parseGroupCommand('放行词语 加 原神 崩铁'), {
+    kind: 'edit-list', field: 'keywords', op: 'add', values: ['原神', '崩铁'],
+});
+assert.deepEqual(parseGroupCommand('放行词语 删 原神'), {
+    kind: 'edit-list', field: 'keywords', op: 'remove', values: ['原神'],
+});
+assert.deepEqual(parseGroupCommand('放行词语 清空'), {
+    kind: 'edit-list', field: 'keywords', op: 'clear', values: [],
+});
+assert.deepEqual(parseGroupCommand('放行用户 清空'), {
+    kind: 'edit-list', field: 'userIds', op: 'clear', values: [],
+});
+assert.deepEqual(editRuleList(['a', 'B'], 'add', ['b', 'c']), ['a', 'B', 'c']);
+assert.deepEqual(editRuleList(['a', 'B'], 'remove', ['b']), ['a']);
+assert.deepEqual(editRuleList(['a'], 'set', ['x', 'x']), ['x']);
 assert.equal(parseGroupCommand('随便聊聊'), null);
 
 const mention = {...DEFAULT_GROUP_SETTINGS, mode: 'mention' as const};

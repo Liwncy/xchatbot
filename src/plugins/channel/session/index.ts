@@ -9,6 +9,7 @@ import {isBotMentioned} from './mention.js';
 import {
     allowsGroupMessage,
     DEFAULT_REPLY_CHANCE,
+    editRuleList,
     followUpApplies,
     matchesKeyword,
     matchesRuleUser,
@@ -28,6 +29,15 @@ import {
     setGroupSessionActive,
     touchFollowWindow,
 } from './store.js';
+
+const RULE_MENU = [
+    '放行这几样：',
+    '#放行用户 [加|删|清空] 用户id…',
+    '#放行词语 [加|删|清空] 词…',
+    '#放行名单',
+    '#放行清空',
+    '不写加删就是整个换掉',
+].join('\n');
 
 function commandOf(message: IncomingMessage, ctx: PluginContext): string | null {
     return markedCommand(message, ctx.env);
@@ -73,8 +83,40 @@ async function applyCommand(
     if (command.kind === 'unknown-help') {
         return textReply('没听懂，再发一次？ 🤔');
     }
+    if (command.kind === 'rule-help') return textReply(RULE_MENU);
 
     const current = await getGroupSettings(ctx.env, message.platform, roomId);
+    if (command.kind === 'list-rule') {
+        if (current.userIds.length === 0 && current.keywords.length === 0) {
+            return textReply('名单是空的');
+        }
+        const lines = [
+            current.userIds.length ? `放行的人：${current.userIds.join('、')}` : '',
+            current.keywords.length ? `放行的词：${current.keywords.join('、')}` : '',
+        ].filter(Boolean);
+        return textReply(lines.join('\n'));
+    }
+    if (command.kind === 'edit-list') {
+        const list = current[command.field];
+        const nextList = editRuleList(list, command.op, command.values);
+        if (command.op === 'remove' && nextList.length === list.length) {
+            return textReply('名单里没这个 🤔');
+        }
+        const grows = command.op === 'set' || command.op === 'add';
+        await saveGroupSettings(ctx.env, message.platform, roomId, {
+            ...current,
+            [command.field]: nextList,
+            mode: grows ? 'rule' : current.mode,
+        });
+        logger.info('群放行名单已改', {
+            platform: message.platform,
+            roomId,
+            field: command.field,
+            op: command.op,
+            size: nextList.length,
+        });
+        return textReply('好了 👌');
+    }
     const next = applySettingsCommand(current, command);
     await saveGroupSettings(ctx.env, message.platform, roomId, next);
     logger.info('群策略已改', {
@@ -108,10 +150,6 @@ function applySettingsCommand(current: GroupSettings, command: GroupCommand): Gr
             };
         case 'set-follow':
             return {...current, followUpSeconds: command.seconds};
-        case 'set-users':
-            return {...current, userIds: command.userIds, mode: 'rule'};
-        case 'set-keywords':
-            return {...current, keywords: command.keywords, mode: 'rule'};
         case 'clear-rule':
             return {...current, userIds: [], keywords: []};
         default:

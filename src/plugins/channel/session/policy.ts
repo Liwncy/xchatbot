@@ -146,10 +146,48 @@ export type GroupCommand =
     | {kind: 'set-mode'; mode: GroupRespondMode}
     | {kind: 'set-chance'; percent: number}
     | {kind: 'set-follow'; seconds: number}
-    | {kind: 'set-users'; userIds: string[]}
-    | {kind: 'set-keywords'; keywords: string[]}
+    | {kind: 'edit-list'; field: RuleListField; op: RuleListOp; values: string[]}
+    | {kind: 'list-rule'}
+    | {kind: 'rule-help'}
     | {kind: 'clear-rule'}
     | {kind: 'unknown-help'};
+
+export type RuleListField = 'userIds' | 'keywords';
+/** set 整个换掉，add 追加，remove 删几个，clear 清空这一份。 */
+export type RuleListOp = 'set' | 'add' | 'remove' | 'clear';
+
+const LIST_OPS: Record<string, RuleListOp> = {
+    加: 'add', 追加: 'add', 添加: 'add',
+    删: 'remove', 删除: 'remove', 移除: 'remove',
+    清空: 'clear', 清除: 'clear',
+};
+
+export function editRuleList(list: string[], op: RuleListOp, values: string[]): string[] {
+    switch (op) {
+        case 'set':
+            return uniqueTokens(values);
+        case 'add': {
+            const have = new Set(list.map((item) => item.toLowerCase()));
+            return uniqueTokens([...list, ...values.filter((v) => !have.has(v.toLowerCase()))]);
+        }
+        case 'remove': {
+            const drop = new Set(values.map((v) => v.toLowerCase()));
+            return list.filter((item) => !drop.has(item.toLowerCase()));
+        }
+        case 'clear':
+            return [];
+    }
+}
+
+function parseRuleList(field: RuleListField, rest: string): GroupCommand {
+    const tokens = splitTokens(rest);
+    if (tokens.length === 0) return {kind: 'rule-help'};
+    const op = LIST_OPS[tokens[0]];
+    if (!op) return {kind: 'edit-list', field, op: 'set', values: tokens};
+    const values = tokens.slice(1);
+    if (op !== 'clear' && values.length === 0) return {kind: 'rule-help'};
+    return {kind: 'edit-list', field, op, values: op === 'clear' ? [] : values};
+}
 
 const ENABLE = new Set(['启用', '开机', '开始', '开', 'on', 'start', 'enable']);
 const DISABLE = new Set(['停用', '关机', '停止', '关', '结束', 'off', 'stop', 'disable']);
@@ -228,10 +266,20 @@ export function parseGroupCommand(command: string): GroupCommand | null {
         return {kind: 'set-follow', seconds: 0};
     }
 
+    // 放行：谁、哪些词不用 @ 也能让它接话
+    if (text === '放行' || text === '放行帮助') return {kind: 'rule-help'};
+    if (text === '放行名单') return {kind: 'list-rule'};
+    if (text === '放行清空') return {kind: 'clear-rule'};
+    const allowList = /^放行(用户|词语)(?:\s+([\s\S]*))?$/u.exec(text);
+    if (allowList) {
+        return parseRuleList(allowList[1] === '用户' ? 'userIds' : 'keywords', allowList[2] ?? '');
+    }
+
+    // 旧口令，先留着：整个换掉
     const users = /^规则\s*用户\s+(.+)$/u.exec(text);
-    if (users) return {kind: 'set-users', userIds: splitTokens(users[1])};
+    if (users) return {kind: 'edit-list', field: 'userIds', op: 'set', values: splitTokens(users[1])};
     const keywords = /^规则\s*关键词\s+(.+)$/u.exec(text);
-    if (keywords) return {kind: 'set-keywords', keywords: splitTokens(keywords[1])};
+    if (keywords) return {kind: 'edit-list', field: 'keywords', op: 'set', values: splitTokens(keywords[1])};
     if (/^规则\s*清空$/u.test(text)) return {kind: 'clear-rule'};
 
     return null;
