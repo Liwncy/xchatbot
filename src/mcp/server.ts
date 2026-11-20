@@ -131,7 +131,7 @@ export function createChannelMcpServer(env: Env): McpServer {
         'emoji_search',
         {
             description:
-                '搜通道自己的表情/梗图库。用中文搜，如 无奈、猫、摊手。'
+                '搜通道自己的表情/梗图库。用中文搜，如 无奈、猫、摊手。不搜大肥鱼。'
                 + '有 md5 的按指纹发表情，没有就用 imgUrl 当普通图。默认只搜启用的；includeInactive 才带停用/损坏。'
                 + '闲聊接话不要调。',
             inputSchema: z.object({

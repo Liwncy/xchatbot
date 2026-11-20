@@ -81,7 +81,7 @@ export function renderWebPage(options: {tokenRequired: boolean}): string {
           if (type === 'image') add('bot', 'bot：[图片] ' + (reply.url || ''));
           else if (type === 'video') add('bot', 'bot：[视频] ' + (reply.url || ''));
           else if (type === 'voice') add('bot', 'bot：[语音] ' + (reply.url || ''));
-          else if (type === 'emoji') add('bot', 'bot：[表情] ' + (reply.md5 || ''));
+          else if (type === 'emoji') add('bot', 'bot：[表情] ' + (reply.md5 || reply.url || ''));
           else if (type === 'link' || type === 'music') add('bot', 'bot：[' + (type === 'music' ? '音乐' : '链接') + '] ' + (reply.title || reply.url || ''));
           else add('bot', 'bot：' + (reply.content || ''));
         }

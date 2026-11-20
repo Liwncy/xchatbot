@@ -2,7 +2,7 @@ import {resolveChatSession} from '../chat-log/session.js';
 import {requestLlmJson} from '../llm/index.js';
 import type {IncomingMessage} from '../message.js';
 import {currentPersona} from '../persona/service.js';
-import {emojiReply, type ReplyMessage} from '../reply.js';
+import {emojiLinkReply, emojiReply, type ReplyMessage} from '../reply.js';
 import type {Env} from '../../types/env.js';
 import {logger} from '../../utils/logger.js';
 import type {EmojiStashCategory} from './categories.js';
@@ -28,6 +28,22 @@ export const DEFAULT_AUTO_CHANCE = 30;
 const MAX_REPLY_CHARS = 80;
 /** 小模型判标签最多等这么久，超了就走关键词。 */
 const MOOD_TIMEOUT_MS = 5_000;
+/** 自动配图时，外部库和自己的库各一半。点名某一边的口令不走这里。 */
+const EXTERNAL_SHARE = 50;
+
+export interface ExternalEmojiHit {
+    url: string;
+    name?: string;
+    tags?: string[];
+}
+
+export type ExternalEmojiPick = (tag: string) => Promise<ExternalEmojiHit | null>;
+
+export interface EmojiAutoOptions {
+    random?: () => number;
+    /** 没接上就只用自己的库。 */
+    pickExternal?: ExternalEmojiPick;
+}
 
 function settingKey(scope: AutoScope, platform: string, sessionId: string): string {
     if (scope === 'global') return 'emoji:auto:g';
@@ -268,7 +284,7 @@ export async function planEmojiAuto(
     env: Env,
     message: IncomingMessage,
     replies: ReplyMessage[],
-    options?: {random?: () => number},
+    options?: EmojiAutoOptions,
 ): Promise<ReplyMessage | null> {
     try {
         if (!env.XBOT_DB) return null;
@@ -307,12 +323,35 @@ export async function planEmojiAuto(
         }
         if (!mood) return null;
 
-        let picked = await emojiPickRandom(env, {tag: mood.tag});
-        if (!picked.ok && categoryAllowed(mood.category)) {
-            picked = await emojiPickRandom(env, {category: mood.category});
+        const pickLocal = async (): Promise<ReplyMessage | null> => {
+            let picked = await emojiPickRandom(env, {tag: mood.tag});
+            if (!picked.ok && categoryAllowed(mood.category)) {
+                picked = await emojiPickRandom(env, {category: mood.category});
+            }
+            if (!picked.ok || !picked.item.md5) return null;
+            return emojiReply(picked.item.md5, picked.item.imgUrl || undefined);
+        };
+        const pickExternal = async (): Promise<ReplyMessage | null> => {
+            if (!options?.pickExternal) return null;
+            try {
+                const hit = await options.pickExternal(mood.tag);
+                const url = hit?.url?.trim() ?? '';
+                if (!/^https?:\/\//iu.test(url)) return null;
+                const tags = [...(hit?.tags ?? []), mood.tag]
+                    .map((item) => item.trim())
+                    .filter((item, index, list) => item && list.indexOf(item) === index);
+                return emojiLinkReply(url, {stashName: hit?.name, stashTags: tags});
+            } catch (error) {
+                logger.warn('外部表情没配上', {error: error instanceof Error ? error.message : String(error)});
+                return null;
+            }
+        };
+
+        // 先掷一边。这边没有，再试另一边。两边都没有就不发。
+        if (options?.pickExternal && random() * 100 < EXTERNAL_SHARE) {
+            return (await pickExternal()) ?? (await pickLocal());
         }
-        if (!picked.ok || !picked.item.md5) return null;
-        return emojiReply(picked.item.md5, picked.item.imgUrl || undefined);
+        return (await pickLocal()) ?? (await pickExternal());
     } catch (error) {
         logger.warn('回复配图没成', {error: error instanceof Error ? error.message : String(error)});
         return null;
@@ -324,7 +363,7 @@ export async function applyEmojiAuto(
     env: Env,
     message: IncomingMessage,
     replies: ReplyMessage[],
-    options?: {random?: () => number},
+    options?: EmojiAutoOptions,
 ): Promise<ReplyMessage[]> {
     const extra = await planEmojiAuto(env, message, replies, options);
     return extra ? [...replies, extra] : replies;

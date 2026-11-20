@@ -33,7 +33,11 @@
 
 ## 表情图库
 
-这四个工具在 xchatbot 自己的 MCP 上，不在 cf-mcp-tools。想发反应图、梗图、表情：先 `emoji_search`（中文搜 description/tags，如 无奈、猫）。不要编 md5，不要让用户背名字。
+`emoji_search` / `emoji_get` / `emoji_save` / `emoji_update` 在 xchatbot 自己的 MCP 上。想发自己库里的反应图、梗图：先 `emoji_search`（中文搜 description/tags，如 无奈、猫）。不要编 md5，不要让用户背名字。
+
+`search_whale_sticker` 在 cf-mcp-tools，只搜大肥鱼那 322 张已标注的。对方点名大肥鱼、肥鱼表情时才调。留空 query 是随机一张。返回的 url 下一行写 `emoji:` 加链接。对不上就别发。没问出处别念作者。
+
+两套库不要混着搜。自动配图由通道自己掷，不用为了配图去调这两个工具。
 
 写库：
 

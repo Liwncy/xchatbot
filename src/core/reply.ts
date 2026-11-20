@@ -13,9 +13,13 @@ export interface ImageReply {
 
 export interface EmojiReply {
     type: 'emoji';
-    md5: string;
+    /** 有指纹就按指纹发。只有动图链接时可以不填。 */
+    md5?: string;
     url?: string;
     to?: string;
+    /** 用链接发出去之后，按这些记进自己的库。 */
+    stashName?: string;
+    stashTags?: string[];
 }
 
 export interface LinkReply {
@@ -173,6 +177,14 @@ export function imageReply(url: string): ImageReply {
 
 export function emojiReply(md5: string, url?: string): EmojiReply {
     return url ? {type: 'emoji', md5, url} : {type: 'emoji', md5};
+}
+
+/** 还没有指纹的动图。发出去之后适配器会把返回的指纹记下。 */
+export function emojiLinkReply(
+    url: string,
+    extras?: Pick<EmojiReply, 'stashName' | 'stashTags'>,
+): EmojiReply {
+    return {type: 'emoji', url, ...extras};
 }
 
 export function linkReply(title: string, url: string, desc?: string, thumbUrl?: string): LinkReply {

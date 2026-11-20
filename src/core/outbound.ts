@@ -1,5 +1,6 @@
 import {
     appReply,
+    emojiLinkReply,
     emojiReply,
     imageReply,
     linkReply,
@@ -101,13 +102,19 @@ function parseMusicLine(payload: string): ReplyMessage | null {
 }
 
 function parseEmojiLine(line: string): ReplyMessage | null {
-    const match = EMOJI_LINE.exec(line.trim());
-    if (!match) return null;
-    const md5 = match[1].toLowerCase();
-    const piped = sanitizeUrl(match[2] ?? '');
-    const spaced = sanitizeUrl(match[3] ?? '');
-    const url = looksLikeHttp(piped) ? piped : looksLikeHttp(spaced) ? spaced : '';
-    return emojiReply(md5, url || undefined);
+    const trimmed = line.trim();
+    const match = EMOJI_LINE.exec(trimmed);
+    if (match) {
+        const md5 = match[1].toLowerCase();
+        const piped = sanitizeUrl(match[2] ?? '');
+        const spaced = sanitizeUrl(match[3] ?? '');
+        const url = looksLikeHttp(piped) ? piped : looksLikeHttp(spaced) ? spaced : '';
+        return emojiReply(md5, url || undefined);
+    }
+    // 没有指纹时，这一行就是链接。
+    const payload = sanitizeUrl(trimmed.slice('emoji:'.length).split(/\s+/u)[0] ?? '');
+    if (!looksLikeHttp(payload)) return null;
+    return emojiLinkReply(payload);
 }
 
 function parseAppLine(line: string): ReplyMessage | null {

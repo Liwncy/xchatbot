@@ -1,7 +1,7 @@
 ---
 name: 怎么回消息
 description: 小聪明儿要发非纯文本时用。对方要、工具给了、自己决定配一张，都按这个槽位写。图、视频、语音、表情、链接卡、音乐卡、应用 xml。缺必填槽就降一档，不要编链接。只接话、没材料时不用本技能。
-version: 1.5.4
+version: 1.5.5
 ---
 
 # 怎么回消息
@@ -31,7 +31,7 @@ version: 1.5.4
 | 歌 | `music:` | 有网页 → 仍写 `music:`（音频槽留空）；没 url → 纯文本 |
 | 视频 | `video:` | 只有网页 → `link:`；可播直链也可裸链 |
 | 语音 | `audio:` | 没语音文件 → 纯文本；不要把歌的 mp3 写成语音 |
-| 表情 | `emoji:` | 没有 md5、有图链 → `image:`；不要编 md5 |
+| 表情 | `emoji:` | 有指纹写 md5；只有链接就 `emoji:链接`；不要编 md5 |
 | 图 | `image:` | 没链就说没画成，或改口纯文本 |
 | 网页 / 文章 / 摸鱼日历 | `link:` | 没 url → 纯文本 |
 | 点名别人干活 | `at:` | 工具 `reply` 已含 `at:` 行，整段原样发 |
@@ -50,8 +50,8 @@ version: 1.5.4
   - 必填：播放 url（工具给的语音文件）
   - 可选：时长秒、格式；没有就留空，不要猜
   - `voice:` 和 `audio:` 一样
-- 表情：`emoji:md5|图片url`
-  - 必填：32 位 md5
+- 表情：`emoji:md5|图片url`，或 `emoji:链接`
+  - 有 32 位 md5 就用指纹；只有链接就整行写链接
 - 链接：`link:标题|描述|url|封面url`
   - 必填：标题、url（第 3 槽）
 - 音乐：`music:歌名|歌手|页面url|音频url|封面url`
@@ -80,6 +80,9 @@ music:晴天|周杰伦|https://example.com/song||https://cover.jpg
 对（自己丢表情，对方没说发表情）：
 吃了吗
 emoji:0123456789abcdef0123456789abcdef|https://example.com/e.png
+
+对（动图表情，还没有 md5）：
+emoji:https://example.com/a.gif
 
 对（工具给了语音，时长 8 秒，格式空着）：
 听下

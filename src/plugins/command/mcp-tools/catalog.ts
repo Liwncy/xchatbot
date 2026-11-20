@@ -75,6 +75,7 @@ export type MapperName =
     | 'video-job'
     | 'parse-video'
     | 'emoji'
+    | 'emoji-url'
     | 'voice'
     | 'report';
 
@@ -622,6 +623,7 @@ export const MENUS: Record<string, string[]> = {
         '#赛事赛况 队名1 队名2',
     ],
     表情: [
+        '#表情肥鱼 [关键词]',
         '#表情搜索 关键词',
         '#表情取用 名字 或 md5',
         '#表情列表',
@@ -739,7 +741,8 @@ export const VERBS: VerbRoute[] = [
     // 验证
     {verbs: ['人机验证'], tool: 'human_verify', fail: '没弄成，再试下', args: humanStartArgs, map: 'human-start'},
     {verbs: ['验证结果'], tool: 'human_verify', fail: '还没结果', args: (ctx) => ok({action: 'status', clientKey: verifyTarget(ctx.message, ctx.env).id}), map: 'human-status'},
-    // 表情
+    // 表情。肥鱼只打外部库；表情搜索只打自己的库。掺在一起只发生在自动配图。
+    {verbs: ['表情肥鱼'], tool: 'search_whale_sticker', fail: '没找着', args: (ctx) => ok({query: ctx.tail, limit: 1}), map: 'emoji-url'},
     {verbs: ['表情搜索'], server: 'local', tool: 'emoji_search', fail: '没找着', args: promptArg('query', '搜什么表情写后面，也可以先引用那条再发 #表情搜索'), map: 'emoji'},
     {verbs: ['表情取用'], server: 'local', tool: 'emoji_get', fail: '没找着', args: (ctx) => {
         if (!ctx.tail) return need('名字或 md5 写后面');

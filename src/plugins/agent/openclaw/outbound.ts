@@ -1,6 +1,7 @@
 import {getAdapter} from '../../../adapter/index.js';
 import type {IncomingMessage, MessageSource} from '../../../core/message.js';
 import {planEmojiAuto} from '../../../core/emoji-stash/index.js';
+import {pickWhaleSticker} from '../../command/mcp-tools/whale.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
 import type {ReplyMessage} from '../../../core/reply.js';
 import {logger} from '../../../utils/logger.js';
@@ -36,6 +37,16 @@ function parseReplies(raw: unknown): ReplyMessage[] {
         if (type === 'text') {
             const content = asString(row.content || row.text);
             if (content) replies.push(...parseRepliesFromText(content));
+            continue;
+        }
+        if (type === 'emoji') {
+            const md5 = asString(row.md5).toLowerCase();
+            const url = asString(row.url || row.emojiUrl);
+            if (/^[0-9a-f]{32}$/u.test(md5)) {
+                replies.push(url ? {type: 'emoji', md5, url} : {type: 'emoji', md5});
+            } else if (/^https?:\/\//iu.test(url)) {
+                replies.push({type: 'emoji', url});
+            }
             continue;
         }
         if (type === 'image') {
@@ -163,7 +174,13 @@ export async function handleOpenclawOutbound(
         await finishOutbound(outboundId, sentCount);
         // 文字已经发出去了，再补一张配图；配图失败不影响这次结果
         try {
-            const extra = await planEmojiAuto(env, message, replies);
+            const extra = await planEmojiAuto(env, message, replies, {
+                pickExternal: async (tag) => {
+                    const hit = await pickWhaleSticker(env, tag);
+                    if (!hit) return null;
+                    return {url: hit.url, name: hit.name, tags: ['肥鱼', ...(hit.emotion ? [hit.emotion] : [])]};
+                },
+            });
             if (extra) await adapter.send(message, [extra], env);
         } catch (error) {
             logger.warn('配图补发失败', {

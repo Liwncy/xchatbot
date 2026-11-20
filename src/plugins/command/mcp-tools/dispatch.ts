@@ -10,7 +10,7 @@
 import {callMcpTool, type McpToolResult} from '../../../mcp/client.js';
 import {mapMcpResult} from '../../../mcp/map-result.js';
 import {parseRepliesFromText} from '../../../core/outbound.js';
-import {isHandledReply, textReply, chatRecordReply, type ChatRecordItem, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
+import {emojiLinkReply, isHandledReply, textReply, chatRecordReply, type ChatRecordItem, type HandlerResponse, type ReplyMessage} from '../../../core/reply.js';
 import type {IncomingMessage} from '../../../core/message.js';
 import type {Env} from '../../../types/env.js';
 import type {ChannelAdapter} from '../../../adapter/types.js';
@@ -450,6 +450,17 @@ function matchCard(report: string, lines: string[]): HandlerResponse {
     return [textReply(title), chatRecordReply(items, {title})];
 }
 
+const emojiUrl: MapFn = (result) => {
+    const raw = asRecord(result.raw);
+    const first = asRecord(Array.isArray(raw?.items) ? raw.items[0] : null);
+    const url = pickUrl(first, ['url']);
+    if (!url) return textReply('没找着');
+    const name = str(first?.name);
+    const emotion = str(first?.emotion);
+    const tags = [emotion, '肥鱼'].filter((item, index, list) => item && list.indexOf(item) === index);
+    return emojiLinkReply(url, {stashName: name || undefined, stashTags: tags});
+};
+
 const emoji: MapFn = (result) => {
     const raw = asRecord(result.raw);
     const items = raw?.items ?? raw?.results ?? (raw?.found === false ? [] : raw ? [raw] : []);
@@ -577,6 +588,7 @@ const MAPPERS: Record<MapperName, MapFn> = {
     'video-job': videoJob,
     'parse-video': parseVideo,
     emoji,
+    'emoji-url': emojiUrl,
     voice,
     report,
 };

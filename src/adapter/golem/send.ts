@@ -1,6 +1,7 @@
 import type {Env} from '../../types/env.js';
 import type {IncomingMessage} from '../../core/message.js';
-import {linkReply, textReply, type ReplyMessage} from '../../core/reply.js';
+import {emojiSave} from '../../core/emoji-stash/index.js';
+import {linkReply, textReply, type EmojiReply, type ReplyMessage} from '../../core/reply.js';
 import {recordOutboundChatMessage} from '../../core/chat-log/index.js';
 import {logger} from '../../utils/logger.js';
 import type {ApiResponse} from './types.js';
@@ -85,7 +86,11 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, 
         case 'image':
             return api.sendImage({receiver, imageUrl: reply.url});
         case 'emoji':
-            return api.sendEmoji({receiver, md5: reply.md5, emojiUrl: reply.url});
+            return api.sendEmoji({
+                receiver,
+                md5: reply.md5?.trim() || undefined,
+                emojiUrl: reply.url,
+            });
         case 'link':
             return api.sendLink({
                 receiver,
@@ -240,6 +245,51 @@ async function sendOne(api: GolemApi, receiver: string, reply: ReplyMessage, env
     };
 }
 
+function md5FromGolem(data: unknown): string | undefined {
+    const root = asRecord(data);
+    if (!root) return undefined;
+    const direct = scalarText(root.md5);
+    if (direct && /^[0-9a-f]{32}$/iu.test(direct)) return direct.toLowerCase();
+    const items = Array.isArray(root.result) ? root.result : Array.isArray(root.list) ? root.list : [];
+    const md5 = scalarText(asRecord(items[0])?.md5);
+    if (md5 && /^[0-9a-f]{32}$/iu.test(md5)) return md5.toLowerCase();
+    return undefined;
+}
+
+function nameFromEmojiUrl(url: string): string {
+    try {
+        const file = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '');
+        const stem = file.replace(/\.gif$/iu, '');
+        return stem.replace(/^[0-9A-Za-z]+_/u, '') || stem || '表情';
+    } catch {
+        return '表情';
+    }
+}
+
+/** 用链接发出去的表情，把回来的指纹记进自己的库，下次就能按指纹发。 */
+async function rememberSentEmoji(env: Env, reply: EmojiReply, data: unknown): Promise<void> {
+    const url = reply.url?.trim() ?? '';
+    const md5 = md5FromGolem(data);
+    if (!url || !md5 || !env.XBOT_DB) return;
+    const whale = /kiriyuki\.com/iu.test(url);
+    const tags = [...(reply.stashTags ?? [])];
+    if (whale && !tags.includes('肥鱼')) tags.push('肥鱼');
+    if (tags.length === 0) tags.push('表情');
+    try {
+        await emojiSave(env, {
+            md5,
+            imgUrl: url,
+            name: reply.stashName?.trim() || nameFromEmojiUrl(url),
+            tags,
+            category: 'cute',
+            mime: 'image/gif',
+            source: whale ? 'whale' : 'emoji-url',
+        });
+    } catch (error) {
+        logger.warn('表情指纹没记下', {error: error instanceof Error ? error.message : String(error)});
+    }
+}
+
 function toReceipt(result: ApiResponse): SendReceipt {
     const revoke = extractGolemRevoke(result.data);
     return {
@@ -303,6 +353,9 @@ export async function sendGolemReplies(
         try {
             const result = await sendOne(api, target, reply, env);
             receipt = toReceipt(result);
+            if (receipt.ok && reply.type === 'emoji' && !reply.md5 && reply.url) {
+                await rememberSentEmoji(env, reply, receipt.data);
+            }
             if (!receipt.ok) {
                 logger.error('Golem 发送失败', {
                     type: reply.type,
