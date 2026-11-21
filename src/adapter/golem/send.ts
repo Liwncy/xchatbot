@@ -8,7 +8,6 @@ import type {ApiResponse} from './types.js';
 import type {SendOptions, SendReceipt} from '../types.js';
 import {GolemApi} from './api.js';
 import {buildSendNoteParams, buildSendRecordParams} from './record-items.js';
-import {buildMusicAppXml} from './music-xml.js';
 import {encodeAudioUrlToSilk} from '../../utils/silk/index.js';
 
 const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
@@ -24,6 +23,8 @@ const FAIL_COPY: Record<Exclude<ReplyMessage['type'], 'text'>, string> = {
     forward: '转发没发出去',
     'chat-record': '这张卡没发出去',
     note: '这篇没发出去',
+    pat: '没拍成',
+    file: '文件没发出去',
 };
 
 const SAME_TARGET_SEND_INTERVAL_MS = 350;
@@ -130,28 +131,37 @@ async function sendNative(api: GolemApi, receiver: string, reply: ReplyMessage, 
             }
         }
         case 'music': {
-            if (looksLikeHttp(reply.dataUrl)) {
-                const music = buildMusicAppXml({
-                    title: reply.title,
-                    singer: reply.singer,
-                    url: reply.url,
-                    dataUrl: reply.dataUrl,
-                    thumbUrl: reply.thumbUrl,
+            const dataUrl = looksLikeHttp(reply.dataUrl) ? reply.dataUrl.trim() : '';
+            const pageUrl = looksLikeHttp(reply.url) ? reply.url.trim() : '';
+            if (dataUrl) {
+                const title = reply.title.trim() || '音乐';
+                return api.sendMusic({
+                    receiver,
+                    title,
+                    desc: reply.singer?.trim() || title,
+                    url: pageUrl || dataUrl,
+                    dataUrl,
+                    albumUrl: looksLikeHttp(reply.thumbUrl) ? reply.thumbUrl.trim() : undefined,
                 });
-                return api.sendApp({receiver, appType: music.appType, xml: music.xml});
             }
-            const url = looksLikeHttp(reply.url) ? reply.url : reply.dataUrl;
-            if (!looksLikeHttp(url)) {
-                return {code: -1, message: 'music missing url'};
-            }
+            if (!pageUrl) return {code: -1, message: 'music missing url'};
             return api.sendLink({
                 receiver,
                 title: reply.title || '音乐',
                 desc: reply.singer,
-                url: url ?? '',
+                url: pageUrl,
                 thumbUrl: reply.thumbUrl,
             });
         }
+        case 'pat':
+            return api.sendPat({receiver, pattedUsername: reply.username});
+        case 'file':
+            if (!looksLikeHttp(reply.url)) return {code: -1, message: 'file missing url'};
+            return api.sendFile({
+                receiver,
+                url: reply.url.trim(),
+                name: reply.name?.trim() || undefined,
+            });
         case 'app':
             return api.sendApp({receiver, appType: reply.appType, xml: reply.xml});
         case 'chat-record': {
@@ -206,6 +216,8 @@ function degrade(reply: ReplyMessage): ReplyMessage | null {
             }
             return null;
         }
+        case 'file':
+            return looksLikeHttp(reply.url) ? linkReply(reply.name?.trim() || '文件', reply.url, '点开看看') : null;
         default:
             return null;
     }

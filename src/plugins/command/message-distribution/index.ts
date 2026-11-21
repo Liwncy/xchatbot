@@ -218,6 +218,8 @@ function previewText(replies: ReplyMessage[]): string {
         if (reply.type === 'forward') return '会按原样发';
         if (reply.type === 'chat-record') return `消息合集：${reply.title ?? `${reply.items.length} 条`}`;
         if (reply.type === 'note') return `笔记：${reply.title ?? `${reply.items.length} 条`}`;
+        if (reply.type === 'pat') return '拍一拍';
+        if (reply.type === 'file') return `文件：${reply.name?.trim() || reply.url}`;
         return `会发一条${reply.type}`;
     }).join('\n---\n');
 }

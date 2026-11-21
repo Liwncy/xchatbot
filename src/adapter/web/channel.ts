@@ -49,6 +49,12 @@ export function presentForWeb(reply: ReplyMessage): ReplyMessage {
         }
         case 'forward':
             return textReply('转发消息这边看不了');
+        case 'pat':
+            return textReply('拍了拍');
+        case 'file':
+            return looksLikeHttp(reply.url)
+                ? linkReply(reply.name?.trim() || '文件', reply.url)
+                : textReply('文件没链');
         default:
             return reply;
     }

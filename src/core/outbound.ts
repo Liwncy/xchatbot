@@ -4,6 +4,7 @@ import {
     emojiReply,
     imageReply,
     linkReply,
+    fileReply,
     musicReply,
     textReply,
     videoReply,
@@ -84,6 +85,14 @@ function parseLinkLine(payload: string): ReplyMessage | null {
     return linkReply(title || '链接', url, desc || undefined, thumb || undefined);
 }
 
+function parseFileLine(payload: string): ReplyMessage | null {
+    const parts = payload.split('|');
+    const url = sanitizeUrl(part(parts, 0));
+    const name = part(parts, 1);
+    if (!looksLikeHttp(url)) return null;
+    return fileReply(url, name || undefined);
+}
+
 function parseMusicLine(payload: string): ReplyMessage | null {
     const parts = payload.split('|');
     const title = part(parts, 0);
@@ -145,6 +154,7 @@ function parseOutboundLine(line: string): ReplyMessage | null {
     if (lower.startsWith('voice:')) return parseVoiceLine(trimmed.slice(6));
     if (lower.startsWith('link:')) return parseLinkLine(trimmed.slice(5));
     if (lower.startsWith('music:')) return parseMusicLine(trimmed.slice(6));
+    if (lower.startsWith('file:')) return parseFileLine(trimmed.slice(5));
     if (lower.startsWith('emoji:')) return parseEmojiLine(trimmed);
     if (lower.startsWith('app:')) return parseAppLine(trimmed);
     if (lower.startsWith('at:')) return parseAtLine(trimmed);

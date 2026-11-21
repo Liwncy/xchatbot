@@ -278,6 +278,43 @@ export class GolemApi {
         }));
     }
 
+    /** 发文件。有 url 就让 Golem 自己下载；文件名不传时它从 URL 里取。 */
+    async sendFile(params: {receiver: string; url: string; name?: string}): Promise<ApiResponse> {
+        const form = new FormData();
+        form.append('receiver', params.receiver);
+        form.append('url', params.url);
+        if (params.name) form.append('name', params.name);
+        return this.postForm('/api/message/file', form);
+    }
+
+    /** 发 type=3 音乐卡片。播放地址由调用方提供，Golem 不下载音频。 */
+    async sendMusic(params: {
+        receiver: string;
+        title: string;
+        desc: string;
+        url: string;
+        dataUrl: string;
+        albumUrl?: string;
+    }): Promise<ApiResponse> {
+        const body: Record<string, string> = {
+            receiver: params.receiver,
+            title: params.title,
+            desc: params.desc,
+            url: params.url,
+            data_url: params.dataUrl,
+        };
+        if (params.albumUrl) body.album_url = params.albumUrl;
+        return this.postJson('/api/message/music', JSON.stringify(body));
+    }
+
+    /** 在会话里拍某个人。私聊时 receiver 和 pattedUsername 可以是同一个人。 */
+    async sendPat(params: {receiver: string; pattedUsername: string}): Promise<ApiResponse> {
+        return this.postJson('/api/message/pat', JSON.stringify({
+            receiver: params.receiver,
+            patted_username: params.pattedUsername,
+        }));
+    }
+
     async sendCard(params: {
         receiver: string;
         username: string;

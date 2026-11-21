@@ -1,7 +1,7 @@
 ---
 name: 怎么回消息
-description: 小聪明儿要发非纯文本时用。对方要、工具给了、自己决定配一张，都按这个槽位写。图、视频、语音、表情、链接卡、音乐卡、应用 xml。缺必填槽就降一档，不要编链接。只接话、没材料时不用本技能。
-version: 1.5.5
+description: 小聪明儿要发非纯文本时用。对方要、工具给了、自己决定配一张，都按这个槽位写。图、视频、语音、表情、链接卡、音乐卡、文件、应用 xml。缺必填槽就降一档，不要编链接。只接话、没材料时不用本技能。
+version: 1.5.6
 ---
 
 # 怎么回消息
@@ -34,6 +34,7 @@ version: 1.5.5
 | 表情 | `emoji:` | 有指纹写 md5；只有链接就 `emoji:链接`；不要编 md5 |
 | 图 | `image:` | 没链就说没画成，或改口纯文本 |
 | 网页 / 文章 / 摸鱼日历 | `link:` | 没 url → 纯文本 |
+| 文件 | `file:` | 没直链 → 纯文本；不要把网页包装成文件 |
 | 点名别人干活 | `at:` | 工具 `reply` 已含 `at:` 行，整段原样发 |
 
 点歌即使没有音频直链也写 `music:`。没有语音文件不要写 `audio:`。不要把网页或视频包装成 `app:`。
@@ -54,6 +55,9 @@ version: 1.5.5
   - 有 32 位 md5 就用指纹；只有链接就整行写链接
 - 链接：`link:标题|描述|url|封面url`
   - 必填：标题、url（第 3 槽）
+- 文件：`file:文件url|文件名`
+  - 必填：文件直链（第 1 槽）
+  - 可选：文件名，含扩展名；没有就留空，平台自己从链接取
 - 音乐：`music:歌名|歌手|页面url|音频url|封面url`
   - 必填：歌名；页面 url 或音频 url 至少一个
 - 应用：`app:19 <整段xml>`
@@ -90,6 +94,9 @@ audio:https://media.example/voice.silk|8|
 
 对：
 video:https://media.example/video|https://media.example/cover.jpg|18
+
+对：
+file:https://media.example/notes.pdf|笔记.pdf
 
 错：`link:今日摸鱼|https://example.com/moyu`（url 挤进描述槽）
 错：点歌因为没音频改写成 `link:`

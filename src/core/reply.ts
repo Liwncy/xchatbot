@@ -146,6 +146,21 @@ export interface NoteReply {
     to?: string;
 }
 
+/** 在当前会话里拍某个人。私聊时 username 填对方。 */
+export interface PatReply {
+    type: 'pat';
+    username: string;
+    to?: string;
+}
+
+export interface FileReply {
+    type: 'file';
+    url: string;
+    /** 含扩展名。不填时由平台从链接里取。 */
+    name?: string;
+    to?: string;
+}
+
 export interface HandledReply {
     kind: 'handled';
 }
@@ -163,7 +178,9 @@ export type ReplyMessage =
     | PositionReply
     | ForwardReply
     | ChatRecordReply
-    | NoteReply;
+    | NoteReply
+    | PatReply
+    | FileReply;
 
 export type HandlerResponse = ReplyMessage | ReplyMessage[] | HandledReply | null;
 
@@ -218,6 +235,14 @@ export function chatRecordReply(
     extras?: Pick<ChatRecordReply, 'title' | 'summary' | 'desc' | 'to'>,
 ): ChatRecordReply {
     return {type: 'chat-record', items, ...extras};
+}
+
+export function patReply(username: string): PatReply {
+    return {type: 'pat', username};
+}
+
+export function fileReply(url: string, name?: string): FileReply {
+    return name ? {type: 'file', url, name} : {type: 'file', url};
 }
 
 export function noteReply(

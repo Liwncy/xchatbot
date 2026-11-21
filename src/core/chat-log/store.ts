@@ -116,6 +116,10 @@ function outboundContent(reply: ReplyMessage): string {
             return clip(reply.title?.trim() || '[聊天记录]');
         case 'note':
             return clip(reply.title?.trim() || '[笔记]');
+        case 'pat':
+            return '[拍一拍]';
+        case 'file':
+            return clip(reply.name?.trim() || '[文件]');
     }
 }
 
@@ -180,6 +184,13 @@ function outboundPayload(reply: ReplyMessage, extra?: Record<string, unknown>): 
             if (reply.title) payload.title = reply.title;
             if (reply.author) payload.author = reply.author;
             payload.items = reply.items.length;
+            break;
+        case 'pat':
+            payload.username = reply.username;
+            break;
+        case 'file':
+            payload.url = reply.url;
+            if (reply.name) payload.name = reply.name;
             break;
     }
     return JSON.stringify(payload);
