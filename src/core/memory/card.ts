@@ -262,7 +262,7 @@ const ROOM_HEADER = [
 
 const PERSON_HEADER = [
     '【眼前这位】',
-    '只关于现在发言的这个人，而且只在这个聊天里。',
+    '这是关于现在发言的这个人的印象，他在别的聊天里也是这样。别复述。和眼前对不上时，以眼前为准。他在别的聊天里的事，不要主动提起。',
 ].join('\n');
 
 export function renderRoomCard(items: MemoryItem[]): string {

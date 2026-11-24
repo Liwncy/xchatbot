@@ -1,7 +1,8 @@
 import type {Env} from '../../types/env.js';
 import {authorizeOpenClawRequest} from '../../plugins/agent/openclaw/auth.js';
 import {consolidateDueSessions} from './consolidate.js';
-import {readMemoryPrompt} from './store.js';
+import {readMemoryPrompt} from './read.js';
+import {getChatSession} from './store.js';
 
 function json(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data), {
@@ -19,7 +20,9 @@ export async function handleAgentMemory(request: Request, env: Env): Promise<Res
         const sessionId = url.searchParams.get('sessionId')?.trim() ?? '';
         if (!sessionId) return json({ok: false, error: 'sessionId is required'}, 400);
         const speakerId = url.searchParams.get('speakerId')?.trim() ?? '';
-        const view = await readMemoryPrompt(env, sessionId, speakerId);
+        // 取卡只带聊天 id，平台从聊天记录里记的那一行查
+        const platform = (await getChatSession(env, sessionId))?.platform ?? 'golem';
+        const view = await readMemoryPrompt(env, sessionId, speakerId, platform);
         return json({ok: true, sessionId, speakerId, ...view});
     }
     if (request.method === 'POST' && url.pathname === '/agent/memory/consolidate') {

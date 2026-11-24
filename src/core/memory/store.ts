@@ -114,29 +114,45 @@ function mapCard(row: {
     };
 }
 
-export async function readMemoryPrompt(
+/**
+ * 人的卡不跟着聊天走：同一个人在哪个群、在私聊，都是同一张。
+ * 存在 chat_memory 里，用这个固定的 session_id 当「人」这一类的位置，不会和真实聊天 id 撞。
+ */
+export const PEOPLE_SCOPE = '@people';
+
+/** 人这张卡在 chat_memory 里的 subject。带上平台，不同平台里碰巧同 id 的不会混。 */
+export function personKey(platform: string, senderId: string): string {
+    return `${platform.trim() || 'wechat'}:${senderId.trim()}`;
+}
+
+/** 只读版本号、正文和上次整理的时间，不读条目。每条入站都会走到这里。 */
+export async function readMemoryHead(
     env: Env,
     sessionId: string,
-    speakerId: string,
-): Promise<{roomRev: string; roomText: string; speakerRev: string; speakerText: string}> {
-    const empty = {roomRev: '', roomText: '', speakerRev: '', speakerText: ''};
-    const id = sessionId.trim();
-    if (!isChatLogEnabled(env) || !id) return empty;
+    subject: string,
+): Promise<{rev: string; promptText: string; updatedAt: number} | null> {
+    if (!isChatLogEnabled(env) || !sessionId.trim()) return null;
     await ensureSchema(env.XBOT_DB);
-    const room = await env.XBOT_DB.prepare(
-        `SELECT rev, prompt_text FROM chat_memory WHERE session_id = ?1 AND subject = ''`,
-    ).bind(id).first<{rev: string; prompt_text: string}>();
-    const speaker = speakerId.trim()
-        ? await env.XBOT_DB.prepare(
-            `SELECT rev, prompt_text FROM chat_memory WHERE session_id = ?1 AND subject = ?2`,
-        ).bind(id, speakerId.trim()).first<{rev: string; prompt_text: string}>()
-        : null;
-    return {
-        roomRev: room?.rev ?? '',
-        roomText: room?.prompt_text ?? '',
-        speakerRev: speaker?.rev ?? '',
-        speakerText: speaker?.prompt_text ?? '',
-    };
+    const row = await env.XBOT_DB.prepare(
+        `SELECT rev, prompt_text, updated_at FROM chat_memory WHERE session_id = ?1 AND subject = ?2`,
+    ).bind(sessionId.trim(), subject).first<{rev: string; prompt_text: string; updated_at: number}>();
+    return row ? {rev: row.rev, promptText: row.prompt_text, updatedAt: row.updated_at} : null;
+}
+
+export async function getMemoryCard(env: Env, sessionId: string, subject: string): Promise<MemoryCardRow | null> {
+    if (!isChatLogEnabled(env) || !sessionId.trim()) return null;
+    await ensureSchema(env.XBOT_DB);
+    const row = await env.XBOT_DB.prepare(
+        `SELECT subject, rev, items_json, prompt_text, updated_at
+         FROM chat_memory WHERE session_id = ?1 AND subject = ?2`,
+    ).bind(sessionId.trim(), subject).first<{
+        subject: string;
+        rev: string;
+        items_json: string;
+        prompt_text: string;
+        updated_at: number;
+    }>();
+    return row ? mapCard(row) : null;
 }
 
 export async function listMemoryCards(env: Env, sessionId: string): Promise<MemoryCardRow[]> {

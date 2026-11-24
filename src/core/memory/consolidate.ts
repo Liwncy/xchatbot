@@ -17,8 +17,11 @@ import {
 } from './card.js';
 import {
     MemoryQueryUnsafe,
+    PEOPLE_SCOPE,
     getChatSession,
+    getMemoryCard,
     listMemoryCards,
+    personKey,
     listSessionsDue,
     loadMemoryMaterial,
     readMemoryMark,
@@ -149,6 +152,8 @@ const SYSTEM = [
     '约定（promise）只收一种：你自己（身份是 bot 的那些行）答应过、之后真要去做的事，比如答应到点提醒、答应回头查个东西。people 里的 promise 是你答应这个人的事。',
     '群友之间的约定、玩梗、演戏、斗嘴放的狠话都不算约定，哪怕是你自己说的。值得记就写成 bit（房间）或 person（个人），不值得就别写。',
     '只关于某一个人的句子不要放进 room。写到人时用昵称，不要写 id。不要抄聊天记录。',
+    // 人的卡跟着人走，他在别的群、私聊里也会带着它，所以只写这个人本身
+    'people 里的卡会跟着这个人去所有聊天，包括别的群和私聊。所以只写这个人本身的事：怎么称呼、说话习惯、偏好、你答应过他的事。只属于这个聊天的事（这个群的梗、这个群里发生的事）写进 room，不要写进 people。',
 ].join('\n');
 
 const NOTHING: ModelCards = {room: [], people: new Map(), seen: new Set(), drop: new Set()};
@@ -173,6 +178,30 @@ async function finishCard(
         await writeMemoryCard(env, sessionId, {subject, rev, items: kept, promptText: text, updatedAt: now});
     }
     return {rev, text};
+}
+
+/**
+ * 第一版的人卡按聊天存（session_id 是群，subject 是人）。现在人的卡跟着人走，
+ * 所以把旧的并过去：共享卡还没有就用旧的，已经有了就丢掉旧的。旧卡随后删掉，每张只会走一次。
+ */
+async function migrateLegacyPeople(
+    env: Env,
+    platform: string,
+    sessionId: string,
+    legacy: MemoryCardRow[],
+    ownerId: string,
+    now: number,
+): Promise<void> {
+    for (const card of legacy) {
+        const key = personKey(platform, card.subject);
+        if (!(await getMemoryCard(env, PEOPLE_SCOPE, key))) {
+            const items = settleMemoryItems(card.items, 'person', card.subject, ownerId, now);
+            await finishCard(env, PEOPLE_SCOPE, key, undefined, items, now, renderPersonCard);
+        }
+        await writeMemoryCard(env, sessionId, {
+            subject: card.subject, rev: '', items: [], promptText: '', updatedAt: now,
+        });
+    }
 }
 
 async function markTried(env: Env, sessionId: string, now: number): Promise<void> {
@@ -210,12 +239,21 @@ export async function consolidateSession(
     const rows = spokenRows(loaded);
     const newest = loaded.reduce((latest, row) => Math.max(latest, row.createdAt), 0);
 
+    const ownerId = resolveOwnerId(env, session.platform);
     const existing = await listMemoryCards(env, sessionId);
     const roomCard = existing.find((card) => card.subject === '');
-    const peopleCards = new Map(existing.filter((card) => card.subject).map((card) => [card.subject, card]));
+    // 这个聊天名下的人卡是旧版的：人的卡现在不跟聊天走了，见 migrateLegacyPeople
+    const legacyPeople = existing.filter((card) => card.subject);
+    if (!dryRun) await migrateLegacyPeople(env, session.platform, sessionId, legacyPeople, ownerId, now);
     const speakers = topSpeakers(speakerCounts(rows));
+    const peopleCards = new Map<string, MemoryCardRow | undefined>();
+    for (const senderId of speakers) {
+        const shared = await getMemoryCard(env, PEOPLE_SCOPE, personKey(session.platform, senderId));
+        // 试跑不迁移，旧卡还在，就拿它当「已经记着的」给模型看
+        peopleCards.set(senderId, shared ?? (dryRun ? legacyPeople.find((card) => card.subject === senderId) : undefined));
+    }
 
-    // 没有新的话就不调模型，下面只按时间淡一遍
+    // 没有新的话就不调模型
     let parsed = NOTHING;
     if (rows.length) {
         const previousPeople = new Map<string, MemoryItem[]>(
@@ -247,7 +285,6 @@ export async function consolidateSession(
     };
     if (dryRun) return {sessionId, ok: true, lines: rows.length, model};
 
-    const ownerId = resolveOwnerId(env, session.platform);
     const roomItems = mergeMemoryItems({
         previous: roomCard?.items ?? [],
         incoming: parsed.room,
@@ -275,17 +312,12 @@ export async function consolidateSession(
             now,
             cap: PERSON_ITEM_CAP,
         });
-        const saved = await finishCard(env, sessionId, senderId, card, items, now, renderPersonCard);
+        const saved = await finishCard(
+            env, PEOPLE_SCOPE, personKey(session.platform, senderId), card, items, now, renderPersonCard,
+        );
         people.push({subject: senderId, rev: saved.rev, text: saved.text});
     }
-
-    // 这一轮没说话、或者没排进前几名的人：模型没看他们，只按时间淡
-    for (const [subject, card] of peopleCards) {
-        if (speakers.includes(subject)) continue;
-        const items = settleMemoryItems(card.items, 'person', subject, ownerId, now);
-        const saved = await finishCard(env, sessionId, subject, card, items, now, renderPersonCard);
-        people.push({subject, rev: saved.rev, text: saved.text});
-    }
+    // 这一轮没说话的人：他们的卡不在这里动。没人碰的卡，在有人读它的时候按时间重算（read.ts）
 
     await writeMemoryMark(env, sessionId, newest, now);
     return {

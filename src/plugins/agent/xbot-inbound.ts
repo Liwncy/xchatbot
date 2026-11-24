@@ -4,7 +4,7 @@ import {handledReply, type HandlerResponse} from '../../core/reply.js';
 import {patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
 import {buildInboundContent} from '../../core/inbound.js';
 import {resolveChatSession} from '../../core/chat-log/session.js';
-import {readMemoryPrompt} from '../../core/memory/store.js';
+import {readMemoryPrompt} from '../../core/memory/read.js';
 import type {IncomingMessage} from '../../core/message.js';
 import type {Env} from '../../types/env.js';
 import {logger} from '../../utils/logger.js';
@@ -83,7 +83,7 @@ export async function forwardXbotInbound(args: {
     let roomRev = '';
     let speakerRev = '';
     try {
-        const memory = await readMemoryPrompt(env, logSessionId, message.senderId);
+        const memory = await readMemoryPrompt(env, logSessionId, message.senderId, message.platform);
         roomRev = memory.roomRev;
         speakerRev = memory.speakerRev;
     } catch (error) {

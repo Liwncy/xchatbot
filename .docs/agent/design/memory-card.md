@@ -7,7 +7,7 @@
 这一块有两层：
 
 - **房间卡**：这个群或这段私聊共用的。口头禅、对整个聊天的约定、不指向某一个人的事。
-- **此人卡**：只记眼前这个发言人，而且只在这个聊天里。谁发言就拼谁的；别人的不带。同一个人在别的群、在私聊，是另一条，不会串过来。
+- **此人卡**：只记眼前这个发言人。谁发言就拼谁的；别人的不带。**卡跟着人走，不跟着聊天走**：同一个人在哪个群、在私聊里，用的是同一张。第一版是按聊天分开的，后来改成共享，见第 10 节的隐私一条。
 
 不换会话。不把卡抄进每一条微信入站。
 
@@ -17,7 +17,7 @@
 |---|---|---|
 | 原文 | `chat_message` | 不自动看。更早的仍走 `agbot_chat_history` |
 | 房间卡 | xchatbot，按 `session_id` | 这个聊天还留着的共用印象 |
-| 此人卡 | xchatbot，按 `session_id` + 发言人 | 眼前这个人在这个聊天里的印象 |
+| 此人卡 | xchatbot，按 平台 + 发言人，不分聊天 | 眼前这个人的印象，在哪个聊天说话都是这一张 |
 | 近窗 | 入站 `## 上下文` | 近 10 分钟、最多 15 条入站，照旧 |
 | 本段对话 | 当前这条 DSH 会话 | 从开这场到现在说过的话，接着用 |
 
@@ -28,7 +28,7 @@
 做：
 
 - 房间卡按 `chat_message.session_id`。群是房间 id（`resolveChatSession` 里群的 `chatId`），私聊是 `private:` 加对方 id。
-- 此人卡按同一个 `session_id` 再加发言人 id（入站里的 `from`）。机器人自己的发言不建此人卡。
+- 此人卡按平台加发言人 id（入站里的 `from`）。不分聊天：存在 `chat_memory` 里，`session_id` 固定是 `@people`，`subject` 是 `golem:wxid_…` 这样的 `平台:发言人 id`。机器人自己的发言不建此人卡。
 - Harness 在该 agent 的 `systemPrompt.section` 上挂一节。`text` 用函数，每次组装系统提示时现算，返回这一刻的房间卡和当前发言人的卡。
 - 拼出来的正文变了（房间卡变了、发言人换了、或这个人的卡变了），下一轮请求替换系统提示开头那一格，并清掉本场里后追加的系统提示。用户消息和助手回复不动。
 
@@ -37,7 +37,7 @@
 - 不写进 `buildInboundContent`，不进 `## 上下文`，不进 `followup` 的用户消息。
 - 不用 `systemPrompt.context`。那个会变成用户消息快照，留在对话记录里。
 - 不因为记忆换 DSH 会话，不加轮数上限。会话 id 仍是现在的 `xbot-${safeId(chatId)}-v2`。
-- 不做跨聊天的人物档。不把私聊里的事带进群，也不把 A 群的事带进 B 群。
+- 房间卡不跨聊天：A 群的梗不会出现在 B 群。人的卡才跨聊天。
 - 不做向量检索，不做第二份全量档，不做 `#记忆` 口令。
 - 不扫 `chat_message` 找「哪些会话要整理」，也不为了找人再扫一遍。
 - 不在这一步打开 `wrangler.toml` 的 cron。`crons` 保持 `[]`。
@@ -50,7 +50,7 @@ DSH 的 `PromptSection.text` 可以是函数，每次 `assemble` 才执行。Har
 
 - `logSessionId`：`resolveChatSession` 的 `session_id`。Harness 不要用自己的 `chatId` 去猜。
 - `roomRev`：房间卡正文的哈希。没有就是 `""`。
-- `speakerRev`：这个 `from` 在这个聊天里的此人卡哈希。没有就是 `""`。
+- `speakerRev`：这个 `from` 的此人卡哈希。没有就是 `""`。别的聊天里整理改了这张卡，这里的版本号也会变。
 
 每一轮开始时，本机按 `chatId` 记房间卡，按 `chatId` + `from` 记此人卡。
 
@@ -64,7 +64,7 @@ DSH 的 `PromptSection.text` 可以是函数，每次 `assemble` 才执行。Har
 
 DeepSeek 这条路线的系统提示更新是 `in-history`：同一场请求序列里，系统提示变了会再追加一条，旧的还在。拼出来的正文和上一轮不同时，要把这次请求标成新序列（`agent/pre-step` 的 `startsRequestSeries`）。这样 DSH 会改掉系统提示头节点，并清空后面追加的系统提示。对话记录不动。正文没变不要标。发言人换了也算正文变了：换掉的是系统提示里的那一格，这场会话照旧接着聊。
 
-正文告诉模型：房间卡是这个聊天还留着的印象；此人卡只关于眼前发言的人，而且只在这个聊天里。都不是刚发生的事。别复述。和眼前对不上时以眼前为准。
+正文告诉模型：房间卡是这个聊天还留着的印象；此人卡只关于眼前发言的人，他在别的聊天里也是这样，但他在别的聊天里的事不要主动提起。都不是刚发生的事。别复述。和眼前对不上时以眼前为准。
 
 ## 4. 卡里有什么
 
@@ -159,7 +159,7 @@ DeepSeek 这条路线的系统提示更新是 `in-history`：同一场请求序�
 - 群里把加班叫修行（模糊）
 
 【眼前这位】
-只关于现在发言的这个人，而且只在这个聊天里。
+这是关于现在发言的这个人的印象，他在别的聊天里也是这样。别复述。和眼前对不上时，以眼前为准。他在别的聊天里的事，不要主动提起。
 
 - 在群里问路认识的（钉住）
 - 小王：说话爱用反问（清楚）
@@ -185,12 +185,14 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_last ON chat_session(last_message_at
 
 这张表和索引只在 `chat-log/store.ts` 的 `ensureSchema` 里建一处，记忆这边调用它，不再抄一份。
 
-`subject` 为空字符串的是房间卡。此人卡的 `subject` 是发言人 id。同一个人在另一个 `session_id` 下是另一行。
+房间卡：`session_id` 是聊天，`subject` 为空字符串。此人卡：`session_id` 固定 `@people`，`subject` 是 `平台:发言人 id`，所以同一个人在所有聊天里是同一行。
+
+第一版的此人卡是按聊天存的（`session_id` 是群，`subject` 是发言人）。整理时遇到这样的旧行，共享卡还没有就并过去，已经有了就丢掉，随后删除旧行，每张只走一次。
 
 ```sql
 CREATE TABLE IF NOT EXISTS chat_memory (
   session_id  TEXT NOT NULL,
-  subject     TEXT NOT NULL DEFAULT '',  -- '' 房间卡；否则是发言人 id
+  subject     TEXT NOT NULL DEFAULT '',  -- '' 房间卡；session_id 为 @people 时是「平台:发言人 id」
   rev         TEXT NOT NULL,             -- 该层正文的哈希；正文没变则 rev 不变
   items_json  TEXT NOT NULL,
   prompt_text TEXT NOT NULL,
