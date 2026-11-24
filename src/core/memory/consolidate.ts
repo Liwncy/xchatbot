@@ -31,6 +31,7 @@ import {
     type MemoryCardRow,
     type MemoryMaterialRow,
 } from './store.js';
+import {PEER_RULES, describePeerIds, parseModelPeers, peerIdSet, type PeerCandidate} from './peers.js';
 
 /** 没整理过的聊天，第一次最多往回看几天。 */
 const MATERIAL_DAYS = 7;
@@ -57,7 +58,14 @@ export interface ConsolidatedSession {
     roomText?: string;
     people?: ConsolidatedPerson[];
     /** 模型交回来的原样，没经过合并。调提示词时看它。 */
-    model?: {room: RawMemoryItem[]; people: Record<string, RawMemoryItem[]>; seen: string[]; drop: string[]};
+    model?: {
+        room: RawMemoryItem[];
+        people: Record<string, RawMemoryItem[]>;
+        seen: string[];
+        drop: string[];
+        /** 只有试跑才会问模型，见 peers.ts。还没写进花名册。 */
+        peers?: PeerCandidate[];
+    };
 }
 
 function clipLine(text: string): string {
@@ -114,6 +122,7 @@ function buildPrompt(
     speakers: string[],
     room: MemoryItem[],
     people: Map<string, MemoryItem[]>,
+    peerIds = '',
 ): string {
     const names = speakerNames(rows);
     const lines = rows.map((row) => {
@@ -134,6 +143,7 @@ function buildPrompt(
         personBlocks.join('\n\n'),
         '',
         `people 只能使用这些发言人 id：${speakers.join('、') || '（无）'}`,
+        ...(peerIds ? [`peers 可选的发言人 id：${peerIds}`] : []),
     ].join('\n');
 }
 
@@ -217,11 +227,15 @@ export async function consolidateSession(
     session: DueSession,
     now = Math.floor(Date.now() / 1000),
     dryRun = false,
+    materialFrom?: number,
 ): Promise<ConsolidatedSession> {
     const sessionId = session.sessionId;
     // 只看上次整理之后的新发言。老是给同一批，模型每次得出的都是同一批印象，什么都淡不掉
     const mark = await readMemoryMark(env, sessionId);
-    const since = Math.max(now - MATERIAL_DAYS * DAY_SECONDS, mark + 1);
+    // 试跑可以指定从哪个时刻看起（调提示词时水位线早就过了那一段）；真整理永远按水位线
+    const since = dryRun && materialFrom
+        ? materialFrom
+        : Math.max(now - MATERIAL_DAYS * DAY_SECONDS, mark + 1);
     let loaded: MemoryMaterialRow[];
     try {
         loaded = await loadMemoryMaterial(env, sessionId, since);
@@ -255,18 +269,25 @@ export async function consolidateSession(
 
     // 没有新的话就不调模型
     let parsed = NOTHING;
+    let peers: PeerCandidate[] | undefined;
     if (rows.length) {
         const previousPeople = new Map<string, MemoryItem[]>(
             speakers.map((senderId) => [senderId, peopleCards.get(senderId)?.items ?? []]),
         );
         try {
             const json = await requestLlmJson(env, {
-                system: SYSTEM,
-                user: buildPrompt(rows, speakers, roomCard?.items ?? [], previousPeople),
+                system: dryRun ? `${SYSTEM}\n${PEER_RULES}` : SYSTEM,
+                user: buildPrompt(
+                    rows, speakers, roomCard?.items ?? [], previousPeople,
+                    dryRun ? describePeerIds(rows) : '',
+                ),
                 timeoutMs: 60_000,
             });
             if (!json) throw new Error('模型没交回 JSON');
             parsed = parseModelCards(json, new Set(speakers));
+            if (dryRun) {
+                peers = parseModelPeers(env, session.platform, json, peerIdSet(rows), speakerNames(rows));
+            }
         } catch (error) {
             logger.warn('记忆整理没写成', {
                 sessionId,
@@ -282,6 +303,7 @@ export async function consolidateSession(
         people: Object.fromEntries(parsed.people),
         seen: [...parsed.seen],
         drop: [...parsed.drop],
+        ...(peers ? {peers} : {}),
     };
     if (dryRun) return {sessionId, ok: true, lines: rows.length, model};
 
@@ -348,7 +370,9 @@ export async function consolidateDueSessions(
         : await listSessionsDue(env, options.since ?? now - DAY_SECONDS, now - RETRY_SECONDS, limit);
     const results: ConsolidatedSession[] = [];
     for (const session of sessions.slice(0, limit)) {
-        results.push(await consolidateSession(env, session, now, options.dryRun === true));
+        // 点名试跑时 since 同时是素材的起点；其余情况它只用来挑聊天
+        const materialFrom = sessionId && options.dryRun === true ? options.since : undefined;
+        results.push(await consolidateSession(env, session, now, options.dryRun === true, materialFrom));
     }
     return results;
 }
