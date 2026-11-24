@@ -292,6 +292,19 @@ export function runMemoryCardSelfCheck(): void {
         drop: new Set([promiseId]),
     });
     if (done.length !== 0) throw new Error('说了做完的约定要拿掉');
+    const rekinded = mergeMemoryItems({
+        previous: promise,
+        incoming: [{id: promiseId, kind: 'bit', text: promise[0].text}],
+        layer: 'room',
+        subject: '',
+        ownerId: 'owner',
+        steps: 0,
+        now,
+        cap: ROOM_ITEM_CAP,
+    });
+    if (rekinded.length !== 1 || rekinded[0].id !== promiseId || rekinded[0].pin) {
+        throw new Error('带着原 id 改成梗的旧约定要松开，不能多出一条');
+    }
 
     const met = mergeMemoryItems({
         previous: [],
