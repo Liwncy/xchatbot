@@ -1,4 +1,10 @@
-/** 记忆卡的纯逻辑：合并、变淡、渲染。不碰数据库，也不调模型。 */
+/**
+ * 记忆卡的纯逻辑：合并、变淡、渲染。不碰数据库，也不调模型。
+ *
+ * 分工：模型只说「新冒出来什么、归哪一类、该记多久（1-3）、哪几条又被提到」；
+ * 重要度怎么算、淡多快、钉不钉、满了丢谁，都在这里按固定公式算。
+ * 公式和数字照 SurfCore 的 `targetClarity` 搬过来，没有自己发明。
+ */
 
 export type MemoryClarity = 'clear' | 'fuzzy' | 'trace';
 export type MemoryLayer = 'room' | 'person';
@@ -7,35 +13,55 @@ export interface MemoryItem {
     id: string;
     kind: string;
     text: string;
+    /** 只有「第一次认识」钉住，永远在。别的都按分数淡。 */
     pin: boolean;
     clarity: MemoryClarity;
-    /** 最后一次在聊天里被提到是什么时候。淡不淡只看它。 */
+    /** 记下它的那一刻。 */
+    createdAt: number;
+    /** 最后一次在聊天里被提到。 */
     lastSeen: number;
+    /** 1-100，创建时一次算好，之后不变。 */
+    importance: number;
+    /** 被提到过几次。 */
+    recallCount: number;
+    /** 上次整理时算出的保留分，只用来排序。 */
+    retention: number;
 }
 
 export interface RawMemoryItem {
     id?: string;
     kind?: string;
     text?: string;
+    /** 模型给的 1-3：该记多久。 */
+    weight?: number;
 }
 
 const ROOM_KINDS = new Set(['promise', 'bit', 'fact']);
 const PERSON_KINDS = new Set(['person', 'promise', 'first', 'preference']);
-const CLARITY_RANK: Record<MemoryClarity, number> = {clear: 0, fuzzy: 1, trace: 2};
-const CLARITY_STEPS: MemoryClarity[] = ['clear', 'fuzzy', 'trace'];
 
 export const ROOM_CHAR_BUDGET = 1400;
 export const PERSON_CHAR_BUDGET = 600;
 export const ROOM_ITEM_CAP = 30;
 export const PERSON_ITEM_CAP = 12;
-/** 没人再提的条目，隔几天淡一档。清楚、模糊、痕迹，再往后就没了。 */
-export const FADE_DAYS = 1;
-/** 约定最后一次被提到之后钉几天。过了就松开，跟别的条目一样淡。 */
-export const PROMISE_HOLD_DAYS = 7;
+
+/** 下面这些数照 SurfCore 的默认值。要调淡得快慢，改这里。 */
+export const FADE = {
+    /** 最近这几天的事，至少是「清楚」。 */
+    recentDays: 7,
+    /** 记下后这几天不扣年龄分。 */
+    fuzzyAfterDays: 7,
+    /** 超过这么多天、重要度低于 50、又不是主人的重要条目，直接忘掉。 */
+    forgetAfterDays: 60,
+    /** 主人那张卡里，重要度到这个值的条目，最差也是「清楚」。 */
+    minOwnerImportance: 65,
+} as const;
+
+/** 模型的 1-3 换成起点分。封在 60 以内：再高必须靠下面这些代码认得出的信号。 */
+const WEIGHT_BASE: Record<number, number> = {1: 20, 2: 40, 3: 60};
+const PROMISE_BONUS = 16;
+const OWNER_BONUS = 32;
 const TEXT_CAP = 40;
 const DAY_SECONDS = 86400;
-/** 每天整理的钟点前后会差一点，差这点不该少算一天。 */
-const AGE_SLACK_SECONDS = 2 * 3600;
 
 export function clipChars(text: string, max: number): string {
     return Array.from(text.replace(/\s+/gu, ' ').trim()).slice(0, max).join('');
@@ -45,11 +71,34 @@ export function allowsKind(layer: MemoryLayer, kind: string): boolean {
     return (layer === 'room' ? ROOM_KINDS : PERSON_KINDS).has(kind);
 }
 
-/** 钉住由条目种类决定，不听模型自己标的 pin。 */
-export function pinned(layer: MemoryLayer, kind: string, subject: string, ownerId: string): boolean {
-    if (layer === 'room') return kind === 'promise';
-    if (kind === 'promise' || kind === 'first') return true;
-    return kind === 'person' && Boolean(ownerId) && subject === ownerId;
+/** 这张卡是不是主人在这个聊天里的卡。 */
+function isOwnerCard(layer: MemoryLayer, subject: string, ownerId: string): boolean {
+    return layer === 'person' && Boolean(ownerId) && subject === ownerId;
+}
+
+/** 钉住只看种类，模型说什么都不改。 */
+export function pinned(layer: MemoryLayer, kind: string): boolean {
+    return layer === 'person' && kind === 'first';
+}
+
+export function normalizeWeight(value: unknown): number {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) return 1; // 没写或写歪了，按最不重要的算
+    return Math.max(1, Math.min(3, n));
+}
+
+/** 一条新条目的起点分：模型的 1-3 加上代码认得出的信号。 */
+export function startImportance(
+    layer: MemoryLayer,
+    subject: string,
+    ownerId: string,
+    kind: string,
+    weight: number,
+): number {
+    let value = WEIGHT_BASE[normalizeWeight(weight)];
+    if (kind === 'promise') value += PROMISE_BONUS;
+    if (isOwnerCard(layer, subject, ownerId)) value += OWNER_BONUS;
+    return Math.max(1, Math.min(100, value));
 }
 
 function shortId(seed: string): string {
@@ -58,24 +107,28 @@ function shortId(seed: string): string {
     return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-function normalizeIncoming(layer: MemoryLayer, raw: RawMemoryItem): {id: string; kind: string; text: string} | null {
+function normalizeIncoming(
+    layer: MemoryLayer,
+    raw: RawMemoryItem,
+): {id: string; kind: string; text: string; weight: number} | null {
     const kind = raw.kind?.trim() ?? '';
     const text = clipChars(raw.text ?? '', TEXT_CAP);
     if (!allowsKind(layer, kind) || !text) return null;
-    return {id: raw.id?.trim() ?? '', kind, text};
+    return {id: raw.id?.trim() ?? '', kind, text, weight: normalizeWeight(raw.weight)};
 }
 
 function sortItems(items: MemoryItem[]): MemoryItem[] {
     return [...items].sort((left, right) => {
         if (left.pin !== right.pin) return left.pin ? -1 : 1;
-        if (left.clarity !== right.clarity) return CLARITY_RANK[left.clarity] - CLARITY_RANK[right.clarity];
+        if (left.retention !== right.retention) return right.retention - left.retention;
         return right.lastSeen - left.lastSeen;
     });
 }
 
 /**
- * 一条印象此刻该是什么样。只按「最后一次被提到」到现在过了几天算，
- * 跟整理跑了几次、模型说了什么都没关系。返回 null 就是该从卡上拿掉了。
+ * 一条印象此刻是什么样。每次都从头算，不记「昨天降到哪了」，
+ * 所以整理跑几次、隔多久跑都一样，停几天再跑也不用补。
+ * 返回 null 就是该从卡上拿掉了。
  */
 export function settleMemoryItem(
     item: MemoryItem,
@@ -84,19 +137,34 @@ export function settleMemoryItem(
     ownerId: string,
     now: number,
 ): MemoryItem | null {
-    const days = Math.max(0, Math.floor((now - item.lastSeen + AGE_SLACK_SECONDS) / DAY_SECONDS));
-    let pin = pinned(layer, item.kind, subject, ownerId);
-    let fadeDays = days;
-    if (item.kind === 'promise' && days > PROMISE_HOLD_DAYS) {
-        pin = false;
-        fadeDays = days - PROMISE_HOLD_DAYS;
-    }
-    if (pin) return {...item, pin: true, clarity: 'clear'};
-    const clarity = CLARITY_STEPS[Math.floor(fadeDays / FADE_DAYS)];
-    return clarity ? {...item, pin: false, clarity} : null;
+    if (pinned(layer, item.kind)) return {...item, pin: true, clarity: 'clear', retention: 1000};
+
+    const created = item.createdAt || item.lastSeen || now;
+    const seenAt = item.lastSeen || created;
+    const ageDays = Math.max(0, (now - created) / DAY_SECONDS);
+    const sinceSeenDays = Math.max(0, (now - seenAt) / DAY_SECONDS);
+    const ownerImportant = isOwnerCard(layer, subject, ownerId) && item.importance >= FADE.minOwnerImportance;
+
+    if (ageDays > FADE.forgetAfterDays && item.importance < 50 && !ownerImportant) return null;
+
+    let retention = item.importance;
+    retention += Math.min(12, item.recallCount * 2);
+    if (ageDays <= FADE.recentDays) retention += 18;
+    if (sinceSeenDays <= 2) retention += 8;
+    const penaltyRate = ownerImportant ? 0.12 : 0.35;
+    retention -= Math.min(80, Math.max(0, ageDays - FADE.fuzzyAfterDays) * penaltyRate);
+    if (ownerImportant) retention = Math.max(retention, 55);
+    if (ageDays <= FADE.recentDays) retention = Math.max(retention, 50);
+
+    let clarity: MemoryClarity;
+    if (retention >= 46) clarity = 'clear';
+    else if (retention >= 24) clarity = 'fuzzy';
+    else if (retention >= 12) clarity = 'trace';
+    else return null;
+    return {...item, pin: false, clarity, retention};
 }
 
-/** 这一轮没轮到模型看的卡，只按时间淡一遍。 */
+/** 这一轮没轮到模型看的卡，只按时间重算一遍。 */
 export function settleMemoryItems(
     items: MemoryItem[],
     layer: MemoryLayer,
@@ -110,8 +178,9 @@ export function settleMemoryItems(
 /**
  * 把模型这一轮交回来的东西并进旧卡。
  *
- * 模型爱把旧条目原样抄回来。抄回来不算「又被提到」，不然每条都永远是清楚的，卡就不会过期。
- * 一条旧印象只有三种情况会被续上：出现在 seen 里、被带着原 id 改写了、或者被归到了别的种类。
+ * 模型爱把旧条目原样抄回来，所以抄回来不算「又被提到」。一条旧印象只有这几种情况会被续上：
+ * 出现在 seen 里、被带着原 id 改写了。续上也只是 lastSeen 变新、被提到次数加一，
+ * 在公式里是几分的加成，不会让一条琐碎的东西变成永远不忘。
  */
 export function mergeMemoryItems(args: {
     previous: MemoryItem[];
@@ -119,7 +188,7 @@ export function mergeMemoryItems(args: {
     incoming: RawMemoryItem[];
     /** 新发言里又被提到的旧条目 id。 */
     seen?: ReadonlySet<string>;
-    /** 已经做完或作废的约定 id。只对约定生效，别的钉住条目不让模型删。 */
+    /** 已经做完或作废的约定 id。只对约定生效，别的条目不让模型删。 */
     drop?: ReadonlySet<string>;
     layer: MemoryLayer;
     subject: string;
@@ -129,10 +198,15 @@ export function mergeMemoryItems(args: {
 }): MemoryItem[] {
     const seen = args.seen ?? new Set<string>();
     const drop = args.drop ?? new Set<string>();
+    const recall = (item: MemoryItem): MemoryItem => ({
+        ...item,
+        lastSeen: args.now,
+        recallCount: Math.min(999, item.recallCount + 1),
+    });
     const kept = new Map<string, MemoryItem>();
     for (const old of args.previous) {
         if (old.kind === 'promise' && drop.has(old.id)) continue;
-        kept.set(old.id, seen.has(old.id) ? {...old, lastSeen: args.now} : {...old});
+        kept.set(old.id, seen.has(old.id) ? recall(old) : {...old});
     }
     // 「第一次认识」一人只留一条，不然每次添一条钉住的，早晚把别的都挤出去
     let hasFirst = [...kept.values()].some((item) => item.kind === 'first');
@@ -151,14 +225,19 @@ export function mergeMemoryItems(args: {
             id,
             kind: item.kind,
             text: item.text,
-            pin: false,
+            pin: pinned(args.layer, item.kind),
             clarity: 'clear',
+            createdAt: target?.createdAt ?? args.now,
             lastSeen: args.now,
+            importance: startImportance(args.layer, args.subject, args.ownerId, item.kind, item.weight),
+            recallCount: target ? Math.min(999, target.recallCount + 1) : 0,
+            retention: 0,
         });
     }
     const settled = [...kept.values()].flatMap((item) => (
         settleMemoryItem(item, args.layer, args.subject, args.ownerId, args.now) ?? []
     ));
+    // 超出名额就丢保留分最低的，钉住的在最前面不会被丢
     return sortItems(settled).slice(0, Math.max(0, args.cap));
 }
 
@@ -240,122 +319,157 @@ function asRawItem(value: unknown): RawMemoryItem[] {
         id: typeof record.id === 'string' ? record.id : undefined,
         kind: typeof record.kind === 'string' ? record.kind : undefined,
         text: typeof record.text === 'string' ? record.text : undefined,
+        weight: typeof record.weight === 'number' ? record.weight : undefined,
     }];
 }
 
 export function runMemoryCardSelfCheck(): void {
     const now = 1_700_000_000;
     const day = DAY_SECONDS;
-    const room = (previous: MemoryItem[], incoming: RawMemoryItem[], at: number, extra: {seen?: string[]; drop?: string[]} = {}) => (
-        mergeMemoryItems({
-            previous,
-            incoming,
-            seen: new Set(extra.seen ?? []),
-            drop: new Set(extra.drop ?? []),
-            layer: 'room',
-            subject: '',
-            ownerId: 'owner',
-            now: at,
-            cap: ROOM_ITEM_CAP,
-        })
-    );
-    const person = (subject: string, previous: MemoryItem[], incoming: RawMemoryItem[], at: number, extra: {drop?: string[]} = {}) => (
-        mergeMemoryItems({
-            previous,
-            incoming,
-            drop: new Set(extra.drop ?? []),
-            layer: 'person',
-            subject,
-            ownerId: 'owner',
-            now: at,
-            cap: PERSON_ITEM_CAP,
-        })
-    );
+    const room = (
+        previous: MemoryItem[],
+        incoming: RawMemoryItem[],
+        at: number,
+        extra: {seen?: string[]; drop?: string[]} = {},
+    ) => mergeMemoryItems({
+        previous,
+        incoming,
+        seen: new Set(extra.seen ?? []),
+        drop: new Set(extra.drop ?? []),
+        layer: 'room',
+        subject: '',
+        ownerId: 'owner',
+        now: at,
+        cap: ROOM_ITEM_CAP,
+    });
+    const person = (
+        subject: string,
+        previous: MemoryItem[],
+        incoming: RawMemoryItem[],
+        at: number,
+        extra: {seen?: string[]; drop?: string[]} = {},
+    ) => mergeMemoryItems({
+        previous,
+        incoming,
+        seen: new Set(extra.seen ?? []),
+        drop: new Set(extra.drop ?? []),
+        layer: 'person',
+        subject,
+        ownerId: 'owner',
+        now: at,
+        cap: PERSON_ITEM_CAP,
+    });
+    const only = (items: MemoryItem[]) => items[0];
 
-    // 没人再提：一天一档，第三天没了。跟中间整理了几次没关系
-    const first = room([], [{kind: 'bit', text: '把加班叫修行'}], now);
-    if (first.length !== 1 || first[0].clarity !== 'clear' || first[0].pin) throw new Error('新梗应是清楚、不钉');
-    const bitId = first[0].id;
-    if (room(first, [], now + 3600)[0]?.clarity !== 'clear') throw new Error('同一天再整理不该淡');
-    if (room(first, [], now + day)[0]?.clarity !== 'fuzzy') throw new Error('一天没人提应变模糊');
-    if (room(first, [], now + day - 600)[0]?.clarity !== 'fuzzy') throw new Error('整理早了十分钟不该少算一天');
-    if (room(first, [], now + 2 * day)[0]?.clarity !== 'trace') throw new Error('两天没人提应只剩痕迹');
-    if (room(first, [], now + 3 * day).length !== 0) throw new Error('三天没人提应拿掉');
-    const hourly = room(room(room(first, [], now + 3600), [], now + 7200), [], now + day);
-    if (hourly[0]?.clarity !== 'fuzzy') throw new Error('整理得再勤，也是按天淡');
+    // 起点分：模型 1-3 → 20/40/60，约定 +16，主人那张卡 +32；没写权重按 1
+    const weak = room([], [{kind: 'bit', text: '把加班叫修行', weight: 1}], now);
+    const mid = room([], [{kind: 'bit', text: '群里爱发表情包', weight: 2}], now);
+    const strong = room([], [{kind: 'fact', text: '周末固定开黑', weight: 3}], now);
+    const unweighted = room([], [{kind: 'bit', text: '没写权重的梗'}], now);
+    if (only(weak).importance !== 20 || only(mid).importance !== 40 || only(strong).importance !== 60) throw new Error('模型的 1-3 应换成 20/40/60');
+    if (only(unweighted).importance !== 20) throw new Error('没写权重按最不重要的算');
+    if (room([], [{kind: 'bit', text: '瞎写', weight: 99}], now)[0].importance !== 60) throw new Error('权重超出范围要夹回 3');
+    const promised = room([], [{kind: 'promise', text: '周五发到群里', weight: 2}], now);
+    if (only(promised).importance !== 56 || only(promised).pin) throw new Error('约定加 16 分，但不钉');
+    const ownerItem = person('owner', [], [{kind: 'person', text: '主人晚上才有空', weight: 2}], now);
+    if (only(ownerItem).importance !== 72) throw new Error('主人那张卡加 32 分');
+    if (person('u1', [], [{kind: 'person', text: '小王爱反问', weight: 3}], now)[0].importance !== 60) throw new Error('别人的卡不加分，高分封在 60');
 
-    // 模型原样抄回来不算又被提到
-    const echoed = room(first, [{id: bitId, kind: 'bit', text: '把加班叫修行'}], now + day);
-    if (echoed.length !== 1 || echoed[0].clarity !== 'fuzzy') throw new Error('原样抄回来的不该续上');
-    const echoedNoId = room(first, [{kind: 'bit', text: '把加班叫修行'}], now + day);
-    if (echoedNoId.length !== 1 || echoedNoId[0].clarity !== 'fuzzy') throw new Error('不带 id 抄回来的也不该续上，更不该多出一条');
+    // 淡：照 SurfCore 的公式，按天数一条条算
+    const at = (items: MemoryItem[], days: number) => settleMemoryItems(items, 'room', '', 'owner', now + days * day);
+    if (at(weak, 0)[0]?.clarity !== 'clear') throw new Error('新条目是清楚');
+    if (at(weak, 7)[0]?.clarity !== 'clear') throw new Error('前 7 天至少清楚');
+    if (at(weak, 8)[0]?.clarity !== 'trace') throw new Error('低分的第 8 天只剩痕迹');
+    if (at(weak, 29)[0]?.clarity !== 'trace') throw new Error('低分第 29 天还有痕迹');
+    if (at(weak, 31).length !== 0) throw new Error('低分第 31 天该忘了');
+    if (at(mid, 8)[0]?.clarity !== 'fuzzy') throw new Error('中分第 8 天模糊');
+    if (at(mid, 61).length !== 0) throw new Error('超过 60 天、不到 50 分的该忘了');
+    if (at(strong, 10)[0]?.clarity !== 'clear') throw new Error('高分第 10 天还清楚');
+    if (at(strong, 60)[0]?.clarity !== 'fuzzy') throw new Error('高分第 60 天变模糊，但还在');
+    if (at(promised, 8)[0]?.clarity !== 'clear') throw new Error('约定比同分的梗留得久');
+    const hourly = room(room(room(weak, [], now + 3600), [], now + 7200), [], now + 8 * day);
+    if (hourly[0]?.clarity !== 'trace') throw new Error('整理得再勤，结果只看时间');
 
-    // 三种会续上的情况
-    const seenAgain = room(first, [], now + 2 * day, {seen: [bitId]});
-    if (seenAgain[0]?.clarity !== 'clear' || seenAgain[0].lastSeen !== now + 2 * day) throw new Error('又被提到的应回到清楚');
-    const rewritten = room(first, [{id: bitId, kind: 'bit', text: '把加班叫渡劫'}], now + 2 * day);
-    if (rewritten.length !== 1 || rewritten[0].id !== bitId || rewritten[0].text !== '把加班叫渡劫' || rewritten[0].clarity !== 'clear') {
-        throw new Error('带着原 id 改写的应替换那一条并续上');
-    }
-    const invented = room(first, [{id: 'made-up', kind: 'fact', text: '周末人少'}], now);
+    // 主人的重要条目：不会被忘，最差是清楚
+    const ownerLate = settleMemoryItems(ownerItem, 'person', 'owner', 'owner', now + 200 * day);
+    if (ownerLate.length !== 1 || ownerLate[0].clarity !== 'clear') throw new Error('主人的重要条目几百天后仍是清楚');
+    const ownerWeak = person('owner', [], [{kind: 'person', text: '偶尔提一句', weight: 1}], now);
+    if (only(ownerWeak).importance !== 52) throw new Error('主人的弱条目是 52 分');
+    if (settleMemoryItems(ownerWeak, 'person', 'owner', 'owner', now + 200 * day).length !== 0) throw new Error('没到 65 分的主人条目不受保护');
+
+    // 模型原样抄回来不算又被提到，也不该多出一条
+    const echoed = room(mid, [{id: only(mid).id, kind: 'bit', text: '群里爱发表情包', weight: 3}], now + 8 * day);
+    if (echoed.length !== 1 || echoed[0].clarity !== 'fuzzy' || echoed[0].importance !== 40) throw new Error('原样抄回来的不该续上，也不该改分');
+    if (room(mid, [{kind: 'bit', text: '群里爱发表情包'}], now + 8 * day).length !== 1) throw new Error('不带 id 抄回来的不该多出一条');
+
+    // 又被提到：能从痕迹回到模糊，但只是几分的事
+    const dim = at(weak, 20);
+    if (dim[0]?.clarity !== 'trace') throw new Error('第 20 天低分条目是痕迹');
+    const recalled = room(weak, [], now + 20 * day, {seen: [only(weak).id]});
+    if (recalled[0]?.clarity !== 'fuzzy' || recalled[0].recallCount !== 1 || recalled[0].lastSeen !== now + 20 * day) throw new Error('又被提到的应回到模糊');
+    const late = room(weak, [], now + 40 * day, {seen: [only(weak).id]});
+    if (late[0]?.clarity !== 'trace') throw new Error('第 40 天才被提一次，低分条目救不回到模糊');
+    let boosted = weak;
+    for (let index = 0; index < 20; index += 1) boosted = room(boosted, [], now + index * day, {seen: [only(weak).id]});
+    if (only(boosted).recallCount !== 20 || only(boosted).importance !== 20) throw new Error('被提到再多，重要度本身不变');
+    if (settleMemoryItems(boosted, 'room', '', 'owner', now + 61 * day).length !== 0) throw new Error('重复被提到也救不了过期的低分条目');
+
+    // 改写：带着旧 id 重写，保留创建时间；编的 id 不认
+    const rewritten = room(mid, [{id: only(mid).id, kind: 'bit', text: '群里爱发动图', weight: 2}], now + 2 * day);
+    if (rewritten.length !== 1 || rewritten[0].id !== only(mid).id || rewritten[0].text !== '群里爱发动图' || rewritten[0].createdAt !== now) throw new Error('带着原 id 改写应替换那一条，创建时间不变');
+    const invented = room(weak, [{id: 'made-up', kind: 'fact', text: '周末人少', weight: 1}], now);
     if (invented.length !== 2 || invented.some((item) => item.id === 'made-up')) throw new Error('模型编的 id 不认');
 
-    // 约定：钉七天，过了松开照常淡；做完了可以直接拿掉；归错类的可以改
-    const promise = room([], [{kind: 'promise', text: '周五发到群里'}], now);
-    if (!promise[0]?.pin) throw new Error('房间约定要钉住');
-    const promiseId = promise[0].id;
-    if (!room(promise, [], now + PROMISE_HOLD_DAYS * day)[0]?.pin) throw new Error('七天内的约定要一直钉着');
-    const loosened = room(promise, [], now + (PROMISE_HOLD_DAYS + 1) * day);
-    if (loosened.length !== 1 || loosened[0].pin || loosened[0].clarity !== 'fuzzy') throw new Error('过了七天没人提的约定要松开');
-    if (room(promise, [], now + (PROMISE_HOLD_DAYS + 3) * day).length !== 0) throw new Error('松开的约定也会淡没');
-    const renewed = room(promise, [], now + 6 * day, {seen: [promiseId]});
-    if (!room(renewed, [], now + 12 * day)[0]?.pin) throw new Error('又被提到的约定要重新算七天');
-    if (room(promise, [], now, {drop: [promiseId]}).length !== 0) throw new Error('说了做完的约定要拿掉');
-    const rekinded = room(promise, [{id: promiseId, kind: 'bit', text: '周五发到群里'}], now);
-    if (rekinded.length !== 1 || rekinded[0].id !== promiseId || rekinded[0].pin) {
-        throw new Error('带着原 id 改成梗的旧约定要松开，不能多出一条');
-    }
-    if (room(first, [], now, {drop: [bitId]}).length !== 1) throw new Error('drop 只对约定生效');
+    // 约定：不钉，也不会因为模型说了什么而变重要；做完了才拿掉
+    if (room(promised, [], now, {drop: [only(promised).id]}).length !== 0) throw new Error('说了做完的约定要拿掉');
+    if (room(weak, [], now, {drop: [only(weak).id]}).length !== 1) throw new Error('drop 只对约定生效');
+    const rekinded = room(promised, [{id: only(promised).id, kind: 'bit', text: '周五发到群里', weight: 1}], now);
+    if (rekinded.length !== 1 || rekinded[0].id !== only(promised).id || rekinded[0].importance !== 20) throw new Error('带着原 id 改成梗，要按梗重新算分，不能多出一条');
 
-    // 人：主人的人物条钉住，别人的不钉；不认识的种类丢掉
+    // 人
     const owner = person('owner', [], [
-        {kind: 'person', text: '主人晚上才有空'},
-        {kind: 'preference', text: '不吃香菜'},
-        {kind: 'order', text: '必须服从'},
+        {kind: 'person', text: '主人晚上才有空', weight: 2},
+        {kind: 'preference', text: '不吃香菜', weight: 1},
+        {kind: 'order', text: '必须服从', weight: 3},
     ], now);
     if (owner.length !== 2) throw new Error('不认识的种类应丢掉');
-    if (!owner.find((item) => item.kind === 'person')?.pin) throw new Error('主人的人物条要钉住');
-    if (owner.find((item) => item.kind === 'preference')?.pin) throw new Error('偏好不钉');
-    if (person('u1', [], [{kind: 'person', text: '小王爱反问'}], now)[0]?.pin) throw new Error('别人的人物条不钉');
-    const ownerLater = settleMemoryItems(owner, 'person', 'owner', 'owner', now + 30 * day);
-    if (ownerLater.length !== 1 || ownerLater[0].kind !== 'person') throw new Error('只按时间淡时，钉住的留下，不钉的照样淡');
+    if (owner.some((item) => item.pin)) throw new Error('除了第一次认识，别的都不钉');
 
-    const met = person('u1', [], [{kind: 'first', text: '在群里问路认识的'}], now);
-    const metAgain = person('u1', met, [{kind: 'first', text: '第一次一起打游戏'}], now + 40 * day, {drop: [met[0].id]});
-    if (metAgain.length !== 1 || metAgain[0].text !== '在群里问路认识的') {
-        throw new Error('第一次认识一人只留一条，不过期，也不让模型删');
-    }
+    const met = person('u1', [], [{kind: 'first', text: '在群里问路认识的', weight: 1}], now);
+    if (!only(met).pin) throw new Error('第一次认识要钉住');
+    const metAgain = person('u1', met, [{kind: 'first', text: '第一次一起打游戏', weight: 3}], now + 400 * day, {drop: [only(met).id]});
+    if (metAgain.length !== 1 || metAgain[0].text !== '在群里问路认识的') throw new Error('第一次认识一人只留一条，不过期，也不让模型删');
+
+    // 名额：超出就丢保留分最低的，钉住的留着
+    const crowded = person('u2', met, Array.from({length: 20}, (_, index) => ({kind: 'preference', text: `偏好${index}`, weight: index % 3 + 1})), now);
+    if (crowded.length !== PERSON_ITEM_CAP || !crowded.some((item) => item.kind === 'first')) throw new Error('超出名额要丢最淡的，钉住的留着');
+    if (crowded.some((item) => !item.pin && item.importance < 40)) throw new Error('名额只留下分高的');
 
     const parsed = parseModelCards(
         {
-            room: [{kind: 'fact', text: '晚上热闹'}],
+            room: [{kind: 'fact', text: '晚上热闹', weight: 2}, {kind: 'fact', text: '没写权重'}],
             people: {u1: [{kind: 'person', text: '小王'}], u9: []},
             seen: ['a', 'a', ''],
             drop: ['x', 3, ' '],
         },
         new Set(['u1']),
     );
+    if (parsed.room[0].weight !== 2 || parsed.room[1].weight !== undefined) throw new Error('权重原样收，缺的留空');
     if (parsed.people.size !== 1 || !parsed.people.has('u1')) throw new Error('不在名单里的人不收');
     if (parsed.seen.size !== 1 || !parsed.seen.has('a')) throw new Error('又被提到的名单要去重去空');
     if (parsed.drop.size !== 1 || !parsed.drop.has('x')) throw new Error('做完的名单只认字符串');
 
-    const bulky = Array.from({length: 40}, (_, index) => ({
+    const bulky = Array.from({length: 40}, (_, index): MemoryItem => ({
         id: `t${index}`,
         kind: 'bit',
         text: `梗${index}`,
         pin: false,
-        clarity: 'trace' as const,
+        clarity: 'trace',
+        createdAt: now,
         lastSeen: now,
+        importance: 20,
+        recallCount: 0,
+        retention: 12,
     }));
     const rendered = renderRoomCard(bulky);
     if (rendered.length > ROOM_CHAR_BUDGET) throw new Error('房间卡超长');

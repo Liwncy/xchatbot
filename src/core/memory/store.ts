@@ -75,13 +75,22 @@ function parseItems(raw: string): MemoryItem[] {
             const item = value as Partial<MemoryItem>;
             if (typeof item.id !== 'string' || typeof item.kind !== 'string' || typeof item.text !== 'string') return [];
             const clarity = item.clarity === 'fuzzy' || item.clarity === 'trace' ? item.clarity : 'clear';
+            const lastSeen = typeof item.lastSeen === 'number' ? item.lastSeen : 0;
+            // 老条目没有这几项：创建时间按最后提到算，重要度按「中等」补，约定再加一点
+            const importance = typeof item.importance === 'number' && Number.isFinite(item.importance)
+                ? item.importance
+                : (item.kind === 'promise' ? 56 : 40);
             return [{
                 id: item.id,
                 kind: item.kind,
                 text: item.text,
                 pin: item.pin === true,
                 clarity,
-                lastSeen: typeof item.lastSeen === 'number' ? item.lastSeen : 0,
+                createdAt: typeof item.createdAt === 'number' ? item.createdAt : lastSeen,
+                lastSeen,
+                importance,
+                recallCount: typeof item.recallCount === 'number' ? item.recallCount : 0,
+                retention: typeof item.retention === 'number' ? item.retention : 0,
             }];
         });
     } catch {
