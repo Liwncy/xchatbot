@@ -196,7 +196,7 @@ function outboundPayload(reply: ReplyMessage, extra?: Record<string, unknown>): 
     return JSON.stringify(payload);
 }
 
-async function ensureSchema(db: D1Database): Promise<void> {
+export async function ensureSchema(db: D1Database): Promise<void> {
     if (!schemaReady) {
         schemaReady = (async () => {
             await db.prepare(
@@ -235,6 +235,17 @@ async function ensureSchema(db: D1Database): Promise<void> {
             ).run();
             await db.prepare(
                 'CREATE INDEX IF NOT EXISTS idx_chat_message_caused_by ON chat_message(caused_by_message_id)',
+            ).run();
+            await db.prepare(
+                `CREATE TABLE IF NOT EXISTS chat_session (
+                    session_id TEXT PRIMARY KEY,
+                    session_type TEXT NOT NULL,
+                    platform TEXT NOT NULL,
+                    last_message_at INTEGER NOT NULL
+                )`,
+            ).run();
+            await db.prepare(
+                'CREATE INDEX IF NOT EXISTS idx_chat_session_last ON chat_session(last_message_at)',
             ).run();
         })().catch((error) => {
             schemaReady = null;
@@ -359,6 +370,7 @@ async function insertInbound(db: D1Database, message: IncomingMessage): Promise<
         now,
     ).run();
     if ((result.meta.changes ?? 0) === 0) return null;
+    await touchChatSession(db, session.sessionId, session.sessionType, message.platform, createdAt);
     return {
         id: Number(result.meta.last_row_id) || Number.MAX_SAFE_INTEGER,
         messageId,
@@ -421,6 +433,32 @@ async function insertOutbound(
         now,
         now,
     ).run();
+    await touchChatSession(db, session.sessionId, session.sessionType, message.platform, now);
+}
+
+async function touchChatSession(
+    db: D1Database,
+    sessionId: string,
+    sessionType: string,
+    platform: string,
+    at: number,
+): Promise<void> {
+    if (!sessionId) return;
+    try {
+        await db.prepare(
+            `INSERT INTO chat_session (session_id, session_type, platform, last_message_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(session_id) DO UPDATE SET
+               last_message_at = MAX(chat_session.last_message_at, excluded.last_message_at),
+               session_type = excluded.session_type,
+               platform = excluded.platform`,
+        ).bind(sessionId, sessionType, platform || 'wechat', Math.floor(at)).run();
+    } catch (error) {
+        logger.warn('聊天近况没记上', {
+            sessionId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
 }
 
 export async function recordInboundChatMessage(env: Env, message: IncomingMessage): Promise<void> {

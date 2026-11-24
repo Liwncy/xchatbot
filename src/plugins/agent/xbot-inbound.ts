@@ -3,6 +3,8 @@ import {resolveBotId, resolveBotName} from '../../core/bot.js';
 import {handledReply, type HandlerResponse} from '../../core/reply.js';
 import {patchInboundMediaPublicUrl} from '../../core/chat-log/index.js';
 import {buildInboundContent} from '../../core/inbound.js';
+import {resolveChatSession} from '../../core/chat-log/session.js';
+import {readMemoryPrompt} from '../../core/memory/store.js';
 import type {IncomingMessage} from '../../core/message.js';
 import type {Env} from '../../types/env.js';
 import {logger} from '../../utils/logger.js';
@@ -77,6 +79,20 @@ export async function forwardXbotInbound(args: {
         content = message.content?.trim() || message.quote?.title?.trim() || `[${message.type}]`;
     }
 
+    const logSessionId = resolveChatSession(message).sessionId;
+    let roomRev = '';
+    let speakerRev = '';
+    try {
+        const memory = await readMemoryPrompt(env, logSessionId, message.senderId);
+        roomRev = memory.roomRev;
+        speakerRev = memory.speakerRev;
+    } catch (error) {
+        logger.warn('记忆版本没读上，这轮当没有', {
+            messageId: message.messageId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+
     const body = JSON.stringify({
         accountId: 'Primary',
         messageId: message.messageId,
@@ -93,6 +109,9 @@ export async function forwardXbotInbound(args: {
         ...(videoUrl ? {videoUrl} : {}),
         ...(addressed === undefined ? {} : {addressed}),
         timestamp: message.timestamp,
+        logSessionId,
+        roomRev,
+        speakerRev,
     });
 
     try {
