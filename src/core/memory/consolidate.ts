@@ -44,6 +44,8 @@ export interface ConsolidatedSession {
     roomRev?: string;
     roomText?: string;
     people?: ConsolidatedPerson[];
+    /** 只在试跑时有：模型交回来的原样，没经过合并，也没写库。调提示词时看它。 */
+    model?: {room: unknown[]; people: Record<string, unknown[]>; drop: string[]};
 }
 
 function clipLine(text: string): string {
@@ -160,6 +162,7 @@ export async function consolidateSession(
     env: Env,
     session: DueSession,
     now = Math.floor(Date.now() / 1000),
+    dryRun = false,
 ): Promise<ConsolidatedSession> {
     const since = now - MATERIAL_DAYS * DAY_SECONDS;
     let rows: MemoryMaterialRow[];
@@ -202,6 +205,14 @@ export async function consolidateSession(
             error: error instanceof Error ? error.message : String(error),
         });
         return {sessionId: session.sessionId, ok: false, error: '模型没写成'};
+    }
+
+    if (dryRun) {
+        return {
+            sessionId: session.sessionId,
+            ok: true,
+            model: {room: parsed.room, people: Object.fromEntries(parsed.people), drop: [...parsed.drop]},
+        };
     }
 
     const ownerId = resolveOwnerId(env, session.platform);
@@ -260,7 +271,7 @@ export async function consolidateSession(
 
 export async function consolidateDueSessions(
     env: Env,
-    options: {sessionId?: string; since?: number; limit?: number; platform?: string} = {},
+    options: {sessionId?: string; since?: number; limit?: number; platform?: string; dryRun?: boolean} = {},
 ): Promise<ConsolidatedSession[]> {
     const now = Math.floor(Date.now() / 1000);
     const limit = Math.max(1, Math.min(options.limit ?? 1, 5));
@@ -275,7 +286,7 @@ export async function consolidateDueSessions(
         : await listSessionsDue(env, options.since ?? now - DAY_SECONDS, limit);
     const results: ConsolidatedSession[] = [];
     for (const session of sessions.slice(0, limit)) {
-        results.push(await consolidateSession(env, session, now));
+        results.push(await consolidateSession(env, session, now, options.dryRun === true));
     }
     return results;
 }

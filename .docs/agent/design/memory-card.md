@@ -228,6 +228,8 @@ LIMIT 200
 
 邮箱里的旧消息没有这些字段时，两层都当成空。
 
+`POST /agent/memory/consolidate`，body `{sessionId?, since?, limit?, dryRun?}`。带 `dryRun: true` 时照常取素材、调模型，但不合并、不写库，把模型交回来的 `room` / `people` / `drop` 原样放在 `model` 里返回。调提示词时先用它看。
+
 ## 8. 落地顺序
 
 1. 两张表，以及写入 `chat_message` 时更新 `chat_session`。确认是按主键，不增加对 `chat_message` 的新扫描。

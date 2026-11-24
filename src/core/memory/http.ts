@@ -27,13 +27,16 @@ export async function handleAgentMemory(request: Request, env: Env): Promise<Res
         let since: number | undefined;
         let limit: number | undefined;
         let platform = '';
+        let dryRun = false;
         try {
             const body = await request.json() as {
                 sessionId?: string;
                 since?: number;
                 limit?: number;
                 platform?: string;
+                dryRun?: boolean;
             };
+            dryRun = body.dryRun === true;
             sessionId = body.sessionId?.trim() ?? '';
             if (typeof body.since === 'number' && Number.isFinite(body.since)) since = Math.floor(body.since);
             if (typeof body.limit === 'number' && Number.isFinite(body.limit)) limit = Math.floor(body.limit);
@@ -41,7 +44,7 @@ export async function handleAgentMemory(request: Request, env: Env): Promise<Res
         } catch {
             return json({ok: false, error: 'body 不是 json'}, 400);
         }
-        const sessions = await consolidateDueSessions(env, {sessionId, since, limit, platform});
+        const sessions = await consolidateDueSessions(env, {sessionId, since, limit, platform, dryRun});
         return json({ok: sessions.every((session) => session.ok), sessions});
     }
     return new Response('Method Not Allowed', {status: 405});
