@@ -14,7 +14,8 @@ export type PeerPending = {
     scope: string;
     wxid: string;
     name: string;
-    topic: string;
+    /** 线路名：先取口令的第一个词，保存时 peerSave 会按自动收的范围表规整。 */
+    title: string;
     template: string;
     mention: boolean;
     platform: string;
@@ -40,13 +41,13 @@ export function looksLikePeerShout(raw: string): boolean {
     return !/\s/u.test(text) && text.length >= 2 && text.length <= 16;
 }
 
-export function parsePeerShout(raw: string): {topic: string; template: string} | null {
+export function parsePeerShout(raw: string): {title: string; template: string} | null {
     const text = stripLeadAt(raw);
     if (!looksLikePeerShout(text)) return null;
     const parsed = normalizeShoutTemplate(text);
-    const topic = (text.split(/\s+/u, 1)[0] ?? text).trim();
-    if (!topic) return null;
-    return {topic, template: parsed.template || text};
+    const title = (text.split(/\s+/u, 1)[0] ?? text).trim();
+    if (!title) return null;
+    return {title, template: parsed.template || text};
 }
 
 function pickTarget(message: IncomingMessage, env: Env): {wxid: string; name: string} | null {
@@ -77,7 +78,7 @@ export async function offerPeerPending(env: Env, message: IncomingMessage): Prom
         scope: scopeFromMessage(message),
         wxid: target.wxid,
         name: target.name,
-        topic: shout.topic,
+        title: shout.title,
         template: shout.template,
         mention: true,
         platform: message.platform,
@@ -110,7 +111,7 @@ export async function confirmPeerPending(env: Env, message: IncomingMessage): Pr
         scope: pending.scope,
         wxid: pending.wxid || from,
         name,
-        topic: pending.topic,
+        title: pending.title,
         template: pending.template,
         mention: pending.mention,
         platform: pending.platform || message.platform,

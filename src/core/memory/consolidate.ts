@@ -31,7 +31,17 @@ import {
     type MemoryCardRow,
     type MemoryMaterialRow,
 } from './store.js';
-import {PEER_RULES, describePeerIds, parseModelPeers, peerIdSet, type PeerCandidate} from './peers.js';
+import {loadAutoScopes} from '../peer-roster/auto-scope.js';
+import {normalizeRosterScope} from '../peer-roster/scope.js';
+import {
+    describePeerIds,
+    parseModelPeers,
+    peerIdSet,
+    peerRules,
+    savePeerCandidates,
+    type ParsedPeers,
+    type PeerCandidate,
+} from './peers.js';
 
 /** 没整理过的聊天，第一次最多往回看几天。 */
 const MATERIAL_DAYS = 7;
@@ -54,6 +64,8 @@ export interface ConsolidatedSession {
     error?: string;
     /** 这次交给模型的新发言有几行。0 就是没调模型，只按时间淡了一遍。 */
     lines?: number;
+    /** 这次写进花名册的条数。 */
+    peersSaved?: number;
     roomRev?: string;
     roomText?: string;
     people?: ConsolidatedPerson[];
@@ -63,8 +75,9 @@ export interface ConsolidatedSession {
         people: Record<string, RawMemoryItem[]>;
         seen: string[];
         drop: string[];
-        /** 只有试跑才会问模型，见 peers.ts。还没写进花名册。 */
+        /** 群聊才问，见 peers.ts。试跑只看不写；真整理会写进花名册（source=auto）。 */
         peers?: PeerCandidate[];
+        peersDropped?: number;
     };
 }
 
@@ -269,24 +282,29 @@ export async function consolidateSession(
 
     // 没有新的话就不调模型
     let parsed = NOTHING;
-    let peers: PeerCandidate[] | undefined;
+    let peers: ParsedPeers | undefined;
     if (rows.length) {
         const previousPeople = new Map<string, MemoryItem[]>(
             speakers.map((senderId) => [senderId, peopleCards.get(senderId)?.items ?? []]),
         );
+        // 花名册按群存，私聊不问。自动收哪几类事放在 KV（peer-roster/auto-scope.ts），表是空的就整段不问
+        const autoScopes = session.sessionType !== 'private' ? await loadAutoScopes(env) : [];
+        const wantPeers = autoScopes.length > 0;
         try {
             const json = await requestLlmJson(env, {
-                system: dryRun ? `${SYSTEM}\n${PEER_RULES}` : SYSTEM,
+                system: wantPeers ? `${SYSTEM}\n${peerRules(autoScopes)}` : SYSTEM,
                 user: buildPrompt(
                     rows, speakers, roomCard?.items ?? [], previousPeople,
-                    dryRun ? describePeerIds(rows) : '',
+                    wantPeers ? describePeerIds(rows) : '',
                 ),
                 timeoutMs: 60_000,
             });
             if (!json) throw new Error('模型没交回 JSON');
             parsed = parseModelCards(json, new Set(speakers));
-            if (dryRun) {
-                peers = parseModelPeers(env, session.platform, json, peerIdSet(rows), speakerNames(rows));
+            if (wantPeers) {
+                peers = parseModelPeers(
+                    env, session.platform, json, peerIdSet(rows), speakerNames(rows), autoScopes, loaded,
+                );
             }
         } catch (error) {
             logger.warn('记忆整理没写成', {
@@ -303,7 +321,7 @@ export async function consolidateSession(
         people: Object.fromEntries(parsed.people),
         seen: [...parsed.seen],
         drop: [...parsed.drop],
-        ...(peers ? {peers} : {}),
+        ...(peers ? {peers: peers.peers, peersDropped: peers.dropped} : {}),
     };
     if (dryRun) return {sessionId, ok: true, lines: rows.length, model};
 
@@ -341,10 +359,16 @@ export async function consolidateSession(
     }
     // 这一轮没说话的人：他们的卡不在这里动。没人碰的卡，在有人读它的时候按时间重算（read.ts）
 
+    // 花名册：同一个人同一件事新的覆盖旧的，规则在 peer-roster/repository.ts。卡已经写好了，这里失败不拖累它
+    const peersSaved = peers?.peers.length
+        ? await savePeerCandidates(env, session.platform, normalizeRosterScope(`group:${sessionId}`), peers.peers)
+        : 0;
+
     await writeMemoryMark(env, sessionId, newest, now);
     return {
         sessionId,
         ok: true,
+        peersSaved,
         lines: rows.length,
         roomRev: room.rev,
         roomText: room.text,

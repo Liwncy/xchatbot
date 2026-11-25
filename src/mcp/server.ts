@@ -240,10 +240,11 @@ export function createChannelMcpServer(env: Env): McpServer {
         {
             description:
                 '查本群花名册：谁会接这类话。闲聊不要调。'
-                + 'scope 从本条前缀原样抄。query 写会啥或人名，空着列出全部。',
+                + '每条有线路名 title 和具体的事 about，按 about 判断这件事算不算这条（「放首歌」也算点歌）。'
+                + 'scope 从本条前缀原样抄。query 写线路名、具体的事或人名，空着列出全部。',
             inputSchema: z.object({
                 scope: z.string().describe('必填。本条前缀里的 scope，如 group:123@chatroom'),
-                query: z.string().optional().describe('会啥或人名，可空'),
+                query: z.string().optional().describe('线路名、具体的事或人名，可空'),
                 includeInactive: z.boolean().optional(),
             }),
         },
@@ -261,7 +262,7 @@ export function createChannelMcpServer(env: Env): McpServer {
         'peer_match',
         {
             description:
-                '按花名册路线拼 outbound。先 peer_search 查本群路线并按「会啥」选一条，再把它的 id 传进来。'
+                '按花名册路线拼 outbound。先 peer_search 查本群路线并按 about 选一条，再把它的 id 传进来。'
                 + 'query 只用来拼喊法，不要拿原话去撞字。'
                 + '命中后把返回的 reply 原样发出去，那就是转交，不要再加旁白，不要自己改口令。'
                 + 'scope 从本条前缀原样抄。',
@@ -269,7 +270,7 @@ export function createChannelMcpServer(env: Env): McpServer {
                 scope: z.string().describe('必填。本条前缀里的 scope'),
                 query: z.string().describe('对方原话，用来拼喊法'),
                 id: z.number().int().positive().optional().describe('peer_search 返回的路线 id，优先使用'),
-                topic: z.string().optional().describe('兼容旧用法：精确的会啥'),
+                title: z.string().optional().describe('兼容旧用法：精确的线路名'),
                 name: z.string().optional().describe('兼容旧用法：群里那个名'),
                 wxid: z.string().optional().describe('兼容旧用法：对方 wxid'),
             }),
@@ -288,23 +289,25 @@ export function createChannelMcpServer(env: Env): McpServer {
         {
             description:
                 '把群友或机器人记进花名册。对方明确说记下才用。'
-                + 'topic 是会啥。template 空着就是人话；golem::info 这种整句照念；'
+                + 'title 是线路名，短而稳，如 点歌、写脚本、兜底（对不上时找他）；先 peer_search 看本群已有的叫法，同一件事沿用同一个 title。'
+                + 'about 是具体的事，一句话写清他能办什么，给以后选路线的人读，如「点歌、放歌曲、来一首歌，说歌名或歌手」。'
+                + 'template 空着就是人话；golem::info 这种整句照念；'
                 + 'music {问} 或 music 老鼠爱大米 是带空。不要记自己或主人。',
             inputSchema: z.object({
                 scope: z.string().describe('必填。本条前缀里的 scope'),
                 wxid: z.string().optional().describe('被记的人 wxid'),
                 name: z.string().describe('群里那个名'),
-                topic: z.string().describe('会啥，如 点歌、写脚本、兜底'),
+                title: z.string().describe('线路名，如 点歌、写脚本、兜底'),
+                about: z.string().optional().describe('具体的事，一句话；不写就用 title'),
                 template: z.string().optional().describe('喊法。空=人话'),
                 mention: z.boolean().optional().describe('要不要 @，默认照念免@、其余要@'),
-                fallback: z.boolean().optional().describe('对不上时兜底'),
                 platform: z.string().optional(),
             }),
         },
         async (input) => {
             try {
                 const item = await peerSave(env, input);
-                return jsonResult({...item, reply: `记下了，下次${item.topic}找${item.name}`});
+                return jsonResult({...item, reply: `记下了，下次${item.title}找${item.memberName}`});
             } catch (error) {
                 return errorResult(error);
             }
@@ -314,12 +317,12 @@ export function createChannelMcpServer(env: Env): McpServer {
     server.registerTool(
         'peer_ban',
         {
-            description: '花名册里不再喊他或某条会啥。改状态，不删。',
+            description: '花名册里不再喊他或某条线路。改状态，不删。',
             inputSchema: z.object({
                 scope: z.string(),
                 id: z.number().int().optional(),
                 wxid: z.string().optional(),
-                topic: z.string().optional(),
+                title: z.string().optional(),
             }),
         },
         async (input) => {

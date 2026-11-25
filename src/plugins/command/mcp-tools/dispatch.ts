@@ -155,20 +155,20 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
             scope: String(args.scope ?? ''),
             wxid: typeof args.wxid === 'string' ? args.wxid : undefined,
             name: String(args.name ?? ''),
-            topic: String(args.topic ?? ''),
+            title: String(args.title ?? ''),
+            about: typeof args.about === 'string' ? args.about : undefined,
             template: typeof args.template === 'string' ? args.template : undefined,
             mention: typeof args.mention === 'boolean' ? args.mention : undefined,
-            fallback: Boolean(args.fallback),
             platform: typeof args.platform === 'string' ? args.platform : undefined,
         });
-        return asLocalResult({...item, reply: `记下了，下次${item.topic}找${item.name}`});
+        return asLocalResult({...item, reply: `记下了，下次${item.title}找${item.memberName}`});
     }
     if (name === 'peer_match') {
         return asLocalResult(await peerMatch(env, {
             scope: String(args.scope ?? ''),
             query: String(args.query ?? ''),
             id: typeof args.id === 'number' ? args.id : undefined,
-            topic: typeof args.topic === 'string' ? args.topic : undefined,
+            title: typeof args.title === 'string' ? args.title : undefined,
             name: typeof args.name === 'string' ? args.name : undefined,
             wxid: typeof args.wxid === 'string' ? args.wxid : undefined,
             platform: typeof args.platform === 'string' ? args.platform : undefined,
@@ -179,7 +179,7 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
             scope: String(args.scope ?? ''),
             id: typeof args.id === 'number' ? args.id : undefined,
             wxid: typeof args.wxid === 'string' ? args.wxid : undefined,
-            topic: typeof args.topic === 'string' ? args.topic : undefined,
+            title: typeof args.title === 'string' ? args.title : undefined,
         });
         return asLocalResult(item ? {...item, reply: '好，不喊了'} : {found: false});
     }

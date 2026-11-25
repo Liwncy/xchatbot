@@ -435,14 +435,13 @@ function peerPersonOf(ctx: CallCtx): {wxid: string; name: string} | null {
 function peerTalkArgs(ctx: CallCtx): ArgsResult {
     const person = peerPersonOf(ctx);
     if (!person) return need('先点名或引用他');
-    const topic = ctx.tail.replace(/^会/u, '').trim();
-    if (!topic) return need('他会啥写后面，比如 #群友记录 点歌');
+    const title = ctx.tail.replace(/^会/u, '').trim();
+    if (!title) return need('他会啥写后面，比如 #群友记录 点歌');
     return ok({
         scope: peerScopeOf(ctx.message),
         wxid: person.wxid,
         name: person.name,
-        topic,
-        fallback: topic === '兜底',
+        title,
         platform: ctx.message.platform,
     });
 }
@@ -453,14 +452,14 @@ function peerShoutArgs(ctx: CallCtx): ArgsResult {
     const tail = ctx.tail.trim();
     if (!tail) return need('口令写后面，比如 #群友口令 点歌 music {问}');
     const parts = tail.split(/\s+/u).filter(Boolean);
-    const topic = (parts[0] ?? '').replace(/^会/u, '');
-    const template = parts.slice(1).join(' ') || topic;
-    if (!topic) return need('会啥和口令写后面');
+    const title = (parts[0] ?? '').replace(/^会/u, '');
+    const template = parts.slice(1).join(' ') || title;
+    if (!title) return need('会啥和口令写后面');
     return ok({
         scope: peerScopeOf(ctx.message),
         wxid: person.wxid,
         name: person.name,
-        topic,
+        title,
         template,
         platform: ctx.message.platform,
     });
@@ -485,12 +484,12 @@ function peerMatchArgs(ctx: CallCtx): ArgsResult {
 
 function peerBanArgs(ctx: CallCtx): ArgsResult {
     const person = peerPersonOf(ctx);
-    const topic = ctx.tail.replace(/^会/u, '').trim();
-    if (!person && !topic) return need('点名他，或把会啥写后面');
+    const title = ctx.tail.replace(/^会/u, '').trim();
+    if (!person && !title) return need('点名他，或把会啥写后面');
     return ok({
         scope: peerScopeOf(ctx.message),
         wxid: person?.wxid,
-        topic: topic || undefined,
+        title: title || undefined,
     });
 }
 
