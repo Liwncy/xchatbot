@@ -493,6 +493,19 @@ function peerBanArgs(ctx: CallCtx): ArgsResult {
     });
 }
 
+/** 点名或引用谁就画谁，都没有画自己。 */
+function peerProfileArgs(ctx: CallCtx): ArgsResult {
+    const person = peerPersonOf(ctx);
+    const self = ctx.message.senderId.trim();
+    if (!person && !self) return need('点名他，或引用他一句');
+    return ok({
+        scope: peerScopeOf(ctx.message),
+        wxid: person?.wxid ?? self,
+        name: person?.name ?? (ctx.message.senderName?.trim() || undefined),
+        platform: ctx.message.platform,
+    });
+}
+
 const MATCH_SPORTS = ['足球', '篮球', '电竞', '网球', '乒乓球', '羽毛球', '斯诺克', '排球'];
 
 function matchLeagueArgs(ctx: CallCtx): ArgsResult {
@@ -641,6 +654,7 @@ export const MENUS: Record<string, string[]> = {
         '#群友记录 他会啥',
         '#群友口令 他会啥 口令模板',
         '#群友禁言 [点名] [他会啥]',
+        '#群友画像 [点名]',
     ],
     规则: [
         '#规则搜索 [关键词]',
@@ -761,6 +775,7 @@ export const VERBS: VerbRoute[] = [
     {verbs: ['群友记录'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerTalkArgs, map: 'json'},
     {verbs: ['群友口令'], server: 'local', tool: 'peer_save', ownerOnly: true, fail: '没记下', args: peerShoutArgs, map: 'json'},
     {verbs: ['群友禁言'], server: 'local', tool: 'peer_ban', ownerOnly: true, fail: '没禁成', args: peerBanArgs, map: 'json'},
+    {verbs: ['群友画像'], server: 'local', tool: 'peer_profile', fail: '画失败了，再试下', args: peerProfileArgs, map: 'json'},
     // 系统
     {verbs: ['现在几点'], tool: 'get_current_time', fail: '这会儿对不上点', args: () => ok({}), map: 'time'},
     {verbs: ['回声复读'], tool: 'echo', ownerOnly: true, fail: '没回出来', args: (ctx) => {

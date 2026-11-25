@@ -34,6 +34,7 @@ import {
 import {emojiGet, emojiRelabelPlaceholders, emojiSave, emojiSearch, emojiUpdate} from '../../../core/emoji-stash/index.js';
 import {formatPeerList, peerBan, peerMatch, peerSave, peerSearch} from '../../../core/peer-roster/index.js';
 import {runLlmConfig} from '../../../core/llm/index.js';
+import {buildMemberCard} from '../../../core/member-card/index.js';
 import {commandPoster} from './poster.js';
 
 type MapFn = (result: McpToolResult, ctx: CallCtx) => HandlerResponse;
@@ -182,6 +183,15 @@ async function callLocalTool(env: Env, name: string, args: Record<string, unknow
             title: typeof args.title === 'string' ? args.title : undefined,
         });
         return asLocalResult(item ? {...item, reply: '好，不喊了'} : {found: false});
+    }
+    if (name === 'peer_profile') {
+        const card = await buildMemberCard(env, {
+            scope: String(args.scope ?? ''),
+            wxid: String(args.wxid ?? ''),
+            name: typeof args.name === 'string' ? args.name : undefined,
+            platform: String(args.platform ?? ''),
+        });
+        return asLocalResult({reply: card.reply});
     }
     if (name === 'emoji_relabel') {
         return asLocalResult(await emojiRelabelPlaceholders(env, {limit: 20, llmLimit: 5}));
