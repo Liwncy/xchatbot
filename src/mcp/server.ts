@@ -4,6 +4,7 @@ import {getChatHistoryByMessageId, searchChatHistory} from '../core/chat-log/sea
 import {searchAppLogs} from '../core/app-log/search.js';
 import {emojiGet, emojiSave, emojiSearch, emojiUpdate} from '../core/emoji-stash/index.js';
 import {formatPeerList, peerBan, peerMatch, peerSave, peerSearch} from '../core/peer-roster/index.js';
+import {buildMemberCard} from '../core/member-card/index.js';
 import {runFakeForward} from '../plugins/channel/fake-forward/index.js';
 import type {Env} from '../types/env.js';
 
@@ -329,6 +330,37 @@ export function createChannelMcpServer(env: Env): McpServer {
             try {
                 const item = await peerBan(env, input);
                 return jsonResult(item ? {...item, reply: '好，不喊了'} : {found: false});
+            } catch (error) {
+                return errorResult(error);
+            }
+        },
+    );
+
+    server.registerTool(
+        'peer_profile',
+        {
+            description:
+                '给群友出一张游戏风格的角色卡（称号、职业、阵营、属性、技能、羁绊）。'
+                + '只有对方明确要「画像」「角色卡」时才调，闲聊、玩梗不要调。只能在群里用。'
+                + 'wxid 写要画的人：对方点名了谁就写谁的 id，没点名就是对方自己。'
+                + '返回的 reply 就是画好的卡，原样发出去，不要加旁白，不要改。'
+                + '每次都会现算一遍，同一个人不要连着调。',
+            inputSchema: z.object({
+                scope: z.string().describe('必填。本条前缀里的 scope，如 group:123@chatroom'),
+                wxid: z.string().describe('必填。要画的人的 id；「被@」行里斜杠前面那段，或本条前缀里发言人的 id'),
+                name: z.string().optional().describe('他在群里的名字，可空'),
+                platform: z.string().optional(),
+            }),
+        },
+        async (input) => {
+            try {
+                const card = await buildMemberCard(env, {
+                    scope: input.scope,
+                    wxid: input.wxid,
+                    name: input.name,
+                    platform: input.platform?.trim() || 'golem',
+                });
+                return jsonResult({ok: card.ok, reply: card.reply});
             } catch (error) {
                 return errorResult(error);
             }
