@@ -18,3 +18,5 @@ tmp/
 !.github/workflows/**
 .qoder/
 .tmp-parse-refer-smoke/
+.idea/
+*.code-workspace
