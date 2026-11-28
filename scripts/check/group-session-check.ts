@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type {IncomingMessage} from '../../src/core/message.ts';
 import {isBotMentioned} from '../../src/plugins/channel/session/mention.ts';
+import {parseJoinAnswer} from '../../src/plugins/channel/session/auto-reply.ts';
 import {
     allowsGroupMessage,
     DEFAULT_GROUP_SETTINGS,
@@ -19,7 +20,10 @@ import {
 assert.equal(parseMode('点名'), 'mention');
 assert.equal(parseMode('MENTION'), 'mention');
 assert.equal(parseMode('智能模式'), 'smart');
+assert.equal(parseMode('自主'), 'auto');
+assert.equal(parseMode('自主模式'), 'auto');
 assert.equal(parseMode('nope'), null);
+assert.equal(modeLabel('auto'), '自主');
 assert.equal(modeLabel('random'), '随机');
 assert.equal(normalizeSettings({}).replyChancePercent, DEFAULT_REPLY_CHANCE);
 assert.equal(normalizeSettings({replyChancePercent: 0}).replyChancePercent, 0);
@@ -32,6 +36,8 @@ assert.deepEqual(parseGroupCommand('模式'), {kind: 'unknown-help'});
 assert.deepEqual(parseGroupCommand('跟聊'), {kind: 'unknown-help'});
 assert.deepEqual(parseGroupCommand('概率'), {kind: 'unknown-help'});
 assert.deepEqual(parseGroupCommand('模式 随机'), {kind: 'set-mode', mode: 'random'});
+assert.deepEqual(parseGroupCommand('模式 自主'), {kind: 'set-mode', mode: 'auto'});
+assert.deepEqual(parseGroupCommand('自主模式'), {kind: 'set-mode', mode: 'auto'});
 assert.deepEqual(parseGroupCommand('随机模式'), {kind: 'set-mode', mode: 'random'});
 assert.deepEqual(parseGroupCommand('模式 随机 20'), {kind: 'set-chance', percent: 20});
 assert.deepEqual(parseGroupCommand('概率 8%'), {kind: 'set-chance', percent: 8});
@@ -97,7 +103,18 @@ assert.equal(allowsGroupMessage(smart, {mentioned: false, followActive: false, l
 assert.equal(allowsGroupMessage(smart, {mentioned: false, followActive: false, listed: false, chanceHit: false}), false);
 
 assert.equal(followUpApplies('random'), false);
+assert.equal(followUpApplies('auto'), true);
 assert.equal(followUpApplies('smart'), true);
+
+const auto = {...DEFAULT_GROUP_SETTINGS, mode: 'auto' as const};
+assert.equal(allowsGroupMessage(auto, {mentioned: false, followActive: false, listed: false, chanceHit: false}), true);
+
+assert.equal(parseJoinAnswer('回'), true);
+assert.equal(parseJoinAnswer('不回'), false);
+assert.equal(parseJoinAnswer('不回。'), false);
+assert.equal(parseJoinAnswer('<think>看看</think>\n回'), true);
+assert.equal(parseJoinAnswer('回复一下'), null);
+assert.equal(parseJoinAnswer(''), null);
 assert.equal(rollChance(0, () => 0), false);
 assert.equal(rollChance(15, () => 0.149), true);
 assert.equal(rollChance(15, () => 0.15), false);

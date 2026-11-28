@@ -1,4 +1,4 @@
-export type GroupRespondMode = 'mention' | 'full' | 'rule' | 'random' | 'smart';
+export type GroupRespondMode = 'mention' | 'full' | 'rule' | 'random' | 'smart' | 'auto';
 
 export type GroupSettings = {
     mode: GroupRespondMode;
@@ -30,6 +30,8 @@ export function modeLabel(mode: GroupRespondMode): string {
             return '随机';
         case 'smart':
             return '智能';
+        case 'auto':
+            return '自主';
     }
 }
 
@@ -64,6 +66,10 @@ export function parseMode(raw: string): GroupRespondMode | null {
         case '智能':
         case '智能模式':
             return 'smart';
+        case 'auto':
+        case '自主':
+        case '自主模式':
+            return 'auto';
         default:
             return null;
     }
@@ -112,7 +118,7 @@ export function matchesKeyword(settings: GroupSettings, text: string): boolean {
 }
 
 export function followUpApplies(mode: GroupRespondMode): boolean {
-    return mode === 'mention' || mode === 'smart' || mode === 'rule' || mode === 'full';
+    return mode === 'mention' || mode === 'smart' || mode === 'rule' || mode === 'full' || mode === 'auto';
 }
 
 export function allowsGroupMessage(settings: GroupSettings, args: {
@@ -132,6 +138,8 @@ export function allowsGroupMessage(settings: GroupSettings, args: {
             return args.chanceHit || args.listed;
         case 'smart':
             return named || args.chanceHit || args.listed;
+        case 'auto':
+            return true;
     }
 }
 
@@ -252,7 +260,7 @@ export function parseGroupCommand(command: string): GroupCommand | null {
     const shortMode = parseMode(lower);
     if (
         shortMode
-        && ['全量模式', '全都回', '点名模式', '要@', '规则模式', '随机模式', '智能模式'].includes(lower)
+        && ['全量模式', '全都回', '点名模式', '要@', '规则模式', '随机模式', '智能模式', '自主模式'].includes(lower)
     ) {
         return {kind: 'set-mode', mode: shortMode};
     }

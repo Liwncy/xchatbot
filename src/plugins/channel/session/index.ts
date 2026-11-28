@@ -20,6 +20,7 @@ import {
     type GroupSettings,
 } from './policy.js';
 import {tryHandlePersona} from '../../../core/persona/index.js';
+import {shouldJoinChat} from './auto-reply.js';
 import {
     ensureGroupSettings,
     getGroupSettings,
@@ -128,6 +129,9 @@ async function applyCommand(
         follow: next.followUpSeconds,
     });
     if (command.kind === 'set-mode') {
+        if (command.mode === 'auto') {
+            return textReply('好了，换成「自主」了。点名、跟聊、名单直接接，剩下的我先看一眼 👌');
+        }
         return textReply(`好了，换成「${modeLabel(command.mode)}」了 👌`);
     }
     return textReply('好了 👌');
@@ -210,6 +214,7 @@ export const groupSessionPlugin: Plugin = {
 
         const active = await isGroupSessionActive(ctx.env, message.platform, roomId);
         if (!active) return handledReply();
+
         if (!allowed) {
             logger.info('群策略未放行', {
                 platform: message.platform,
@@ -221,6 +226,14 @@ export const groupSessionPlugin: Plugin = {
                 chanceHit,
             });
             return handledReply();
+        }
+
+        if (settings.mode === 'auto' && !mentioned && !followActive && !listed) {
+            const join = await shouldJoinChat(ctx.env, message);
+            if (!join) {
+                logger.info('自主模式先不接', {platform: message.platform, roomId});
+                return handledReply();
+            }
         }
 
         if (followOn && (mentioned || followActive)) {

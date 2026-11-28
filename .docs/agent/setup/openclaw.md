@@ -37,7 +37,7 @@ openclaw gateway restart
 | `XBOT_CHANNEL_GATEWAY_URL` | 可选；默认从 `AGENT_BRIDGE_BASE_URL` 去掉 `/v1` |
 | `AGENT_BRIDGE_TOKEN` | Gateway 入站鉴权，也用于 `/openclaw/outbound` 和通道 `/mcp` |
 
-私聊白名单、官方号在适配器拦。群聊启停和点名 / 随机 / 智能 / 规则在 `group-session`。
+私聊白名单、官方号在适配器拦。群聊启停和点名 / 随机 / 智能 / 规则 / 自主在 `group-session`。自主里点名、跟聊、名单直接进大脑，其余先让小模型答回或不回。
 
 ## 3. 自检
 

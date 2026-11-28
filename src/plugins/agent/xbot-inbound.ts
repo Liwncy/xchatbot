@@ -13,7 +13,7 @@ import {resolveOpenClawMedia} from './openclaw/resolve-media.js';
 
 /**
  * 群里这条是不是在叫它。私聊一律是在叫它，不带这个字段。
- * 群会话在 full / random / smart 下会放行没点名的消息，大脑回静默标记才是对的；
+ * 群会话在 full / random / smart / auto 下会放行没点名的消息，大脑回静默标记才是对的；
  * 把「没点名」告诉对面，对面才不会把静默当成出错。
  */
 function addressedToBot(message: IncomingMessage, env: Env): boolean | undefined {
