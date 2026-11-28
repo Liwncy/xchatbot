@@ -33,10 +33,6 @@ function groupKey(kind: 'on' | 'cfg' | 'cd', platform: string, chatId: string): 
     return `neko:${kind}:${platform}:${chatId}`;
 }
 
-export function nekoGamePlatform(env: Env): string {
-    return env.XIUXIAN_PLATFORM?.trim() || 'agbot';
-}
-
 // ── 开关 + 猫娘缓存 ─────────────────────────────────────
 
 /** 没开返回 null。 */

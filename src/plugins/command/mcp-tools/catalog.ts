@@ -120,10 +120,6 @@ function ok(args: Record<string, unknown>): ArgsResult {
     return {ok: true, args};
 }
 
-function gamePlatform(env: Env): string {
-    return env.XIUXIAN_PLATFORM?.trim() || 'agbot';
-}
-
 export function isOwner(message: IncomingMessage, env: Env): boolean {
     const ownerId = resolveOwnerId(env, message.platform);
     return Boolean(ownerId && message.senderId.trim() === ownerId);
@@ -131,11 +127,16 @@ export function isOwner(message: IncomingMessage, env: Env): boolean {
 
 export function identityArgs(ctx: CallCtx): Record<string, string> {
     return {
-        platform: gamePlatform(ctx.env),
+        platform: ctx.message.platform,
         userId: ctx.message.senderId,
         userName: ctx.message.senderName ?? '',
         requestId: `${ctx.message.platform}:${ctx.message.messageId}`,
     };
+}
+
+/** 通道上的人。规则维护走这里，platform 用这条消息的通道。 */
+function channelCaller(ctx: CallCtx): {platform: string; userId: string} {
+    return {platform: ctx.message.platform, userId: ctx.message.senderId.trim()};
 }
 
 function firstHttpUrl(text: string): string {
@@ -356,16 +357,16 @@ function ruleJsonArgs(field: 'rule' | 'both') {
         if (field === 'both') {
             const rule = (parsed.rule as Record<string, unknown> | undefined) ?? parsed;
             const testParams = parsed.testParams as Record<string, string> | undefined;
-            return ok({rule, testParams, context: ruleContext(ctx.message)});
+            return ok({rule, testParams, context: ruleContext(ctx.message), ...channelCaller(ctx)});
         }
-        return ok({rule: parsed});
+        return ok({rule: parsed, ...channelCaller(ctx)});
     };
 }
 
 function ruleStatusArgs(status: 'active' | 'disabled' | 'testing') {
     return (ctx: CallCtx): ArgsResult => {
         if (!ctx.tail) return need('规则 id 写后面');
-        return ok({ruleId: ctx.tail.split(/\s+/u)[0], status});
+        return ok({ruleId: ctx.tail.split(/\s+/u)[0], status, ...channelCaller(ctx)});
     };
 }
 
@@ -799,14 +800,14 @@ export const VERBS: VerbRoute[] = [
         if (!ruleId) return need('规则 id 写后面，参数用 城市=北京');
         return ok({ruleId, params: parsePairs(rest.join(' ')), context: ruleContext(ctx.message)});
     }, map: 'rule'},
-    {verbs: ['规则查询'], tool: 'rule_get', ownerOnly: true, fail: '没查到', args: (ctx) => ctx.tail ? ok({ruleId: ctx.tail.split(/\s+/u)[0]}) : need('规则 id 写后面'), map: 'json'},
+    {verbs: ['规则查询'], tool: 'rule_get', ownerOnly: true, fail: '没查到', args: (ctx) => ctx.tail ? ok({ruleId: ctx.tail.split(/\s+/u)[0], ...channelCaller(ctx)}) : need('规则 id 写后面'), map: 'json'},
     {verbs: ['规则校验'], tool: 'rule_validate', ownerOnly: true, fail: '没校完', args: ruleJsonArgs('rule'), map: 'json'},
     {verbs: ['规则测试'], tool: 'rule_test', ownerOnly: true, fail: '没测成', args: ruleJsonArgs('both'), map: 'json'},
     {verbs: ['规则入库'], tool: 'rule_auto_add', ownerOnly: true, fail: '没加上', args: ruleJsonArgs('both'), map: 'json'},
     {verbs: ['规则保存'], tool: 'rule_upsert', ownerOnly: true, fail: '没存上', args: ruleJsonArgs('rule'), map: 'json'},
     {verbs: ['规则启用'], tool: 'rule_set_status', ownerOnly: true, fail: '没改成', args: ruleStatusArgs('active'), map: 'json'},
     {verbs: ['规则停用'], tool: 'rule_set_status', ownerOnly: true, fail: '没改成', args: ruleStatusArgs('disabled'), map: 'json'},
-    {verbs: ['规则删除'], tool: 'rule_delete', ownerOnly: true, fail: '没删掉', args: (ctx) => ctx.tail ? ok({ruleId: ctx.tail.split(/\s+/u)[0]}) : need('规则 id 写后面'), map: 'json'},
+    {verbs: ['规则删除'], tool: 'rule_delete', ownerOnly: true, fail: '没删掉', args: (ctx) => ctx.tail ? ok({ruleId: ctx.tail.split(/\s+/u)[0], ...channelCaller(ctx)}) : need('规则 id 写后面'), map: 'json'},
 ];
 
 /** 不调 MCP，只列出能敲的动词。 */

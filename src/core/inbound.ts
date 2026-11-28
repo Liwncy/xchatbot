@@ -138,7 +138,7 @@ export async function buildSpeakerPrefix(
     const scope = message.source === 'group'
         ? `group:${message.chatId}`
         : `user:${message.chatId}`;
-    return `[${speaker}${isOwner ? ' owner' : ''}${personaName ? ` persona=${personaName}` : ''} scope=${scope}]`;
+    return `[${speaker}${isOwner ? ' owner' : ''} platform=${message.platform}${personaName ? ` persona=${personaName}` : ''} scope=${scope}]`;
 }
 
 function formatQuote(quote: QuoteRef | undefined, mediaUrl?: string): string {

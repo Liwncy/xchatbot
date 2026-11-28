@@ -16,7 +16,6 @@ import {
     disableNeko,
     enableNeko,
     loadChimeConfig,
-    nekoGamePlatform,
     readNekoGroup,
     saveChimeOverride,
     syncNekoOwner,
@@ -115,7 +114,7 @@ async function adoptRoomOwner(ctx: CallCtx): Promise<AdoptResult> {
     if (owner.id === resolveBotId(env, message.platform)) return none;
 
     const result = await callCfTool(env, 'neko_action', {
-        platform: nekoGamePlatform(env),
+        platform: message.platform,
         userId: message.senderId,
         userName: message.senderName ?? '',
         requestId: `${message.platform}:${message.messageId}:adopt`,

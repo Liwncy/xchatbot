@@ -30,7 +30,6 @@ export interface Env {
     CF_WORKER?: Fetcher;
     /** 网关模型名，格式 `上游/模型`。默认 `cnb/deepseek-v4-flash`。 */
     LLM_GATEWAY_MODEL?: string;
-    XIUXIAN_PLATFORM?: string;
 
     /**
      * 猫娘主动开口的全局默认。每群可以用 `#猫娘设置` 单独改，改了就盖过这里。

@@ -51,7 +51,7 @@ async function main(): Promise<void> {
             },
             mentions: [{id: 'wxid_b', name: '李四'}],
         }, env, {url: 'https://cdn.example/a.jpg', kind: 'image'});
-        assert.match(text, /^\[wxid_owner\/李芈仙 owner scope=group:123@chatroom]/);
+        assert.match(text, /^\[wxid_owner\/李芈仙 owner platform=golem scope=group:123@chatroom]/);
         assert.match(text, /\[引用:image 李四] 看这图 md5=0123456789abcdef0123456789abcdef/);
         assert.match(text, /\[被@ 1 wxid_b\/李四]/);
     }

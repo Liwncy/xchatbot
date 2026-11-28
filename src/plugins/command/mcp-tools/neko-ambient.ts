@@ -7,7 +7,6 @@ import type {AmbientListener} from '../../channel/ambient/types.js';
 import {
     isChimeCooling,
     loadChimeConfig,
-    nekoGamePlatform,
     readNekoGroup,
     startChimeCooldown,
 } from './neko-store.js';
@@ -61,7 +60,7 @@ export const nekoAmbientListener: AmbientListener = {
         if (await isChimeCooling(env, platform, chatId)) return null;
 
         const result = await callCfTool(env, 'neko_chime', {
-            platform: nekoGamePlatform(env),
+            platform: platform,
             chatId,
             trigger: hit.scenario,
             userId: message.senderId,

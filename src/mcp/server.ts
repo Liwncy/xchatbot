@@ -7,6 +7,7 @@ import {formatPeerList, peerBan, peerMatch, peerSave, peerSearch} from '../core/
 import {buildMemberCard} from '../core/member-card/index.js';
 import {runFakeForward} from '../plugins/channel/fake-forward/index.js';
 import type {Env} from '../types/env.js';
+import {installCallerGate} from './caller-gate.js';
 
 function jsonResult(value: unknown) {
     return textResult(JSON.stringify(value, null, 2));
@@ -26,6 +27,7 @@ export function createChannelMcpServer(env: Env): McpServer {
         name: 'xchatbot',
         version: '0.1.0',
     });
+    installCallerGate(server, env);
 
     server.registerTool(
         'agbot_chat_history',
